@@ -10,8 +10,7 @@ use finding::Finding;
 /// v1 deliberately uses a fixed list rather than dynamic plugin loading (design doc §7): there is
 /// no known need yet for a check this project's own maintainers didn't write.
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
-    // No checks implemented yet — `reachability` (design doc §3) is next.
-    Vec::new()
+    vec![Box::new(checks::ReachabilityCheck)]
 }
 
 /// Run every registered check at or below the requested tier, collect and validate their

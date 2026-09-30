@@ -69,7 +69,7 @@ pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> 
 
         if let Some(span) = cm.spans.iter().find(|s| s.is_primary) {
             hits.push(DeadCodeHit {
-                file: span.file_name.clone(),
+                file: normalize_path_separators(&span.file_name),
                 line: span.line_start,
                 symbol: extract_symbol_name(&cm.message),
             });
@@ -93,10 +93,25 @@ fn extract_symbol_name(message: &str) -> String {
     message.split('`').nth(1).unwrap_or(message).to_string()
 }
 
+/// rustc's JSON `file_name` uses the platform-native separator; every downstream consumer (the
+/// allowlist, Finding.location, CLI display) expects the portable forward-slash form.
+fn normalize_path_separators(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{collect_dead_code, CollectResult};
+    use super::{collect_dead_code, normalize_path_separators, CollectResult};
     use std::path::Path;
+
+    #[test]
+    fn windows_backslashes_are_normalized_to_forward_slashes() {
+        // rustc's own JSON `file_name` uses the platform-native separator (confirmed empirically on
+        // Windows: "src\\main.rs", not "src/main.rs") -- the allowlist's portable, TOML-author-facing
+        // convention is forward slashes, so this must be normalized at the source.
+        assert_eq!(normalize_path_separators("src\\main.rs"), "src/main.rs");
+        assert_eq!(normalize_path_separators("src/main.rs"), "src/main.rs");
+    }
 
     fn write_fixture(dir: &Path, lib_rs: &str) {
         std::fs::write(
