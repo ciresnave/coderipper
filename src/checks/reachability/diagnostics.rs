@@ -62,7 +62,11 @@ pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> 
             continue;
         }
 
-        let is_dead_code = cm.code.as_ref().map(|c| c.code == "dead_code").unwrap_or(false);
+        let is_dead_code = cm
+            .code
+            .as_ref()
+            .map(|c| c.code == "dead_code")
+            .unwrap_or(false);
         if !is_dead_code {
             continue;
         }
@@ -128,8 +132,10 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_fixture(tmp.path(), "pub(crate) fn dead() {}\n");
 
-        let CollectResult { hits, build_failed_for_other_reasons } =
-            collect_dead_code(tmp.path()).unwrap();
+        let CollectResult {
+            hits,
+            build_failed_for_other_reasons,
+        } = collect_dead_code(tmp.path()).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -157,7 +163,10 @@ mod tests {
         );
 
         let CollectResult { hits, .. } = collect_dead_code(tmp.path()).unwrap();
-        assert!(hits.is_empty(), "the pipeline must be able to see a real caller when one exists");
+        assert!(
+            hits.is_empty(),
+            "the pipeline must be able to see a real caller when one exists"
+        );
     }
 
     #[test]
@@ -165,10 +174,15 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_fixture(tmp.path(), "this is not valid rust syntax {{{\n");
 
-        let CollectResult { hits, build_failed_for_other_reasons } =
-            collect_dead_code(tmp.path()).unwrap();
+        let CollectResult {
+            hits,
+            build_failed_for_other_reasons,
+        } = collect_dead_code(tmp.path()).unwrap();
 
         assert!(build_failed_for_other_reasons);
-        assert!(hits.is_empty(), "no dead-code claim should be made about a crate that didn't compile");
+        assert!(
+            hits.is_empty(),
+            "no dead-code claim should be made about a crate that didn't compile"
+        );
     }
 }

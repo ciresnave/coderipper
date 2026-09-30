@@ -62,7 +62,12 @@ mod tests {
     use std::process::Command;
 
     fn init_fixture_repo(dir: &std::path::Path) {
-        Command::new("git").arg("init").arg("-q").current_dir(dir).status().unwrap();
+        Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(dir)
+            .status()
+            .unwrap();
         std::fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
@@ -70,9 +75,22 @@ mod tests {
         .unwrap();
         std::fs::create_dir(dir.join("src")).unwrap();
         std::fs::write(dir.join("src/lib.rs"), "pub fn dead() {}\n").unwrap();
-        Command::new("git").args(["add", "-A"]).current_dir(dir).status().unwrap();
         Command::new("git")
-            .args(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "init"])
+            .args(["add", "-A"])
+            .current_dir(dir)
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args([
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-q",
+                "-m",
+                "init",
+            ])
             .current_dir(dir)
             .status()
             .unwrap();
@@ -89,7 +107,10 @@ mod tests {
         assert!(rewritten.contains("pub(crate) fn dead"));
 
         let original = std::fs::read_to_string(tmp.path().join("src/lib.rs")).unwrap();
-        assert_eq!(original, "pub fn dead() {}\n", "the caller's real tree must be untouched");
+        assert_eq!(
+            original, "pub fn dead() {}\n",
+            "the caller's real tree must be untouched"
+        );
     }
 
     #[test]

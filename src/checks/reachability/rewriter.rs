@@ -6,10 +6,16 @@
 //! always safe (internal imports through it still resolve; external ones correctly stop, which is
 //! the point).
 
-const KEYWORDS: &[&str] = &["fn", "struct", "enum", "trait", "const", "static", "type", "mod", "use"];
+const KEYWORDS: &[&str] = &[
+    "fn", "struct", "enum", "trait", "const", "static", "type", "mod", "use",
+];
 
 pub fn rewrite_pub_to_pub_crate(source: &str) -> String {
-    source.lines().map(rewrite_line).collect::<Vec<_>>().join("\n")
+    source
+        .lines()
+        .map(rewrite_line)
+        .collect::<Vec<_>>()
+        .join("\n")
         + if source.ends_with('\n') { "\n" } else { "" }
 }
 
@@ -73,7 +79,9 @@ mod tests {
 
     #[test]
     fn every_declaring_keyword_is_covered() {
-        for kw in ["fn", "struct", "enum", "trait", "const", "static", "type", "mod"] {
+        for kw in [
+            "fn", "struct", "enum", "trait", "const", "static", "type", "mod",
+        ] {
             let src = format!("pub {kw} x;\n");
             let want = format!("pub(crate) {kw} x;\n");
             assert_eq!(rewrite_pub_to_pub_crate(&src), want, "keyword {kw}");

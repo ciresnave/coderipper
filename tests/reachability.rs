@@ -10,10 +10,28 @@ fn fixture_as_a_git_repo() -> tempfile::TempDir {
         let to = tmp.path().join(name);
         copy_recursive(&from, &to);
     }
-    Command::new("git").arg("init").arg("-q").current_dir(tmp.path()).status().unwrap();
-    Command::new("git").args(["add", "-A"]).current_dir(tmp.path()).status().unwrap();
     Command::new("git")
-        .args(["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "init"])
+        .arg("init")
+        .arg("-q")
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    Command::new("git")
+        .args([
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ])
         .current_dir(tmp.path())
         .status()
         .unwrap();
@@ -42,14 +60,20 @@ fn the_reachability_check_finds_exactly_the_dead_function() {
 
     let findings = ReachabilityCheck.run(&ctx).unwrap();
 
-    assert_eq!(findings.len(), 1, "exactly one dead pub item: dead_function");
+    assert_eq!(
+        findings.len(),
+        1,
+        "exactly one dead pub item: dead_function"
+    );
     assert!(findings[0].summary.contains("`dead_function`"));
     assert!(findings[0].positive_control.is_some());
     // caller/used_function must NOT appear as the IDENTIFIED symbol -- they're reachable via
     // main(). Match the backtick-quoted symbol name, not a bare substring: the summary template's
     // own prose ("has zero callers found") contains "caller" as a substring of "callers", which
     // would otherwise false-positive on every finding regardless of which symbol it's about.
-    assert!(!findings.iter().any(|f| f.summary.contains("`used_function`")));
+    assert!(!findings
+        .iter()
+        .any(|f| f.summary.contains("`used_function`")));
     assert!(!findings.iter().any(|f| f.summary.contains("`caller`")));
 }
 
