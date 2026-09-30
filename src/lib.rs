@@ -1,4 +1,5 @@
 pub mod check;
+pub mod checks;
 pub mod finding;
 
 use check::{Check, CheckContext, Tier};
