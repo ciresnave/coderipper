@@ -57,26 +57,36 @@ pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> 
         }
         let Some(cm) = msg.message else { continue };
 
-        if cm.level == "error" {
-            saw_error = true;
-            continue;
-        }
-
+        // Check dead_code FIRST, regardless of level: a crate-level `#![deny(warnings)]` promotes
+        // dead_code to `error`, and that's still a real, reportable finding -- arguably a more
+        // urgent one, since it's actively breaking that crate's own build. Only a non-dead_code
+        // error means something else is genuinely broken.
         let is_dead_code = cm
             .code
             .as_ref()
             .map(|c| c.code == "dead_code")
             .unwrap_or(false);
-        if !is_dead_code {
+
+        if is_dead_code {
+            // Grouped diagnostics ("methods `a`, `b`, and `c` are never used") carry one PRIMARY
+            // span per symbol, in the same order as the backtick-quoted names in the message text.
+            // Taking only the first (as an earlier version of this function did) silently lost
+            // every symbol after the first in any grouped diagnostic.
+            let names = extract_symbol_names(&cm.message);
+            let primary_spans: Vec<&CompilerSpan> =
+                cm.spans.iter().filter(|s| s.is_primary).collect();
+            for (span, name) in primary_spans.iter().zip(names.iter()) {
+                hits.push(DeadCodeHit {
+                    file: normalize_path_separators(&span.file_name),
+                    line: span.line_start,
+                    symbol: name.clone(),
+                });
+            }
             continue;
         }
 
-        if let Some(span) = cm.spans.iter().find(|s| s.is_primary) {
-            hits.push(DeadCodeHit {
-                file: normalize_path_separators(&span.file_name),
-                line: span.line_start,
-                symbol: extract_symbol_name(&cm.message),
-            });
+        if cm.level == "error" {
+            saw_error = true;
         }
     }
 
@@ -86,15 +96,28 @@ pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> 
     hits.sort_by(|a, b| (&a.file, a.line, &a.symbol).cmp(&(&b.file, b.line, &b.symbol)));
     hits.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.symbol == b.symbol);
 
+    // A build can fail with NO compiler-message at all (e.g. a panicking build.rs writes plain
+    // text to stderr, not rustc JSON) -- `saw_error` would stay false even though the build
+    // genuinely failed. A non-zero exit with nothing informative parsed is exactly that case.
+    let build_failed_for_other_reasons =
+        saw_error || (!output.status.success() && hits.is_empty() && !saw_error);
+
     Ok(CollectResult {
         hits,
-        build_failed_for_other_reasons: saw_error,
+        build_failed_for_other_reasons,
     })
 }
 
-/// rustc's dead_code message is like: "function `dead` is never used" -- pull the backtick-quoted name.
-fn extract_symbol_name(message: &str) -> String {
-    message.split('`').nth(1).unwrap_or(message).to_string()
+/// rustc's dead_code message is like: "function `dead` is never used", or, for a grouped
+/// diagnostic, "methods `a`, `b`, and `c` are never used" -- pull every backtick-quoted name, in
+/// the order they appear (which matches the order of the message's primary spans).
+fn extract_symbol_names(message: &str) -> Vec<String> {
+    message
+        .split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_string)
+        .collect()
 }
 
 /// rustc's JSON `file_name` uses the platform-native separator; every downstream consumer (the
@@ -167,6 +190,70 @@ mod tests {
             hits.is_empty(),
             "the pipeline must be able to see a real caller when one exists"
         );
+    }
+
+    #[test]
+    fn a_grouped_diagnostic_reports_every_symbol_not_just_the_first() {
+        // Review finding: rustc groups multiple unused impl methods into ONE message ("methods
+        // `a`, `b`, and `c` are never used") with one primary span per method, in the same order as
+        // the backtick-quoted names in the message. The old code took only the first primary span
+        // (via .find()), silently losing `b` and `c`.
+        let tmp = tempfile::tempdir().unwrap();
+        write_fixture(
+            tmp.path(),
+            "pub(crate) struct Foo;\nimpl Foo {\n    fn a(&self) {}\n    fn b(&self) {}\n    fn c(&self) {}\n}\n",
+        );
+
+        let CollectResult { hits, .. } = collect_dead_code(tmp.path()).unwrap();
+        let mut symbols: Vec<&str> = hits.iter().map(|h| h.symbol.as_str()).collect();
+        symbols.sort();
+        assert_eq!(symbols, vec!["Foo", "a", "b", "c"]);
+    }
+
+    #[test]
+    fn dead_code_promoted_to_an_error_by_deny_warnings_is_still_reported_as_a_finding() {
+        // Review finding: a crate-level #![deny(warnings)] escalates dead_code's level to "error".
+        // The old code treated ANY error-level message as a sign the whole build was broken and
+        // silently discarded everything, including this genuinely real, actionable finding.
+        let tmp = tempfile::tempdir().unwrap();
+        write_fixture(
+            tmp.path(),
+            "#![deny(warnings)]\npub(crate) fn dead() {}\n",
+        );
+
+        let CollectResult {
+            hits,
+            build_failed_for_other_reasons,
+        } = collect_dead_code(tmp.path()).unwrap();
+
+        assert!(!build_failed_for_other_reasons);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].symbol, "dead");
+    }
+
+    #[test]
+    fn a_build_rs_panic_with_no_compiler_message_is_still_flagged_as_a_failure() {
+        // Review finding: a panicking build.rs writes plain text to stderr, not rustc JSON --
+        // `saw_error` (only ever set from a parsed compiler-message) stayed false even though the
+        // build genuinely failed, so this case fell through as "0 findings, not failed" (silent
+        // false-clean) rather than being flagged.
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\nbuild = \"build.rs\"\n",
+        )
+        .unwrap();
+        std::fs::write(tmp.path().join("build.rs"), "fn main() { panic!(\"boom\"); }\n").unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(tmp.path().join("src/lib.rs"), "pub(crate) fn dead() {}\n").unwrap();
+
+        let CollectResult {
+            hits,
+            build_failed_for_other_reasons,
+        } = collect_dead_code(tmp.path()).unwrap();
+
+        assert!(build_failed_for_other_reasons);
+        assert!(hits.is_empty());
     }
 
     #[test]
