@@ -30,12 +30,34 @@ fn rewrite_line(line: &str) -> String {
     // right after "pub ", so a scoped visibility shows up as "(...)" here, and `pub(...)` with no
     // space (e.g. "pub(crate)") never matched the "pub " prefix at all.
 
-    let next_word = after_pub.split_whitespace().next().unwrap_or("");
-    if KEYWORDS.contains(&next_word) {
+    if KEYWORDS.contains(&next_declaring_keyword(after_pub)) {
         format!("{indent}pub(crate) {after_pub}")
     } else {
         line.to_string()
     }
+}
+
+/// Skips leading qualifiers (`async`, `unsafe`, `extern "ABI"`) to find the real declaring
+/// keyword -- "pub async fn x()" must still be recognized as a `fn` declaration, not left at full
+/// `pub` just because "async" isn't itself in `KEYWORDS`.
+fn next_declaring_keyword(after_pub: &str) -> &str {
+    let mut probe = after_pub;
+    loop {
+        let word = probe.split_whitespace().next().unwrap_or("");
+        match word {
+            "async" | "unsafe" => probe = probe[word.len()..].trim_start(),
+            "extern" => {
+                probe = probe[word.len()..].trim_start();
+                if probe.starts_with('"') {
+                    if let Some(end) = probe[1..].find('"') {
+                        probe = probe[end + 2..].trim_start();
+                    }
+                }
+            }
+            _ => break,
+        }
+    }
+    probe.split_whitespace().next().unwrap_or("")
 }
 
 #[cfg(test)]
@@ -75,6 +97,28 @@ mod tests {
             rewrite_pub_to_pub_crate(src),
             "mod inner {\n    pub(crate) struct Thing;\n}\n"
         );
+    }
+
+    #[test]
+    fn qualified_fn_declarations_are_still_recognized() {
+        // Review finding: the old code only checked the word IMMEDIATELY after "pub ", so
+        // "pub async fn"/"pub unsafe fn"/"pub extern "C" fn" were silently left at full `pub`
+        // (never analyzed at all, since "async"/"unsafe"/"extern" aren't declaring keywords).
+        let cases = [
+            ("pub async fn f() {}\n", "pub(crate) async fn f() {}\n"),
+            ("pub unsafe fn f() {}\n", "pub(crate) unsafe fn f() {}\n"),
+            (
+                "pub extern \"C\" fn f() {}\n",
+                "pub(crate) extern \"C\" fn f() {}\n",
+            ),
+            (
+                "pub unsafe extern \"C\" fn f() {}\n",
+                "pub(crate) unsafe extern \"C\" fn f() {}\n",
+            ),
+        ];
+        for (src, want) in cases {
+            assert_eq!(rewrite_pub_to_pub_crate(src), want, "case: {src:?}");
+        }
     }
 
     #[test]
