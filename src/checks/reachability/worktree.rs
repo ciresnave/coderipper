@@ -4,6 +4,7 @@ use std::process::Command;
 
 pub struct RewrittenWorktree {
     pub root: PathBuf,
+    source_repo: PathBuf,
     _scratch: tempfile::TempDir, // keeps the parent dir alive for root's lifetime
 }
 
@@ -13,7 +14,7 @@ impl RewrittenWorktree {
         let wt_path = scratch.path().join("wt");
 
         let status = Command::new("git")
-            .args(["worktree", "add", "--detach"])
+            .args(["worktree", "add", "--detach", "-q"])
             .arg(&wt_path)
             .arg("HEAD")
             .current_dir(project_root)
@@ -27,6 +28,7 @@ impl RewrittenWorktree {
 
         Ok(Self {
             root: wt_path,
+            source_repo: project_root.to_path_buf(),
             _scratch: scratch,
         })
     }
@@ -34,11 +36,22 @@ impl RewrittenWorktree {
 
 impl Drop for RewrittenWorktree {
     fn drop(&mut self) {
-        // Best-effort: `git worktree remove` needs the ORIGINAL repo as cwd, which we don't keep a
-        // handle to here, so just remove the directory tree. The scratch TempDir's own Drop would do
-        // this anyway; doing it explicitly first lets `git worktree prune` (run periodically by
-        // callers, not here) reclaim the now-dangling worktree registration in the source repo.
-        let _ = std::fs::remove_dir_all(&self.root);
+        // `git worktree remove` (run from the SOURCE repo, which we now keep a handle to) both
+        // deletes the directory AND unregisters it -- unlike a bare rm -rf, which leaves a dangling
+        // `git worktree list` entry in the source repo that accumulates across runs. Reviewed
+        // finding: in a shared checkout that dangling entry is an unwanted write into a shared .git.
+        let removed = Command::new("git")
+            .args(["worktree", "remove", "--force"])
+            .arg(&self.root)
+            .current_dir(&self.source_repo)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !removed {
+            // Source repo may itself be gone (e.g. a test's own tempdir already dropped) -- fall
+            // back to a plain directory removal so we don't leak disk space either way.
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
     }
 }
 
@@ -124,5 +137,31 @@ mod tests {
         }; // dropped here
 
         assert!(!wt_root.exists(), "worktree dir must be cleaned up on drop");
+    }
+
+    #[test]
+    fn dropping_also_unregisters_the_worktree_from_the_source_repo() {
+        // Review finding: only deleting the directory leaves a dangling `git worktree list` entry
+        // in the SOURCE repo, which accumulates across runs and, in a shared checkout, is a write
+        // into a shared .git nobody asked for. `git worktree remove` (not just rm -rf) is required.
+        let tmp = tempfile::tempdir().unwrap();
+        init_fixture_repo(tmp.path());
+
+        {
+            let _wt = RewrittenWorktree::create(tmp.path()).unwrap();
+        } // dropped here
+
+        let output = Command::new("git")
+            .args(["worktree", "list", "--porcelain"])
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+        let listing = String::from_utf8_lossy(&output.stdout);
+        // Only the source repo's own primary worktree should remain listed.
+        assert_eq!(
+            listing.matches("worktree ").count(),
+            1,
+            "expected only the source repo's own entry, got:\n{listing}"
+        );
     }
 }
