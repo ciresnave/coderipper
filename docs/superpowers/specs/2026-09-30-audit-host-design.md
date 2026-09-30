@@ -1,0 +1,222 @@
+# CodeRipper — design
+
+**Status: APPROVED, repo created, nothing implemented yet.** Written 2026-09-30 by the portfolio PM, named
+and approved by CireSnave the same day (`github.com/ciresnave/coderipper`, MIT OR Apache-2.0, Rust). History:
+started as one tool (reachability/dead-code detection only). CireSnave asked whether that should instead be
+one check among many in a general audit host, runnable "right next to `cargo clippy`," returning a brief
+triaged summary — this revision restructures around that: reachability becomes the first *check* (a
+plugin), not the whole tool. CLI is the primary interface (clippy-style); a server mode is also required,
+for a free hosted instance on ThinkersJournal.com for open-source projects.
+
+**Why host-plus-plugins, not a single-purpose tool**: this isn't speculative generalization — it matches
+architecture to needs CireSnave already has stated as standing rules, each of which is its own cross-project
+audit waiting to be automated (§6 sketches three of them to pressure-test the interface below, before
+anything gets built against it). Building each as its own repo would mean four-plus repos each reinventing
+CLI plumbing, report formatting, CI wiring, and an allowlist mechanism. One host with pluggable checks means
+all of that is shared, and adding the next audit later is "write a check," not "stand up a project."
+
+---
+
+## 0. Motivation, not hypothetical
+
+Tonight, while designing an unrelated feature, the Lightbulb lane found — by hand, via a whole-tree grep
+prompted by an unrelated review — that `src/model_fuel/policies.rs`'s `BlockPrefixIndex`/`record`/`lookup`/
+`splice_prefix` (a fully correct, well-tested prefix-matching system) had **zero callers anywhere in
+Lightbulb's serving path**. The logic was right. Nothing called it. That's the exact defect class the first
+check below exists to catch automatically, and it was found only because a review happened to go looking in
+the right place. A periodic, systematic sweep would have surfaced it without needing the coincidence.
+
+## 1. Two axes every check declares, and why they're independent
+
+A naive design would give each check one "speed" label (fast/slow) and call it done. That collapses two
+genuinely different properties, and this portfolio's own setup makes the collapse actively misleading:
+
+- **Scope: `Project` or `Portfolio`.** Does the check need only the current repo's source, or does it need
+  to read other portfolio repos too?
+- **Network: `LocalOnly` or `NetworkRequired`.** Does the check ever leave the machine (a registry API, the
+  GitHub API), or does it only ever read the local filesystem?
+
+**These are independent, and the second one is the actual speed gate — not the first.** Every portfolio
+repo already lives checked out locally under `C:\Projects` (established practice, not a new assumption).
+That means a `Portfolio`-scope, `LocalOnly` check — reachability's cross-repo grep, for instance — is still
+fast: it's reading files already on disk, same as `git grep` across sibling checkouts, which lanes already
+do routinely. What's actually slow and rate-limit-sensitive is `NetworkRequired`: querying crates.io/npm/
+PyPI for a dependency's latest version, or hitting the GitHub API for branch protection state. **A check's
+run tier is decided by the network axis, not the scope axis.**
+
+- **`fast` tier** (the clippy-adjacent one): every `LocalOnly` check, `Project`- or `Portfolio`-scoped alike.
+  Meant to run on every PR, or on demand next to `cargo clippy`/`cargo test`.
+- **`sweep` tier**: every `NetworkRequired` check, plus any `fast`-tier check a caller explicitly wants
+  re-run as part of a full sweep. Meant for a periodic or PM-triggered run, not a per-PR gate — registry and
+  GitHub API calls at portfolio scale need caching and rate-limit awareness that doesn't belong in a
+  pre-merge hook.
+
+One practical caveat for `fast`-tier `Portfolio`-scope checks specifically: reading every sibling repo's
+source fresh on every invocation doesn't stay fast forever as the portfolio grows. The host should maintain
+a cached per-project symbol index (rebuilt incrementally on that project's own commits, not on every other
+project's every run) so a `Portfolio`-scope `fast` check reads the cache, not N fresh trees, on the common
+path.
+
+## 2. The shared finding schema
+
+Every check, regardless of what it does, emits findings into one shape — this is what lets the host produce
+one triaged "most concerning issues" summary across heterogeneous checks, instead of concatenating each
+check's own report format and leaving the reader to reconcile them:
+
+```
+Finding {
+    check_id:      string       // e.g. "reachability", "version-consistency"
+    severity:      Info | Low | Medium | High | Critical
+    confidence:    Low | Medium | High
+                   // separate from severity on purpose: a symbol-grep miss is a plausible defect
+                   // at High severity but only Medium confidence (name collisions, dynamic dispatch);
+                   // a version mismatch is High severity AND High confidence (no ambiguity once read).
+    project:       string       // which repo this finding is about
+    location:      { file, line }?   // omitted for project-level findings (e.g. "no branch protection")
+    summary:       string       // one line, what a triaged report shows
+    detail:        string       // full explanation + evidence, shown in the full report
+    positive_control: string?   // required for any check whose core claim is an ABSENCE
+                                 // (see reachability, §3) — a finding making a "zero/none/missing"
+                                 // claim without one is a bug in the check, not evidence
+}
+```
+
+**Triage for the brief-response mode**: sort by `severity` descending, then `confidence` descending within
+a severity tier; show everything at `High`/`Critical`, plus the top N (tunable, default maybe 5) of
+`Medium` and below, with a count of what was omitted. Exact N and any smarter ranking (e.g. penalizing a
+`check_id` that's dominating the list, so one noisy check doesn't crowd out a different check's one real
+finding) is an implementation detail to tune against real output, not to over-design now.
+
+## 3. First check: reachability (project- and portfolio-scope, both `LocalOnly`)
+
+Kept from the original design, now expressed as one check with two sub-passes matching the two scope
+levels:
+
+**Sub-pass A, `Project` scope.** Does every function in this codebase get called from somewhere? The
+Rust-specific wrinkle: `rustc`'s own `dead_code` lint deliberately exempts `pub` items (the compiler assumes
+*some* downstream crate might use them). Mechanism: for the internal-reachability question, temporarily
+compile with every `pub` downgraded to `pub(crate)` and let the existing lint do the real work — a known
+trick, not new technology, just not packaged as a repeatable check here yet. Python (`vulture`) and
+TypeScript (`ts-prune` or similar) already have adequate tools; this check just wires their output into the
+shared `Finding` schema.
+
+**Sub-pass B, `Portfolio` scope.** Does every project's declared public API surface actually get referenced
+by another portfolio repo meant to consume it?
+
+- **Extract, don't grep for extraction.** Get the real symbol set from the language's own tooling (rustdoc
+  JSON for Rust, not text-scraping `pub fn` — that misses struct fields, trait impls, re-exports via
+  `pub use`).
+- **Search with the same aliasing awareness this portfolio has already been burned by.** Fuel's own
+  `CLAUDE.md` records a naive `fuel_core::` search undercounting by ~30x because the real alias is `fuel::`
+  — any reference search needs to know a crate's own re-export conventions, not just its defining name.
+- **Every "zero hits" claim needs its `positive_control`, per §2's schema** — search for a symbol from the
+  same crate already known to be used elsewhere, confirm the query finds it, before trusting a zero result.
+  Not optional; a finding without one is the check's own bug.
+- **A hit is a candidate, not a confirmation.** False positives (name collisions), false negatives (trait
+  dispatch, macros, FFI boundaries like Fuel↔Baracuda). Findings report the referencing context, not just a
+  count — this check surfaces candidates for review, it doesn't replace judgment. `confidence: Medium` on
+  this check's findings by default, reflecting that.
+
+## 4. Allowlist mechanism, generalized across checks
+
+A finding isn't automatically a defect — some `pub` API is genuinely meant for external consumers this
+portfolio doesn't control (crates.io publishes: Fuel, Baracuda, Synapse, Unpopped), or is deliberately built
+ahead of its consumer ("'No consumer' is not a reason to skip building a capability — but it IS a reason to
+sequence it behind things with consumers," Fuel's own working agreement). Flagging all of it would be noisy
+enough that nobody trusts the output.
+
+**Mechanism**: one allowlist file per project (e.g. `.coderipper.toml`), entries keyed by `check_id` + a
+fingerprint of the specific finding, each carrying a **required reason string**. Generalized from the
+reachability-specific design so every future check uses the same suppression path — no check invents its
+own. Per this portfolio's own allowlist discipline (*"an allowlist entry must carry a detector for its own
+cause dissolving," Fuel's working agreement*): an allowlisted reachability finding that later DOES get a
+real caller should surface as its own (informational) finding — "this suppression may no longer apply" —
+not silently keep suppressing forever.
+
+## 5. Three more checks, sketched to pressure-test the interface above (not designed in full)
+
+These exist here to check that §1's two axes and §2's schema actually fit something other than reachability
+before either gets built against. None of these is ready to implement — they're validation, not scope.
+
+**`version-consistency`** — *`Project` scope, `LocalOnly`, `fast` tier.* CireSnave's standing rule: every
+crate/package within a project shares one version number, with a narrow named exception (a crate pinned to
+match a *different* project's version, e.g. an emitter crate tracking the project it targets). Mechanism:
+read every manifest in the project, compare versions, allow a declared exception list (itself a case of
+§4's allowlist, scoped to this check) where the "correct" value is read from the referenced *other*
+project's current manifest rather than compared for uniformity. Findings: `High` severity, `High`
+confidence — no ambiguity once the versions are read. **Validates**: the axes hold even for a check that's
+almost entirely `Project`-scope but has one narrow cross-project read baked into its exception path —
+confirms scope is a property of the check's *typical* need, not an absolute boundary the host has to
+enforce strictly.
+
+**`dependency-staleness`** — *`Project` scope, `NetworkRequired`, `sweep` tier.* CireSnave's standing rule:
+dependencies stay on their most recent versions. Mechanism: read each project's lockfile, query the
+relevant registry (crates.io/npm/PyPI) for each dependency's latest version, diff. Findings: severity scales
+with how far behind (`Low` for a patch behind, up to `Critical` if a known security advisory applies to the
+pinned version) at `High` confidence. **Validates**: the network axis is genuinely independent of scope —
+this check is `Project`-scoped, same as `version-consistency`, but lands in a completely different run tier
+because of the registry calls, proving scope alone would have misclassified it.
+
+**`ci-protection-presence`** — *`Project` scope, `NetworkRequired`, `sweep` tier.* CireSnave's standing rule:
+every repo gets CI and enforced branch protection. Mechanism: `gh api` the project's branch protection
+settings and — the portfolio's own hard-learned lesson — read `required_status_checks.enforcement_level`
+and `contexts.length`, never just `.protected` (which "reads `true` on branches that enforce nothing").
+Findings: `High` severity if protection is absent or enforces zero contexts. **Validates**: confirms a
+GitHub-API-backed check fits the same `NetworkRequired`/`sweep` bucket as a registry-backed one without
+needing a third axis.
+
+**Worth flagging, not solving here**: `provenance/license` (CireSnave's "I am not a plagiarist" rule —
+trace every third-party file to its origin, verify licence/credit) doesn't cleanly fit one tier. A shallow
+version — "every vendored file has a traceable origin comment and licence notice present" — is `Project`
+scope, `LocalOnly`, `fast`. A thorough version — actually fetching the claimed upstream and diffing against
+the vendored copy — is `NetworkRequired`, `sweep`. **This suggests a check can declare more than one depth
+under the same `check_id`**, the host running the shallow pass at `fast` tier and the deep pass only at
+`sweep` tier. Noted as a real interface requirement discovered by sketching, not assumed at the start —
+exactly the kind of thing this pressure-testing exercise was for.
+
+## 6. Output and integration
+
+- One structured report per run (JSON — feeds a dashboard, a PR comment, or a portfolio-PM board item) plus
+  the triaged human-readable summary from §2.
+- Run modes: `--fast` (every `LocalOnly` check, single project or whole portfolio), `--sweep` (everything,
+  `NetworkRequired` included), `--check <id>` (one check only, any tier — useful for testing a check in
+  isolation or for CI to run just the checks relevant to what changed), `--project <name>` (scope to one
+  project even for otherwise-portfolio checks, where that's meaningful).
+- Every finding whose core claim is an absence carries its `positive_control` inline per §2 — a finding
+  without one is a bug in the check, not evidence, and the host should refuse to emit it.
+
+## 7. Decided, and what's still open
+
+**Decided, 2026-09-30:**
+- **Name: CodeRipper** (`github.com/ciresnave/coderipper`). Checked clean across crates.io, npm, PyPI,
+  RubyGems, GitHub and Docker Hub before adoption — two earlier candidates ("Scrutin", "Scrutineer") were
+  rejected specifically because they collided with existing tools in the *same domain* (code quality/review
+  tooling) on PyPI, not just a bare namespace clash.
+- **Repo created**, MIT OR Apache-2.0 (standard Rust dual-license convention), branch protection with
+  required CI checks (per CireSnave's standing "every repo gets CI and enforced protection" rule).
+- **Implementation language: Rust.**
+- **Plugin loading: compiled-in checks for v1**, not dynamic loading — confirmed, not just recommended.
+- **Interface: CLI-primary** (clippy-style, the common case), **plus a server mode** — required, not
+  optional, because CodeRipper needs to run as a free hosted instance on ThinkersJournal.com for open-source
+  projects. This means the `fast`/`sweep` tier split from §1 needs a THIRD consideration added at
+  implementation-plan time: a server instance serving untrusted/arbitrary public repos is a different trust
+  boundary than a CLI run against this portfolio's own local checkouts — sandboxing, resource limits and
+  abuse prevention for the hosted mode aren't designed here yet and need their own pass before that mode
+  ships, even though the CLI mode can ship without them.
+
+**Still open:**
+- **Where `sweep` tier runs and how often** for the portfolio's own use — PM-triggered, a scheduled cloud
+  routine, or purely on-demand.
+- **Exact triage ranking (§2)** — tune against real output once more than one check exists, not decided from
+  first principles now.
+- **ThinkersJournal.com hosting specifics** — not designed at all yet (deployment target, how a public
+  OSS project submits itself for a scan, rate limits, abuse handling, whether results are public or
+  submitter-only). Deliberately out of scope for the first implementation plan (CLI + reachability check);
+  needs its own design pass once the core tool exists and the trust-boundary question above is answered.
+
+---
+
+Once CireSnave rules on §7, this is ready for **superpowers:brainstorming** proper on the actual
+implementation (this document validates the shape against four checks' worth of pressure-testing, but it
+is still a spec, not a fully brainstormed build plan) followed by an implementation plan, in whichever repo
+gets created for it.

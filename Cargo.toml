@@ -1,0 +1,25 @@
+[package]
+name = "coderipper"
+version = "0.1.0"
+edition = "2021"
+description = "Portfolio-wide code-integration auditor — dead-code/reachability, version consistency, dependency staleness, CI/protection presence, and more. Runs as a CLI (like clippy) or a server."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ciresnave/coderipper"
+readme = "README.md"
+keywords = ["audit", "dead-code", "lint", "code-quality", "monorepo"]
+categories = ["development-tools", "command-line-utilities"]
+
+[[bin]]
+name = "coderipper"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
