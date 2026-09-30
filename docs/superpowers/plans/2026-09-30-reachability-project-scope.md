@@ -2,6 +2,48 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **IMPLEMENTATION STATUS (2026-09-30, post-implementation, post-review): this plan was executed, and
+> real defects found DURING execution — several reversing this document's own original design — mean
+> the text below no longer matches what was actually built in several places. Kept as the historical
+> record of what was planned (not rewritten in place, so the design's evolution stays visible); read
+> this note first, and prefer the actual code + `docs/superpowers/specs/2026-09-30-audit-host-design.md`
+> over the plan text wherever they disagree.**
+>
+> **Corrections, found by implementing, then a second round found by an independent review:**
+> 1. **`pub use` is downgraded too** (§ "Global Constraints" below says the opposite). Leaving a
+>    re-export at full `pub` while its target drops to `pub(crate)` is a hard compile error (E0364) —
+>    confirmed empirically. `rewrite_pub_to_pub_crate` treats `use` as an ordinary declaring keyword.
+> 2. **Task 6's fixture is a binary crate** (`src/main.rs`, `fn main()` calling `caller()`), not the
+>    lib-crate-with-`pub use ... as public_alias` design shown in Task 6 below. A pure lib crate with
+>    everything downgraded has NO live reachability root at all under this mechanism.
+> 3. **A function called only from a `#[test]` is NOT rescued from `dead_code`** by rustc (confirmed
+>    across many independent, fully-isolated fresh builds). This directly narrows what "a test counts
+>    as reachability" (design doc §2) means in practice: it doesn't, for this mechanism, in v1.
+> 4. **The biggest gap, found by a fresh reviewer, not by the implementer**: this mechanism cannot
+>    successfully analyze ANY package with more than one compilation target (a `lib` + a `bin`, or a
+>    `lib` + integration tests) where the other target imports the lib by crate name — downgrading the
+>    lib's `pub` items breaks that import with `E0603`. **This is true of CodeRipper's own repo.**
+>    `ReachabilityCheck::run` now detects this (see #5) and returns an `Err`, not a silent empty result.
+> 5. **A real per-run positive control was added, not in this plan**: a guaranteed-dead "sentinel"
+>    function is injected into the rewritten tree before every build. If it isn't detected as dead
+>    code, the run is untrustworthy (build failed, or dead_code is suppressed some other way, e.g. a
+>    crate-wide `#[allow(dead_code)]`) and `run` returns `Err` — it never reports empty findings from a
+>    run it couldn't actually verify. This replaces the fixed narrative string this plan originally
+>    specified for `Finding.positive_control`.
+> 6. **The review also found, and this document's Review Focus missed**: grouped diagnostics
+>    ("methods `a`, `b`, and `c` are never used" — one message, several primary spans) were only
+>    partially parsed (first span only); `pub async fn`/`pub unsafe fn`/`pub extern "C" fn` were left
+>    at full `pub` (only the word immediately after `pub` was checked against the keyword list); a
+>    crate-level `#![deny(warnings)]` promoting `dead_code` to `error` was discarded as "build failed"
+>    instead of reported; a panicking `build.rs` producing no rustc JSON at all fell through
+>    undetected. All fixed; see the commit history on this branch for each, and the code's own comments
+>    for the mechanism.
+> 7. **Not fixed, left as documented, known gaps**: analysis is HEAD-only (uncommitted edits in the
+>    real working tree aren't seen — this is a property of using a git worktree, not a bug); `--project`
+>    pointing at a crate nested inside a larger repo analyzes the wrong root (the enclosing repo's, not
+>    the nested crate's); an allowlist entry can't distinguish two same-named items in the same file
+>    (e.g. two `fn new` in different `impl` blocks).
+
 **Goal:** Implement the first real check — does every function in a Rust crate get called from
 somewhere, including `pub` items that `rustc`'s own `dead_code` lint deliberately exempts.
 

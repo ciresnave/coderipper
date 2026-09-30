@@ -1,3 +1,23 @@
+//! Reachability check (project scope): does every function in a Rust crate get called from
+//! somewhere, including `pub` items that `rustc`'s own `dead_code` lint deliberately exempts.
+//!
+//! **Known limitations, found and confirmed during implementation and review (not fixed here):**
+//! - **A package with more than one compilation target** (a `lib` + a `bin`, or a `lib` +
+//!   integration tests) where the other target imports the lib by crate name cannot be analyzed at
+//!   all: downgrading the lib's `pub` items breaks that import with `E0603`. **True of CodeRipper's
+//!   own repo.** [`inject_sentinel`] + the build-error check below detect this and return `Err`
+//!   rather than silently reporting zero findings.
+//! - **A function called only from a `#[test]`** is not rescued from `dead_code` by rustc (confirmed
+//!   empirically, many independent fresh builds) -- "a test counts as reachability" (the design
+//!   doc's stated intent) is not delivered for this case.
+//! - **Analysis is HEAD-only**: uncommitted edits in the real working tree aren't seen (a property of
+//!   using a git worktree, not a bug).
+//! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's
+//!   root, not the nested crate's.
+//!
+//! Full detail: `docs/superpowers/plans/2026-09-30-reachability-project-scope.md`'s status note, and
+//! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
+
 mod allowlist;
 mod diagnostics;
 mod rewriter;
