@@ -91,8 +91,12 @@ fn run_and_report(
 
     let result = coderipper::run_checks(&ctx, tier, only_check_id.as_deref());
 
+    // Review finding: this used to print "no checks registered yet" whenever BOTH findings and
+    // errors were empty -- which is what a genuinely clean run also looks like, since a check IS
+    // always registered (this message predates ReachabilityCheck being wired in and was never
+    // updated). Distinguish the two real cases instead.
     if result.findings.is_empty() && result.errors.is_empty() {
-        println!("coderipper: no checks registered yet (nothing to report)");
+        println!("coderipper: no issues found");
         return Ok(());
     }
 
@@ -105,6 +109,15 @@ fn run_and_report(
     for e in &result.errors {
         eprintln!("coderipper: check error: {e}");
     }
+
+    // Review finding: errors were printed to stderr but `main` still returned `Ok(())`, so the
+    // process exited 0 even when a check genuinely failed to run -- a CI pipeline gating on exit
+    // code would see success. A check error must fail the run.
+    anyhow::ensure!(
+        result.errors.is_empty(),
+        "{} check(s) failed to run",
+        result.errors.len()
+    );
 
     Ok(())
 }

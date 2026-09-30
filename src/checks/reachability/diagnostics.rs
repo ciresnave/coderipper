@@ -216,10 +216,7 @@ mod tests {
         // The old code treated ANY error-level message as a sign the whole build was broken and
         // silently discarded everything, including this genuinely real, actionable finding.
         let tmp = tempfile::tempdir().unwrap();
-        write_fixture(
-            tmp.path(),
-            "#![deny(warnings)]\npub(crate) fn dead() {}\n",
-        );
+        write_fixture(tmp.path(), "#![deny(warnings)]\npub(crate) fn dead() {}\n");
 
         let CollectResult {
             hits,
@@ -243,7 +240,11 @@ mod tests {
             "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\nbuild = \"build.rs\"\n",
         )
         .unwrap();
-        std::fs::write(tmp.path().join("build.rs"), "fn main() { panic!(\"boom\"); }\n").unwrap();
+        std::fs::write(
+            tmp.path().join("build.rs"),
+            "fn main() { panic!(\"boom\"); }\n",
+        )
+        .unwrap();
         std::fs::create_dir_all(tmp.path().join("src")).unwrap();
         std::fs::write(tmp.path().join("src/lib.rs"), "pub(crate) fn dead() {}\n").unwrap();
 
