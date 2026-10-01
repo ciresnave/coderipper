@@ -134,3 +134,50 @@ fn unknown_check_id_produces_no_findings_without_running_any_check() {
         .assert()
         .failure(); // fails at path canonicalization, never reaches a check
 }
+
+#[test]
+fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
+    let repo = {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("Cargo.toml"),
+            "[package]\nname = \"discarder\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+        std::fs::create_dir(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("src/main.rs"),
+            "fn f() -> i32 { 1 }\nfn main() { f(); }\n",
+        )
+        .unwrap();
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "-A"],
+            vec![
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-q",
+                "-m",
+                "init",
+            ],
+        ] {
+            StdCommand::new("git")
+                .args(args)
+                .current_dir(tmp.path())
+                .status()
+                .unwrap();
+        }
+        tmp
+    };
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-return-values", "--project"])
+        .arg(repo.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stdout(predicate::str::contains("`f`"));
+}

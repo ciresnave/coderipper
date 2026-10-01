@@ -114,3 +114,86 @@ fn an_allowlisted_function_is_suppressed() {
     ]);
     assert!(run(&repo).unwrap().is_empty());
 }
+#[test]
+fn a_crate_that_allows_deprecated_errors_instead_of_reporting_clean() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/main.rs",
+            "#![allow(deprecated)]\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
+        ),
+    ]);
+    let err = run(&repo).unwrap_err().to_string();
+    assert!(err.contains("positive control"), "{err}");
+}
+
+#[test]
+fn a_crate_that_allows_unused_must_use_errors_instead_of_reporting_clean() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/main.rs",
+            "#![allow(unused_must_use)]\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
+        ),
+    ]);
+    assert!(run(&repo).is_err());
+}
+
+#[test]
+fn deny_warnings_does_not_hide_findings_or_look_like_a_broken_build() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/main.rs",
+            "#![deny(warnings)]\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
+        ),
+    ]);
+    assert_eq!(names(&run(&repo).unwrap()), vec!["f"]);
+}
+
+#[test]
+fn a_crate_that_does_not_compile_errors_instead_of_reporting_clean() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/main.rs", "fn main() { let x: i32 = \"no\"; }\n"),
+    ]);
+    assert!(run(&repo).is_err());
+}
+
+#[test]
+fn a_file_with_non_ascii_text_and_crlf_endings_is_analyzed_correctly() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/main.rs",
+            "// héllo wörld\r\nfn f() -> i32 { 1 }\r\nfn main() { /* ünï */ f(); }\r\n",
+        ),
+    ]);
+    assert_eq!(names(&run(&repo).unwrap()), vec!["f"]);
+}
+
+#[test]
+fn skipped_function_shapes_never_produce_findings() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/main.rs",
+            "\
+struct B;
+impl B { fn chain(&mut self) -> &mut Self { self } }
+fn res() -> Result<i32, ()> { Ok(1) }
+async fn asy() -> i32 { 1 }
+#[must_use]
+fn already() -> i32 { 1 }
+fn main() {
+    let mut b = B;
+    b.chain();
+    let _ = res();
+    let _ = asy();
+    let _ = already();
+}
+",
+        ),
+    ]);
+    assert!(run(&repo).unwrap().is_empty());
+}
