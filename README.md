@@ -18,8 +18,9 @@ A server mode (`coderipper serve`) is planned, for a free hosted instance on
 
 ## Status
 
-Early scaffold. The host, the shared `Finding` schema, and the check-plugin interface exist; no checks are
-implemented yet. See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
+Early. The host, the shared `Finding` schema, and the check-plugin interface exist, and two checks are
+implemented: `reachability` (dead code, including `pub` items) and `unused-return-values` (a function whose
+return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
 `docs/superpowers/plans/` for what's actually being built and in what order.
 
 ## Why

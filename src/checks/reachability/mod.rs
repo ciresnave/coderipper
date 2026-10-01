@@ -18,18 +18,17 @@
 //! Full detail: `docs/superpowers/plans/2026-09-30-reachability-project-scope.md`'s status note, and
 //! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
 
-mod allowlist;
 mod diagnostics;
 mod rewriter;
 mod sentinel;
-mod worktree;
 
+use crate::allowlist::Allowlist;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
-use allowlist::Allowlist;
+use crate::worktree::RewrittenWorktree;
 use diagnostics::collect_dead_code;
+use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
-use worktree::RewrittenWorktree;
 
 pub struct ReachabilityCheck;
 
@@ -47,7 +46,9 @@ impl Check for ReachabilityCheck {
     }
 
     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
-        let wt = RewrittenWorktree::create(&ctx.project_root)?;
+        let wt = RewrittenWorktree::create_with(&ctx.project_root, |_, source| {
+            Ok(rewrite_pub_to_pub_crate(source))
+        })?;
         let sentinel_file = inject_sentinel(&wt.root)?;
         let result = collect_dead_code(&wt.root)?;
 

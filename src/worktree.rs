@@ -1,4 +1,3 @@
-use super::rewriter::rewrite_pub_to_pub_crate;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -9,7 +8,14 @@ pub struct RewrittenWorktree {
 }
 
 impl RewrittenWorktree {
-    pub fn create(project_root: &Path) -> anyhow::Result<Self> {
+    /// Creates a detached worktree of `project_root`'s HEAD and rewrites every `.rs` file under its
+    /// `src/` with `rewrite(relative_path, source)`. `relative_path` is `src/...` with forward
+    /// slashes. Files are visited in sorted order so a stateful `rewrite` (one that hands out ids)
+    /// is deterministic. A rewrite error drops the worktree again before returning.
+    pub fn create_with<F>(project_root: &Path, mut rewrite: F) -> anyhow::Result<Self>
+    where
+        F: FnMut(&str, &str) -> anyhow::Result<String>,
+    {
         let scratch = tempfile::tempdir()?;
         let wt_path = scratch.path().join("wt");
 
@@ -21,16 +27,26 @@ impl RewrittenWorktree {
             .status()?;
         anyhow::ensure!(status.success(), "git worktree add failed");
 
-        for entry in walk_rs_files(&wt_path.join("src"))? {
-            let source = std::fs::read_to_string(&entry)?;
-            std::fs::write(&entry, rewrite_pub_to_pub_crate(&source))?;
-        }
-
-        Ok(Self {
-            root: wt_path,
+        // Build the guard BEFORE rewriting: if a rewrite fails, `Drop` still unregisters the
+        // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
+        let guard = Self {
+            root: wt_path.clone(),
             source_repo: project_root.to_path_buf(),
             _scratch: scratch,
-        })
+        };
+
+        let mut files = walk_rs_files(&wt_path.join("src"))?;
+        files.sort();
+        for entry in files {
+            let relative = entry
+                .strip_prefix(&wt_path)?
+                .to_string_lossy()
+                .replace('\\', "/");
+            let source = std::fs::read_to_string(&entry)?;
+            std::fs::write(&entry, rewrite(&relative, &source)?)?;
+        }
+
+        Ok(guard)
     }
 }
 
@@ -55,7 +71,7 @@ impl Drop for RewrittenWorktree {
     }
 }
 
-fn walk_rs_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub(crate) fn walk_rs_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
@@ -73,6 +89,10 @@ fn walk_rs_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
 mod tests {
     use super::RewrittenWorktree;
     use std::process::Command;
+
+    fn pub_to_pub_crate(_file: &str, source: &str) -> anyhow::Result<String> {
+        Ok(source.replace("pub fn", "pub(crate) fn"))
+    }
 
     fn init_fixture_repo(dir: &std::path::Path) {
         Command::new("git")
@@ -114,7 +134,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         init_fixture_repo(tmp.path());
 
-        let wt = RewrittenWorktree::create(tmp.path()).unwrap();
+        let wt = RewrittenWorktree::create_with(tmp.path(), pub_to_pub_crate).unwrap();
 
         let rewritten = std::fs::read_to_string(wt.root.join("src/lib.rs")).unwrap();
         assert!(rewritten.contains("pub(crate) fn dead"));
@@ -127,12 +147,71 @@ mod tests {
     }
 
     #[test]
+    fn the_rewrite_closure_gets_forward_slash_relative_paths_in_sorted_order() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_fixture_repo(tmp.path());
+        std::fs::create_dir_all(tmp.path().join("src/sub")).unwrap();
+        std::fs::write(tmp.path().join("src/a.rs"), "").unwrap();
+        std::fs::write(tmp.path().join("src/sub/z.rs"), "").unwrap();
+        Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args([
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-q",
+                "-m",
+                "more",
+            ])
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+
+        let mut seen = Vec::new();
+        let _wt = RewrittenWorktree::create_with(tmp.path(), |file, source| {
+            seen.push(file.to_string());
+            Ok(source.to_string())
+        })
+        .unwrap();
+
+        assert_eq!(seen, vec!["src/a.rs", "src/lib.rs", "src/sub/z.rs"]);
+    }
+
+    #[test]
+    fn a_failing_rewrite_still_unregisters_the_worktree() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_fixture_repo(tmp.path());
+
+        let result = RewrittenWorktree::create_with(tmp.path(), |_, _| anyhow::bail!("boom"));
+        assert!(result.is_err());
+
+        let output = Command::new("git")
+            .args(["worktree", "list", "--porcelain"])
+            .current_dir(tmp.path())
+            .output()
+            .unwrap();
+        let listing = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            listing.matches("worktree ").count(),
+            1,
+            "dangling entry:
+{listing}"
+        );
+    }
+
+    #[test]
     fn the_worktree_directory_is_removed_when_dropped() {
         let tmp = tempfile::tempdir().unwrap();
         init_fixture_repo(tmp.path());
 
         let wt_root = {
-            let wt = RewrittenWorktree::create(tmp.path()).unwrap();
+            let wt = RewrittenWorktree::create_with(tmp.path(), pub_to_pub_crate).unwrap();
             wt.root.clone()
         }; // dropped here
 
@@ -148,7 +227,7 @@ mod tests {
         init_fixture_repo(tmp.path());
 
         {
-            let _wt = RewrittenWorktree::create(tmp.path()).unwrap();
+            let _wt = RewrittenWorktree::create_with(tmp.path(), pub_to_pub_crate).unwrap();
         } // dropped here
 
         let output = Command::new("git")

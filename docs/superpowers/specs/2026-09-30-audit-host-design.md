@@ -197,11 +197,7 @@ Rust's `#[must_use]` only flags a return value ignored at *one specific* call si
 function is explicitly annotated; nothing asks "does *any* caller, anywhere in the project, ever actually
 use this function's return value at all?" — a stronger and more interesting signal than per-call-site
 ignoring, closer in spirit to `reachability` but one layer past it (not "is this function called" but "is
-its output ever consumed"). **Mechanism, Rust**: reuses the `reachability` check's own worktree-rewrite
-trick — in the throwaway build, annotate every function definition lacking it with `#[must_use]` (same
-shape as the `pub` → `pub(crate)` rewrite), rebuild, and capture the compiler's `unused_must_use`
-diagnostics; a function whose value is unused at every one of its call sites is the finding, a mix of
-used/unused call sites is a weaker (but still worth reporting) finding. **Mechanism, other languages**:
+its output ever consumed"). **Mechanism, Rust** (corrected 2026-10-01 after testing; see `docs/superpowers/plans/2026-10-01-unused-return-values.md`): in the throwaway worktree, tag every eligible function with `#[must_use = "CR:<id>"]` *and* `#[deprecated(note = "CR:<id>")]` (inline, so line numbers survive), rebuild with `--all-targets`, and join rustc's `unused_must_use` (call sites whose value is discarded) with its `deprecated` (every use) by `<id>`. `unused_must_use` alone cannot distinguish all-ignored from some-ignored, because it is silent at used call sites; the `deprecated` pairing supplies the denominator. Imports (`use`) and a function's own recursive calls are excluded from the counts. No `pub` -> `pub(crate)` rewrite is needed, so this check — unlike `reachability` — works on a package whose lib is consumed by its own bin or tests. Unit-returning, `Result`-returning, `async`, `extern`, and `-> &mut Self` functions are skipped. **Mechanism, other languages**:
 real, separate detection work per language — no equivalent trick is assumed to exist elsewhere, and this
 check should not block Rust support on having every language ready. **Validates**: confirms a check can
 legitimately reuse another check's rewrite machinery rather than re-inventing it, and that "whole-project

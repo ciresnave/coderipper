@@ -21,6 +21,8 @@ anyhow = "1"
 thiserror = "2"
 toml = "0.9"
 tempfile = "3"
+syn = { version = "3.0.6", features = ["full", "visit"] }
+proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 
 [dev-dependencies]
 assert_cmd = "2"

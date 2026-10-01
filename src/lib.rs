@@ -1,6 +1,9 @@
+pub(crate) mod allowlist;
+pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;
 pub mod finding;
+pub(crate) mod worktree;
 
 use check::{Check, CheckContext, Tier};
 use finding::Finding;
@@ -10,7 +13,10 @@ use finding::Finding;
 /// v1 deliberately uses a fixed list rather than dynamic plugin loading (design doc §7): there is
 /// no known need yet for a check this project's own maintainers didn't write.
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
-    vec![Box::new(checks::ReachabilityCheck)]
+    vec![
+        Box::new(checks::ReachabilityCheck),
+        Box::new(checks::UnusedReturnValuesCheck),
+    ]
 }
 
 /// Run every registered check at or below the requested tier, collect and validate their
@@ -64,8 +70,8 @@ mod tests {
         // registered, assert that directly instead of running it against a real repo from a unit
         // test -- a unit test has no business writing into a shared .git via `git worktree add`.
         let checks = registered_checks();
-        assert_eq!(checks.len(), 1);
-        assert_eq!(checks[0].id(), "reachability");
+        let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
+        assert_eq!(ids, vec!["reachability", "unused-return-values"]);
     }
 
     #[test]
