@@ -1,6 +1,8 @@
+pub(crate) mod allowlist;
 pub mod check;
 pub mod checks;
 pub mod finding;
+pub(crate) mod worktree;
 
 use check::{Check, CheckContext, Tier};
 use finding::Finding;
