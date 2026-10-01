@@ -1,2 +1,3 @@
 pub mod reachability;
+pub mod unused_return_values;
 pub use reachability::ReachabilityCheck;
