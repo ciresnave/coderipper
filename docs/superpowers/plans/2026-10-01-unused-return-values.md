@@ -1,5 +1,24 @@
 # Unused-return-values check (project scope, Rust) — Implementation Plan
 
+> **IMPLEMENTATION STATUS (2026-10-01, post-implementation, post-review): this plan was executed on
+> branch `feat/unused-return-values` (head `d292072`). A fresh whole-branch review then found four real
+> defects this plan missed, because its probes used single-target crates only. Kept as the historical
+> record (not rewritten in place); where it disagrees with the code, trust the code.**
+> 1. **`deny(warnings)` / `[lints]` / `-D warnings` on the lib** made the tags fail the lib, so cargo never
+>    built the bin/tests depending on it and their uses went uncounted (false Medium). The build now passes
+>    `--cap-lints=warn`.
+> 2. **A local or crate-wide `#[allow(deprecated)]`** hid uses (false Medium). The build now passes
+>    `--force-warn deprecated --force-warn unused_must_use`. Consequence: Task 6's two "blind crate errors"
+>    tests were replaced by `a_crate_wide_allow_of_either_lint_cannot_hide_a_finding`; the sentinel's error
+>    path now has only unit coverage.
+> 3. **Macro invocations collapsed by span dedup** (3 of 4 read as all-ignored). Spans are now resolved
+>    through rustc's `expansion` to the outermost invocation site.
+> 4. **`use` imports in `tests/`, `examples/`, `benches/`** counted as uses. Those files are now parsed for
+>    import ranges only (`use_ranges_only`).
+>
+> `RUSTFLAGS` is appended to the caller's value and `CARGO_ENCODED_RUSTFLAGS` removed, so the flags above
+> survive. Deferred minors are listed in the PR for the implementation.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add CodeRipper's second real check: for each Rust function that returns a value, say whether
