@@ -133,6 +133,31 @@ cause dissolving," Fuel's working agreement*): an allowlisted reachability findi
 real caller should surface as its own (informational) finding — "this suppression may no longer apply" —
 not silently keep suppressing forever.
 
+**Added 2026-10-01, CireSnave's call: two kinds of suppression, both self-cleaning, one with an explicit
+second trigger.** Up to now the discipline above ("surface as informational when the cause dissolves") was
+stated as a norm but not given a concrete mechanism. Formalizing it:
+
+- **The self-dissolving check applies to every entry, permanent or temporary, with no extra config.**
+  Mechanism: on each run, the host compares each allowlist entry's fingerprint against this run's *raw*
+  (pre-filter) findings for that check. An entry whose fingerprint matches nothing this run is stale — its
+  cause has dissolved (CireSnave's framing: typically because "an implementation happening" changed the
+  code enough that the original finding no longer reproduces). Surface it as its own `Informational`
+  finding — "this suppression hasn't matched in N runs, consider removing it" — never silently kept
+  forever. This is the mechanism the existing discipline above only asserted; it needed one.
+- **A second, explicit trigger for temporary entries: suppress until a *different*, named finding clears.**
+  CireSnave's case: a fix for one root-cause finding *should* also fix a secondary symptom elsewhere: rather
+  than carry both as separate noise, suppress the symptom's finding with a declared dependency on the root
+  cause's finding (same fingerprint shape: `check_id` + location/symbol). Each run, the host checks whether
+  the *referenced* finding still reproduces; the moment it doesn't (presumed fixed), the dependent
+  suppression expires the same way — surfaced informationally, not silently dropped, so a human confirms
+  the symptom is actually gone too rather than assuming the dependency guess was right.
+
+**Open question, not resolved here**: whether "permanent" vs "temporary" is really a separate axis from
+these two triggers, or whether "permanent" just means "self-dissolving only, no `until_fixed` link" and
+"temporary" means "has one." The latter is simpler — one suppression mechanism, one universal trigger
+(self-dissolving) plus one optional trigger (`until_fixed`) — and is the PM's lean, but it's genuinely
+open until a first implementation is attempted against it.
+
 ## 5. Five more checks, sketched to pressure-test the interface above (not designed in full)
 
 These exist here to check that §1's two axes and §2's schema actually fit something other than reachability
