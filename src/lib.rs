@@ -1,4 +1,5 @@
 pub mod check;
+pub mod checks;
 pub mod finding;
 
 use check::{Check, CheckContext, Tier};
@@ -9,8 +10,7 @@ use finding::Finding;
 /// v1 deliberately uses a fixed list rather than dynamic plugin loading (design doc §7): there is
 /// no known need yet for a check this project's own maintainers didn't write.
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
-    // No checks implemented yet — `reachability` (design doc §3) is next.
-    Vec::new()
+    vec![Box::new(checks::ReachabilityCheck)]
 }
 
 /// Run every registered check at or below the requested tier, collect and validate their
@@ -56,12 +56,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn running_with_no_registered_checks_returns_empty_cleanly() {
+    fn a_registered_check_is_actually_registered() {
+        // Review finding: this test used to run the real ReachabilityCheck against
+        // std::env::current_dir() (the shared repo itself) and assert zero findings/errors --
+        // which only passed because that self-scan silently failed (see the reachability check's
+        // own build-failure handling) and looked like "nothing registered". Now that a check IS
+        // registered, assert that directly instead of running it against a real repo from a unit
+        // test -- a unit test has no business writing into a shared .git via `git worktree add`.
+        let checks = registered_checks();
+        assert_eq!(checks.len(), 1);
+        assert_eq!(checks[0].id(), "reachability");
+    }
+
+    #[test]
+    fn unknown_check_id_matches_nothing_without_running_anything() {
+        // A bogus id should short-circuit before any check's (potentially expensive, real-build)
+        // `run` is ever called -- verified by using a path that would fail if `run` were invoked.
         let ctx = CheckContext {
-            project_root: std::env::current_dir().unwrap(),
-            portfolio_root: std::env::current_dir().unwrap(),
+            project_root: std::path::PathBuf::from("/does/not/exist"),
+            portfolio_root: std::path::PathBuf::from("/does/not/exist"),
         };
-        let result = run_checks(&ctx, Tier::Fast, None);
+        let result = run_checks(&ctx, Tier::Fast, Some("no-such-check"));
         assert!(result.findings.is_empty());
         assert!(result.errors.is_empty());
     }
