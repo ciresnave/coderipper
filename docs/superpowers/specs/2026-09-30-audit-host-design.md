@@ -133,7 +133,7 @@ cause dissolving," Fuel's working agreement*): an allowlisted reachability findi
 real caller should surface as its own (informational) finding — "this suppression may no longer apply" —
 not silently keep suppressing forever.
 
-## 5. Three more checks, sketched to pressure-test the interface above (not designed in full)
+## 5. Five more checks, sketched to pressure-test the interface above (not designed in full)
 
 These exist here to check that §1's two axes and §2's schema actually fit something other than reachability
 before either gets built against. None of these is ready to implement — they're validation, not scope.
@@ -164,6 +164,40 @@ and `contexts.length`, never just `.protected` (which "reads `true` on branches 
 Findings: `High` severity if protection is absent or enforces zero contexts. **Validates**: confirms a
 GitHub-API-backed check fits the same `NetworkRequired`/`sweep` bucket as a registry-backed one without
 needing a third axis.
+
+**`unused-return-values`** — *`Project` scope, `LocalOnly`, `fast` tier (for Rust; see below).* Added
+2026-10-01, CireSnave's call: of the two value-flow checks sketched here, this one ships first —
+genuinely useful and not well-covered by existing tooling in any language this host is likely to target.
+Rust's `#[must_use]` only flags a return value ignored at *one specific* call site, and only if the
+function is explicitly annotated; nothing asks "does *any* caller, anywhere in the project, ever actually
+use this function's return value at all?" — a stronger and more interesting signal than per-call-site
+ignoring, closer in spirit to `reachability` but one layer past it (not "is this function called" but "is
+its output ever consumed"). **Mechanism, Rust**: reuses the `reachability` check's own worktree-rewrite
+trick — in the throwaway build, annotate every function definition lacking it with `#[must_use]` (same
+shape as the `pub` → `pub(crate)` rewrite), rebuild, and capture the compiler's `unused_must_use`
+diagnostics; a function whose value is unused at every one of its call sites is the finding, a mix of
+used/unused call sites is a weaker (but still worth reporting) finding. **Mechanism, other languages**:
+real, separate detection work per language — no equivalent trick is assumed to exist elsewhere, and this
+check should not block Rust support on having every language ready. **Validates**: confirms a check can
+legitimately reuse another check's rewrite machinery rather than re-inventing it, and that "whole-project
+call-site analysis" is a mechanism shape the host's two axes handle fine (still `Project`/`LocalOnly`/
+`fast`, same as `reachability` — a build with instrumented diagnostics, not a network call).
+
+**`unused-parameters`** — *`Project` scope, `LocalOnly`, `fast` tier.* Added 2026-10-01, alongside
+`unused-return-values` but intentionally lower priority — CireSnave's correction to the PM's first-draft
+reasoning, verbatim in spirit: *CodeRipper is not Rust-specific, so what Rust's own tooling already checks
+isn't all that matters portfolio-wide.* **Per language, this check is one of two shapes, not one**: (a)
+for a language whose own standard tooling already has a mature, default-on unused-parameter lint (Rust's
+`unused_variables`, several Python linters), CodeRipper's real value-add is *surfacing that language's own
+diagnostic through the unified `Finding` schema* for a portfolio-wide report, not re-detecting it — for
+Rust specifically, this is cheap: shell out to `cargo build`/`clippy` and translate their diagnostics,
+reusing none of `reachability`'s rewrite trick because none is needed. (b) for a language with no such
+built-in coverage, this is real, language-specific detection work, not yet designed. **One Rust-specific
+wrinkle worth tracking even though Rust's check is "free": the underscore-prefix convention (`_unused`) is
+an intentional exemption from the warning, and the same blind-spot class `reachability` already exploits
+(pub items exempted from `dead_code`) applies here too — a parameter someone prefixed with `_` to silence
+the warning might be worth flagging as "accepted and silently ignored" rather than assumed deliberate.**
+Not scoping that wrinkle in now; noting it so it isn't rediscovered cold later.
 
 **Worth flagging, not solving here**: `provenance/license` (CireSnave's "I am not a plagiarist" rule —
 trace every third-party file to its origin, verify licence/credit) doesn't cleanly fit one tier. A shallow
