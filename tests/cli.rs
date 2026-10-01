@@ -1,16 +1,114 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::process::Command as StdCommand;
+
+fn clean_fixture_repo() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"clean-fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+    StdCommand::new("git")
+        .arg("init")
+        .arg("-q")
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    StdCommand::new("git")
+        .args(["add", "-A"])
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    StdCommand::new("git")
+        .args([
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ])
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    tmp
+}
 
 #[test]
-fn fast_mode_runs_cleanly_with_no_checks_registered() {
+fn fast_mode_runs_cleanly_against_a_real_clean_project() {
+    // Review finding: the old version of this test ran `--project .` against the real coderipper
+    // repo, a write into a shared checkout (`git worktree add`) that a CLI integration test must
+    // not do -- fixed by using an isolated, throwaway fixture instead.
+    let repo = clean_fixture_repo();
     Command::cargo_bin("coderipper")
         .unwrap()
         .arg("fast")
         .arg("--project")
-        .arg(".")
+        .arg(repo.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("no checks registered yet"));
+        // Review finding: a genuinely clean run used to print "no checks registered yet", which is
+        // false (a check IS registered) and indistinguishable from an unrelated failure mode.
+        .stdout(predicate::str::contains("no checks registered yet").not());
+}
+
+#[test]
+fn a_check_error_makes_the_cli_exit_non_zero() {
+    // Review finding: `run_and_report` printed check errors to stderr but still returned `Ok(())`
+    // from `main`, so the process exited 0 even when a check genuinely failed to run -- a CI
+    // pipeline gating on exit code would see success. A crate with a syntax error fails to build
+    // for reasons unrelated to dead_code, which the reachability check surfaces as a real error.
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"broken\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("src")).unwrap();
+    std::fs::write(
+        tmp.path().join("src/main.rs"),
+        "this is not valid rust {{{\n",
+    )
+    .unwrap();
+    StdCommand::new("git")
+        .arg("init")
+        .arg("-q")
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    StdCommand::new("git")
+        .args(["add", "-A"])
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+    StdCommand::new("git")
+        .args([
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ])
+        .current_dir(tmp.path())
+        .status()
+        .unwrap();
+
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .arg("fast")
+        .arg("--project")
+        .arg(tmp.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("check error"));
 }
 
 #[test]
@@ -24,10 +122,15 @@ fn serve_mode_reports_not_implemented_rather_than_silently_doing_nothing() {
 }
 
 #[test]
-fn unknown_check_id_produces_no_findings_not_a_crash() {
+fn unknown_check_id_produces_no_findings_without_running_any_check() {
+    // Review finding: the old version of this test (and a sibling, since removed) ran against
+    // `--project .` -- the real coderipper repo -- which is exactly the kind of write into a
+    // shared checkout (`git worktree add`) a CLI integration test must not do. An unknown check id
+    // is filtered out before any check's `run` is invoked, so a nonexistent path is safe here and
+    // also proves the short-circuit: if `run` WERE called, it would fail loudly on this path.
     Command::cargo_bin("coderipper")
         .unwrap()
-        .args(["check", "does-not-exist", "--project", "."])
+        .args(["check", "does-not-exist", "--project", "/does/not/exist"])
         .assert()
-        .success();
+        .failure(); // fails at path canonicalization, never reaches a check
 }
