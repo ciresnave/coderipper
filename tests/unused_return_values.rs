@@ -115,28 +115,24 @@ fn an_allowlisted_function_is_suppressed() {
     assert!(run(&repo).unwrap().is_empty());
 }
 #[test]
-fn a_crate_that_allows_deprecated_errors_instead_of_reporting_clean() {
-    let repo = git_repo_with(&[
-        ("Cargo.toml", MANIFEST),
-        (
-            "src/main.rs",
-            "#![allow(deprecated)]\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
-        ),
-    ]);
-    let err = run(&repo).unwrap_err().to_string();
-    assert!(err.contains("positive control"), "{err}");
-}
-
-#[test]
-fn a_crate_that_allows_unused_must_use_errors_instead_of_reporting_clean() {
-    let repo = git_repo_with(&[
-        ("Cargo.toml", MANIFEST),
-        (
-            "src/main.rs",
-            "#![allow(unused_must_use)]\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
-        ),
-    ]);
-    assert!(run(&repo).is_err());
+fn a_crate_wide_allow_of_either_lint_cannot_hide_a_finding() {
+    // Was an error ("blind crate") before the review: `--force-warn` now makes both lints fire
+    // regardless of `allow`, so the crate is analyzable and the discard is reported.
+    for allow in ["deprecated", "unused_must_use"] {
+        let repo = git_repo_with(&[
+            ("Cargo.toml", MANIFEST),
+            (
+                "src/main.rs",
+                &format!(
+                    "#![allow({allow})]
+fn f() -> i32 {{ 1 }}
+fn main() {{ f(); }}
+"
+                ),
+            ),
+        ]);
+        assert_eq!(names(&run(&repo).unwrap()), vec!["f"], "allow({allow})");
+    }
 }
 
 #[test]
@@ -196,4 +192,112 @@ fn main() {
         ),
     ]);
     assert!(run(&repo).unwrap().is_empty());
+}
+
+const LIB_WITH_VAL: &str = "pub fn val() -> i32 { 1 }
+pub fn internal() { val(); }
+";
+const MAIN_USING_VAL_TWICE: &str =
+    "fn main() { let x = fixture::val(); let y = fixture::val(); println!(\"{}\", x + y); }
+";
+
+fn summary_of(findings: &[Finding], name: &str) -> String {
+    findings
+        .iter()
+        .find(|f| f.summary.contains(&format!("`{name}`")))
+        .unwrap_or_else(|| panic!("no finding for {name}: {findings:?}"))
+        .summary
+        .clone()
+}
+
+#[test]
+fn deny_warnings_in_the_lib_does_not_hide_the_bins_uses() {
+    // Review finding (Critical): with `#![deny(warnings)]` on the lib, the tags make the lib fail
+    // to build, cargo never compiles the dependent bin, and its uses were silently never counted:
+    // a fn used 3 times (1 discarded) was reported as "discarded at every one of its 1 call site".
+    let lib = format!(
+        "#![deny(warnings)]
+{LIB_WITH_VAL}"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", &lib),
+        ("src/main.rs", MAIN_USING_VAL_TWICE),
+    ]);
+    let s = summary_of(&run(&repo).unwrap(), "val");
+    assert!(s.contains("1 of its 3 call sites"), "{s}");
+}
+
+#[test]
+fn a_cargo_lints_table_that_denies_warnings_does_not_hide_the_bins_uses() {
+    let manifest = format!(
+        "{MANIFEST}
+[lints.rust]
+warnings = \"deny\"
+"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        ("src/lib.rs", LIB_WITH_VAL),
+        ("src/main.rs", MAIN_USING_VAL_TWICE),
+    ]);
+    let s = summary_of(&run(&repo).unwrap(), "val");
+    assert!(s.contains("1 of its 3 call sites"), "{s}");
+}
+
+#[test]
+fn uses_inside_a_local_allow_deprecated_module_still_count() {
+    // Review finding (Important): a module-level `#[allow(deprecated)]` silenced the use reports
+    // inside it, so a fn consumed there looked discarded at every call site.
+    let lib = "pub fn val() -> i32 { 1 }
+pub fn discards() { val(); }
+#[allow(deprecated)]
+pub mod legacy {
+    pub fn a() -> i32 { crate::val() }
+    pub fn b() -> i32 { crate::val() }
+}
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", lib)]);
+    let s = summary_of(&run(&repo).unwrap(), "val");
+    assert!(s.contains("1 of its 3 call sites"), "{s}");
+}
+
+#[test]
+fn calls_from_a_local_macro_are_counted_per_invocation() {
+    // Review finding (Important): rustc reports `deprecated` at the macro DEFINITION span for every
+    // invocation, and span-based dedup collapsed three uses into one, so 3 discarded of 4 uses read
+    // as "discarded at every call site".
+    let main = "fn val() -> i32 { 1 }
+macro_rules! call { () => { val(); }; }
+fn main() { call!(); call!(); call!(); println!(\"{}\", val()); }
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/main.rs", main)]);
+    let s = summary_of(&run(&repo).unwrap(), "val");
+    assert!(s.contains("3 of its 4 call sites"), "{s}");
+}
+
+#[test]
+fn an_import_in_tests_examples_or_benches_is_not_a_call_site() {
+    // Review finding (Important): only `src/` use-statements were recorded, so `use fixture::val;`
+    // in an integration test counted as an extra use and a fn discarded everywhere read "mixed".
+    let test_rs = "use fixture::val;
+use fixture::{
+    two,
+};
+#[test]
+fn t() { val(); two(); }
+";
+    let lib = "pub fn val() -> i32 { 1 }
+pub fn two() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("tests/t.rs", test_rs),
+    ]);
+    let findings = run(&repo).unwrap();
+    for name in ["val", "two"] {
+        let s = summary_of(&findings, name);
+        assert!(s.contains("every one of its 1 call site"), "{name}: {s}");
+    }
 }

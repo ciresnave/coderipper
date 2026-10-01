@@ -13,7 +13,8 @@
 //!   inside a macro's token tree.
 //! - `let _ = f();` and `_ = f();` count as a USE: the author discarded it deliberately.
 //! - Analysis is HEAD-only (uncommitted edits aren't seen), as with the reachability check.
-//! - Only `src/` is rewritten; calls from `tests/`, `examples/`, `benches/` still count as uses.
+//! - Only `src/` is rewritten; calls from `tests/`, `examples/`, `benches/` still count as uses (their
+//!   `use` imports are excluded, as in `src/`).
 //! - Single-package projects only (a workspace root without its own `src/` errors out).
 
 mod classify;
@@ -24,9 +25,9 @@ use crate::allowlist::Allowlist;
 use crate::cargo_json::build_all_targets;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
-use crate::worktree::RewrittenWorktree;
+use crate::worktree::{walk_rs_files, RewrittenWorktree};
 use classify::classify;
-use rewriter::annotate;
+use rewriter::{annotate, use_ranges_only};
 use sentinel::{inject_sentinel, SENTINEL_FN};
 
 pub const CHECK_ID: &str = "unused-return-values";
@@ -56,6 +57,21 @@ impl Check for UnusedReturnValuesCheck {
             use_ranges.extend(annotated.use_ranges);
             Ok(annotated.source)
         })?;
+        // Imports in files that are built but not rewritten are not call sites either.
+        for dir in ["tests", "examples", "benches"] {
+            let dir = wt.root.join(dir);
+            if !dir.is_dir() {
+                continue;
+            }
+            for path in walk_rs_files(&dir)? {
+                let relative = path
+                    .strip_prefix(&wt.root)?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let source = std::fs::read_to_string(&path)?;
+                use_ranges.extend(use_ranges_only(&relative, &source)?);
+            }
+        }
         let sentinel_file = inject_sentinel(&wt.root)?;
         let build = build_all_targets(&wt.root)?;
 

@@ -66,6 +66,22 @@ pub fn annotate(file: &str, source: &str, next_id: &mut u32) -> anyhow::Result<A
     })
 }
 
+/// `use` item line ranges of a file that is NOT rewritten (`tests/`, `examples/`, `benches/`):
+/// an import there is no more a call site than one in `src/`.
+pub fn use_ranges_only(file: &str, source: &str) -> anyhow::Result<Vec<UseRange>> {
+    let parsed = syn::parse_file(source)
+        .map_err(|e| anyhow::anyhow!("could not parse {file} with syn ({e}); refusing to guess"))?;
+    let mut visitor = Annotator {
+        file,
+        next_id: &mut 0,
+        insertions: Vec::new(),
+        tags: Vec::new(),
+        use_ranges: Vec::new(),
+    };
+    visitor.visit_file(&parsed);
+    Ok(visitor.use_ranges)
+}
+
 struct Insertion {
     at: LineColumn,
     text: String,
@@ -339,6 +355,25 @@ mod tests {
                     last_line: 4
                 },
             ]
+        );
+    }
+
+    #[test]
+    fn use_ranges_only_records_imports_without_rewriting_anything() {
+        let ranges = use_ranges_only(
+            "tests/t.rs",
+            "use a::b;
+fn f() -> i32 { 1 }
+",
+        )
+        .unwrap();
+        assert_eq!(
+            ranges,
+            vec![UseRange {
+                file: "tests/t.rs".into(),
+                first_line: 1,
+                last_line: 1
+            }]
         );
     }
 

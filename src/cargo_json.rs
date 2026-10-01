@@ -89,12 +89,51 @@ struct RawSpan {
     line_start: u32,
     column_start: u32,
     is_primary: bool,
+    /// Present when the span is inside macro-expanded code; `span` is the macro CALL site.
+    expansion: Option<Box<RawExpansion>>,
 }
 
+#[derive(Deserialize)]
+struct RawExpansion {
+    span: RawSpan,
+}
+
+impl RawSpan {
+    /// rustc reports a lint inside a `macro_rules!` body at the macro DEFINITION, once per
+    /// invocation. Follow `expansion` out to the outermost call site, which is the only thing that
+    /// tells two invocations apart (and is where `unused_must_use` already points).
+    fn into_span(self) -> Span {
+        let is_primary = self.is_primary;
+        let mut cur = self;
+        while let Some(exp) = cur.expansion.take() {
+            cur = exp.span;
+        }
+        Span {
+            file: cur.file_name.replace('\\', "/"),
+            line: cur.line_start,
+            column: cur.column_start,
+            is_primary,
+        }
+    }
+}
+
+/// Extra rustc flags for the analysis build, appended to whatever the caller already set:
+/// - `--cap-lints=warn`: a `#![deny(warnings)]`, `[lints]` table or `-D warnings` must not turn the
+///   tags into errors, or cargo never compiles the crates that depend on the failed one and their
+///   uses silently go uncounted.
+/// - `--force-warn <lint>`: an `allow` (crate-wide or on one module) must not silence the two lints
+///   this check counts, or uses inside it silently go uncounted.
+const ANALYSIS_RUSTFLAGS: &str =
+    "--cap-lints=warn --force-warn deprecated --force-warn unused_must_use";
+
 pub(crate) fn build_all_targets(root: &Path) -> anyhow::Result<BuildOutput> {
+    let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let output = Command::new("cargo")
         .args(["build", "--all-targets", "--message-format=json"])
         .current_dir(root)
+        .env("RUSTFLAGS", format!("{existing} {ANALYSIS_RUSTFLAGS}"))
+        // Takes precedence over RUSTFLAGS when set, which would drop the flags above.
+        .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .output()?;
     Ok(BuildOutput {
         diagnostics: parse_messages(&String::from_utf8_lossy(&output.stdout)),
@@ -114,16 +153,7 @@ pub(crate) fn parse_messages(stdout: &str) -> Vec<Diagnostic> {
             level: raw.level,
             message: raw.message,
             notes: raw.children.into_iter().map(|c| c.message).collect(),
-            spans: raw
-                .spans
-                .into_iter()
-                .map(|s| Span {
-                    file: s.file_name.replace('\\', "/"),
-                    line: s.line_start,
-                    column: s.column_start,
-                    is_primary: s.is_primary,
-                })
-                .collect(),
+            spans: raw.spans.into_iter().map(RawSpan::into_span).collect(),
         })
         .collect()
 }
@@ -146,6 +176,14 @@ mod tests {
             (span.file.as_str(), span.line, span.column),
             ("src/lib.rs", 7, 5)
         );
+    }
+
+    #[test]
+    fn a_span_inside_a_macro_expansion_resolves_to_the_invocation_site() {
+        let line = r#"{"reason":"compiler-message","message":{"code":{"code":"deprecated","explanation":null},"level":"warning","message":"use of deprecated function `f`: CR:1","spans":[{"file_name":"src/main.rs","line_start":3,"column_start":29,"is_primary":true,"expansion":{"span":{"file_name":"src/main.rs","line_start":4,"column_start":22,"is_primary":false,"expansion":null},"macro_decl_name":"call!"}}],"children":[]}}"#;
+        let span = parse_messages(line)[0].primary_span().unwrap().clone();
+        assert_eq!((span.line, span.column), (4, 22));
+        assert!(span.is_primary);
     }
 
     #[test]

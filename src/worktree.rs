@@ -71,7 +71,7 @@ impl Drop for RewrittenWorktree {
     }
 }
 
-fn walk_rs_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub(crate) fn walk_rs_files(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
