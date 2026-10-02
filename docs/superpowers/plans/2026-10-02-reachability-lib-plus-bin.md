@@ -1,5 +1,28 @@
 # Reachability on packages with a library — Implementation Plan
 
+> **IMPLEMENTATION STATUS (2026-10-02, post-implementation, post-review): this plan was executed on branch
+> `feat/reachability-lib-plus-bin` (head `1f322dc`, rebased onto `main` after #9 merged). A fresh whole-branch
+> review then reproduced five classes of FALSE POSITIVES (live items reported as dead) that this plan's design
+> did not cover, plus a silent over-rescue, all fixed test-first in the last commit. Kept as the historical
+> record; where it disagrees with the code, trust the code.** The module docs no longer claim "never reports a
+> live item as dead": they say it aims to over-rescue and list what it cannot see.
+> 1. `macro_rules!` bodies were invisible: a macro is now an item named by the macro, and an item-position macro
+>    invocation is a root (always compiled).
+> 2. `use a as b` renames were not followed: an alias now leads back to the original name.
+> 3. Bins/tests/examples/benches with a custom `path` were never scanned: `cargo metadata` supplies every
+>    non-lib target and its module tree. (A custom `[lib] path` is still unsupported.)
+> 4. An inherent impl's header (bounds, where clauses) was dropped: each method now carries it (without becoming
+>    live by itself).
+> 5. Path-shaped string literals (`#[serde(default = "f")]`) now name what they point at.
+> 6. Keywords (`impl`, `for`) and the impl's own generic parameters made EVERY trait impl live as soon as anything
+>    reachable mentioned them. Keywords are no longer identifiers, and a trait impl is live with the lib type it
+>    implements (or, for a foreign/generic self type, its trait) — the rule in "What running it taught" item 3 was
+>    too loose.
+> 7. When every candidate is set aside the run printed "no issues found"; it now emits an Info finding saying so.
+> Also: non-UTF-8 files no longer fail the scan. Measured on `fuel-core` (read-only clone, 40 src files, 35
+> integration tests): 308 dead-in-lib candidates -> 102 reported, 206 set aside; the first draft (before these fixes)
+> reported 143, i.e. 48 of those were live code.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the reachability check work on a Rust package that has a library target consumed by its own
