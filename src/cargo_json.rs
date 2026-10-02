@@ -117,22 +117,35 @@ impl RawSpan {
     }
 }
 
-/// Extra rustc flags for the analysis build, appended to whatever the caller already set:
-/// - `--cap-lints=warn`: a `#![deny(warnings)]`, `[lints]` table or `-D warnings` must not turn the
-///   tags into errors, or cargo never compiles the crates that depend on the failed one and their
-///   uses silently go uncounted.
-/// - `--force-warn <lint>`: an `allow` (crate-wide or on one module) must not silence the two lints
-///   this check counts, or uses inside it silently go uncounted.
-const ANALYSIS_RUSTFLAGS: &str =
-    "--cap-lints=warn --force-warn deprecated --force-warn unused_must_use";
+/// Caps every lint at `warn`. Every check that builds the crate wants this: a `#![deny(warnings)]`,
+/// a `[lints]` table or `-D warnings` would otherwise turn a lint the check relies on into an error,
+/// fail the build, and stop cargo compiling the crates that depend on the failed one.
+pub(crate) const CAP_LINTS: &str = "--cap-lints=warn";
 
-pub(crate) fn build_all_targets(root: &Path) -> anyhow::Result<BuildOutput> {
+/// `existing` (the caller's own `RUSTFLAGS`) followed by `extra`.
+pub(crate) fn compose_rustflags(existing: &str, extra: &str) -> String {
+    format!("{existing} {extra}").trim().to_string()
+}
+
+/// Builds every target of the package at `root` and parses cargo's JSON diagnostics. `extra_rustflags`
+/// is appended to the caller's `RUSTFLAGS`; `CARGO_ENCODED_RUSTFLAGS` is removed because cargo prefers
+/// it and it would drop the flags.
+pub(crate) fn build_all_targets(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
+    build_with(root, "--all-targets", extra_rustflags)
+}
+
+/// Like [`build_all_targets`] but only the library target: bins, tests, examples and benches are not
+/// compiled, so a change that breaks them (e.g. downgrading the lib's `pub` items) cannot fail it.
+pub(crate) fn build_lib_only(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
+    build_with(root, "--lib", extra_rustflags)
+}
+
+fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let output = Command::new("cargo")
-        .args(["build", "--all-targets", "--message-format=json"])
+        .args(["build", target_arg, "--message-format=json"])
         .current_dir(root)
-        .env("RUSTFLAGS", format!("{existing} {ANALYSIS_RUSTFLAGS}"))
-        // Takes precedence over RUSTFLAGS when set, which would drop the flags above.
+        .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .output()?;
     Ok(BuildOutput {
@@ -184,6 +197,18 @@ mod tests {
         let span = parse_messages(line)[0].primary_span().unwrap().clone();
         assert_eq!((span.line, span.column), (4, 22));
         assert!(span.is_primary);
+    }
+
+    #[test]
+    fn rustflags_are_appended_to_the_callers_without_a_stray_space() {
+        assert_eq!(
+            compose_rustflags("", "--cap-lints=warn"),
+            "--cap-lints=warn"
+        );
+        assert_eq!(
+            compose_rustflags("-C target-cpu=native", "--cap-lints=warn"),
+            "-C target-cpu=native --cap-lints=warn"
+        );
     }
 
     #[test]

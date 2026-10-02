@@ -100,6 +100,17 @@ trick, not new technology, just not packaged as a repeatable check here yet. Pyt
 TypeScript (`ts-prune` or similar) already have adequate tools; this check just wires their output into the
 shared `Finding` schema.
 
+**Packages with a library (Rust), implemented 2026-10-02** (`docs/superpowers/plans/2026-10-02-reachability-lib-plus-bin.md`).
+Downgrading a lib's `pub` items breaks every other target that imports it by crate name (E0603), so the check
+used to refuse such packages, CodeRipper itself included. Now only the library is built, and a candidate is
+*rescued* (not reported) when a file the lib does not compile (a bin, an integration test, an example, a bench,
+or a module only a bin declares) reaches it by name: reachability over identifiers across the whole lib, with
+every `impl Trait for Type` block live as soon as its trait or type is reachable. It can over-rescue (a dead `new`
+hidden because something reachable mentions another `new`), never report a live item as dead; the cost is
+missed findings on common names. Not covered: `pub` items inside bin targets when a lib exists, and a custom
+`[lib] path`. Acceptance probe: the check now runs on CodeRipper itself and reports nothing, and three planted
+dead items are found.
+
 **Sub-pass B, `Portfolio` scope.** Does every project's declared public API surface actually get referenced
 by another portfolio repo meant to consume it?
 
@@ -225,6 +236,20 @@ an intentional exemption from the warning, and the same blind-spot class `reacha
 (pub items exempted from `dead_code`) applies here too — a parameter someone prefixed with `_` to silence
 the warning might be worth flagging as "accepted and silently ignored" rather than assumed deliberate.**
 Not scoping that wrinkle in now; noting it so it isn't rediscovered cold later.
+
+**Implemented 2026-10-02 (`docs/superpowers/plans/2026-10-02-unused-parameters.md`), Rust only, as the PM
+scoped it.** Shape (a) of the above, with three corrections found by testing rustc's output rather than
+assuming it is "free": (1) rustc words an unused *parameter* exactly like an unused *local* ("unused
+variable: `x`"), so the diagnostic alone cannot say which it is; the check joins it to the exact positions
+of function parameters found by `syn`. (2) rustc also reports the forced signature of every trait impl, trait
+default bodies, closure parameters and macro-generated functions; all of those are out of scope. (3) An
+explicit `#[allow(unused_variables)]` on an item is respected (a deliberate, local decision; record a reason in
+the allowlist instead), but a crate-wide allow makes the per-run sentinel fail and the run errors rather than
+reporting clean. The finding's `subject` is qualified (inline `mod {}` blocks, the impl's type, enclosing functions, then
+`function::parameter`; the file is part of an entry's identity, so the file tree need not be), so unlike
+the two earlier checks two same-named methods on different types in one file do not share an allowlist
+entry. Known limit: generic arguments are not part of the type, so `impl W<u8>` and `impl W<u16>` share one. **Still not scoped:**
+the underscore-prefix blind spot noted above, and shape (b) for languages without a built-in lint.
 
 **Worth flagging, not solving here**: `provenance/license` (CireSnave's "I am not a plagiarist" rule —
 trace every third-party file to its origin, verify licence/credit) doesn't cleanly fit one tier. A shallow

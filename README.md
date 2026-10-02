@@ -11,6 +11,8 @@ Run it next to `cargo clippy`:
 coderipper fast                      # every fast (local-only) check, current project
 coderipper sweep                     # everything, including network-backed checks
 coderipper check reachability        # one check by id
+coderipper check unused-return-values  # is a function's return value ever consumed?
+coderipper check unused-parameters   # which function parameters are never used?
 ```
 
 A server mode (`coderipper serve`) is planned, for a free hosted instance on
@@ -18,10 +20,18 @@ A server mode (`coderipper serve`) is planned, for a free hosted instance on
 
 ## Status
 
-Early. The host, the shared `Finding` schema, and the check-plugin interface exist, and two checks are
-implemented: `reachability` (dead code, including `pub` items) and `unused-return-values` (a function whose
+Early. The host, the shared `Finding` schema, and the check-plugin interface exist, and three checks are
+implemented: `reachability` (dead code, including `pub` items), `unused-parameters` (a function parameter
+never used) and `unused-return-values` (a function whose
 return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
 `docs/superpowers/plans/` for what's actually being built and in what order.
+
+## Reachability on a package with a library
+
+`reachability` builds only the library when there is one, then does not report an item that a bin, test,
+example or bench reaches by name (and everything that item reaches). It can therefore miss a dead item that
+shares a name with something live, but it does not report live code as dead. `pub` items inside the bins
+themselves are not analyzed when a library exists.
 
 ## Suppressing a finding
 

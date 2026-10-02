@@ -19,6 +19,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
     vec![
         Box::new(checks::ReachabilityCheck),
         Box::new(checks::UnusedReturnValuesCheck),
+        Box::new(checks::UnusedParametersCheck),
     ]
 }
 
@@ -113,7 +114,10 @@ mod tests {
         // test -- a unit test has no business writing into a shared .git via `git worktree add`.
         let checks = registered_checks();
         let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
-        assert_eq!(ids, vec!["reachability", "unused-return-values"]);
+        assert_eq!(
+            ids,
+            vec!["reachability", "unused-return-values", "unused-parameters"]
+        );
     }
 
     struct Fake {

@@ -275,3 +275,49 @@ fn a_malformed_allowlist_fails_the_run_with_an_honest_message() {
         .stderr(predicate::str::contains("allowlist"))
         .stderr(predicate::str::contains("check(s) failed to run").not());
 }
+
+#[test]
+fn the_unused_parameters_check_runs_by_id_and_reports_a_parameter() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"params\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("src")).unwrap();
+    std::fs::write(
+        tmp.path().join("src/main.rs"),
+        "fn f(used: i32, ignored: i32) -> i32 { used }\nfn main() { f(1, 2); }\n",
+    )
+    .unwrap();
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec![
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-parameters", "--project"])
+        .arg(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "parameter `ignored` of `f` is never used",
+        ))
+        .stdout(predicate::str::contains("(unused-parameters)"));
+}

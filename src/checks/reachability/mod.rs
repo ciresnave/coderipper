@@ -1,12 +1,22 @@
 //! Reachability check (project scope): does every function in a Rust crate get called from
 //! somewhere, including `pub` items that `rustc`'s own `dead_code` lint deliberately exempts.
 //!
-//! **Known limitations, found and confirmed during implementation and review (not fixed here):**
-//! - **A package with more than one compilation target** (a `lib` + a `bin`, or a `lib` +
-//!   integration tests) where the other target imports the lib by crate name cannot be analyzed at
-//!   all: downgrading the lib's `pub` items breaks that import with `E0603`. **True of CodeRipper's
-//!   own repo.** [`inject_sentinel`] + the build-error check below detect this and return `Err`
-//!   rather than silently reporting zero findings.
+//! **Packages with a library:** only the library is built (the `pub` downgrade would break every
+//! other target that imports it by crate name). A lib item that a bin, an integration test, an
+//! example or a bench names is therefore NOT reported, and neither is anything such an item reaches:
+//! matching is by bare identifier (`rescue`), so it can over-rescue (a dead `new` is hidden when a bin
+//! calls some other `new`) rather than reporting a live item as dead. Edges it follows, beyond a name
+//! appearing in an item's source: `macro_rules!` bodies, `use a as b` renames, inherent-impl headers,
+//! trait impls (live with their type), names inside format strings and path-shaped string literals
+//! (`#[serde(default = "f")]`), and every non-lib target the manifest declares, custom paths included.
+//! What it cannot see: items used only by proc-macro or derive output that never spells their name.
+//!
+//! **Known limitations, found and confirmed during implementation and review:**
+//! - **`pub` items inside bin targets are not analyzed** when the package also has a library: rustc
+//!   exempts them unless downgraded, and downgrading a bin against an unmodified lib is a separate
+//!   pass. A package with no library is analyzed as before (all targets).
+//! - **Custom `[lib] path`** is not followed: only `src/lib.rs` counts as the library (custom paths of
+//!   bins, tests, examples and benches are).
 //! - **A function called only from a `#[test]`** is not rescued from `dead_code` by rustc (confirmed
 //!   empirically, many independent fresh builds) -- "a test counts as reachability" (the design
 //!   doc's stated intent) is not delivered for this case.
@@ -19,13 +29,17 @@
 //! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
 
 mod diagnostics;
+mod foreign;
+mod rescue;
 mod rewriter;
 mod sentinel;
 
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::RewrittenWorktree;
-use diagnostics::collect_dead_code;
+use diagnostics::{collect_dead_code_in, Targets};
+use foreign::{foreign_identifiers, lib_module_files};
+use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
 
@@ -49,31 +63,23 @@ impl Check for ReachabilityCheck {
             Ok(rewrite_pub_to_pub_crate(source))
         })?;
         let sentinel_file = inject_sentinel(&wt.root)?;
-        let result = collect_dead_code(&wt.root)?;
+        // With a library, build ONLY the library: downgrading its `pub` items breaks every other target
+        // that imports it by crate name (E0603), so bins, tests, examples and benches are not compiled.
+        // What they use is accounted for by `rescue` below instead.
+        let has_lib = wt.root.join("src/lib.rs").is_file();
+        let targets = if has_lib {
+            Targets::LibOnly
+        } else {
+            Targets::All
+        };
+        let result = collect_dead_code_in(&wt.root, targets)?;
 
-        // The sentinel is a REAL per-run positive control, not a fixed narrative string: it's a
-        // guaranteed-dead function injected into THIS run's own rewritten tree. If it doesn't come
-        // back as a hit, this run's result can't be trusted -- whether because the build failed
-        // outright (lib+bin crates importing the lib by name, confirmed on CodeRipper's own repo
-        // during review: E0603 "module is private"), or for any other reason dead_code detection
-        // didn't actually fire (e.g. a crate-wide #[allow(dead_code)]). Either way, reporting empty
-        // findings here would be indistinguishable from "genuinely clean", which is exactly the
-        // silent-false-negative this check exists to prevent elsewhere -- so it must not commit it
-        // itself. Known, accepted gap this doesn't fix (see the plan/design docs): a package with a
-        // separate lib target consumed by its own bin/tests will always trip this and report an
-        // error rather than partial findings.
-        // Check the genuine-error signal FIRST, unconditionally -- a real compile error anywhere
-        // in the build (e.g. a package with a lib target consumed by its own bin/integration-tests
-        // by crate name: downgrading the lib's pub items breaks E0603 in the OTHER target, even
-        // though the LIB half compiles fine on its own and can still show its own sentinel as
-        // confirmed) must never look like a clean result, regardless of what the sentinel found.
+        // A real compile error anywhere in the build must never look like a clean result, whatever
+        // the sentinel found.
         anyhow::ensure!(
             !result.build_failed_for_other_reasons,
             "this crate's build reported real compiler error(s) unrelated to dead_code after the \
-             rewrite -- most commonly a package with a lib target consumed by its own bin or \
-             integration tests by crate name (downgrading the lib's pub items to pub(crate) breaks \
-             E0603 'module is private' in the other target). Known gap, not fixed here -- see \
-             docs/superpowers/specs/2026-09-30-audit-host-design.md."
+             rewrite, so no result can be trusted"
         );
 
         // The sentinel is a REAL per-run positive control, not a fixed narrative string: it's a
@@ -100,10 +106,39 @@ impl Check for ReachabilityCheck {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
-        let findings = result
+        let candidates: Vec<_> = result
             .hits
             .into_iter()
             .filter(|hit| hit.symbol != SENTINEL_SYMBOL) // the sentinel itself is not a real finding
+            .collect();
+        // Items a target the lib build never compiled (bin, test, example, bench) names are live as
+        // far as this check can tell; set them aside, and everything they reach.
+        let (candidates, set_aside) = if has_lib {
+            let lib_files = lib_module_files(&wt.root)?;
+            let foreign = foreign_identifiers(&wt.root, &lib_files)?;
+            let split = rescue(candidates, &foreign, &wt.root, &lib_files)?;
+            (split.kept, split.rescued.len())
+        } else {
+            (candidates, 0)
+        };
+        let set_aside_note = if set_aside == 0 {
+            String::new()
+        } else {
+            format!(
+                " {set_aside} other candidate(s) in this crate were not reported because a file the \
+                 library does not compile (a bin, test, example or bench) mentions their name."
+            )
+        };
+
+        let positive_control = format!(
+            "this run's own per-run sentinel (a guaranteed-dead function, `{SENTINEL_SYMBOL}`, \
+             injected into `{sentinel_file}` before this build) WAS detected as dead_code -- \
+             confirming the pipeline could actually see dead code in THIS run, not just a fixed \
+             claim from a different one"
+        );
+
+        let mut findings: Vec<Finding> = candidates
+            .into_iter()
             .map(|hit| Finding {
                 check_id: "reachability".into(),
                 severity: Severity::Medium,
@@ -118,17 +153,35 @@ impl Check for ReachabilityCheck {
                 detail: format!(
                     "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
                      `pub(crate)` in a throwaway worktree, so the lint's normal `pub`-exemption doesn't \
-                     hide it. File: {}, line {}.",
+                     hide it. File: {}, line {}.{set_aside_note}",
                     hit.file, hit.line
                 ),
-                positive_control: Some(format!(
-                    "this run's own per-run sentinel (a guaranteed-dead function, `{SENTINEL_SYMBOL}`, \
-                     injected into `{sentinel_file}` before this build) WAS detected as dead_code -- \
-                     confirming the pipeline could actually see dead code in THIS run, not just a fixed \
-                     claim from a different one"
-                )),
+                positive_control: Some(positive_control.clone()),
             })
             .collect();
+
+        // A run that sets candidates aside and reports nothing would otherwise print the same
+        // "no issues found" as a crate with nothing dead. Say what happened.
+        if findings.is_empty() && set_aside > 0 {
+            findings.push(Finding {
+                check_id: "reachability".into(),
+                severity: Severity::Info,
+                confidence: Confidence::High,
+                project: project_name.clone(),
+                location: None,
+                subject: None,
+                summary: format!(
+                    "{set_aside} dead-code candidate(s) were set aside because a bin, test, example or \
+                     bench reaches them by name; nothing else was found"
+                ),
+                detail: format!(
+                    "With a library, only the library is built, so an item another target uses looks \
+                     dead to rustc.{set_aside_note} Matching is by identifier, so a dead item that shares \
+                     a name with something live is hidden too."
+                ),
+                positive_control: Some(positive_control),
+            });
+        }
 
         Ok(findings)
     }
