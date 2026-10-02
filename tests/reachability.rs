@@ -1,5 +1,8 @@
+mod common;
+
 use coderipper::check::{Check, CheckContext};
 use coderipper::checks::reachability::ReachabilityCheck;
+use common::{git_repo_with, MANIFEST};
 use std::process::Command;
 
 fn fixture_as_a_git_repo() -> tempfile::TempDir {
@@ -160,65 +163,348 @@ fn a_crate_wide_allow_dead_code_makes_the_check_error_not_silently_report_clean(
     );
 }
 
+fn subjects(findings: &[coderipper::finding::Finding]) -> Vec<String> {
+    let mut v: Vec<String> = findings.iter().filter_map(|f| f.subject.clone()).collect();
+    v.sort();
+    v
+}
+
+fn run_reachability(repo: &tempfile::TempDir) -> anyhow::Result<Vec<coderipper::finding::Finding>> {
+    ReachabilityCheck.run(&CheckContext {
+        project_root: repo.path().to_path_buf(),
+        portfolio_root: repo.path().to_path_buf(),
+    })
+}
+
+const LIB_WITH_BIN_USERS: &str = "\
+pub mod api {
+    pub fn used_by_bin() -> i32 { 1 }
+    pub fn helper_of_bin_only() -> i32 { 2 }
+    pub fn used_by_lib() -> i32 { 3 }
+    pub fn dead() -> i32 { 4 }
+    pub struct Cfg;
+    pub struct DeadTy;
+}
+pub use api::Cfg;
+pub fn entry() -> i32 { api::used_by_lib() }
+pub fn bin_root() -> i32 { api::helper_of_bin_only() }
+";
+
+const BIN_USING_THE_LIB: &str = "\
+use fixture::Cfg;
+fn main() {
+    let _c = Cfg;
+    println!(\"{} {}\", fixture::api::used_by_bin(), fixture::bin_root());
+}
+";
+
 #[test]
-fn a_crate_that_fails_to_compile_after_the_rewrite_errors_instead_of_reporting_clean() {
-    // Review finding (Critical), the CodeRipper-self-scan case: a package with a lib target AND a
-    // bin/tests target that imports the lib by crate name fails to compile once the lib's pub
-    // items are downgraded (E0603, "module is private") -- confirmed on CodeRipper's own repo
-    // during review. `ReachabilityCheck::run` used to return `Ok(Vec::new())` for this, which
-    // looked identical to "genuinely clean" from the caller's side. Reproduced here with a minimal
-    // lib+bin package (not the full coderipper repo, to keep this test fast and self-contained).
-    let tmp = tempfile::tempdir().unwrap();
-    std::fs::write(
-        tmp.path().join("Cargo.toml"),
-        "[package]\nname = \"libbin\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
-    )
-    .unwrap();
-    std::fs::create_dir_all(tmp.path().join("src")).unwrap();
-    std::fs::write(
-        tmp.path().join("src/lib.rs"),
-        "pub fn helper() -> i32 { 1 }\n",
-    )
-    .unwrap();
-    std::fs::write(
-        tmp.path().join("src/main.rs"),
-        "fn main() { println!(\"{}\", libbin::helper()); }\n",
-    )
-    .unwrap();
-    Command::new("git")
-        .arg("init")
-        .arg("-q")
-        .current_dir(tmp.path())
-        .status()
-        .unwrap();
-    Command::new("git")
-        .args(["add", "-A"])
-        .current_dir(tmp.path())
-        .status()
-        .unwrap();
-    Command::new("git")
-        .args([
-            "-c",
-            "user.email=t@t",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-q",
-            "-m",
-            "init",
-        ])
-        .current_dir(tmp.path())
-        .status()
-        .unwrap();
-
-    let ctx = CheckContext {
-        project_root: tmp.path().to_path_buf(),
-        portfolio_root: tmp.path().to_path_buf(),
-    };
-
-    let result = ReachabilityCheck.run(&ctx);
-    assert!(
-        result.is_err(),
-        "a lib+bin crate that fails to compile after the rewrite must error, not report clean"
+fn a_lib_consumed_by_its_own_bin_is_analyzed_and_what_the_bin_uses_is_not_reported() {
+    // The case the check used to refuse (E0603 after downgrading the lib's pub items): the lib is
+    // built alone, and an item a bin names is rescued, together with everything it reaches.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", LIB_WITH_BIN_USERS),
+        ("src/main.rs", BIN_USING_THE_LIB),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    // used_by_bin, bin_root and Cfg are named by the bin; helper_of_bin_only is only reached from
+    // bin_root (transitive rescue). Nothing in the lib or the bin reaches the other four.
+    assert_eq!(
+        subjects(&findings),
+        vec!["DeadTy", "dead", "entry", "used_by_lib"]
     );
+    assert!(findings.iter().all(|f| f.positive_control.is_some()));
+    assert!(
+        findings[0].detail.contains("not reported"),
+        "the finding should say that candidates were set aside: {}",
+        findings[0].detail
+    );
+}
+
+#[test]
+fn integration_tests_examples_benches_src_bin_and_bin_only_modules_all_rescue() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "pub fn from_test() {}\npub fn from_example() {}\npub fn from_bench() {}\npub fn from_bin() {}\npub fn from_bin_module() {}\npub fn nobody() {}\n",
+        ),
+        ("tests/t.rs", "#[test]\nfn t() { fixture::from_test(); }\n"),
+        ("examples/e.rs", "fn main() { fixture::from_example(); }\n"),
+        ("benches/b.rs", "fn main() { fixture::from_bench(); }\n"),
+        ("src/bin/tool.rs", "fn main() { fixture::from_bin(); }\n"),
+        ("src/main.rs", "mod util;\nfn main() { util::go(); }\n"),
+        ("src/util.rs", "pub fn go() { fixture::from_bin_module(); }\n"),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["nobody"]);
+}
+
+#[test]
+fn a_mention_inside_the_lib_itself_does_not_rescue() {
+    // `src/inner.rs` is part of the lib, so its text is not a foreign mention: a dead item there
+    // stays reported even though the bin mentions an unrelated name.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "mod inner;\npub use inner::kept_alive;\n"),
+        (
+            "src/inner.rs",
+            "pub fn kept_alive() {}\npub fn dead_in_inner() {}\n",
+        ),
+        ("src/main.rs", "fn main() { fixture::kept_alive(); }\n"),
+    ]);
+    assert_eq!(
+        subjects(&run_reachability(&repo).unwrap()),
+        vec!["dead_in_inner"]
+    );
+}
+
+#[test]
+fn a_name_shared_with_something_the_bin_uses_is_rescued_that_is_the_accepted_over_rescue() {
+    // `Tool::new` is dead in the lib; the bin calls a DIFFERENT `new`. By design the name wins:
+    // a missed finding, never a wrongly reported live item.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub struct Tool;\nimpl Tool { pub fn new() -> Tool { Tool } }\npub struct Used;\nimpl Used { pub fn new() -> Used { Used } }\n"),
+        ("src/main.rs", "fn main() { let _u = fixture::Used::new(); }\n"),
+    ]);
+    // Without the name match, the dead `Tool::new` would be the one finding.
+    let found = subjects(&run_reachability(&repo).unwrap());
+    assert!(found.is_empty(), "{found:?}");
+}
+
+#[test]
+fn deny_warnings_on_a_lib_does_not_stop_the_analysis() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "#![deny(warnings)]\nuse std::collections::HashMap;\npub fn dead() {}\n",
+        ),
+        ("src/main.rs", "fn main() {}\n"),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["dead"]);
+}
+
+#[test]
+fn a_crate_that_really_does_not_compile_still_errors() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub fn f() { let x: i32 = \"no\"; }\n"),
+        ("src/main.rs", "fn main() {}\n"),
+    ]);
+    assert!(run_reachability(&repo).is_err());
+}
+
+#[test]
+fn a_path_from_the_bin_through_a_trait_impl_keeps_everything_it_reaches_alive() {
+    // The shape a self-scan of CodeRipper itself exposed: the bin names `run_all`, which reaches
+    // `registry`, whose trait impl's method calls `helper`. The trait impl is not a dead-code
+    // candidate, so a rescue that only follows candidates loses the path and reports live code.
+    let lib = "\
+pub trait Check { fn go(&self) -> i32; }
+pub struct A;
+impl Check for A { fn go(&self) -> i32 { helper() } }
+pub fn helper() -> i32 { 1 }
+pub fn registry() -> Vec<Box<dyn Check>> { vec![Box::new(A)] }
+pub fn run_all() -> i32 { registry().iter().map(|c| c.go()).sum() }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        (
+            "src/main.rs",
+            "fn main() { println!(\"{}\", fixture::run_all()); }\n",
+        ),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_constant_used_only_through_a_format_string_capture_is_alive() {
+    let lib = "\
+pub const GREETING: &str = \"hi\";
+pub const NEVER: &str = \"unused\";
+pub fn run_all() -> String { format!(\"{GREETING}, world\") }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        (
+            "src/main.rs",
+            "fn main() { println!(\"{}\", fixture::run_all()); }\n",
+        ),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["NEVER"]);
+}
+
+// ---- Review fixes: every fixture below is a LIVE item that a first version reported as dead. ----
+
+fn bin_calls(call: &str) -> String {
+    format!("fn main() {{ println!(\"{{}}\", {call}); }}\n")
+}
+
+#[test]
+fn an_item_reached_only_through_an_internal_macro_is_alive() {
+    let lib = "\
+macro_rules! call_helper { () => { helper() } }
+pub fn helper() -> i32 { 1 }
+pub fn run() -> i32 { call_helper!() }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::run()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn an_item_reached_only_through_an_exported_macro_the_bin_invokes_is_alive() {
+    let lib = "\
+#[macro_export]
+macro_rules! go { () => { $crate::exported_helper() } }
+pub fn exported_helper() -> i32 { 1 }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::go!()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn an_item_reached_only_through_a_use_rename_is_alive() {
+    let lib = "\
+mod inner {
+    pub fn real_name() -> i32 { 1 }
+    pub fn orphan() -> i32 { 2 }
+}
+pub use inner::real_name as nice;
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::nice()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_rename_inside_the_lib_itself_is_followed() {
+    let lib = "\
+mod inner { pub fn real() -> i32 { 1 } }
+use inner::real as r;
+pub fn run() -> i32 { r() }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::run()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn bins_and_tests_with_a_custom_path_are_foreign_too() {
+    let manifest = format!(
+        "{MANIFEST}\n[[bin]]\nname = \"tool\"\npath = \"tools/tool.rs\"\n\n[[test]]\nname = \"it\"\npath = \"it/main.rs\"\n"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        (
+            "src/lib.rs",
+            "pub fn used_by_custom_bin() {}\npub fn used_by_custom_test() {}\npub fn orphan() {}\n",
+        ),
+        (
+            "tools/tool.rs",
+            "mod helpers;\nfn main() { fixture::used_by_custom_bin(); helpers::go(); }\n",
+        ),
+        ("tools/helpers.rs", "pub fn go() {}\n"),
+        (
+            "it/main.rs",
+            "#[test]\nfn t() { fixture::used_by_custom_test(); }\n",
+        ),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_bound_in_an_inherent_impls_header_keeps_the_trait_alive() {
+    let lib = "\
+pub trait Helper { fn h(&self) -> u8; }
+impl Helper for u16 { fn h(&self) -> u8 { 1 } }
+pub struct S<T>(pub T);
+impl<T: Helper> S<T> { pub fn get(&self) -> u8 { self.0.h() } }
+pub fn orphan() {}
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::S(3u16).get()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_trait_impl_is_live_because_its_type_is_not_because_of_a_keyword() {
+    // `for` and `impl` appear in every trait impl header. A bin containing a `for` loop must not
+    // make an impl for a type nobody reaches live: `NeverMade` and what its Drop calls stay reported.
+    let lib = "\
+pub struct NeverMade;
+impl Drop for NeverMade { fn drop(&mut self) { only_from_drop(); } }
+pub fn only_from_drop() {}
+pub fn used() -> i32 { 1 }
+";
+    let bin = "fn main() { let mut n = 0; for i in 0..3 { n += i; } println!(\"{} {}\", n, fixture::used()); }\n";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", bin),
+    ]);
+    assert_eq!(
+        subjects(&run_reachability(&repo).unwrap()),
+        vec!["NeverMade", "only_from_drop"]
+    );
+}
+
+#[test]
+fn a_trait_impl_of_a_type_the_bin_names_is_live_even_though_nothing_names_its_methods() {
+    // The case the previous test must not break: `Guard` is named by the bin, nobody names `drop`.
+    let lib = "\
+pub struct Guard;
+impl Drop for Guard { fn drop(&mut self) { cleanup(); } }
+pub fn cleanup() {}
+pub fn orphan() {}
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", "fn main() { let _g = fixture::Guard; }\n"),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn when_everything_is_set_aside_the_run_says_so_instead_of_printing_nothing() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub fn only_fn() -> i32 { 1 }\n"),
+        ("src/main.rs", &bin_calls("fixture::only_fn()")),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].severity, coderipper::finding::Severity::Info);
+    assert!(
+        findings[0].summary.contains("set aside"),
+        "{}",
+        findings[0].summary
+    );
+    assert!(findings[0].positive_control.is_some());
+    assert!(findings[0].clone().validate().is_ok());
 }

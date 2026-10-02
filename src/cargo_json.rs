@@ -131,9 +131,19 @@ pub(crate) fn compose_rustflags(existing: &str, extra: &str) -> String {
 /// is appended to the caller's `RUSTFLAGS`; `CARGO_ENCODED_RUSTFLAGS` is removed because cargo prefers
 /// it and it would drop the flags.
 pub(crate) fn build_all_targets(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
+    build_with(root, "--all-targets", extra_rustflags)
+}
+
+/// Like [`build_all_targets`] but only the library target: bins, tests, examples and benches are not
+/// compiled, so a change that breaks them (e.g. downgrading the lib's `pub` items) cannot fail it.
+pub(crate) fn build_lib_only(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
+    build_with(root, "--lib", extra_rustflags)
+}
+
+fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let output = Command::new("cargo")
-        .args(["build", "--all-targets", "--message-format=json"])
+        .args(["build", target_arg, "--message-format=json"])
         .current_dir(root)
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
