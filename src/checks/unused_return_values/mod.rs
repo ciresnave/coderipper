@@ -21,7 +21,7 @@ mod classify;
 mod rewriter;
 mod sentinel;
 
-use crate::cargo_json::build_all_targets;
+use crate::cargo_json::{build_all_targets, CAP_LINTS};
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::{walk_rs_files, RewrittenWorktree};
@@ -72,7 +72,10 @@ impl Check for UnusedReturnValuesCheck {
             }
         }
         let sentinel_file = inject_sentinel(&wt.root)?;
-        let build = build_all_targets(&wt.root)?;
+        // Besides capping lints: an `allow` (crate-wide or on one module) must not silence the two
+        // lints this check counts, or uses inside it silently go uncounted.
+        let rustflags = format!("{CAP_LINTS} --force-warn deprecated --force-warn unused_must_use");
+        let build = build_all_targets(&wt.root, &rustflags)?;
 
         // A real compiler error anywhere must never look like a clean result.
         anyhow::ensure!(

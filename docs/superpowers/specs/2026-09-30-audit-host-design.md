@@ -226,6 +226,20 @@ an intentional exemption from the warning, and the same blind-spot class `reacha
 the warning might be worth flagging as "accepted and silently ignored" rather than assumed deliberate.**
 Not scoping that wrinkle in now; noting it so it isn't rediscovered cold later.
 
+**Implemented 2026-10-02 (`docs/superpowers/plans/2026-10-02-unused-parameters.md`), Rust only, as the PM
+scoped it.** Shape (a) of the above, with three corrections found by testing rustc's output rather than
+assuming it is "free": (1) rustc words an unused *parameter* exactly like an unused *local* ("unused
+variable: `x`"), so the diagnostic alone cannot say which it is; the check joins it to the exact positions
+of function parameters found by `syn`. (2) rustc also reports the forced signature of every trait impl, trait
+default bodies, closure parameters and macro-generated functions; all of those are out of scope. (3) An
+explicit `#[allow(unused_variables)]` on an item is respected (a deliberate, local decision; record a reason in
+the allowlist instead), but a crate-wide allow makes the per-run sentinel fail and the run errors rather than
+reporting clean. The finding's `subject` is qualified (inline `mod {}` blocks, the impl's type, enclosing functions, then
+`function::parameter`; the file is part of an entry's identity, so the file tree need not be), so unlike
+the two earlier checks two same-named methods on different types in one file do not share an allowlist
+entry. Known limit: generic arguments are not part of the type, so `impl W<u8>` and `impl W<u16>` share one. **Still not scoped:**
+the underscore-prefix blind spot noted above, and shape (b) for languages without a built-in lint.
+
 **Worth flagging, not solving here**: `provenance/license` (CireSnave's "I am not a plagiarist" rule —
 trace every third-party file to its origin, verify licence/credit) doesn't cleanly fit one tier. A shallow
 version — "every vendored file has a traceable origin comment and licence notice present" — is `Project`
