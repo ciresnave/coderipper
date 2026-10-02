@@ -181,3 +181,50 @@ fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
         .stdout(predicate::str::contains("(unused-return-values)"))
         .stdout(predicate::str::contains("`f`"));
 }
+
+#[test]
+fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_does_not_fail_the_run() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"tidy\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".coderipper.toml"),
+        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nsymbol = \"long_gone\"\nreason = \"was a real discard once\"\n",
+    )
+    .unwrap();
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec![
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-return-values", "--project"])
+        .arg(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[Info/High]"))
+        .stdout(predicate::str::contains("`long_gone`"))
+        .stdout(predicate::str::contains("(allowlist)"));
+}

@@ -152,11 +152,15 @@ stated as a norm but not given a concrete mechanism. Formalizing it:
   suppression expires the same way — surfaced informationally, not silently dropped, so a human confirms
   the symptom is actually gone too rather than assuming the dependency guess was right.
 
-**Open question, not resolved here**: whether "permanent" vs "temporary" is really a separate axis from
-these two triggers, or whether "permanent" just means "self-dissolving only, no `until_fixed` link" and
-"temporary" means "has one." The latter is simpler — one suppression mechanism, one universal trigger
-(self-dissolving) plus one optional trigger (`until_fixed`) — and is the PM's lean, but it's genuinely
-open until a first implementation is attempted against it.
+**Implemented 2026-10-02 (`docs/superpowers/plans/2026-10-02-allowlist-stale-entries.md`), narrower than
+the above, by the PM's scoping call.** One axis, not two: the universal trigger only, and only in its
+**stale-this-run** form. The host (not each check) applies the allowlist to every check's raw findings and
+reports each entry that matched nothing *in this run* as an `Info` finding (check id `allowlist`; same
+`Finding` type, no parallel channel). An entry is judged only if its check ran to completion in that run; an
+entry naming an unregistered check is reported regardless. **Deliberately not built**: "hasn't matched in N
+runs" (needs a run-history store that doesn't exist; revisit if one is built for another reason) and the
+`until_fixed` link to a different finding. The "one axis or two" question is settled for now as one axis;
+`until_fixed` is a documented future extension.
 
 ## 5. Five more checks, sketched to pressure-test the interface above (not designed in full)
 

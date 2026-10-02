@@ -23,6 +23,24 @@ implemented: `reachability` (dead code, including `pub` items) and `unused-retur
 return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
 `docs/superpowers/plans/` for what's actually being built and in what order.
 
+## Suppressing a finding
+
+Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).
+List them in `.coderipper.toml` at the project root. Every entry names the check, the file, and the
+symbol, and **must** say why:
+
+```toml
+[[allow]]
+check = "reachability"
+file = "src/api.rs"
+symbol = "public_entry_point"
+reason = "published crate API, consumed outside this repo"
+```
+
+An entry that suppressed nothing in a run is reported as an `Info` finding (check id `allowlist`), so a
+suppression whose cause has been fixed does not linger. An entry naming a check that does not exist is
+reported the same way. An entry for a check that failed or did not run in that run is not judged.
+
 ## Why
 
 Found by hand, once, during an unrelated design review: a fully correct, well-tested module in another
