@@ -6,6 +6,19 @@ use std::path::Path;
 struct AllowlistFile {
     #[serde(rename = "allow", default)]
     entries: Vec<AllowEntry>,
+    #[serde(default)]
+    tracks: Vec<TrackEntry>,
+}
+
+/// A declared relationship, not a suppression: `package` is exempt from the one-version rule because
+/// it works with another project, and must match the version in that project's manifest instead
+/// (`version-consistency`, design doc section 5). `manifest` is relative to the project root.
+#[derive(Debug, Deserialize)]
+pub(crate) struct TrackEntry {
+    pub package: String,
+    pub manifest: String,
+    /// Required, like an allowlist entry's: every exception says why.
+    pub reason: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -20,31 +33,36 @@ pub(crate) struct AllowEntry {
 
 pub struct Allowlist {
     entries: Vec<AllowEntry>,
+    tracks: Vec<TrackEntry>,
 }
 
 impl Allowlist {
     pub fn empty() -> Self {
         Self {
             entries: Vec::new(),
+            tracks: Vec::new(),
         }
     }
 
     pub fn load(project_root: &Path) -> anyhow::Result<Self> {
         let path = project_root.join(".coderipper.toml");
         if !path.exists() {
-            return Ok(Self {
-                entries: Vec::new(),
-            });
+            return Ok(Self::empty());
         }
         let text = std::fs::read_to_string(&path)?;
         let parsed: AllowlistFile = toml::from_str(&text)?;
         Ok(Self {
             entries: parsed.entries,
+            tracks: parsed.tracks,
         })
     }
 
     pub fn entries(&self) -> &[AllowEntry] {
         &self.entries
+    }
+
+    pub(crate) fn tracks(&self) -> &[TrackEntry] {
+        &self.tracks
     }
 }
 
@@ -112,6 +130,38 @@ reason = "published crate API, consumed outside this portfolio"
             .expect("must fail")
             .to_string();
         assert!(err.contains("allows"), "{err}");
+    }
+
+    #[test]
+    fn tracks_entries_load_with_package_manifest_and_reason() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[tracks]]\npackage = \"emit\"\nmanifest = \"../other/Cargo.toml\"\nreason = \"works with other\"\n",
+        )
+        .unwrap();
+        let al = Allowlist::load(tmp.path()).unwrap();
+        assert_eq!(al.tracks().len(), 1);
+        assert_eq!(al.tracks()[0].package, "emit");
+        assert_eq!(al.tracks()[0].manifest, "../other/Cargo.toml");
+        assert!(
+            al.entries().is_empty(),
+            "a [[tracks]] entry is not a suppression"
+        );
+    }
+
+    #[test]
+    fn a_tracks_entry_with_no_reason_fails_to_load() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[tracks]]\npackage = \"emit\"\nmanifest = \"../other/Cargo.toml\"\n",
+        )
+        .unwrap();
+        assert!(
+            Allowlist::load(tmp.path()).is_err(),
+            "every exception says why"
+        );
     }
 
     #[test]
