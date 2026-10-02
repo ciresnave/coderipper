@@ -148,10 +148,44 @@ fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::R
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .output()?;
+    let diagnostics = parse_messages(&String::from_utf8_lossy(&output.stdout));
     Ok(BuildOutput {
-        diagnostics: parse_messages(&String::from_utf8_lossy(&output.stdout)),
+        diagnostics: relative_to_package(diagnostics, &crate::package::workspace_prefix(root)?),
         success: output.status.success(),
     })
+}
+
+/// cargo names files relative to the WORKSPACE root (`b/src/lib.rs` for a member `b`). Checks think
+/// in package-relative paths (`src/lib.rs`), so strip the member's prefix. A WARNING whose primary
+/// span is outside the package (a sibling member built as a dependency, a path dependency) is not
+/// the package's and is dropped; an error is kept wherever it is, because it breaks the build.
+fn relative_to_package(diagnostics: Vec<Diagnostic>, prefix: &str) -> Vec<Diagnostic> {
+    let inside = |file: &str| {
+        if prefix.is_empty() {
+            !file.starts_with("..") && !Path::new(file).is_absolute()
+        } else {
+            file.starts_with(prefix)
+        }
+    };
+    diagnostics
+        .into_iter()
+        .filter_map(|mut d| {
+            let outside = d
+                .spans
+                .iter()
+                .filter(|s| s.is_primary)
+                .any(|s| !inside(&s.file));
+            if outside && d.level != "error" {
+                return None;
+            }
+            for span in &mut d.spans {
+                if let Some(rest) = span.file.strip_prefix(prefix) {
+                    span.file = rest.to_string();
+                }
+            }
+            Some(d)
+        })
+        .collect()
 }
 
 /// Parses cargo's JSON stream (one object per line), keeping only `compiler-message` entries.
@@ -209,6 +243,64 @@ mod tests {
             compose_rustflags("-C target-cpu=native", "--cap-lints=warn"),
             "-C target-cpu=native --cap-lints=warn"
         );
+    }
+
+    fn workspace(a_lib: &str, b_lib: &str) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            ("Cargo.toml", "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n"),
+            ("a/Cargo.toml", "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"),
+            ("a/src/lib.rs", a_lib),
+            (
+                "b/Cargo.toml",
+                "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\na = { path = \"../a\" }\n",
+            ),
+            ("b/src/lib.rs", b_lib),
+        ];
+        for (name, contents) in files {
+            let path = tmp.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, contents).unwrap();
+        }
+        tmp
+    }
+
+    #[test]
+    fn a_member_build_reports_package_relative_paths_and_only_its_own_diagnostics() {
+        // `a` warns too (it is built as b's dependency); that warning is not b's.
+        let ws = workspace(
+            "pub fn a_warn(x: i32) {}\n",
+            "pub fn b_warn(y: i32) { a::a_warn(1); }\n",
+        );
+        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        let unused: Vec<_> = out
+            .diagnostics
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("unused_variables"))
+            .map(|d| {
+                let span = d.primary_span().unwrap();
+                (span.file.clone(), d.message.clone())
+            })
+            .collect();
+        // (`--all-targets` compiles the lib twice, so the same warning can appear twice)
+        assert!(!unused.is_empty(), "b's own warning must be reported");
+        assert!(
+            unused
+                .iter()
+                .all(|(file, message)| file == "src/lib.rs" && message.contains('y')),
+            "{unused:?}"
+        );
+    }
+
+    #[test]
+    fn a_dependency_that_does_not_compile_still_breaks_the_build() {
+        // Only WARNINGS from outside the package are dropped; an error anywhere must still count.
+        let ws = workspace(
+            "pub fn a_broken() { let x: i32 = \"no\"; }\n",
+            "pub fn b() {}\n",
+        );
+        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        assert!(out.is_broken(), "{:?}", out.diagnostics.len());
     }
 
     #[test]
