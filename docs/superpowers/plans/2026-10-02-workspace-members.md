@@ -1,5 +1,27 @@
 # Workspace members as projects (slice 1) — Implementation Plan
 
+> **IMPLEMENTATION STATUS (2026-10-02, post-implementation, post-review): this plan was executed on branch
+> `feat/workspace-member-projects` (rebased onto `main` after #11 merged). A fresh whole-branch review then found
+> one Important defect and three message problems, fixed in the last commit; the text below is kept as the
+> historical record and is NOT edited to match. Where it disagrees with the code, trust the code.**
+> 1. **Design decision 4 and "What running it taught" item 3 (drop out-of-package WARNINGS by file path) were
+>    wrong.** The filter decided "inside the package" by file-name prefix. For a root package the prefix is empty, so
+>    every other package cargo builds counted as inside; for a member, a member nested below it (`b/inner`) passed
+>    `starts_with("b/")`; and a workspace's `default-members` are built along the way too. reachability reported the
+>    dead code of a path dependency / nested member / default member as the project's own. The root-package case also
+>    existed before this branch, so it was not purely a regression, but the doc comment claimed it was handled.
+>    **Now:** `cargo_json` keeps only the diagnostics of THIS package's own compilation, identified by cargo's
+>    `package_id` on each message (`package::locate` supplies the id), plus every ERROR from anywhere (a broken
+>    dependency must still fail the run). Only the workspace prefix stripping from the plan remains. Three new
+>    end-to-end tests failed first.
+> 2. The build now passes `-p <package name>` so `default-members` are not built needlessly. This is an
+>    optimisation: the package-id filter alone already gives correct results (a sabotage without `-p` fails no test).
+> 3. Messages: a member outside its workspace root, a directory absent from HEAD ("is it committed?"), and a
+>    directory that is not a package now say so and name the directory the USER passed, not the throwaway checkout.
+>    Behaviour change: `--project <repo>/src` used to analyze the whole repository and is now refused.
+> Acceptance on `fuel-core` was re-run on the final code: reachability 102 findings, unused-return-values 2.
+> Not fixed: two extra `cargo metadata` calls per run (~0.1 s each).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let all three checks run on one member of a cargo workspace — `coderipper check <id> --project fuel/fuel-core`
