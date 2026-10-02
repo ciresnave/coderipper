@@ -8,17 +8,13 @@ struct AllowlistFile {
 }
 
 #[derive(Debug, Deserialize)]
-struct AllowEntry {
-    check: String,
-    file: String,
-    symbol: String,
-    // Required so a missing field fails TOML deserialization -- that's the enforcement mechanism,
-    // not programmatic use. rustc's dead_code lint deliberately does not count a derived Debug
-    // impl's field read as real usage (confirmed via its own diagnostic note), so this is an
-    // honest, compiler-suggested suppression for a genuinely validation-only field, not a
-    // workaround for a real bug. Debug is still kept for future diagnostic output.
-    #[allow(dead_code)]
-    reason: String,
+pub(crate) struct AllowEntry {
+    pub check: String,
+    pub file: String,
+    pub symbol: String,
+    /// Required: a missing field fails TOML deserialization, which is what enforces "every
+    /// suppression says why". Shown in the finding raised when the entry goes stale.
+    pub reason: String,
 }
 
 pub struct Allowlist {
@@ -26,6 +22,12 @@ pub struct Allowlist {
 }
 
 impl Allowlist {
+    pub fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
     pub fn load(project_root: &Path) -> anyhow::Result<Self> {
         let path = project_root.join(".coderipper.toml");
         if !path.exists() {
@@ -40,10 +42,8 @@ impl Allowlist {
         })
     }
 
-    pub fn is_allowed(&self, check_id: &str, file: &str, symbol: &str) -> bool {
-        self.entries
-            .iter()
-            .any(|e| e.check == check_id && e.file == file && e.symbol == symbol)
+    pub fn entries(&self) -> &[AllowEntry] {
+        &self.entries
     }
 }
 
@@ -51,11 +51,17 @@ impl Allowlist {
 mod tests {
     use super::Allowlist;
 
+    fn allowed(al: &Allowlist, check: &str, file: &str, symbol: &str) -> bool {
+        al.entries()
+            .iter()
+            .any(|e| e.check == check && e.file == file && e.symbol == symbol)
+    }
+
     #[test]
     fn missing_allowlist_file_allows_nothing_not_an_error() {
         let tmp = tempfile::tempdir().unwrap();
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(!al.is_allowed("reachability", "src/lib.rs", "anything"));
+        assert!(!allowed(&al, "reachability", "src/lib.rs", "anything"));
     }
 
     #[test]
@@ -74,10 +80,20 @@ reason = "published crate API, consumed outside this portfolio"
         .unwrap();
 
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(al.is_allowed("reachability", "src/api.rs", "public_entry_point"));
+        assert!(allowed(
+            &al,
+            "reachability",
+            "src/api.rs",
+            "public_entry_point"
+        ));
         // Review Focus: must match by identity, not loose path containment.
-        assert!(!al.is_allowed("reachability", "src/api.rs", "some_other_fn"));
-        assert!(!al.is_allowed("reachability", "src/api_v2.rs", "public_entry_point"));
+        assert!(!allowed(&al, "reachability", "src/api.rs", "some_other_fn"));
+        assert!(!allowed(
+            &al,
+            "reachability",
+            "src/api_v2.rs",
+            "public_entry_point"
+        ));
     }
 
     #[test]
