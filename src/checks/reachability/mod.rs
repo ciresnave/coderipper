@@ -19,6 +19,7 @@
 //! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
 
 mod diagnostics;
+mod foreign;
 mod rewriter;
 mod sentinel;
 
