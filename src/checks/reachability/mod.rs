@@ -116,6 +116,7 @@ impl Check for ReachabilityCheck {
                     file: hit.file.clone(),
                     line: Some(hit.line),
                 }),
+                subject: Some(hit.symbol.clone()),
                 summary: format!("`{}` has zero callers found within this crate", hit.symbol),
                 detail: format!(
                     "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \

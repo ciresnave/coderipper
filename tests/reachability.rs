@@ -67,6 +67,7 @@ fn the_reachability_check_finds_exactly_the_dead_function() {
     );
     assert!(findings[0].summary.contains("`dead_function`"));
     assert!(findings[0].positive_control.is_some());
+    assert_eq!(findings[0].subject.as_deref(), Some("dead_function"));
     // caller/used_function must NOT appear as the IDENTIFIED symbol -- they're reachable via
     // main(). Match the backtick-quoted symbol name, not a bare substring: the summary template's
     // own prose ("has zero callers found") contains "caller" as a substring of "callers", which

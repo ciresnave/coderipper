@@ -44,6 +44,11 @@ pub struct Finding {
     pub confidence: Confidence,
     pub project: String,
     pub location: Option<Location>,
+    /// The symbol the finding is about (a function name, ...), when it is about one. Together with
+    /// `check_id` and `location.file` it is the finding's fingerprint, which is what an allowlist
+    /// entry (`.coderipper.toml`) names. `None` for findings that aren't about a single symbol.
+    #[serde(default)]
+    pub subject: Option<String>,
     pub summary: String,
     pub detail: String,
     /// Required whenever the finding's core claim is an absence ("zero callers", "no protection
@@ -100,6 +105,7 @@ mod tests {
                 file: "src/model_fuel/policies.rs".into(),
                 line: Some(626),
             }),
+            subject: Some("splice_prefix".into()),
             summary: summary.into(),
             detail: "detail text".into(),
             positive_control: positive_control.map(str::to_string),
@@ -113,6 +119,14 @@ mod tests {
         let back: Finding = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.check_id, f.check_id);
         assert_eq!(back.summary, f.summary);
+    }
+
+    #[test]
+    fn a_finding_written_before_subject_existed_still_deserializes() {
+        // Old JSON reports have no `subject`; the field must default to None, not fail.
+        let json = r#"{"check_id":"reachability","severity":"high","confidence":"medium","project":"p","location":null,"summary":"s","detail":"d","positive_control":null}"#;
+        let f: Finding = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(f.subject, None);
     }
 
     #[test]

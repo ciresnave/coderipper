@@ -75,6 +75,12 @@ fn it_separates_always_ignored_from_sometimes_ignored_on_a_lib_plus_bin_package(
         sometimes.summary
     );
     assert!(findings.iter().all(|f| f.positive_control.is_some()));
+    let mut subjects: Vec<_> = findings
+        .iter()
+        .map(|f| f.subject.clone().unwrap())
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, vec!["always_ignored", "sometimes_ignored"]);
     assert!(findings.iter().all(|f| f.clone().validate().is_ok()));
 }
 
