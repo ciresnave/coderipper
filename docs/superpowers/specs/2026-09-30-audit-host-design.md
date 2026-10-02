@@ -191,6 +191,13 @@ almost entirely `Project`-scope but has one narrow cross-project read baked into
 confirms scope is a property of the check's *typical* need, not an absolute boundary the host has to
 enforce strictly.
 
+**`version-consistency` implemented 2026-10-02** (`docs/superpowers/plans/2026-10-02-version-consistency.md`), Rust
+manifests only. The project's version is `[workspace.package] version` when defined, else the majority (a tie goes
+to the highest). The narrow exception of the paragraph above is a `[[tracks]]` table in `.coderipper.toml`
+(`package`, `manifest`, `reason`, all required): not a suppression, a declared relationship, so it is read by the
+check itself and the tracked package is compared with the other project's CURRENT manifest; an unreadable reference
+is an error. Ordinary suppression of a package uses the §4 allowlist. Not built: package.json / pyproject manifests.
+
 **`dependency-staleness`** — *`Project` scope, `NetworkRequired`, `sweep` tier.* CireSnave's standing rule:
 dependencies stay on their most recent versions. Mechanism: read each project's lockfile, query the
 relevant registry (crates.io/npm/PyPI) for each dependency's latest version, diff. Findings: severity scales
