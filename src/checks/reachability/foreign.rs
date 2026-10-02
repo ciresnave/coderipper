@@ -17,11 +17,16 @@ use std::path::Path;
 /// not exist is skipped (it may be `cfg`'d out). A file that is in the lib's tree but cannot be
 /// parsed is an error: the lib must compile, so this is a bug in `syn`'s coverage, not a skip.
 pub fn lib_module_files(root: &Path) -> anyhow::Result<BTreeSet<String>> {
+    module_files_from(root, "src/lib.rs")
+}
+
+/// The files a crate root `entry` (`src/lib.rs`, `tools/tool.rs`, ...) compiles, itself included.
+pub fn module_files_from(root: &Path, entry: &str) -> anyhow::Result<BTreeSet<String>> {
     let mut walk = Walk {
         root,
         seen: BTreeSet::new(),
     };
-    walk.file("src/lib.rs", true)?;
+    walk.file(entry, true)?;
     Ok(walk.seen)
 }
 
@@ -129,27 +134,83 @@ fn join(dir: &str, name: &str) -> String {
 }
 
 /// Every identifier mentioned by a `.rs` file that is not part of the lib: all of `tests/`,
-/// `examples/` and `benches/`, plus every file under `src/` that `lib_files` does not contain
-/// (`src/main.rs`, `src/bin/**`, and modules only a bin declares).
+/// `examples/` and `benches/`, every file under `src/` that `lib_files` does not contain
+/// (`src/main.rs`, `src/bin/**`, and modules only a bin declares), and every non-lib target the
+/// manifest declares with a custom `path`, together with the modules it declares. Files are read
+/// lossily: a stray non-UTF-8 byte must not fail the check.
 pub fn foreign_identifiers(
     root: &Path,
     lib_files: &BTreeSet<String>,
 ) -> anyhow::Result<BTreeSet<String>> {
-    let mut out = BTreeSet::new();
+    let mut files: BTreeSet<String> = BTreeSet::new();
     for top in ["src", "tests", "examples", "benches"] {
         let dir = root.join(top);
         if !dir.is_dir() {
             continue;
         }
         for path in crate::worktree::walk_rs_files(&dir)? {
-            let rel = path
-                .strip_prefix(root)?
-                .to_string_lossy()
-                .replace(std::path::MAIN_SEPARATOR, "/");
-            if lib_files.contains(&rel) {
+            files.insert(
+                path.strip_prefix(root)?
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, "/"),
+            );
+        }
+    }
+    for entry in non_lib_target_files(root)? {
+        // A target's own module tree; if the entry cannot be parsed, its own text still counts.
+        match module_files_from(root, &entry) {
+            Ok(tree) => files.extend(tree),
+            Err(_) => {
+                files.insert(entry);
+            }
+        }
+    }
+
+    let mut out = BTreeSet::new();
+    for rel in files.difference(lib_files) {
+        let bytes = std::fs::read(root.join(rel))?;
+        out.extend(identifiers_in(&String::from_utf8_lossy(&bytes)));
+    }
+    Ok(out)
+}
+
+/// `src_path` of every target of the package at `root` that is not the library (bins, tests,
+/// examples, benches, the build script), relative to `root` with forward slashes, as cargo itself
+/// reports them (so custom `path = "..."` entries are found).
+fn non_lib_target_files(root: &Path) -> anyhow::Result<Vec<String>> {
+    let output = std::process::Command::new("cargo")
+        .args(["metadata", "--no-deps", "--format-version", "1"])
+        .current_dir(root)
+        .output()?;
+    anyhow::ensure!(
+        output.status.success(),
+        "cargo metadata failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let root = root.canonicalize()?;
+    let mut out = Vec::new();
+    for package in metadata["packages"].as_array().into_iter().flatten() {
+        for target in package["targets"].as_array().into_iter().flatten() {
+            let is_lib = target["kind"].as_array().into_iter().flatten().any(|k| {
+                matches!(
+                    k.as_str(),
+                    Some("lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro")
+                )
+            });
+            let Some(src_path) = target["src_path"].as_str() else {
+                continue;
+            };
+            if is_lib {
                 continue;
             }
-            out.extend(identifiers_in(&std::fs::read_to_string(&path)?));
+            // A target whose file is missing or outside the package is skipped, not an error.
+            let rel = Path::new(src_path).canonicalize().ok().and_then(|p| {
+                p.strip_prefix(&root)
+                    .ok()
+                    .map(|r| r.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+            });
+            out.extend(rel);
         }
     }
     Ok(out)
@@ -167,23 +228,53 @@ pub fn identifiers_in(source: &str) -> BTreeSet<String> {
     out
 }
 
+const KEYWORDS: &[&str] = &[
+    "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum", "extern",
+    "false", "fn", "for", "if", "impl", "in", "let", "loop", "match", "mod", "move", "mut", "pub",
+    "ref", "return", "self", "Self", "static", "struct", "super", "trait", "true", "type",
+    "unsafe", "use", "where", "while", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "try", "typeof", "unsized", "virtual", "yield", "gen",
+];
+
 fn collect(tokens: proc_macro2::TokenStream, out: &mut BTreeSet<String>) {
     for tree in tokens {
         match tree {
             proc_macro2::TokenTree::Ident(i) => {
-                out.insert(i.to_string().trim_start_matches("r#").to_string());
+                let text = i.to_string();
+                // a raw identifier (`r#type`) is a real name; a bare keyword is syntax
+                if text.starts_with("r#") || !KEYWORDS.contains(&text.as_str()) {
+                    out.insert(text.trim_start_matches("r#").to_string());
+                }
             }
             proc_macro2::TokenTree::Group(g) => collect(g.stream(), out),
-            proc_macro2::TokenTree::Literal(l) => format_captures(&l.to_string(), out),
+            proc_macro2::TokenTree::Literal(l) => literal_idents(&l.to_string(), out),
             _ => {}
         }
     }
 }
 
-/// `{name}` / `{name:?}` inside a string literal is a use of `name` (inline format arguments, and
-/// thiserror's `#[error("...")]`). Any word right after a `{` counts; a literal with no `{` adds
-/// nothing, and `{{` escapes only over-approximate.
-fn format_captures(literal: &str, out: &mut BTreeSet<String>) {
+/// What a string literal can name. `{name}` / `{name:?}` is a use of `name` (inline format arguments,
+/// thiserror's `#[error("...")]`): any word right after a `{` counts, and `{{` escapes only
+/// over-approximate. A literal that is itself a path (`"default_port"`, `"codec::parse"`) names what
+/// it points at: `#[serde(default = "...")]`, `with = "..."` and friends call it from generated code.
+/// Ordinary prose (spaces, punctuation) names nothing.
+fn literal_idents(literal: &str, out: &mut BTreeSet<String>) {
+    if let Some(inner) = literal
+        .strip_prefix('"')
+        .and_then(|rest| rest.strip_suffix('"'))
+    {
+        let segments: Vec<&str> = inner.split("::").collect();
+        let is_path = !inner.is_empty()
+            && segments.iter().all(|seg| {
+                seg.chars()
+                    .next()
+                    .is_some_and(|c| c.is_alphabetic() || c == '_')
+                    && seg.chars().all(|c| c.is_alphanumeric() || c == '_')
+            });
+        if is_path {
+            out.extend(segments.iter().map(|s| s.to_string()));
+        }
+    }
     for part in literal.split('{').skip(1) {
         let word: String = part
             .chars()
@@ -201,7 +292,11 @@ fn scan_words(source: &str, out: &mut BTreeSet<String>) {
         if c.is_alphanumeric() || c == '_' {
             word.push(c);
         } else {
-            if word.chars().next().is_some_and(|f| !f.is_ascii_digit()) {
+            // Keywords appear in every header and body; counting them would make unrelated items
+            // reachable.
+            if word.chars().next().is_some_and(|f| !f.is_ascii_digit())
+                && !KEYWORDS.contains(&word.as_str())
+            {
                 out.insert(std::mem::take(&mut word));
             }
             word.clear();
@@ -261,6 +356,10 @@ mod tests {
     #[test]
     fn a_file_the_lib_does_not_declare_is_foreign_and_so_are_tests_examples_and_benches() {
         let tmp = tree(&[
+            (
+                "Cargo.toml",
+                "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ),
             ("src/lib.rs", "mod inner;\npub fn lib_only() {}\n"),
             ("src/inner.rs", "pub fn inside_lib() {}\n"),
             ("src/main.rs", "mod util;\nfn main() { from_main(); }\n"),
@@ -292,10 +391,10 @@ mod tests {
     #[test]
     fn identifiers_come_from_code_not_comments_or_strings() {
         let ids = identifiers_in(
-            "// in_comment\nfn real() { let s = \"in_string\"; call!(in_macro); r#type(); }\n",
+            "// in_comment\nfn real() { let s = \"has spaces here\"; call!(in_macro); r#type(); }\n",
         );
         assert!(ids.contains("real") && ids.contains("in_macro") && ids.contains("type"));
-        assert!(!ids.contains("in_comment") && !ids.contains("in_string"));
+        assert!(!ids.contains("in_comment") && !ids.contains("has"));
     }
 
     #[test]
@@ -315,6 +414,72 @@ mod tests {
         // A template file under src/: not Rust, but it must neither fail the check nor be ignored.
         let ids = identifiers_in("fn {{name}}() { \"unterminated\n some_word");
         assert!(ids.contains("some_word") && ids.contains("name"), "{ids:?}");
+    }
+
+    #[test]
+    fn keywords_are_not_identifiers() {
+        // `impl` and `for` are in every trait impl header; counting them made every impl live.
+        let ids =
+            identifiers_in("impl<T> Drop for Guard<T> { fn drop(&mut self) { for i in 0..3 {} } }");
+        for kw in ["impl", "for", "fn", "mut", "self"] {
+            assert!(!ids.contains(kw), "{kw} must not count: {ids:?}");
+        }
+        assert!(ids.contains("Guard") && ids.contains("Drop") && ids.contains("drop"));
+    }
+
+    #[test]
+    fn a_path_shaped_string_literal_names_what_it_points_at() {
+        // `#[serde(default = "default_port")]`, `#[serde(with = "module::fn")]`: the derive calls the
+        // named function, and nothing else in the source mentions it.
+        let ids = identifiers_in(
+            "#[serde(default = \"default_port\", with = \"codec::parse\")] pub port: u16,",
+        );
+        assert!(
+            ids.contains("default_port") && ids.contains("codec") && ids.contains("parse"),
+            "{ids:?}"
+        );
+        // ordinary prose in a string is not a path
+        assert!(!identifiers_in("fn f() { let s = \"two words\"; }").contains("two"));
+    }
+
+    #[test]
+    fn non_utf8_files_do_not_fail_the_scan() {
+        let tmp = tree(&[
+            (
+                "Cargo.toml",
+                "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ),
+            ("src/lib.rs", "pub fn lib_only() {}\n"),
+        ]);
+        std::fs::create_dir_all(tmp.path().join("tests")).unwrap();
+        std::fs::write(
+            tmp.path().join("tests/t.rs"),
+            b"fn t() { from_test(); } // caf\xe9\n",
+        )
+        .unwrap();
+        let lib = lib_module_files(tmp.path()).unwrap();
+        let found = foreign_identifiers(tmp.path(), &lib).unwrap();
+        assert!(found.contains("from_test"), "{found:?}");
+    }
+
+    #[test]
+    fn targets_with_a_custom_path_are_foreign_with_their_own_module_tree() {
+        let tmp = tree(&[
+            (
+                "Cargo.toml",
+                "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[[bin]]\nname = \"tool\"\npath = \"tools/tool.rs\"\n\n[[test]]\nname = \"it\"\npath = \"it/main.rs\"\n",
+            ),
+            ("src/lib.rs", "pub fn lib_only() {}\n"),
+            ("tools/tool.rs", "mod helpers;\nfn main() { from_tool(); }\n"),
+            ("tools/helpers.rs", "pub fn go() { from_helpers(); }\n"),
+            ("it/main.rs", "fn t() { from_it(); }\n"),
+        ]);
+        let lib = lib_module_files(tmp.path()).unwrap();
+        let found = foreign_identifiers(tmp.path(), &lib).unwrap();
+        for name in ["from_tool", "from_helpers", "from_it"] {
+            assert!(found.contains(name), "{name} should be foreign: {found:?}");
+        }
+        assert!(!found.contains("lib_only"));
     }
 
     #[test]

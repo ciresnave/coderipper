@@ -338,3 +338,173 @@ pub fn run_all() -> String { format!(\"{GREETING}, world\") }
     ]);
     assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["NEVER"]);
 }
+
+// ---- Review fixes: every fixture below is a LIVE item that a first version reported as dead. ----
+
+fn bin_calls(call: &str) -> String {
+    format!("fn main() {{ println!(\"{{}}\", {call}); }}\n")
+}
+
+#[test]
+fn an_item_reached_only_through_an_internal_macro_is_alive() {
+    let lib = "\
+macro_rules! call_helper { () => { helper() } }
+pub fn helper() -> i32 { 1 }
+pub fn run() -> i32 { call_helper!() }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::run()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn an_item_reached_only_through_an_exported_macro_the_bin_invokes_is_alive() {
+    let lib = "\
+#[macro_export]
+macro_rules! go { () => { $crate::exported_helper() } }
+pub fn exported_helper() -> i32 { 1 }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::go!()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn an_item_reached_only_through_a_use_rename_is_alive() {
+    let lib = "\
+mod inner {
+    pub fn real_name() -> i32 { 1 }
+    pub fn orphan() -> i32 { 2 }
+}
+pub use inner::real_name as nice;
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::nice()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_rename_inside_the_lib_itself_is_followed() {
+    let lib = "\
+mod inner { pub fn real() -> i32 { 1 } }
+use inner::real as r;
+pub fn run() -> i32 { r() }
+pub fn orphan() -> i32 { 2 }
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::run()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn bins_and_tests_with_a_custom_path_are_foreign_too() {
+    let manifest = format!(
+        "{MANIFEST}\n[[bin]]\nname = \"tool\"\npath = \"tools/tool.rs\"\n\n[[test]]\nname = \"it\"\npath = \"it/main.rs\"\n"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        (
+            "src/lib.rs",
+            "pub fn used_by_custom_bin() {}\npub fn used_by_custom_test() {}\npub fn orphan() {}\n",
+        ),
+        (
+            "tools/tool.rs",
+            "mod helpers;\nfn main() { fixture::used_by_custom_bin(); helpers::go(); }\n",
+        ),
+        ("tools/helpers.rs", "pub fn go() {}\n"),
+        (
+            "it/main.rs",
+            "#[test]\nfn t() { fixture::used_by_custom_test(); }\n",
+        ),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_bound_in_an_inherent_impls_header_keeps_the_trait_alive() {
+    let lib = "\
+pub trait Helper { fn h(&self) -> u8; }
+impl Helper for u16 { fn h(&self) -> u8 { 1 } }
+pub struct S<T>(pub T);
+impl<T: Helper> S<T> { pub fn get(&self) -> u8 { self.0.h() } }
+pub fn orphan() {}
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", &bin_calls("fixture::S(3u16).get()")),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn a_trait_impl_is_live_because_its_type_is_not_because_of_a_keyword() {
+    // `for` and `impl` appear in every trait impl header. A bin containing a `for` loop must not
+    // make an impl for a type nobody reaches live: `NeverMade` and what its Drop calls stay reported.
+    let lib = "\
+pub struct NeverMade;
+impl Drop for NeverMade { fn drop(&mut self) { only_from_drop(); } }
+pub fn only_from_drop() {}
+pub fn used() -> i32 { 1 }
+";
+    let bin = "fn main() { let mut n = 0; for i in 0..3 { n += i; } println!(\"{} {}\", n, fixture::used()); }\n";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", bin),
+    ]);
+    assert_eq!(
+        subjects(&run_reachability(&repo).unwrap()),
+        vec!["NeverMade", "only_from_drop"]
+    );
+}
+
+#[test]
+fn a_trait_impl_of_a_type_the_bin_names_is_live_even_though_nothing_names_its_methods() {
+    // The case the previous test must not break: `Guard` is named by the bin, nobody names `drop`.
+    let lib = "\
+pub struct Guard;
+impl Drop for Guard { fn drop(&mut self) { cleanup(); } }
+pub fn cleanup() {}
+pub fn orphan() {}
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", lib),
+        ("src/main.rs", "fn main() { let _g = fixture::Guard; }\n"),
+    ]);
+    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+}
+
+#[test]
+fn when_everything_is_set_aside_the_run_says_so_instead_of_printing_nothing() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub fn only_fn() -> i32 { 1 }\n"),
+        ("src/main.rs", &bin_calls("fixture::only_fn()")),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].severity, coderipper::finding::Severity::Info);
+    assert!(
+        findings[0].summary.contains("set aside"),
+        "{}",
+        findings[0].summary
+    );
+    assert!(findings[0].positive_control.is_some());
+    assert!(findings[0].clone().validate().is_ok());
+}
