@@ -1,6 +1,5 @@
-use serde::Deserialize;
+use crate::cargo_json::{build_all_targets, build_lib_only, CAP_LINTS};
 use std::path::Path;
-use std::process::Command;
 
 pub struct DeadCodeHit {
     pub file: String,
@@ -13,98 +12,57 @@ pub struct CollectResult {
     pub build_failed_for_other_reasons: bool,
 }
 
-#[derive(Deserialize)]
-struct CargoMessage {
-    reason: String,
-    message: Option<CompilerMessage>,
-}
-
-#[derive(Deserialize)]
-struct CompilerMessage {
-    code: Option<CompilerCode>,
-    level: String,
-    message: String,
-    spans: Vec<CompilerSpan>,
-}
-
-#[derive(Deserialize)]
-struct CompilerCode {
-    code: String,
-}
-
-#[derive(Deserialize)]
-struct CompilerSpan {
-    file_name: String,
-    line_start: u32,
-    is_primary: bool,
+/// Which targets to build. `LibOnly` is for a package with a library: downgrading the lib's `pub`
+/// items breaks every OTHER target that imports it by crate name (E0603), so those must not be built.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Targets {
+    All,
+    LibOnly,
 }
 
 pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> {
-    let output = Command::new("cargo")
-        .args(["build", "--all-targets", "--message-format=json"])
-        .current_dir(worktree_root)
-        .output()?;
+    collect_dead_code_in(worktree_root, Targets::All)
+}
+
+pub fn collect_dead_code_in(
+    worktree_root: &Path,
+    targets: Targets,
+) -> anyhow::Result<CollectResult> {
+    // `--cap-lints=warn`: a `#![deny(warnings)]` or `[lints]` table must not turn unrelated lints
+    // into errors that this would mistake for "the build is broken" (and must not stop cargo
+    // compiling dependent targets). dead_code stays a warning, which is all this needs.
+    let build = match targets {
+        Targets::All => build_all_targets(worktree_root, CAP_LINTS)?,
+        Targets::LibOnly => build_lib_only(worktree_root, CAP_LINTS)?,
+    };
 
     let mut hits = Vec::new();
-    let mut saw_error = false;
-
-    for line in String::from_utf8_lossy(&output.stdout).lines() {
-        let Ok(msg) = serde_json::from_str::<CargoMessage>(line) else {
-            continue;
-        };
-        if msg.reason != "compiler-message" {
+    for d in &build.diagnostics {
+        if d.code.as_deref() != Some("dead_code") {
             continue;
         }
-        let Some(cm) = msg.message else { continue };
-
-        // Check dead_code FIRST, regardless of level: a crate-level `#![deny(warnings)]` promotes
-        // dead_code to `error`, and that's still a real, reportable finding -- arguably a more
-        // urgent one, since it's actively breaking that crate's own build. Only a non-dead_code
-        // error means something else is genuinely broken.
-        let is_dead_code = cm
-            .code
-            .as_ref()
-            .map(|c| c.code == "dead_code")
-            .unwrap_or(false);
-
-        if is_dead_code {
-            // Grouped diagnostics ("methods `a`, `b`, and `c` are never used") carry one PRIMARY
-            // span per symbol, in the same order as the backtick-quoted names in the message text.
-            // Taking only the first (as an earlier version of this function did) silently lost
-            // every symbol after the first in any grouped diagnostic.
-            let names = extract_symbol_names(&cm.message);
-            let primary_spans: Vec<&CompilerSpan> =
-                cm.spans.iter().filter(|s| s.is_primary).collect();
-            for (span, name) in primary_spans.iter().zip(names.iter()) {
-                hits.push(DeadCodeHit {
-                    file: normalize_path_separators(&span.file_name),
-                    line: span.line_start,
-                    symbol: name.clone(),
-                });
-            }
-            continue;
-        }
-
-        if cm.level == "error" {
-            saw_error = true;
+        // Grouped diagnostics ("methods `a`, `b`, and `c` are never used") carry one PRIMARY
+        // span per symbol, in the same order as the backtick-quoted names in the message text.
+        // Taking only the first silently loses every symbol after it.
+        let names = extract_symbol_names(&d.message);
+        let primary_spans: Vec<_> = d.spans.iter().filter(|s| s.is_primary).collect();
+        for (span, name) in primary_spans.iter().zip(names.iter()) {
+            hits.push(DeadCodeHit {
+                file: span.file.clone(),
+                line: span.line,
+                symbol: name.clone(),
+            });
         }
     }
 
-    // `--all-targets` compiles the crate more than once (the plain lib, and again for the test
-    // harness binary), so the same dead_code site is reported once per compilation. Dedupe by
+    // The same dead_code site is reported once per compilation of the shared code; dedupe by
     // (file, line, symbol) -- that triple uniquely identifies one diagnostic site.
     hits.sort_by(|a, b| (&a.file, a.line, &a.symbol).cmp(&(&b.file, b.line, &b.symbol)));
     hits.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.symbol == b.symbol);
 
-    // A build can fail with NO compiler-message at all (e.g. a panicking build.rs writes plain
-    // text to stderr, not rustc JSON) -- `saw_error` would stay false even though the build
-    // genuinely failed. A non-zero exit with nothing informative parsed is exactly that case.
-    let build_failed_for_other_reasons =
-        saw_error || (!output.status.success() && hits.is_empty() && !saw_error);
-
     Ok(CollectResult {
         hits,
-        build_failed_for_other_reasons,
+        build_failed_for_other_reasons: build.is_broken(),
     })
 }
 
@@ -120,25 +78,10 @@ fn extract_symbol_names(message: &str) -> Vec<String> {
         .collect()
 }
 
-/// rustc's JSON `file_name` uses the platform-native separator; every downstream consumer (the
-/// allowlist, Finding.location, CLI display) expects the portable forward-slash form.
-fn normalize_path_separators(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{collect_dead_code, normalize_path_separators, CollectResult};
+    use super::{collect_dead_code, CollectResult};
     use std::path::Path;
-
-    #[test]
-    fn windows_backslashes_are_normalized_to_forward_slashes() {
-        // rustc's own JSON `file_name` uses the platform-native separator (confirmed empirically on
-        // Windows: "src\\main.rs", not "src/main.rs") -- the allowlist's portable, TOML-author-facing
-        // convention is forward slashes, so this must be normalized at the source.
-        assert_eq!(normalize_path_separators("src\\main.rs"), "src/main.rs");
-        assert_eq!(normalize_path_separators("src/main.rs"), "src/main.rs");
-    }
 
     fn write_fixture(dir: &Path, lib_rs: &str) {
         std::fs::write(
@@ -217,6 +160,27 @@ mod tests {
         // silently discarded everything, including this genuinely real, actionable finding.
         let tmp = tempfile::tempdir().unwrap();
         write_fixture(tmp.path(), "#![deny(warnings)]\npub(crate) fn dead() {}\n");
+
+        let CollectResult {
+            hits,
+            build_failed_for_other_reasons,
+        } = collect_dead_code(tmp.path()).unwrap();
+
+        assert!(!build_failed_for_other_reasons);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].symbol, "dead");
+    }
+
+    #[test]
+    fn another_denied_lint_is_not_mistaken_for_a_broken_build() {
+        // `#![deny(warnings)]` turns EVERY lint into an error, e.g. an unused import. The old parser
+        // treated any non-dead_code error as "the build is broken" and made the whole check error;
+        // `--cap-lints=warn` keeps them warnings, so only a real compiler error counts.
+        let tmp = tempfile::tempdir().unwrap();
+        write_fixture(
+            tmp.path(),
+            "#![deny(warnings)]\nuse std::collections::HashMap;\npub(crate) fn dead() {}\n",
+        );
 
         let CollectResult {
             hits,
