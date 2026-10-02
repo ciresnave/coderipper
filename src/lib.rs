@@ -21,6 +21,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
         Box::new(checks::ReachabilityCheck),
         Box::new(checks::UnusedReturnValuesCheck),
         Box::new(checks::UnusedParametersCheck),
+        Box::new(checks::VersionConsistencyCheck),
     ]
 }
 
@@ -117,7 +118,12 @@ mod tests {
         let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
         assert_eq!(
             ids,
-            vec!["reachability", "unused-return-values", "unused-parameters"]
+            vec![
+                "reachability",
+                "unused-return-values",
+                "unused-parameters",
+                "version-consistency"
+            ]
         );
     }
 
