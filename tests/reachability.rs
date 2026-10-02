@@ -97,8 +97,11 @@ reason = "test: confirm the allowlist suppresses a real finding"
         project_root: repo.path().to_path_buf(),
         portfolio_root: repo.path().to_path_buf(),
     };
-    let findings = ReachabilityCheck.run(&ctx).unwrap();
-    assert!(findings.is_empty());
+    // Suppression is the host's job: the check itself returns the raw finding.
+    assert_eq!(ReachabilityCheck.run(&ctx).unwrap().len(), 1);
+    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert!(result.findings.is_empty(), "{:?}", result.findings);
 }
 
 fn standalone_git_repo(cargo_toml: &str, main_rs: &str) -> tempfile::TempDir {

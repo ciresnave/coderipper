@@ -21,7 +21,6 @@ mod classify;
 mod rewriter;
 mod sentinel;
 
-use crate::allowlist::Allowlist;
 use crate::cargo_json::build_all_targets;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
@@ -92,7 +91,6 @@ impl Check for UnusedReturnValuesCheck {
              can't be trusted."
         );
 
-        let allowlist = Allowlist::load(&ctx.project_root)?;
         let project = ctx
             .project_root
             .file_name()
@@ -108,7 +106,6 @@ impl Check for UnusedReturnValuesCheck {
         Ok(classification
             .usages
             .iter()
-            .filter(|u| !allowlist.is_allowed(CHECK_ID, &u.tag.file, &u.tag.name))
             .map(|u| {
                 let (severity, summary) = if u.all_ignored() {
                     (
