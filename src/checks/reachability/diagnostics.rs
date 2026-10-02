@@ -20,10 +20,6 @@ pub enum Targets {
     LibOnly,
 }
 
-pub fn collect_dead_code(worktree_root: &Path) -> anyhow::Result<CollectResult> {
-    collect_dead_code_in(worktree_root, Targets::All)
-}
-
 pub fn collect_dead_code_in(
     worktree_root: &Path,
     targets: Targets,
@@ -80,7 +76,7 @@ fn extract_symbol_names(message: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{collect_dead_code, CollectResult};
+    use super::{collect_dead_code_in, CollectResult, Targets};
     use std::path::Path;
 
     fn write_fixture(dir: &Path, lib_rs: &str) {
@@ -101,7 +97,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code(tmp.path()).unwrap();
+        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -128,7 +124,7 @@ mod tests {
             "pub(crate) fn used() -> i32 { 1 }\npub fn caller() -> i32 { used() }\n",
         );
 
-        let CollectResult { hits, .. } = collect_dead_code(tmp.path()).unwrap();
+        let CollectResult { hits, .. } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
         assert!(
             hits.is_empty(),
             "the pipeline must be able to see a real caller when one exists"
@@ -147,7 +143,7 @@ mod tests {
             "pub(crate) struct Foo;\nimpl Foo {\n    fn a(&self) {}\n    fn b(&self) {}\n    fn c(&self) {}\n}\n",
         );
 
-        let CollectResult { hits, .. } = collect_dead_code(tmp.path()).unwrap();
+        let CollectResult { hits, .. } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
         let mut symbols: Vec<&str> = hits.iter().map(|h| h.symbol.as_str()).collect();
         symbols.sort();
         assert_eq!(symbols, vec!["Foo", "a", "b", "c"]);
@@ -164,7 +160,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code(tmp.path()).unwrap();
+        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -185,7 +181,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code(tmp.path()).unwrap();
+        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -215,7 +211,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code(tmp.path()).unwrap();
+        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);
         assert!(hits.is_empty());
@@ -229,7 +225,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code(tmp.path()).unwrap();
+        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);
         assert!(
