@@ -80,8 +80,18 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
     entry.check == f.check_id
         && f.location
             .as_ref()
-            .is_some_and(|l| l.file == entry.file.replace('\\', "/"))
+            .is_some_and(|l| l.file == normalize_entry_path(&entry.file))
         && f.subject.as_deref() == Some(entry.symbol.as_str())
+}
+
+/// Findings carry `src/x.rs`; an author may write `src\x.rs`, `./src/x.rs` or `src//x.rs`. Compared
+/// by path component, so none of those makes a live suppression look stale. Case is NOT folded.
+fn normalize_entry_path(path: &str) -> String {
+    path.replace('\\', "/")
+        .split('/')
+        .filter(|part| !part.is_empty() && *part != ".")
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn base(entry: &AllowEntry, project: &str) -> Finding {
@@ -241,6 +251,18 @@ mod tests {
         let mut s = Suppression::new(&al);
         let kept = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         assert!(kept.is_empty());
+    }
+
+    #[test]
+    fn dot_slash_and_doubled_separators_in_an_entry_still_match() {
+        // Review finding: `./src/x.rs` and `src//x.rs` suppressed nothing, and the entry was then
+        // reported as "its cause may be gone" right beside the finding it was meant to suppress.
+        for spelling in ["./src/x.rs", "src//x.rs", "./src//x.rs"] {
+            let al = allowlist(&ONE.replace("src/x.rs", spelling));
+            let mut s = Suppression::new(&al);
+            let kept = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+            assert!(kept.is_empty(), "entry spelled {spelling:?} should match");
+        }
     }
 
     #[test]

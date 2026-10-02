@@ -228,3 +228,50 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_does_not_f
         .stdout(predicate::str::contains("`long_gone`"))
         .stdout(predicate::str::contains("(allowlist)"));
 }
+
+#[test]
+fn a_malformed_allowlist_fails_the_run_with_an_honest_message() {
+    // Review finding: the error was reported as "1 check(s) failed to run" although no check failed.
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"tidy\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir(tmp.path().join("src")).unwrap();
+    std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join(".coderipper.toml"),
+        "[[allow]]\ncheck = \"x\"\n",
+    )
+    .unwrap();
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec![
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-return-values", "--project"])
+        .arg(tmp.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("allowlist"))
+        .stderr(predicate::str::contains("check(s) failed to run").not());
+}

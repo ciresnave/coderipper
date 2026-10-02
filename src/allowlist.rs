@@ -2,6 +2,7 @@ use serde::Deserialize;
 use std::path::Path;
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct AllowlistFile {
     #[serde(rename = "allow", default)]
     entries: Vec<AllowEntry>,
@@ -94,6 +95,23 @@ reason = "published crate API, consumed outside this portfolio"
             "src/api_v2.rs",
             "public_entry_point"
         ));
+    }
+
+    #[test]
+    fn a_misspelled_table_header_is_an_error_not_an_empty_allowlist() {
+        // Review finding: `[[allows]]` parsed to zero entries with no error, so every suppression in
+        // the file silently stopped applying.
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[allows]]\ncheck = \"a\"\nfile = \"f\"\nsymbol = \"s\"\nreason = \"r\"\n",
+        )
+        .unwrap();
+        let err = Allowlist::load(tmp.path())
+            .err()
+            .expect("must fail")
+            .to_string();
+        assert!(err.contains("allows"), "{err}");
     }
 
     #[test]

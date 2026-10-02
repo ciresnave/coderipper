@@ -160,7 +160,9 @@ reports each entry that matched nothing *in this run* as an `Info` finding (chec
 entry naming an unregistered check is reported regardless. **Deliberately not built**: "hasn't matched in N
 runs" (needs a run-history store that doesn't exist; revisit if one is built for another reason) and the
 `until_fixed` link to a different finding. The "one axis or two" question is settled for now as one axis;
-`until_fixed` is a documented future extension.
+`until_fixed` is a documented future extension. **Known limit:** an entry's identity is (check, file, bare
+symbol name), so two same-named methods in one file share it — one entry can hide a second finding and
+will not go stale while either still matches. Fixing it means checks emitting a qualified `subject`.
 
 ## 5. Five more checks, sketched to pressure-test the interface above (not designed in full)
 

@@ -33,6 +33,16 @@ pub struct RunResult {
 }
 
 pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -> RunResult {
+    run_checks_over(&registered_checks(), ctx, tier, only_check_id)
+}
+
+/// `run_checks` over an explicit list, so tests can drive the loop with fake checks.
+fn run_checks_over(
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+) -> RunResult {
     let mut findings = Vec::new();
     let mut errors = Vec::new();
 
@@ -43,10 +53,9 @@ pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -
     });
     let mut suppression = Suppression::new(&allowlist);
 
-    let checks = registered_checks();
     let registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
 
-    for check in &checks {
+    for check in checks {
         if let Some(id) = only_check_id {
             if check.id() != id {
                 continue;
@@ -105,6 +114,99 @@ mod tests {
         let checks = registered_checks();
         let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
         assert_eq!(ids, vec!["reachability", "unused-return-values"]);
+    }
+
+    struct Fake {
+        id: &'static str,
+        result: fn() -> anyhow::Result<Vec<Finding>>,
+    }
+
+    impl Check for Fake {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+        fn scope(&self) -> check::Scope {
+            check::Scope::Project
+        }
+        fn network(&self) -> check::Network {
+            check::Network::LocalOnly
+        }
+        fn run(&self, _ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+            (self.result)()
+        }
+    }
+
+    fn fake_finding(summary: &str, control: Option<&str>) -> Finding {
+        Finding {
+            check_id: "fake".into(),
+            severity: finding::Severity::Low,
+            confidence: finding::Confidence::High,
+            project: "p".into(),
+            location: Some(finding::Location {
+                file: "src/x.rs".into(),
+                line: Some(1),
+            }),
+            subject: Some("present".into()),
+            summary: summary.into(),
+            detail: "d".into(),
+            positive_control: control.map(str::to_string),
+        }
+    }
+
+    /// Runs `fake` over a project whose allowlist has one entry that matches nothing.
+    fn run_fake_with_an_unmatched_entry(fake: Fake) -> RunResult {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[allow]]\ncheck = \"fake\"\nfile = \"src/x.rs\"\nsymbol = \"gone\"\nreason = \"r\"\n",
+        )
+        .unwrap();
+        let ctx = CheckContext {
+            project_root: tmp.path().to_path_buf(),
+            portfolio_root: tmp.path().to_path_buf(),
+        };
+        run_checks_over(&[Box::new(fake)], &ctx, Tier::Fast, None)
+    }
+
+    #[test]
+    fn a_check_that_completes_has_its_unmatched_entry_reported() {
+        let r = run_fake_with_an_unmatched_entry(Fake {
+            id: "fake",
+            result: || Ok(vec![fake_finding("a plain finding", None)]),
+        });
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        let stale: Vec<_> = r
+            .findings
+            .iter()
+            .filter(|f| f.check_id == "allowlist")
+            .collect();
+        assert_eq!(stale.len(), 1, "{:?}", r.findings);
+    }
+
+    #[test]
+    fn a_check_that_returned_an_invalid_finding_is_not_judged() {
+        // Review finding: nothing exercised `all_valid`. An absence claim with no positive control
+        // is rejected; the check did not complete cleanly, so its entries must not be called stale.
+        let r = run_fake_with_an_unmatched_entry(Fake {
+            id: "fake",
+            result: || Ok(vec![fake_finding("zero callers found", None)]),
+        });
+        assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
+        assert!(
+            r.findings.iter().all(|f| f.check_id != "allowlist"),
+            "{:?}",
+            r.findings
+        );
+    }
+
+    #[test]
+    fn a_check_that_errors_is_not_judged() {
+        let r = run_fake_with_an_unmatched_entry(Fake {
+            id: "fake",
+            result: || anyhow::bail!("boom"),
+        });
+        assert_eq!(r.errors.len(), 1);
+        assert!(r.findings.is_empty(), "{:?}", r.findings);
     }
 
     #[test]

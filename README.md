@@ -37,6 +37,11 @@ symbol = "public_entry_point"
 reason = "published crate API, consumed outside this repo"
 ```
 
+`symbol` is the bare name, not `Type::name`: two same-named methods in one file share an entry, so
+one entry can hide a second finding with the same name (and that entry will not go stale while either
+still matches). `file` is compared by path component, so `./src/api.rs` and `src\api.rs` also match; case
+is not folded.
+
 An entry that suppressed nothing in a run is reported as an `Info` finding (check id `allowlist`), so a
 suppression whose cause has been fixed does not linger. An entry naming a check that does not exist is
 reported the same way. An entry for a check that failed or did not run in that run is not judged.
