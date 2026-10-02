@@ -5,9 +5,10 @@
 //! diagnostic alone cannot say which one it is. Joining it to the positions found here can.
 //!
 //! In scope: parameters of free functions (including nested ones) and of inherent-impl methods.
-//! Out of scope, on purpose: trait method declarations, trait default bodies and trait-impl methods
-//! (the signature is dictated by the trait, so the parameter cannot simply be removed), closure
-//! parameters, and anything inside a macro body (`syn` does not see inside one).
+//! Out of scope, on purpose: the OWN signature of a trait method declaration, a trait default body or
+//! a trait-impl method (the signature is dictated by the trait, so the parameter cannot simply be
+//! removed), closure parameters, and anything inside a macro body (`syn` does not see inside one).
+//! A function defined INSIDE one of those bodies is an ordinary free function and is in scope.
 
 use syn::spanned::Spanned;
 use syn::visit::Visit;
@@ -40,6 +41,7 @@ pub fn find_param_sites(file: &str, source: &str) -> anyhow::Result<Vec<ParamSit
         file,
         scope: Vec::new(),
         out: Vec::new(),
+        forced_signatures: false,
     };
     visitor.visit_file(&parsed);
     Ok(visitor.out)
@@ -49,6 +51,8 @@ struct Sites<'a> {
     file: &'a str,
     scope: Vec<String>,
     out: Vec<ParamSite>,
+    /// True while inside a trait impl: its methods' own signatures are not ours to report.
+    forced_signatures: bool,
 }
 
 impl Sites<'_> {
@@ -89,9 +93,6 @@ impl<'ast> Visit<'ast> for Sites<'_> {
     }
 
     fn visit_item_impl(&mut self, i: &'ast syn::ItemImpl) {
-        if i.trait_.is_some() {
-            return; // a trait impl's signatures are dictated by the trait
-        }
         let ty = match i.self_ty.as_ref() {
             syn::Type::Path(p) => p
                 .path
@@ -100,13 +101,26 @@ impl<'ast> Visit<'ast> for Sites<'_> {
                 .map_or_else(|| "<impl>".to_string(), |s| s.ident.to_string()),
             _ => "<impl>".to_string(),
         };
+        // A trait impl's signatures are dictated by the trait; its method BODIES are still walked.
+        let outer = std::mem::replace(&mut self.forced_signatures, i.trait_.is_some());
         self.scope.push(ty);
         syn::visit::visit_item_impl(self, i);
         self.scope.pop();
+        self.forced_signatures = outer;
     }
 
-    fn visit_item_trait(&mut self, _: &'ast syn::ItemTrait) {
-        // declarations and default bodies: the signature belongs to the trait
+    fn visit_item_trait(&mut self, t: &'ast syn::ItemTrait) {
+        // Declarations and default bodies: the signature belongs to the trait. Default BODIES are
+        // still walked (see `visit_trait_item_fn`).
+        self.scope.push(t.ident.to_string());
+        syn::visit::visit_item_trait(self, t);
+        self.scope.pop();
+    }
+
+    fn visit_trait_item_fn(&mut self, f: &'ast syn::TraitItemFn) {
+        if let Some(block) = &f.default {
+            self.descend_into_body(&f.sig.ident, |this| this.visit_block(block));
+        }
     }
 
     fn visit_item_fn(&mut self, f: &'ast syn::ItemFn) {
@@ -115,7 +129,9 @@ impl<'ast> Visit<'ast> for Sites<'_> {
     }
 
     fn visit_impl_item_fn(&mut self, f: &'ast syn::ImplItemFn) {
-        self.collect(&f.sig);
+        if !self.forced_signatures {
+            self.collect(&f.sig);
+        }
         self.descend_into_body(&f.sig.ident, |this| syn::visit::visit_impl_item_fn(this, f));
     }
 }
@@ -210,6 +226,27 @@ impl T for S {
 fn uses_closure() { let _ = |e: i32| 1; }
 ";
         assert_eq!(subjects(src), Vec::<String>::new());
+    }
+
+    #[test]
+    fn nested_functions_inside_trait_impl_methods_and_trait_default_bodies_are_in_scope() {
+        // Review finding: the method's own signature is dictated by the trait, but a helper fn
+        // defined INSIDE its body is an ordinary free function.
+        let src = "\
+struct S;
+impl std::fmt::Display for S {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn helper(h: i32) {}
+        Ok(())
+    }
+}
+trait T {
+    fn d(&self, x: i32) {
+        fn hd(y: i32) {}
+    }
+}
+";
+        assert_eq!(subjects(src), vec!["S::fmt::helper::h", "T::d::hd::y"]);
     }
 
     #[test]

@@ -234,8 +234,10 @@ of function parameters found by `syn`. (2) rustc also reports the forced signatu
 default bodies, closure parameters and macro-generated functions; all of those are out of scope. (3) An
 explicit `#[allow(unused_variables)]` on an item is respected (a deliberate, local decision; record a reason in
 the allowlist instead), but a crate-wide allow makes the per-run sentinel fail and the run errors rather than
-reporting clean. The finding's `subject` is qualified (`module::Type::function::parameter`), so unlike the
-two earlier checks two same-named methods in one file do not share an allowlist entry. **Still not scoped:**
+reporting clean. The finding's `subject` is qualified (inline `mod {}` blocks, the impl's type, enclosing functions, then
+`function::parameter`; the file is part of an entry's identity, so the file tree need not be), so unlike
+the two earlier checks two same-named methods on different types in one file do not share an allowlist
+entry. Known limit: generic arguments are not part of the type, so `impl W<u8>` and `impl W<u16>` share one. **Still not scoped:**
 the underscore-prefix blind spot noted above, and shape (b) for languages without a built-in lint.
 
 **Worth flagging, not solving here**: `provenance/license` (CireSnave's "I am not a plagiarist" rule —

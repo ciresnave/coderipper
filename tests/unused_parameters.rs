@@ -177,3 +177,35 @@ fn deny_warnings_in_the_lib_does_not_hide_the_bins_parameters() {
     ]);
     assert_eq!(subjects(&run(&repo).unwrap()), vec!["f::a", "helper::n"]);
 }
+
+#[test]
+fn a_crate_wide_allow_in_a_bin_target_errors_even_though_the_lib_is_fine() {
+    // Review finding: the sentinel lived only in lib.rs, so it proved nothing about a bin, which is
+    // its own crate with its own crate-level attributes. `helper::n` was silently dropped.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub fn f(a: i32) {}\n"),
+        (
+            "src/main.rs",
+            "#![allow(unused_variables)]\nfn helper(n: i32) {}\nfn main() { helper(1); }\n",
+        ),
+    ]);
+    let err = run(&repo).unwrap_err().to_string();
+    assert!(
+        err.contains("positive control") && err.contains("src/main.rs"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_package_with_only_src_bin_targets_is_analyzed() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/bin/a.rs", "fn main() { h(1); }\nfn h(q: i32) {}\n"),
+        (
+            "src/bin/b/main.rs",
+            "fn main() { k(1); }\nfn k(z: i32) {}\n",
+        ),
+    ]);
+    assert_eq!(subjects(&run(&repo).unwrap()), vec!["h::q", "k::z"]);
+}

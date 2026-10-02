@@ -14,7 +14,13 @@
 //!   scope (see `sites`); so is anything defined inside a macro body.
 //! - An explicit `#[allow(unused_variables)]` on an item is respected: it is a deliberate, visible,
 //!   local decision (use the allowlist to record a reason). A CRATE-wide allow, which would silence
-//!   every parameter, makes the sentinel fail and the run errors instead of reporting clean.
+//!   every parameter, makes the sentinel fail and the run errors instead of reporting clean. There
+//!   is one sentinel per target root (`src/lib.rs`, `src/main.rs`, `src/bin/*`), since each target is
+//!   its own crate. Targets with a custom `path = ...` in `Cargo.toml` are not found and so are not
+//!   protected.
+//! - A finding's `subject` is qualified by INLINE `mod {}` blocks, the impl's type (generic arguments
+//!   are not part of it: `impl W<u8>` and `impl W<u16>` share `W`), and enclosing functions. The
+//!   file is part of an allowlist entry's identity, so the file tree does not need to be.
 //! - Analysis is HEAD-only, single-package projects only, as with the other checks.
 
 mod sentinel;
@@ -24,7 +30,7 @@ use crate::cargo_json::{build_all_targets, Diagnostic, CAP_LINTS};
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::RewrittenWorktree;
-use sentinel::{inject_sentinel, SENTINEL_ARG, SENTINEL_FN};
+use sentinel::{inject_sentinels, SENTINEL_ARG, SENTINEL_FN};
 use sites::{find_param_sites, ParamSite};
 use std::collections::BTreeSet;
 
@@ -52,7 +58,7 @@ impl Check for UnusedParametersCheck {
             sites.extend(find_param_sites(file, source)?);
             Ok(source.to_string())
         })?;
-        let sentinel_file = inject_sentinel(&wt.root)?;
+        let sentinel_files = inject_sentinels(&wt.root)?;
         // `--cap-lints=warn`: a `#![deny(warnings)]` must not fail the build and hide the lint.
         let build = build_all_targets(&wt.root, CAP_LINTS)?;
 
@@ -63,13 +69,16 @@ impl Check for UnusedParametersCheck {
         );
 
         let hits = unused_variable_hits(&build.diagnostics);
-        anyhow::ensure!(
-            hits.iter().any(|h| h.name == SENTINEL_ARG),
-            "unused-parameters' own per-run positive control (an unused parameter injected into \
-             {sentinel_file}) was not reported by rustc even though the build reported no errors -- \
-             `unused_variables` is suppressed crate-wide in this crate (e.g. #![allow(unused)] or \
-             #![allow(unused_variables)]), so this run's result can't be trusted."
-        );
+        // Every target root is its own crate, so each one needs its own proof that the lint is live.
+        for file in &sentinel_files {
+            anyhow::ensure!(
+                hits.iter().any(|h| h.name == SENTINEL_ARG && &h.file == file),
+                "unused-parameters' own per-run positive control (an unused parameter injected into \
+                 {file}) was not reported by rustc even though the build reported no errors -- \
+                 `unused_variables` is suppressed crate-wide in that target (e.g. #![allow(unused)] \
+                 or #![allow(unused_variables)]), so this run's result can't be trusted."
+            );
+        }
 
         let project = ctx
             .project_root
@@ -78,8 +87,13 @@ impl Check for UnusedParametersCheck {
             .unwrap_or_default();
         let positive_control = format!(
             "this run's own sentinel (parameter `{SENTINEL_ARG}` of `{SENTINEL_FN}`, injected into \
-             `{sentinel_file}`) WAS reported by rustc's `unused_variables`, so the lint was live for \
-             this crate in this same build"
+             {}) WAS reported by rustc's `unused_variables`, so the lint was live for \
+             this crate in this same build",
+            sentinel_files
+                .iter()
+                .map(|f| format!("`{f}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
         );
 
         let mut findings: Vec<Finding> = sites
