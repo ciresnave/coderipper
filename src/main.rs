@@ -115,7 +115,7 @@ fn run_and_report(
     // code would see success. A check error must fail the run.
     anyhow::ensure!(
         result.errors.is_empty(),
-        "{} check(s) failed to run",
+        "{} error(s) during the run (see above)",
         result.errors.len()
     );
 

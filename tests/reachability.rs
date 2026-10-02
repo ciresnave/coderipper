@@ -67,6 +67,7 @@ fn the_reachability_check_finds_exactly_the_dead_function() {
     );
     assert!(findings[0].summary.contains("`dead_function`"));
     assert!(findings[0].positive_control.is_some());
+    assert_eq!(findings[0].subject.as_deref(), Some("dead_function"));
     // caller/used_function must NOT appear as the IDENTIFIED symbol -- they're reachable via
     // main(). Match the backtick-quoted symbol name, not a bare substring: the summary template's
     // own prose ("has zero callers found") contains "caller" as a substring of "callers", which
@@ -96,8 +97,11 @@ reason = "test: confirm the allowlist suppresses a real finding"
         project_root: repo.path().to_path_buf(),
         portfolio_root: repo.path().to_path_buf(),
     };
-    let findings = ReachabilityCheck.run(&ctx).unwrap();
-    assert!(findings.is_empty());
+    // Suppression is the host's job: the check itself returns the raw finding.
+    assert_eq!(ReachabilityCheck.run(&ctx).unwrap().len(), 1);
+    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert!(result.findings.is_empty(), "{:?}", result.findings);
 }
 
 fn standalone_git_repo(cargo_toml: &str, main_rs: &str) -> tempfile::TempDir {

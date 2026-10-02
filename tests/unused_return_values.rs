@@ -75,6 +75,12 @@ fn it_separates_always_ignored_from_sometimes_ignored_on_a_lib_plus_bin_package(
         sometimes.summary
     );
     assert!(findings.iter().all(|f| f.positive_control.is_some()));
+    let mut subjects: Vec<_> = findings
+        .iter()
+        .map(|f| f.subject.clone().unwrap())
+        .collect();
+    subjects.sort();
+    assert_eq!(subjects, vec!["always_ignored", "sometimes_ignored"]);
     assert!(findings.iter().all(|f| f.clone().validate().is_ok()));
 }
 
@@ -102,18 +108,6 @@ fn a_function_that_only_discards_its_own_recursive_result_is_not_flagged() {
     assert!(run(&repo).unwrap().is_empty());
 }
 
-#[test]
-fn an_allowlisted_function_is_suppressed() {
-    let repo = git_repo_with(&[
-        ("Cargo.toml", MANIFEST),
-        ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() { f(); }\n"),
-        (
-            ".coderipper.toml",
-            "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nsymbol = \"f\"\nreason = \"test\"\n",
-        ),
-    ]);
-    assert!(run(&repo).unwrap().is_empty());
-}
 #[test]
 fn a_crate_wide_allow_of_either_lint_cannot_hide_a_finding() {
     // Was an error ("blind crate") before the review: `--force-warn` now makes both lints fire

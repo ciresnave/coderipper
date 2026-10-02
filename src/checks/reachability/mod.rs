@@ -22,7 +22,6 @@ mod diagnostics;
 mod rewriter;
 mod sentinel;
 
-use crate::allowlist::Allowlist;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::RewrittenWorktree;
@@ -95,7 +94,6 @@ impl Check for ReachabilityCheck {
              so this run's result can't be trusted."
         );
 
-        let allowlist = Allowlist::load(&ctx.project_root)?;
         let project_name = ctx
             .project_root
             .file_name()
@@ -106,7 +104,6 @@ impl Check for ReachabilityCheck {
             .hits
             .into_iter()
             .filter(|hit| hit.symbol != SENTINEL_SYMBOL) // the sentinel itself is not a real finding
-            .filter(|hit| !allowlist.is_allowed("reachability", &hit.file, &hit.symbol))
             .map(|hit| Finding {
                 check_id: "reachability".into(),
                 severity: Severity::Medium,
@@ -116,6 +113,7 @@ impl Check for ReachabilityCheck {
                     file: hit.file.clone(),
                     line: Some(hit.line),
                 }),
+                subject: Some(hit.symbol.clone()),
                 summary: format!("`{}` has zero callers found within this crate", hit.symbol),
                 detail: format!(
                     "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
