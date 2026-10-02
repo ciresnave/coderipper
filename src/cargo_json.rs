@@ -61,6 +61,8 @@ impl BuildOutput {
 #[derive(Deserialize)]
 struct CargoMessage {
     reason: String,
+    /// The package being compiled (set on `compiler-message` lines).
+    package_id: Option<String>,
     message: Option<RawDiagnostic>,
 }
 
@@ -142,24 +144,60 @@ pub(crate) fn build_lib_only(root: &Path, extra_rustflags: &str) -> anyhow::Resu
 
 fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
+    let (package, prefix) = crate::package::locate(root)?;
     let output = Command::new("cargo")
-        .args(["build", target_arg, "--message-format=json"])
+        // `-p`: build THIS package even when the workspace's `default-members` name others
+        .args([
+            "build",
+            "-p",
+            &package.name,
+            target_arg,
+            "--message-format=json",
+        ])
         .current_dir(root)
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .output()?;
+    let diagnostics =
+        parse_messages_for(&String::from_utf8_lossy(&output.stdout), Some(&package.id));
     Ok(BuildOutput {
-        diagnostics: parse_messages(&String::from_utf8_lossy(&output.stdout)),
+        diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
     })
 }
 
+/// cargo names files relative to the WORKSPACE root (`b/src/lib.rs` for a member `b`). Checks think in
+/// package-relative paths (`src/lib.rs`), so strip the member's prefix.
+fn relative_to_package(mut diagnostics: Vec<Diagnostic>, prefix: &str) -> Vec<Diagnostic> {
+    for d in &mut diagnostics {
+        for span in &mut d.spans {
+            if let Some(rest) = span.file.strip_prefix(prefix) {
+                span.file = rest.to_string();
+            }
+        }
+    }
+    diagnostics
+}
+
 /// Parses cargo's JSON stream (one object per line), keeping only `compiler-message` entries.
+#[cfg(test)]
 pub(crate) fn parse_messages(stdout: &str) -> Vec<Diagnostic> {
+    parse_messages_for(stdout, None)
+}
+
+/// Like [`parse_messages`], but with `Some(package_id)` keeps only what that package's own compilation
+/// said — plus every ERROR, wherever it came from, because an error anywhere breaks the build.
+/// (A sibling or path-dependency member that cargo builds along the way warns too; those warnings
+/// are not this package's, whatever directory their files sit in.)
+pub(crate) fn parse_messages_for(stdout: &str, package_id: Option<&str>) -> Vec<Diagnostic> {
     stdout
         .lines()
         .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
         .filter(|m| m.reason == "compiler-message")
+        .filter(|m| {
+            let is_error = m.message.as_ref().is_some_and(|d| d.level == "error");
+            is_error || package_id.is_none_or(|id| m.package_id.as_deref() == Some(id))
+        })
         .filter_map(|m| m.message)
         .map(|raw| Diagnostic {
             code: raw.code.map(|c| c.code),
@@ -209,6 +247,64 @@ mod tests {
             compose_rustflags("-C target-cpu=native", "--cap-lints=warn"),
             "-C target-cpu=native --cap-lints=warn"
         );
+    }
+
+    fn workspace(a_lib: &str, b_lib: &str) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            ("Cargo.toml", "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n"),
+            ("a/Cargo.toml", "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"),
+            ("a/src/lib.rs", a_lib),
+            (
+                "b/Cargo.toml",
+                "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\na = { path = \"../a\" }\n",
+            ),
+            ("b/src/lib.rs", b_lib),
+        ];
+        for (name, contents) in files {
+            let path = tmp.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, contents).unwrap();
+        }
+        tmp
+    }
+
+    #[test]
+    fn a_member_build_reports_package_relative_paths_and_only_its_own_diagnostics() {
+        // `a` warns too (it is built as b's dependency); that warning is not b's.
+        let ws = workspace(
+            "pub fn a_warn(x: i32) {}\n",
+            "pub fn b_warn(y: i32) { a::a_warn(1); }\n",
+        );
+        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        let unused: Vec<_> = out
+            .diagnostics
+            .iter()
+            .filter(|d| d.code.as_deref() == Some("unused_variables"))
+            .map(|d| {
+                let span = d.primary_span().unwrap();
+                (span.file.clone(), d.message.clone())
+            })
+            .collect();
+        // (`--all-targets` compiles the lib twice, so the same warning can appear twice)
+        assert!(!unused.is_empty(), "b's own warning must be reported");
+        assert!(
+            unused
+                .iter()
+                .all(|(file, message)| file == "src/lib.rs" && message.contains('y')),
+            "{unused:?}"
+        );
+    }
+
+    #[test]
+    fn a_dependency_that_does_not_compile_still_breaks_the_build() {
+        // Only WARNINGS from outside the package are dropped; an error anywhere must still count.
+        let ws = workspace(
+            "pub fn a_broken() { let x: i32 = \"no\"; }\n",
+            "pub fn b() {}\n",
+        );
+        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        assert!(out.is_broken(), "{:?}", out.diagnostics.len());
     }
 
     #[test]

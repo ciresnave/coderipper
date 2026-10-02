@@ -26,6 +26,16 @@ never used) and `unused-return-values` (a function whose
 return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
 `docs/superpowers/plans/` for what's actually being built and in what order.
 
+## Workspaces
+
+A project is one package. Pass a workspace member's directory (`--project fuel/fuel-core`), or a workspace
+root that is itself a package. A virtual workspace root is refused with the list of members to choose from.
+The whole repository is checked out in a throwaway worktree (so path dependencies resolve) but only the
+member is rewritten and built, findings carry paths relative to the member, and `.coderipper.toml` is read
+from the member's directory. The checks are project-scope: a `pub` item used only by a sibling member has no
+callers within this package. Each run builds the member's dependencies from scratch (about two minutes for a
+large crate); running every member in one command is not supported yet.
+
 ## Reachability on a package with a library
 
 `reachability` builds only the library when there is one, then does not report an item that a bin, test,

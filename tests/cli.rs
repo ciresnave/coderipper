@@ -321,3 +321,77 @@ fn the_unused_parameters_check_runs_by_id_and_reports_a_parameter() {
         ))
         .stdout(predicate::str::contains("(unused-parameters)"));
 }
+
+fn workspace_fixture() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().unwrap();
+    let files = [
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"one\", \"two\"]\nresolver = \"2\"\n",
+        ),
+        (
+            "one/Cargo.toml",
+            "[package]\nname = \"one\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("one/src/lib.rs", "pub fn f(unused_one: i32) {}\n"),
+        (
+            "two/Cargo.toml",
+            "[package]\nname = \"two\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("two/src/lib.rs", "pub fn g(unused_two: i32) {}\n"),
+    ];
+    for (name, contents) in files {
+        let path = tmp.path().join(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, contents).unwrap();
+    }
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec![
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+    tmp
+}
+
+#[test]
+fn a_workspace_member_can_be_the_project() {
+    let ws = workspace_fixture();
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-parameters", "--project"])
+        .arg(ws.path().join("two"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "parameter `unused_two` of `g` is never used",
+        ))
+        .stdout(predicate::str::contains("unused_one").not());
+}
+
+#[test]
+fn a_virtual_workspace_root_asks_for_a_member() {
+    let ws = workspace_fixture();
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "unused-parameters", "--project"])
+        .arg(ws.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not a package directory"))
+        .stderr(predicate::str::contains("one, two").or(predicate::str::contains("two, one")));
+}
