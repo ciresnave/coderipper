@@ -20,6 +20,7 @@
 
 mod diagnostics;
 mod foreign;
+mod rescue;
 mod rewriter;
 mod sentinel;
 
