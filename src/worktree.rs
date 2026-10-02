@@ -2,20 +2,29 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct RewrittenWorktree {
+    /// The PACKAGE's directory inside the checkout: the checkout's root for a repository with one
+    /// package at its top, `<checkout>/fuel-core` for a workspace member. Everything a check reads,
+    /// rewrites or builds is under it.
     pub root: PathBuf,
+    /// The whole checkout, which is what `git worktree remove` takes.
+    worktree_path: PathBuf,
     source_repo: PathBuf,
     _scratch: tempfile::TempDir, // keeps the parent dir alive for root's lifetime
 }
 
 impl RewrittenWorktree {
-    /// Creates a detached worktree of `project_root`'s HEAD and rewrites every `.rs` file under its
-    /// `src/` with `rewrite(relative_path, source)`. `relative_path` is `src/...` with forward
-    /// slashes. Files are visited in sorted order so a stateful `rewrite` (one that hands out ids)
+    /// Creates a detached worktree of the git repository containing `project_root` at HEAD and
+    /// rewrites every `.rs` file under the PACKAGE's `src/` with `rewrite(relative_path, source)`.
+    /// `project_root` is the package's directory: the repository root, or a workspace member below
+    /// it (the whole repository is checked out, so path dependencies exist, but only the package is
+    /// rewritten). `relative_path` is `src/...`, relative to the package, with forward slashes. A
+    /// directory that is not a package (a virtual workspace root) is refused. Files are visited in sorted order so a stateful `rewrite` (one that hands out ids)
     /// is deterministic. A rewrite error drops the worktree again before returning.
     pub fn create_with<F>(project_root: &Path, mut rewrite: F) -> anyhow::Result<Self>
     where
         F: FnMut(&str, &str) -> anyhow::Result<String>,
     {
+        let prefix = crate::package::git_prefix(project_root)?;
         let scratch = tempfile::tempdir()?;
         let wt_path = scratch.path().join("wt");
 
@@ -30,16 +39,18 @@ impl RewrittenWorktree {
         // Build the guard BEFORE rewriting: if a rewrite fails, `Drop` still unregisters the
         // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
         let guard = Self {
-            root: wt_path.clone(),
+            root: wt_path.join(&prefix),
+            worktree_path: wt_path,
             source_repo: project_root.to_path_buf(),
             _scratch: scratch,
         };
+        crate::package::require_package(&guard.root)?;
 
-        let mut files = walk_rs_files(&wt_path.join("src"))?;
+        let mut files = walk_rs_files(&guard.root.join("src"))?;
         files.sort();
         for entry in files {
             let relative = entry
-                .strip_prefix(&wt_path)?
+                .strip_prefix(&guard.root)?
                 .to_string_lossy()
                 .replace('\\', "/");
             let source = std::fs::read_to_string(&entry)?;
@@ -58,7 +69,7 @@ impl Drop for RewrittenWorktree {
         // finding: in a shared checkout that dangling entry is an unwanted write into a shared .git.
         let removed = Command::new("git")
             .args(["worktree", "remove", "--force"])
-            .arg(&self.root)
+            .arg(&self.worktree_path)
             .current_dir(&self.source_repo)
             .status()
             .map(|s| s.success())
@@ -66,7 +77,7 @@ impl Drop for RewrittenWorktree {
         if !removed {
             // Source repo may itself be gone (e.g. a test's own tempdir already dropped) -- fall
             // back to a plain directory removal so we don't leak disk space either way.
-            let _ = std::fs::remove_dir_all(&self.root);
+            let _ = std::fs::remove_dir_all(&self.worktree_path);
         }
     }
 }
@@ -202,6 +213,127 @@ mod tests {
             1,
             "dangling entry:
 {listing}"
+        );
+    }
+
+    /// A two-member virtual workspace (`a`, `b`) as its own committed git repository.
+    fn workspace_repo() -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            (
+                "Cargo.toml",
+                "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n",
+            ),
+            (
+                "a/Cargo.toml",
+                "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ),
+            ("a/src/lib.rs", "pub fn in_a() {}\n"),
+            (
+                "b/Cargo.toml",
+                "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+            ),
+            ("b/src/lib.rs", "pub fn in_b() {}\n"),
+        ];
+        for (name, contents) in files {
+            let path = tmp.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, contents).unwrap();
+        }
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "-A"],
+            vec![
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-q",
+                "-m",
+                "init",
+            ],
+        ] {
+            Command::new("git")
+                .args(args)
+                .current_dir(tmp.path())
+                .status()
+                .unwrap();
+        }
+        tmp
+    }
+
+    #[test]
+    fn a_workspace_member_is_the_root_and_its_siblings_are_not_rewritten() {
+        let repo = workspace_repo();
+        let mut seen = Vec::new();
+        let wt = RewrittenWorktree::create_with(&repo.path().join("b"), |file, source| {
+            seen.push(file.to_string());
+            pub_to_pub_crate(file, source)
+        })
+        .unwrap();
+
+        // the closure sees paths relative to the PACKAGE, and only its files
+        assert_eq!(seen, vec!["src/lib.rs"]);
+        // `root` is the package directory inside the checkout...
+        assert!(wt.root.ends_with("b"), "{:?}", wt.root);
+        let rewritten = std::fs::read_to_string(wt.root.join("src/lib.rs")).unwrap();
+        assert!(rewritten.contains("pub(crate) fn in_b"));
+        // ...the sibling is checked out (it may be a path dependency) but untouched...
+        let sibling = std::fs::read_to_string(wt.root.join("../a/src/lib.rs")).unwrap();
+        // (git may check the file out with CRLF line endings on Windows)
+        assert!(
+            sibling.contains("pub fn in_a()") && !sibling.contains("pub(crate)"),
+            "{sibling:?}"
+        );
+        // ...and the caller's own tree is untouched too
+        let original = std::fs::read_to_string(repo.path().join("b/src/lib.rs")).unwrap();
+        assert_eq!(original, "pub fn in_b() {}\n");
+    }
+
+    #[test]
+    fn dropping_a_member_worktree_removes_the_whole_checkout_and_unregisters_it() {
+        let repo = workspace_repo();
+        let top = {
+            let wt =
+                RewrittenWorktree::create_with(&repo.path().join("b"), pub_to_pub_crate).unwrap();
+            wt.root.parent().unwrap().to_path_buf()
+        };
+        assert!(
+            !top.exists(),
+            "the whole worktree, not just the member, must be removed"
+        );
+        let output = Command::new("git")
+            .args(["worktree", "list", "--porcelain"])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let listing = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            listing.matches("worktree ").count(),
+            1,
+            "dangling entry:\n{listing}"
+        );
+    }
+
+    #[test]
+    fn a_virtual_workspace_root_is_refused_with_the_members_and_leaves_nothing_behind() {
+        let repo = workspace_repo();
+        let err = RewrittenWorktree::create_with(repo.path(), pub_to_pub_crate)
+            .err()
+            .expect("must be refused")
+            .to_string();
+        assert!(err.contains("not a package directory"), "{err}");
+        let output = Command::new("git")
+            .args(["worktree", "list", "--porcelain"])
+            .current_dir(repo.path())
+            .output()
+            .unwrap();
+        let listing = String::from_utf8_lossy(&output.stdout);
+        assert_eq!(
+            listing.matches("worktree ").count(),
+            1,
+            "dangling entry:\n{listing}"
         );
     }
 
