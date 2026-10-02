@@ -100,6 +100,17 @@ trick, not new technology, just not packaged as a repeatable check here yet. Pyt
 TypeScript (`ts-prune` or similar) already have adequate tools; this check just wires their output into the
 shared `Finding` schema.
 
+**Packages with a library (Rust), implemented 2026-10-02** (`docs/superpowers/plans/2026-10-02-reachability-lib-plus-bin.md`).
+Downgrading a lib's `pub` items breaks every other target that imports it by crate name (E0603), so the check
+used to refuse such packages, CodeRipper itself included. Now only the library is built, and a candidate is
+*rescued* (not reported) when a file the lib does not compile (a bin, an integration test, an example, a bench,
+or a module only a bin declares) reaches it by name: reachability over identifiers across the whole lib, with
+every `impl Trait for Type` block live as soon as its trait or type is reachable. It can over-rescue (a dead `new`
+hidden because something reachable mentions another `new`), never report a live item as dead; the cost is
+missed findings on common names. Not covered: `pub` items inside bin targets when a lib exists, and a custom
+`[lib] path`. Acceptance probe: the check now runs on CodeRipper itself and reports nothing, and three planted
+dead items are found.
+
 **Sub-pass B, `Portfolio` scope.** Does every project's declared public API surface actually get referenced
 by another portfolio repo meant to consume it?
 
