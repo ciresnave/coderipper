@@ -29,6 +29,8 @@ pub(crate) fn git_prefix(dir: &Path) -> anyhow::Result<String> {
 #[derive(Debug, Clone)]
 pub(crate) struct Package {
     pub name: String,
+    /// cargo's package id, as it appears in `compiler-message` lines (`package_id`).
+    pub id: String,
     pub dir: PathBuf,
 }
 
@@ -56,6 +58,7 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
         .filter_map(|p| {
             Some(Package {
                 name: p["name"].as_str()?.to_string(),
+                id: p["id"].as_str()?.to_string(),
                 dir: Path::new(p["manifest_path"].as_str()?)
                     .parent()?
                     .to_path_buf(),
@@ -74,26 +77,58 @@ fn same_dir(a: &Path, b: &Path) -> bool {
 
 /// The package whose own directory is `dir`. A virtual workspace root, or any directory that is not
 /// a package's, is an error that names the members to choose from.
+#[cfg(test)]
 pub(crate) fn require_package(dir: &Path) -> anyhow::Result<Package> {
+    require_package_as(dir, dir)
+}
+
+/// [`require_package`], but the error names `shown` (the directory the USER passed) instead of `dir`
+/// (which is usually a path inside a throwaway checkout).
+pub(crate) fn require_package_as(dir: &Path, shown: &Path) -> anyhow::Result<Package> {
     let meta = metadata(dir)?;
     if let Some(package) = meta.packages.iter().find(|p| same_dir(&p.dir, dir)) {
         return Ok(package.clone());
     }
     let members: Vec<&str> = meta.packages.iter().map(|p| p.name.as_str()).collect();
     anyhow::bail!(
-        "{dir:?} is not a package directory (a virtual workspace root, or a directory inside one); \
-         pass --project <member directory>. Workspace members: {}",
+        "{} is not a package directory (it is a virtual workspace root, or a directory that is \
+         not a package's own); pass --project <member directory>. Workspace members: {}",
+        shown.display(),
         members.join(", ")
     )
 }
 
-/// `dir` relative to its cargo workspace root: `""` when it is the root, `"b/"` for a member.
-/// cargo reports diagnostic file names relative to the workspace root, so this is the prefix to strip.
-pub(crate) fn workspace_prefix(dir: &Path) -> anyhow::Result<String> {
+/// The package at `dir` and `dir`'s path relative to its cargo workspace root (`""` when it is the
+/// root, `"b/"` for a member): cargo reports diagnostic file names relative to the workspace root,
+/// so that is the prefix to strip.
+pub(crate) fn locate(dir: &Path) -> anyhow::Result<(Package, String)> {
     let meta = metadata(dir)?;
-    let root = meta.workspace_root.canonicalize()?;
-    let relative = dir.canonicalize()?;
-    let relative = relative.strip_prefix(&root)?;
+    let package = meta
+        .packages
+        .iter()
+        .find(|p| same_dir(&p.dir, dir))
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("{} is not a package directory", dir.display()))?;
+    let prefix = prefix_in(&meta.workspace_root, dir)?;
+    Ok((package, prefix))
+}
+
+#[cfg(test)]
+fn workspace_prefix(dir: &Path) -> anyhow::Result<String> {
+    prefix_in(&metadata(dir)?.workspace_root, dir)
+}
+
+fn prefix_in(workspace_root: &Path, dir: &Path) -> anyhow::Result<String> {
+    let root = workspace_root.canonicalize()?;
+    let dir = dir.canonicalize()?;
+    let relative = dir.strip_prefix(&root).map_err(|_| {
+        anyhow::anyhow!(
+            "{} is outside its workspace root {}; a workspace member outside the workspace \
+             directory is not supported",
+            dir.display(),
+            root.display()
+        )
+    })?;
     let text = relative.to_string_lossy().replace('\\', "/");
     Ok(if text.is_empty() {
         text
@@ -184,6 +219,31 @@ mod tests {
         let err = require_package(ws.path()).unwrap_err().to_string();
         assert!(err.contains("not a package directory"), "{err}");
         assert!(err.contains("a, b") || err.contains("b, a"), "{err}");
+    }
+
+    #[test]
+    fn a_member_outside_the_workspace_root_is_refused_with_an_explanation() {
+        // cargo accepts `members = ["../x"]` with `package.workspace = "../ws"`; the diagnostic paths
+        // cannot be made package-relative for it, and the error must say why.
+        let tmp = tempfile::tempdir().unwrap();
+        write(
+            tmp.path(),
+            &[
+                (
+                    "ws/Cargo.toml",
+                    "[workspace]\nmembers = [\"../x\"]\nresolver = \"2\"\n",
+                ),
+                (
+                    "x/Cargo.toml",
+                    &format!("{}workspace = \"../ws\"\n", pkg("x")),
+                ),
+                ("x/src/lib.rs", ""),
+            ],
+        );
+        let err = workspace_prefix(&tmp.path().join("x"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("outside"), "{err}");
     }
 
     #[test]

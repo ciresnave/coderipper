@@ -182,3 +182,101 @@ fn a_workspace_below_the_repository_root_uses_both_prefixes_correctly() {
     assert_eq!(subjects(&found), vec!["f::unused_m"]);
     assert_eq!(files(&found), vec!["src/lib.rs"]);
 }
+
+// ---- Review fixes ----
+
+#[test]
+fn a_path_dependency_of_the_root_package_is_not_reported_as_the_root_packages_dead_code() {
+    // The root package depends on `sub`, so cargo builds `sub` too and `sub`'s private dead function
+    // warns. It is not the root package's.
+    let manifest = format!(
+        "{MANIFEST}\n[dependencies]\nsub = {{ path = \"sub\" }}\n\n[workspace]\nmembers = [\"sub\"]\n"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        ("src/lib.rs", "pub fn root_fn() -> i32 { sub::sub_pub() }\n"),
+        ("sub/Cargo.toml", &package("sub", "")),
+        (
+            "sub/src/lib.rs",
+            "pub fn sub_pub() -> i32 { 1 }\nfn sub_private_dead() {}\n",
+        ),
+    ]);
+    assert_eq!(
+        subjects(&run(&ReachabilityCheck, repo.path()).unwrap()),
+        vec!["root_fn"]
+    );
+}
+
+#[test]
+fn a_member_nested_below_another_member_is_not_reported_as_the_outer_ones() {
+    let repo = git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"b\", \"b/inner\"]\nresolver = \"2\"\n",
+        ),
+        (
+            "b/Cargo.toml",
+            &package("b", "\n[dependencies]\ninner = { path = \"inner\" }\n"),
+        ),
+        (
+            "b/src/lib.rs",
+            "pub fn b_fn() -> i32 { inner::inner_pub() }\n",
+        ),
+        ("b/inner/Cargo.toml", &package("inner", "")),
+        (
+            "b/inner/src/lib.rs",
+            "pub fn inner_pub() -> i32 { 1 }\nfn inner_private_dead() {}\n",
+        ),
+    ]);
+    let found = run(&ReachabilityCheck, &repo.path().join("b")).unwrap();
+    assert_eq!(subjects(&found), vec!["b_fn"]);
+    assert_eq!(files(&found), vec!["src/lib.rs"]);
+}
+
+#[test]
+fn default_members_do_not_make_a_sibling_part_of_the_analysis() {
+    // `cargo build` at the root builds every default member; only the root package is the project.
+    let manifest = format!(
+        "{MANIFEST}\n[workspace]\nmembers = [\"sub\"]\ndefault-members = [\".\", \"sub\"]\n"
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        ("src/lib.rs", "pub fn root_fn() {}\n"),
+        ("sub/Cargo.toml", &package("sub", "")),
+        ("sub/src/lib.rs", "pub fn sub_pub() {}\nfn sub_dead() {}\n"),
+    ]);
+    assert_eq!(
+        subjects(&run(&ReachabilityCheck, repo.path()).unwrap()),
+        vec!["root_fn"]
+    );
+}
+
+#[test]
+fn a_member_that_is_not_committed_says_so() {
+    let repo = workspace_repo(&[]);
+    std::fs::create_dir_all(repo.path().join("c/src")).unwrap();
+    std::fs::write(repo.path().join("c/Cargo.toml"), package("c", "")).unwrap();
+    std::fs::write(
+        repo.path().join("c/src/lib.rs"),
+        "pub fn f(unused: i32) {}\n",
+    )
+    .unwrap();
+    let err = run(&UnusedParametersCheck, &repo.path().join("c"))
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("HEAD") && err.contains("committed"), "{err}");
+}
+
+#[test]
+fn a_refusal_names_the_directory_the_user_passed_not_the_throwaway_checkout() {
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", "pub fn f() {}\n")]);
+    let project = repo.path().join("src");
+    let err = run(&UnusedParametersCheck, &project)
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains(&project.display().to_string()), "{err}");
+    assert!(
+        !err.contains("wt"),
+        "must not leak the checkout path: {err}"
+    );
+}

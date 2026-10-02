@@ -61,6 +61,8 @@ impl BuildOutput {
 #[derive(Deserialize)]
 struct CargoMessage {
     reason: String,
+    /// The package being compiled (set on `compiler-message` lines).
+    package_id: Option<String>,
     message: Option<RawDiagnostic>,
 }
 
@@ -142,58 +144,60 @@ pub(crate) fn build_lib_only(root: &Path, extra_rustflags: &str) -> anyhow::Resu
 
 fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
+    let (package, prefix) = crate::package::locate(root)?;
     let output = Command::new("cargo")
-        .args(["build", target_arg, "--message-format=json"])
+        // `-p`: build THIS package even when the workspace's `default-members` name others
+        .args([
+            "build",
+            "-p",
+            &package.name,
+            target_arg,
+            "--message-format=json",
+        ])
         .current_dir(root)
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS")
         .output()?;
-    let diagnostics = parse_messages(&String::from_utf8_lossy(&output.stdout));
+    let diagnostics =
+        parse_messages_for(&String::from_utf8_lossy(&output.stdout), Some(&package.id));
     Ok(BuildOutput {
-        diagnostics: relative_to_package(diagnostics, &crate::package::workspace_prefix(root)?),
+        diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
     })
 }
 
-/// cargo names files relative to the WORKSPACE root (`b/src/lib.rs` for a member `b`). Checks think
-/// in package-relative paths (`src/lib.rs`), so strip the member's prefix. A WARNING whose primary
-/// span is outside the package (a sibling member built as a dependency, a path dependency) is not
-/// the package's and is dropped; an error is kept wherever it is, because it breaks the build.
-fn relative_to_package(diagnostics: Vec<Diagnostic>, prefix: &str) -> Vec<Diagnostic> {
-    let inside = |file: &str| {
-        if prefix.is_empty() {
-            !file.starts_with("..") && !Path::new(file).is_absolute()
-        } else {
-            file.starts_with(prefix)
+/// cargo names files relative to the WORKSPACE root (`b/src/lib.rs` for a member `b`). Checks think in
+/// package-relative paths (`src/lib.rs`), so strip the member's prefix.
+fn relative_to_package(mut diagnostics: Vec<Diagnostic>, prefix: &str) -> Vec<Diagnostic> {
+    for d in &mut diagnostics {
+        for span in &mut d.spans {
+            if let Some(rest) = span.file.strip_prefix(prefix) {
+                span.file = rest.to_string();
+            }
         }
-    };
+    }
     diagnostics
-        .into_iter()
-        .filter_map(|mut d| {
-            let outside = d
-                .spans
-                .iter()
-                .filter(|s| s.is_primary)
-                .any(|s| !inside(&s.file));
-            if outside && d.level != "error" {
-                return None;
-            }
-            for span in &mut d.spans {
-                if let Some(rest) = span.file.strip_prefix(prefix) {
-                    span.file = rest.to_string();
-                }
-            }
-            Some(d)
-        })
-        .collect()
 }
 
 /// Parses cargo's JSON stream (one object per line), keeping only `compiler-message` entries.
+#[cfg(test)]
 pub(crate) fn parse_messages(stdout: &str) -> Vec<Diagnostic> {
+    parse_messages_for(stdout, None)
+}
+
+/// Like [`parse_messages`], but with `Some(package_id)` keeps only what that package's own compilation
+/// said — plus every ERROR, wherever it came from, because an error anywhere breaks the build.
+/// (A sibling or path-dependency member that cargo builds along the way warns too; those warnings
+/// are not this package's, whatever directory their files sit in.)
+pub(crate) fn parse_messages_for(stdout: &str, package_id: Option<&str>) -> Vec<Diagnostic> {
     stdout
         .lines()
         .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
         .filter(|m| m.reason == "compiler-message")
+        .filter(|m| {
+            let is_error = m.message.as_ref().is_some_and(|d| d.level == "error");
+            is_error || package_id.is_none_or(|id| m.package_id.as_deref() == Some(id))
+        })
         .filter_map(|m| m.message)
         .map(|raw| Diagnostic {
             code: raw.code.map(|c| c.code),

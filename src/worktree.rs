@@ -44,7 +44,12 @@ impl RewrittenWorktree {
             source_repo: project_root.to_path_buf(),
             _scratch: scratch,
         };
-        crate::package::require_package(&guard.root)?;
+        anyhow::ensure!(
+            guard.root.is_dir(),
+            "{} is not in the repository's HEAD commit (is it committed?); the checks analyze HEAD",
+            project_root.display()
+        );
+        crate::package::require_package_as(&guard.root, project_root)?;
 
         let mut files = walk_rs_files(&guard.root.join("src"))?;
         files.sort();
