@@ -50,6 +50,35 @@ pub struct CacheConfig {
 
 static CONFIG: OnceLock<CacheConfig> = OnceLock::new();
 
+thread_local! {
+    /// A per-thread override of the cache configuration, for in-crate tests (see [`with_config`]).
+    static OVERRIDE: std::cell::RefCell<Option<CacheConfig>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The configuration in force on this thread: the thread-local override if one is set, else the process-wide
+/// one set by [`set_cache_config`], else `None` (no cache).
+pub(crate) fn current_config() -> Option<CacheConfig> {
+    OVERRIDE
+        .with(|o| o.borrow().clone())
+        .or_else(|| CONFIG.get().cloned())
+}
+
+/// Runs `f` with `config` as the cache configuration **on this thread only**; the previous value is restored on
+/// exit, also when `f` panics. For in-crate tests: the process-wide configuration can be set once per process and
+/// in-crate tests run in parallel threads, so a test cannot use it. A thread spawned inside `f` does NOT inherit
+/// it and must call `with_config` itself. Production code never calls this.
+#[cfg(test)]
+pub(crate) fn with_config<T>(config: CacheConfig, f: impl FnOnce() -> T) -> T {
+    struct Restore(Option<CacheConfig>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            OVERRIDE.with(|o| *o.borrow_mut() = self.0.take());
+        }
+    }
+    let _restore = Restore(OVERRIDE.with(|o| o.borrow_mut().replace(config)));
+    f()
+}
+
 /// Turns the cache on for this process. Returns false if a configuration was already set.
 pub fn set_cache_config(config: CacheConfig) -> bool {
     CONFIG.set(config).is_ok()
@@ -266,13 +295,13 @@ fn toolchain_id(dir: &Path) -> String {
 
 /// The cache for builds of the repository `source_repo` (the *source*, not the throwaway checkout).
 pub(crate) fn acquire(source_repo: &Path) -> CacheChoice {
-    let Some(config) = CONFIG.get() else {
+    let Some(config) = current_config() else {
         return CacheChoice::Throwaway { why: None };
     };
     static PRUNED: Once = Once::new();
     let mut first = false;
     PRUNED.call_once(|| first = true);
-    acquire_in(config, &toolchain_id(source_repo), source_repo, first)
+    acquire_in(&config, &toolchain_id(source_repo), source_repo, first)
 }
 
 // ---- size, listing, pruning ----

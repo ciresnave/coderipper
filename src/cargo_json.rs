@@ -3,7 +3,7 @@
 //! direct child note (where a `#[must_use = "..."]` reason string shows up).
 
 use serde::Deserialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +46,25 @@ impl Diagnostic {
 pub(crate) struct BuildOutput {
     pub diagnostics: Vec<Diagnostic>,
     pub success: bool,
+    /// Every compilation unit this build reported, fresh or compiled (tests only: nothing in production reads it).
+    #[cfg(test)]
+    pub units: Vec<UnitReport>,
+    /// The note `build_with` raised about the cache for THIS build, if any (tests only; production notes go to the
+    /// process-global stats, which parallel tests share).
+    #[cfg(test)]
+    pub cache_note: Option<String>,
+}
+
+/// One `compiler-artifact` line of cargo's JSON stream. A lib and its test-mode unit share package id, target name
+/// and kind and differ only in `test`, so the key includes it.
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct UnitReport {
+    pub package_id: String,
+    pub target_name: String,
+    pub kind: Vec<String>,
+    pub test: bool,
+    pub fresh: bool,
 }
 
 impl BuildOutput {
@@ -65,7 +84,24 @@ struct CargoMessage {
     package_id: Option<String>,
     /// On `compiler-artifact` lines: true when cargo reused the unit instead of compiling it.
     fresh: Option<bool>,
+    #[cfg(test)]
+    target: Option<RawTarget>,
+    #[cfg(test)]
+    profile: Option<RawProfile>,
     message: Option<RawDiagnostic>,
+}
+
+#[cfg(test)]
+#[derive(Deserialize)]
+struct RawTarget {
+    name: String,
+    kind: Vec<String>,
+}
+
+#[cfg(test)]
+#[derive(Deserialize)]
+struct RawProfile {
+    test: bool,
 }
 
 #[derive(Deserialize)]
@@ -163,10 +199,22 @@ fn build_with(
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let (package, prefix) = crate::package::locate(root)?;
     // Held until the build ends: another CodeRipper run on this repository waits (boundedly) for it.
-    let choice = match cache_source {
+    let mut choice = match cache_source {
         Some(source) => crate::build_cache::acquire(source),
         None => crate::build_cache::CacheChoice::Throwaway { why: None },
     };
+    // The lock is held, so nothing can write an artifact from here on that predates this refresh. If the checkout
+    // cannot be refreshed the cache is NOT used: replacing `choice` drops the `CacheDir` (releasing the lock) before
+    // cargo runs, leaves CARGO_TARGET_DIR unset, and the match below raises the one note.
+    if matches!(choice, crate::build_cache::CacheChoice::Shared(_)) {
+        if let Err(e) = checkout_toplevel(root).and_then(|top| freshen_checkout(&top)) {
+            choice = crate::build_cache::CacheChoice::Throwaway {
+                why: Some(format!(
+                    "build cache unusable ({e}): building without the cache"
+                )),
+            };
+        }
+    }
     let mut cargo = Command::new("cargo");
     cargo
         // `-p`: build THIS package even when the workspace's `default-members` name others
@@ -181,13 +229,19 @@ fn build_with(
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
     let mut cache_dir = None;
+    #[cfg(test)]
+    let mut cache_note = None;
     match &choice {
         crate::build_cache::CacheChoice::Shared(dir) => {
             cargo.env("CARGO_TARGET_DIR", dir.path.join("target"));
             cache_dir = Some(dir.path.clone());
         }
         crate::build_cache::CacheChoice::Throwaway { why: Some(why) } => {
-            crate::build_cache::note(why.clone())
+            crate::build_cache::note(why.clone());
+            #[cfg(test)]
+            {
+                cache_note = Some(why.clone());
+            }
         }
         crate::build_cache::CacheChoice::Throwaway { why: None } => {}
     }
@@ -200,7 +254,124 @@ fn build_with(
     Ok(BuildOutput {
         diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
+        #[cfg(test)]
+        units: unit_reports(&stdout),
+        #[cfg(test)]
+        cache_note,
     })
+}
+
+/// Every `compiler-artifact` line as a [`UnitReport`].
+#[cfg(test)]
+fn unit_reports(stdout: &str) -> Vec<UnitReport> {
+    stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
+        .filter(|m| m.reason == "compiler-artifact")
+        .filter_map(|m| {
+            let target = m.target?;
+            Some(UnitReport {
+                package_id: m.package_id.unwrap_or_default(),
+                target_name: target.name,
+                kind: target.kind,
+                test: m.profile.is_some_and(|p| p.test),
+                fresh: m.fresh == Some(true),
+            })
+        })
+        .collect()
+}
+
+/// Sets the mtime of every file of the checkout at `toplevel` (everything except `.git`) to now.
+///
+/// Cargo calls a unit fresh when its source files are not newer than the artifact in the target directory, and a unit's
+/// hash does not depend on the checkout's path. A checkout made before ANOTHER run finished building into the same
+/// shared cache therefore has files older than that run's artifact and would be served its compile (and its rewrite).
+/// Called right after the cache lock is taken, so no later artifact can predate it. A fresh checkout already has
+/// every in-repo sibling rebuilt per run, so nothing reusable is lost.
+pub(crate) fn freshen_checkout(toplevel: &Path) -> anyhow::Result<()> {
+    let now = std::time::SystemTime::now();
+    freshen_with(toplevel, &|path| {
+        #[cfg(test)]
+        if FAIL_ON.with(|f| {
+            f.borrow()
+                .as_deref()
+                .is_some_and(|name| path.file_name().is_some_and(|n| n == name))
+        }) {
+            return Err(std::io::Error::other("injected failure"));
+        }
+        stamp(path, now)
+    })
+}
+
+/// Stamps `path` with `now`, clearing and restoring a read-only attribute when that is what stands in the way.
+fn stamp(path: &Path, now: std::time::SystemTime) -> std::io::Result<()> {
+    let open = || std::fs::OpenOptions::new().write(true).open(path);
+    match open() {
+        Ok(file) => file.set_modified(now),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            let mut perms = std::fs::metadata(path)?.permissions();
+            if !perms.readonly() {
+                return Err(e);
+            }
+            #[allow(clippy::permissions_set_readonly_false)]
+            perms.set_readonly(false);
+            std::fs::set_permissions(path, perms.clone())?;
+            let result = open().and_then(|file| file.set_modified(now));
+            perms.set_readonly(true);
+            std::fs::set_permissions(path, perms)?;
+            result
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// [`freshen_checkout`] with the stamping injected. Recursive; skips `.git` (directory or file); never follows a
+/// symlink (a link is skipped, so it cannot stamp a file outside the checkout). The first file that cannot be
+/// stamped is an error naming it.
+fn freshen_with(
+    toplevel: &Path,
+    stamp: &dyn Fn(&Path) -> std::io::Result<()>,
+) -> anyhow::Result<()> {
+    let mut dirs = vec![toplevel.to_path_buf()];
+    while let Some(dir) = dirs.pop() {
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            if entry.file_name() == ".git" {
+                continue;
+            }
+            let kind = entry.file_type()?;
+            if kind.is_symlink() {
+                continue;
+            }
+            let path = entry.path();
+            if kind.is_dir() {
+                dirs.push(path);
+            } else if kind.is_file() {
+                stamp(&path)
+                    .map_err(|e| anyhow::anyhow!("cannot refresh {}: {e}", path.display()))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The checkout's top level, from the package directory `build_with` is given.
+fn checkout_toplevel(root: &Path) -> anyhow::Result<PathBuf> {
+    let output = crate::github::git_command(root, &["rev-parse", "--show-toplevel"]).output()?;
+    anyhow::ensure!(
+        output.status.success(),
+        "cannot find the checkout's top level from {}",
+        root.display()
+    );
+    Ok(PathBuf::from(
+        String::from_utf8_lossy(&output.stdout).trim(),
+    ))
+}
+
+// Tests only: make `freshen_checkout` fail for a file with this name.
+#[cfg(test)]
+thread_local! {
+    static FAIL_ON: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
 
 /// `(fresh, compiled)`: how many compilation units cargo reused and how many it built, from the
@@ -263,6 +434,9 @@ pub(crate) fn parse_messages_for(stdout: &str, package_id: Option<&str>) -> Vec<
         })
         .collect()
 }
+
+#[cfg(test)]
+mod cross_run_tests;
 
 #[cfg(test)]
 mod tests {
@@ -407,11 +581,15 @@ mod tests {
         let out = BuildOutput {
             diagnostics: vec![],
             success: false,
+            units: vec![],
+            cache_note: None,
         };
         assert!(out.is_broken());
         let ok = BuildOutput {
             diagnostics: vec![],
             success: true,
+            units: vec![],
+            cache_note: None,
         };
         assert!(!ok.is_broken());
     }
