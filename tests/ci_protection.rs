@@ -22,6 +22,10 @@ impl Github for Fake {
     fn get(&self, path: &str) -> Result<Value, ApiError> {
         self.asked.lock().unwrap().push(path.to_string());
         self.answers.get(path).cloned().unwrap_or_else(|| {
+            // no rulesets unless a test says otherwise (the real answer for the whole portfolio)
+            if path.contains("/rules/branches/") {
+                return Ok(json!([]));
+            }
             Err(ApiError {
                 status: Some(404),
                 message: format!("no canned answer for {path}"),
@@ -242,7 +246,9 @@ fn the_default_branch_is_whatever_github_says_not_main() {
         asked,
         vec![
             REPO.to_string(),
-            "repos/acme/widgets/branches/trunk".to_string()
+            "repos/acme/widgets/branches/trunk".to_string(),
+            // classic protection requires nothing, so the rulesets are read before the verdict
+            "repos/acme/widgets/rules/branches/trunk".to_string(),
         ]
     );
 }
@@ -357,4 +363,111 @@ fn it_belongs_to_the_sweep_tier_and_is_not_run_by_fast() {
     assert!(coderipper::registered_checks()
         .iter()
         .any(|c| c.id() == "ci-protection-presence"));
+}
+
+// ---- repository rulesets: GitHub's newer way to require checks, with no classic branch protection ----
+
+fn rules_requiring_checks() -> Value {
+    json!([
+        { "type": "deletion", "ruleset_source_type": "Repository", "ruleset_id": 1 },
+        {
+            "type": "required_status_checks",
+            "parameters": {
+                "strict_required_status_checks_policy": false,
+                "required_status_checks": [ { "context": "ci / build" } ]
+            },
+            "ruleset_source_type": "Repository",
+            "ruleset_id": 1
+        }
+    ])
+}
+
+const RULES: &str = "repos/acme/widgets/rules/branches/main";
+
+#[test]
+fn a_ruleset_that_requires_checks_counts_even_without_classic_protection() {
+    // Without this a repo protected only by a ruleset would be reported as unprotected: a false High.
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, asked) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Ok(rules_requiring_checks())),
+        ],
+    );
+    assert!(result.unwrap().is_empty());
+    assert!(asked.contains(&RULES.to_string()), "{asked:?}");
+}
+
+#[test]
+fn rules_that_require_no_status_checks_do_not_rescue_an_unprotected_branch() {
+    let rules =
+        json!([{ "type": "deletion", "ruleset_source_type": "Repository", "ruleset_id": 1 }]);
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Ok(rules)),
+        ],
+    );
+    let found = result.unwrap();
+    assert_eq!(subjects(&found), vec!["acme/widgets@main"]);
+    assert!(found[0].detail.contains("ruleset"), "{}", found[0].detail);
+}
+
+#[test]
+fn a_plan_that_cannot_have_rulesets_is_not_an_error() {
+    // Real answer for a private repo on a free plan: 403 "Upgrade to GitHub Pro ...". Rulesets cannot
+    // exist there, so the classic reading stands.
+    let upgrade = ApiError {
+        status: Some(403),
+        message: "Upgrade to GitHub Pro or make this repository public to enable this feature."
+            .into(),
+    };
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Err(upgrade)),
+        ],
+    );
+    assert_eq!(subjects(&result.unwrap()), vec!["acme/widgets@main"]);
+}
+
+#[test]
+fn a_rules_lookup_that_fails_for_another_reason_is_an_error_never_a_verdict() {
+    let boom = ApiError {
+        status: Some(500),
+        message: "Server Error".into(),
+    };
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Err(boom)),
+        ],
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("500") && err.contains("rules"), "{err}");
+}
+
+#[test]
+fn rules_are_not_even_asked_for_when_classic_protection_already_requires_checks() {
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, asked) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(protected_branch())),
+        ],
+    );
+    assert!(result.unwrap().is_empty());
+    assert!(!asked.iter().any(|p| p.contains("/rules/")), "{asked:?}");
 }

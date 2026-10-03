@@ -432,9 +432,18 @@ fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_t
     let tmp = tempfile::tempdir().unwrap();
     for args in [
         vec!["init", "-q"],
-        vec!["remote", "add", "origin", "https://gitlab.com/acme/widgets.git"],
+        vec![
+            "remote",
+            "add",
+            "origin",
+            "https://gitlab.com/acme/widgets.git",
+        ],
     ] {
-        StdCommand::new("git").args(args).current_dir(tmp.path()).status().unwrap();
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
     }
     Command::cargo_bin("coderipper")
         .unwrap()

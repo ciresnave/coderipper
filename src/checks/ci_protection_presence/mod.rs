@@ -9,7 +9,9 @@
 //! "no force pushes", and for branches that require zero status checks: it reads `true` on branches
 //! that enforce nothing. What counts is `protection.required_status_checks`: its `enforcement_level`
 //! (`off` / `non_admins` / `everyone`) and how many `contexts` it requires. A finding when the level is
-//! `off` or no context is required; `non_admins` (admins may bypass) and `everyone` both pass.
+//! `off` or no context is required; `non_admins` (admins may bypass) and `everyone` both pass. A repository
+//! RULESET that requires checks (GitHub's newer mechanism, which needs no classic protection) also passes, so
+//! a branch is only called unprotected after `rules/branches/<branch>` has been read too.
 //!
 //! Network tier: it runs under `coderipper sweep` or `coderipper check ci-protection-presence`, never in
 //! `fast`. Reads only (`gh api` GETs), as whichever account `gh` has active; it never switches accounts.
@@ -125,6 +127,22 @@ impl Check for CiProtectionPresenceCheck {
             return Ok(Vec::new());
         }
 
+        // Classic branch protection requires nothing. A repository ruleset can require checks WITHOUT any
+        // classic protection, so look there before calling the branch unprotected.
+        let rules_path = format!("repos/{slug}/rules/branches/{branch}");
+        let rules = match self.api.get(&rules_path) {
+            Ok(rules) => rules,
+            // Real answer for a private repo on a free plan: rulesets cannot exist there.
+            Err(e) if e.status == Some(403) && e.message.contains("Upgrade to GitHub Pro") => {
+                serde_json::Value::Array(Vec::new())
+            }
+            Err(e) => anyhow::bail!("cannot read {rules_path} from GitHub: {e}"),
+        };
+        if ruleset_requires_checks(&rules) {
+            return Ok(Vec::new());
+        }
+        let rule_count = rules.as_array().map_or(0, Vec::len);
+
         let sha = doc["commit"]["sha"].as_str().unwrap_or("?");
         let sha = &sha[..sha.len().min(7)];
         let flag = doc["protected"].as_bool();
@@ -139,8 +157,9 @@ impl Check for CiProtectionPresenceCheck {
         let detail = format!(
             "CireSnave's rule: every repo gets CI and branch protection that REQUIRES it. GitHub reports \
              `protection.enabled: {enabled}`, `required_status_checks.enforcement_level: \"{level}\"` and \
-             {required} required context(s) for `{branch}`. (`protected: {}` is not evidence: it is true for a \
-             branch whose rules require no checks.)",
+             {required} required context(s) for `{branch}`. No active ruleset requires status checks either \
+             (GET {rules_path}: {rule_count} rule(s), none a `required_status_checks`). (`protected: {}` is not \
+             evidence: it is true for a branch whose rules require no checks.)",
             flag.map_or("absent".to_string(), |f| f.to_string())
         );
         Ok(vec![Finding {
@@ -163,6 +182,18 @@ impl Check for CiProtectionPresenceCheck {
             )),
         }])
     }
+}
+
+/// Does any active ruleset rule require at least one status check?
+fn ruleset_requires_checks(rules: &serde_json::Value) -> bool {
+    rules.as_array().is_some_and(|rules| {
+        rules.iter().any(|rule| {
+            rule["type"].as_str() == Some("required_status_checks")
+                && rule["parameters"]["required_status_checks"]
+                    .as_array()
+                    .is_some_and(|checks| !checks.is_empty())
+        })
+    })
 }
 
 fn info_finding(repo: &RepoRef, branch: Option<&str>, summary: String, control: String) -> Finding {
