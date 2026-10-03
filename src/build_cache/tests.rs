@@ -261,7 +261,7 @@ fn status_lists_each_repository_directory_with_its_size() {
     assert_eq!(listed.len(), 2);
     assert!(listed[0].bytes >= 400 && listed[0].bytes < 900);
     assert!(listed[1].bytes >= 900);
-    assert!(listed[0].last_used < listed[1].last_used || listed[0].last_used > listed[1].last_used);
+    assert_ne!(listed[0].last_used, listed[1].last_used);
 }
 
 #[test]
@@ -286,15 +286,18 @@ fn acquire_prunes_the_oldest_unlocked_directory_when_over_the_cap() {
 fn stats_render_a_line_only_when_something_was_built_and_note_once() {
     let none = BuildStats::default();
     assert_eq!(render_stats(&none), None);
-    let mut s = BuildStats::default();
-    s.fresh = 3;
-    s.compiled = 2;
-    s.cache_dir = Some(PathBuf::from("/c/x"));
-    s.notes = vec!["cache busy".to_string()];
+    let s = BuildStats {
+        fresh: 3,
+        compiled: 2,
+        cache_dir: Some(PathBuf::from("/c/x")),
+        notes: vec!["cache busy".to_string()],
+    };
     let text = render_stats(&s).unwrap();
     assert!(text.contains("3 units fresh, 2 compiled"), "{text}");
     assert!(text.contains("cache busy"), "{text}");
-    let mut off = BuildStats::default();
-    off.compiled = 4;
+    let off = BuildStats {
+        compiled: 4,
+        ..BuildStats::default()
+    };
     assert!(render_stats(&off).unwrap().contains("cache off"));
 }

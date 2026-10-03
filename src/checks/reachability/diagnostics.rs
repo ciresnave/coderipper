@@ -22,14 +22,15 @@ pub enum Targets {
 
 pub fn collect_dead_code_in(
     worktree_root: &Path,
+    cache_source: Option<&Path>,
     targets: Targets,
 ) -> anyhow::Result<CollectResult> {
     // `--cap-lints=warn`: a `#![deny(warnings)]` or `[lints]` table must not turn unrelated lints
     // into errors that this would mistake for "the build is broken" (and must not stop cargo
     // compiling dependent targets). dead_code stays a warning, which is all this needs.
     let build = match targets {
-        Targets::All => build_all_targets(worktree_root, CAP_LINTS)?,
-        Targets::LibOnly => build_lib_only(worktree_root, CAP_LINTS)?,
+        Targets::All => build_all_targets(worktree_root, cache_source, CAP_LINTS)?,
+        Targets::LibOnly => build_lib_only(worktree_root, cache_source, CAP_LINTS)?,
     };
 
     let mut hits = Vec::new();
@@ -97,7 +98,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -124,7 +125,8 @@ mod tests {
             "pub(crate) fn used() -> i32 { 1 }\npub fn caller() -> i32 { used() }\n",
         );
 
-        let CollectResult { hits, .. } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        let CollectResult { hits, .. } =
+            collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
         assert!(
             hits.is_empty(),
             "the pipeline must be able to see a real caller when one exists"
@@ -143,7 +145,8 @@ mod tests {
             "pub(crate) struct Foo;\nimpl Foo {\n    fn a(&self) {}\n    fn b(&self) {}\n    fn c(&self) {}\n}\n",
         );
 
-        let CollectResult { hits, .. } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        let CollectResult { hits, .. } =
+            collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
         let mut symbols: Vec<&str> = hits.iter().map(|h| h.symbol.as_str()).collect();
         symbols.sort();
         assert_eq!(symbols, vec!["Foo", "a", "b", "c"]);
@@ -160,7 +163,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -181,7 +184,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
         assert_eq!(hits.len(), 1);
@@ -211,7 +214,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);
         assert!(hits.is_empty());
@@ -225,7 +228,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
-        } = collect_dead_code_in(tmp.path(), Targets::All).unwrap();
+        } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);
         assert!(

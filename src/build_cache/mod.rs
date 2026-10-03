@@ -69,13 +69,11 @@ pub fn config_from_env(get: &dyn Fn(&str) -> Option<String>) -> Option<CacheConf
         under(base)
     } else if let Some(base) = present("XDG_CACHE_HOME") {
         under(base)
-    } else if let Some(home) = present("HOME") {
-        PathBuf::from(home)
+    } else {
+        PathBuf::from(present("HOME")?)
             .join(".cache")
             .join("coderipper")
             .join("build")
-    } else {
-        return None;
     };
     let number = |k: &str| {
         present(k)
@@ -211,7 +209,12 @@ pub(crate) fn acquire_in(
         let _ = prune_to_cap(&config.root, config.max_bytes, Some(&dir));
     }
     let lock_path = dir.join(LOCK_FILE);
-    let file = match OpenOptions::new().create(true).write(true).open(&lock_path) {
+    let file = match OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&lock_path)
+    {
         Ok(file) => file,
         Err(e) => return unusable(format!("cannot open {}: {e}", lock_path.display())),
     };
@@ -367,6 +370,7 @@ pub fn prune_to_cap(
 fn remove_if_unlocked(dir: &Path) -> bool {
     let lock = OpenOptions::new()
         .create(true)
+        .truncate(false)
         .write(true)
         .open(dir.join(LOCK_FILE));
     let Ok(lock) = lock else {

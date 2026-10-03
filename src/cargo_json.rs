@@ -63,6 +63,8 @@ struct CargoMessage {
     reason: String,
     /// The package being compiled (set on `compiler-message` lines).
     package_id: Option<String>,
+    /// On `compiler-artifact` lines: true when cargo reused the unit instead of compiling it.
+    fresh: Option<bool>,
     message: Option<RawDiagnostic>,
 }
 
@@ -132,20 +134,41 @@ pub(crate) fn compose_rustflags(existing: &str, extra: &str) -> String {
 /// Builds every target of the package at `root` and parses cargo's JSON diagnostics. `extra_rustflags`
 /// is appended to the caller's `RUSTFLAGS`; `CARGO_ENCODED_RUSTFLAGS` is removed because cargo prefers
 /// it and it would drop the flags.
-pub(crate) fn build_all_targets(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
-    build_with(root, "--all-targets", extra_rustflags)
+pub(crate) fn build_all_targets(
+    root: &Path,
+    cache_source: Option<&Path>,
+    extra_rustflags: &str,
+) -> anyhow::Result<BuildOutput> {
+    build_with(root, cache_source, "--all-targets", extra_rustflags)
 }
 
 /// Like [`build_all_targets`] but only the library target: bins, tests, examples and benches are not
 /// compiled, so a change that breaks them (e.g. downgrading the lib's `pub` items) cannot fail it.
-pub(crate) fn build_lib_only(root: &Path, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
-    build_with(root, "--lib", extra_rustflags)
+pub(crate) fn build_lib_only(
+    root: &Path,
+    cache_source: Option<&Path>,
+    extra_rustflags: &str,
+) -> anyhow::Result<BuildOutput> {
+    build_with(root, cache_source, "--lib", extra_rustflags)
 }
 
-fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::Result<BuildOutput> {
+/// `cache_source` is the SOURCE repository the throwaway checkout at `root` was made from: the build cache is
+/// keyed by it. `None` means "no cache, build in the checkout's own `target/`", which is what the unit tests want.
+fn build_with(
+    root: &Path,
+    cache_source: Option<&Path>,
+    target_arg: &str,
+    extra_rustflags: &str,
+) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let (package, prefix) = crate::package::locate(root)?;
-    let output = Command::new("cargo")
+    // Held until the build ends: another CodeRipper run on this repository waits (boundedly) for it.
+    let choice = match cache_source {
+        Some(source) => crate::build_cache::acquire(source),
+        None => crate::build_cache::CacheChoice::Throwaway { why: None },
+    };
+    let mut cargo = Command::new("cargo");
+    cargo
         // `-p`: build THIS package even when the workspace's `default-members` name others
         .args([
             "build",
@@ -156,14 +179,46 @@ fn build_with(root: &Path, target_arg: &str, extra_rustflags: &str) -> anyhow::R
         ])
         .current_dir(root)
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
-        .env_remove("CARGO_ENCODED_RUSTFLAGS")
-        .output()?;
-    let diagnostics =
-        parse_messages_for(&String::from_utf8_lossy(&output.stdout), Some(&package.id));
+        .env_remove("CARGO_ENCODED_RUSTFLAGS");
+    let mut cache_dir = None;
+    match &choice {
+        crate::build_cache::CacheChoice::Shared(dir) => {
+            cargo.env("CARGO_TARGET_DIR", dir.path.join("target"));
+            cache_dir = Some(dir.path.clone());
+        }
+        crate::build_cache::CacheChoice::Throwaway { why: Some(why) } => {
+            crate::build_cache::note(why.clone())
+        }
+        crate::build_cache::CacheChoice::Throwaway { why: None } => {}
+    }
+    let output = cargo.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let (fresh, compiled) = count_units(&stdout);
+    crate::build_cache::record(fresh, compiled, cache_dir.as_deref());
+    drop(choice);
+    let diagnostics = parse_messages_for(&stdout, Some(&package.id));
     Ok(BuildOutput {
         diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
     })
+}
+
+/// `(fresh, compiled)`: how many compilation units cargo reused and how many it built, from the
+/// `compiler-artifact` lines of its JSON stream.
+fn count_units(stdout: &str) -> (u64, u64) {
+    let (mut fresh, mut compiled) = (0, 0);
+    for message in stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
+        .filter(|m| m.reason == "compiler-artifact")
+    {
+        if message.fresh == Some(true) {
+            fresh += 1;
+        } else {
+            compiled += 1;
+        }
+    }
+    (fresh, compiled)
 }
 
 /// cargo names files relative to the WORKSPACE root (`b/src/lib.rs` for a member `b`). Checks think in
@@ -276,7 +331,7 @@ mod tests {
             "pub fn a_warn(x: i32) {}\n",
             "pub fn b_warn(y: i32) { a::a_warn(1); }\n",
         );
-        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        let out = build_all_targets(&ws.path().join("b"), None, CAP_LINTS).unwrap();
         let unused: Vec<_> = out
             .diagnostics
             .iter()
@@ -303,7 +358,7 @@ mod tests {
             "pub fn a_broken() { let x: i32 = \"no\"; }\n",
             "pub fn b() {}\n",
         );
-        let out = build_all_targets(&ws.path().join("b"), CAP_LINTS).unwrap();
+        let out = build_all_targets(&ws.path().join("b"), None, CAP_LINTS).unwrap();
         assert!(out.is_broken(), "{:?}", out.diagnostics.len());
     }
 
@@ -329,6 +384,22 @@ mod tests {
         assert!(!diag("warning", None).is_hard_error());
         assert!(diag("error", Some("E0603")).is_hard_error());
         assert!(diag("error", None).is_hard_error());
+    }
+
+    #[test]
+    fn units_are_counted_fresh_or_compiled_from_artifact_lines() {
+        let stdout = concat!(
+            r#"{"reason":"compiler-artifact","package_id":"a 0.1.0","fresh":true}"#,
+            "\n",
+            r#"{"reason":"compiler-artifact","package_id":"b 0.1.0","fresh":false}"#,
+            "\n",
+            r#"{"reason":"compiler-artifact","package_id":"c 0.1.0","fresh":false}"#,
+            "\n",
+            r#"{"reason":"build-script-executed","package_id":"c 0.1.0"}"#,
+            "\n",
+            "not json at all\n",
+        );
+        assert_eq!(count_units(stdout), (1, 2));
     }
 
     #[test]
