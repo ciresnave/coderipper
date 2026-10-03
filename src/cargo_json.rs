@@ -199,9 +199,13 @@ fn build_with(
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let (package, prefix) = crate::package::locate(root)?;
     // Held until the build ends: another CodeRipper run on this repository waits (boundedly) for it.
-    let mut choice = match cache_source {
-        Some(source) => crate::build_cache::acquire(source),
-        None => crate::build_cache::CacheChoice::Throwaway { why: None },
+    // Inside a session for this repository the session already holds the cache lock through its own handle (a second
+    // `try_lock` in this process would answer WouldBlock and cost the whole wait), owns the target directory, and
+    // must not freshen (that would defeat the sibling reuse it exists for).
+    let session = crate::session::session_for(cache_source);
+    let mut choice = match (&session, cache_source) {
+        (Some(_), _) | (None, None) => crate::build_cache::CacheChoice::Throwaway { why: None },
+        (None, Some(source)) => crate::build_cache::acquire(source),
     };
     // The lock is held, so nothing can write an artifact from here on that predates this refresh. If the checkout
     // cannot be refreshed the cache is NOT used: replacing `choice` drops the `CacheDir` (releasing the lock) before
@@ -231,6 +235,10 @@ fn build_with(
     let mut cache_dir = None;
     #[cfg(test)]
     let mut cache_note = None;
+    if let Some(session) = &session {
+        cargo.env("CARGO_TARGET_DIR", &session.target);
+        cache_dir = session.cache_dir.clone();
+    }
     match &choice {
         crate::build_cache::CacheChoice::Shared(dir) => {
             cargo.env("CARGO_TARGET_DIR", dir.path.join("target"));

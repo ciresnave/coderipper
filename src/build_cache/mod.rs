@@ -169,7 +169,7 @@ pub(crate) enum CacheChoice {
     Throwaway { why: Option<String> },
 }
 
-fn git_common_dir(dir: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn git_common_dir(dir: &Path) -> anyhow::Result<PathBuf> {
     let output = crate::github::git_command(
         dir,
         &["rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -291,6 +291,14 @@ fn toolchain_id(dir: &Path) -> String {
             || "unknown-toolchain".to_string(),
             |o| String::from_utf8_lossy(&o.stdout).into_owned(),
         )
+}
+
+/// [`acquire`] for a session: the same rules (the thread-local or process-wide configuration, the process-wide prune
+/// `Once`, never pruning the directory being acquired); the caller keeps the returned [`CacheDir`], and so the
+/// lock, for the whole run instead of one build.
+#[allow(dead_code)] // used by `Session::open`, which `run_workspace` (the next task) will call
+pub(crate) fn acquire_for_session(source_repo: &Path) -> CacheChoice {
+    acquire(source_repo)
 }
 
 /// The cache for builds of the repository `source_repo` (the *source*, not the throwaway checkout).
