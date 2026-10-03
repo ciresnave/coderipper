@@ -1,5 +1,30 @@
 # Version consistency — Implementation Plan
 
+> **IMPLEMENTATION STATUS (2026-10-02, post-implementation, post-review): this plan was executed on branch
+> `feat/version-consistency`. A fresh whole-branch review reproduced three Important defects and several Minor
+> ones that this plan's text gets wrong or does not cover; all were fixed test-first in the last commit. Kept as the
+> historical record and NOT edited to match. Where it disagrees with the code, trust the code.**
+> 1. **"`--project` may be any member directory" (learned item 1, Review Focus 4) was wrong.** The verdict then
+>    depended on which directory was named: `.coderipper.toml` (`[[tracks]]`, `[[allow]]`) is read from the directory
+>    passed while cargo shows the whole workspace from any member, so a member's run ignored the workspace's tracks and
+>    re-reported every sibling's outlier. **Now:** only the workspace root is analyzed; a member directory gets one
+>    `Info` finding saying to run it on the workspace root (not an error).
+> 2. **Packages with no `version` key** (allowed since Cargo 1.75; cargo reports `0.0.0`) outvoted the real crates and
+>    got them flagged. They are now left out of the comparison.
+> 3. **Design decision 3's reference resolution was too naive** (`[package]`/`[workspace.package]` read straight from
+>    the one manifest): a reference saying `version.workspace = true`, or a virtual workspace manifest (the README's own
+>    example, Unpopped), was reported as "declares no version". The reference is now resolved through `cargo metadata`:
+>    a package's manifest gives its resolved version; a virtual workspace gives its `[workspace.package] version`, or the one
+>    version all its packages share (an inconsistent one is an error).
+> 4. Duplicate `[[tracks]]` entries for a package (last one won silently) and unknown fields inside a tracks entry
+>    (`version = "9.9.9"` was ignored) are now errors.
+> 5. Version ordering is real semver precedence: `rc.2` < `rc.10`, `+build-5` is no longer split at its own hyphen, and
+>    build metadata is not part of "the same number" (`1.0.0` == `1.0.0+build.5`).
+> 6. A member outside the workspace directory gets a relative `file` (`../ext/Cargo.toml`), not an absolute one; error text no
+>    longer shows Windows' `\?\` verbatim prefix.
+> Not changed: an unused, stale `[workspace.package] version` is still authoritative (documented); unknown fields in
+> `[[allow]]` entries are still ignored (pre-existing; a candidate for its own change).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add CodeRipper's fourth check, `version-consistency`: report every package of a project whose version differs from the
