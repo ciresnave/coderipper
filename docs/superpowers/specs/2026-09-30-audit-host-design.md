@@ -216,6 +216,13 @@ Findings: `High` severity if protection is absent or enforces zero contexts. **V
 GitHub-API-backed check fits the same `NetworkRequired`/`sweep` bucket as a registry-backed one without
 needing a third axis.
 
+**`ci-protection-presence` implemented 2026-10-02** (`docs/superpowers/plans/2026-10-02-ci-protection-presence.md`).
+`Project` scope, `NetworkRequired`, so `sweep` tier; GitHub only (`gh api`, read-only). A finding (`High`/`High`) when the
+default branch's `protection.required_status_checks.enforcement_level` is `off` or it requires zero `contexts`; `non_admins`
+(admins may bypass) and `everyone` pass; `protected` is never consulted. GitHub is reached through a `Github` trait so the
+controls need no network; the canned responses are copies of real ones. Unreadable settings are an error, never clean. Not
+built: the `sweep` runner that decides where and how often this runs, and non-GitHub forges.
+
 **`unused-return-values`** — *`Project` scope, `LocalOnly`, `fast` tier (for Rust; see below).* Added
 2026-10-01, CireSnave's call: of the two value-flow checks sketched here, this one ships first —
 genuinely useful and not well-covered by existing tooling in any language this host is likely to target.

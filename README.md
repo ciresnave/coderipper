@@ -14,6 +14,7 @@ coderipper check reachability        # one check by id
 coderipper check unused-return-values  # is a function's return value ever consumed?
 coderipper check unused-parameters   # which function parameters are never used?
 coderipper check version-consistency # does every package of the project share one version?
+coderipper check ci-protection-presence # does the default branch require status checks? (network; sweep tier)
 ```
 
 A server mode (`coderipper serve`) is planned, for a free hosted instance on
@@ -49,6 +50,18 @@ reason = "emitter for Unpopped; keeps Unpopped's version"
 A package can also be silenced with an ordinary `[[allow]]` entry (check `version-consistency`, `file` = its
 manifest relative to the workspace root, `symbol` = the package name). Rust (cargo) manifests only; it reads the
 working tree, not HEAD.
+
+## CI and branch protection
+
+`coderipper check ci-protection-presence` reads GitHub's branch-protection settings for the repository `origin`
+points at (through `gh api`, as whichever account `gh` has active; read-only) and reports a default branch that
+requires no status checks: protection missing, or enabled but with `enforcement_level` `off` or zero required
+contexts. It never trusts `protected`, which is `true` on branches that enforce nothing. It is a network check, so it
+runs under `coderipper sweep` or by name, never in `fast`. It cannot silently pass: no `origin`, a non-GitHub origin, an
+API failure, or a reply without the `protection` object (hidden from a token without push access to a private
+repository) is an error; an archived repository and one with no commits yet each get an `Info` note. To accept a
+repository on purpose, use an `[[allow]]` entry with `check = "ci-protection-presence"`,
+`file = "github:branch-protection"` and `symbol = "owner/repo@branch"`.
 
 ## Workspaces
 
