@@ -146,6 +146,7 @@ impl Check for UnusedReturnValuesCheck {
                         u.tag.file, u.tag.line
                     ),
                     positive_control: Some(positive_control.clone()),
+                    member: None,
                 }
             })
             .collect())

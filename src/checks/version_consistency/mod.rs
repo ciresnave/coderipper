@@ -151,6 +151,7 @@ fn not_the_workspace_root(project: &str, project_dir: &Path, workspace_root: &Pa
             shown(workspace_root),
             shown(project_dir)
         )),
+        member: None,
     }
 }
 
@@ -477,6 +478,7 @@ impl Problem {
                          at {expected}, so the comparison could see agreement as well as difference",
                         all.len()
                     )),
+                    member: None,
                 }
             }
             Problem::TrackMismatch { pkg, tracked } => Finding {
@@ -503,6 +505,7 @@ impl Problem {
                     "{} was read successfully and stands for version {}",
                     tracked.manifest, tracked.version
                 )),
+                member: None,
             },
         }
     }

@@ -48,6 +48,160 @@ pub enum UnitFilter {
     Only(check::Unit),
 }
 
+/// What a `--workspace` run did, beyond its findings and errors.
+pub struct WorkspaceRun {
+    pub result: RunResult,
+    /// Members analysed (a poisoned session stops the loop early).
+    pub members: usize,
+    /// Members whose run reported at least one error.
+    pub members_with_errors: usize,
+}
+
+/// Runs the checks over every member of the cargo workspace containing `ctx.project_root` (the root or any member).
+///
+/// Checks that judge the whole repository ([`check::Unit::Repository`]) run ONCE, at the workspace root. Checks that
+/// judge a package run once per member, in sorted order, inside one session checkout (see `session`), each exactly as
+/// `--project <member>` runs them: the member's own `.coderipper.toml`, the same stale-entry judgement. Every finding
+/// from a member carries that member's package name. An error in one member does not stop the others; a session
+/// whose restore failed does (nothing is analysed in a dirty checkout). `on_member(name, i, n)` is told as each member
+/// starts, so a long run can show where it is.
+pub fn run_workspace(
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    on_member: &mut dyn FnMut(&str, usize, usize),
+) -> WorkspaceRun {
+    run_workspace_over(&registered_checks(), ctx, tier, only_check_id, on_member)
+}
+
+fn run_workspace_over(
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    on_member: &mut dyn FnMut(&str, usize, usize),
+) -> WorkspaceRun {
+    let failed = |message: String| WorkspaceRun {
+        result: RunResult {
+            findings: Vec::new(),
+            errors: vec![message],
+        },
+        members: 0,
+        members_with_errors: 0,
+    };
+    let (root, members) = match package::workspace_members(&ctx.project_root) {
+        Ok(found) => found,
+        Err(e) => return failed(e.to_string()),
+    };
+
+    let mut findings = Vec::new();
+    let mut errors = Vec::new();
+    // The same allowlist file can be judged twice (a root package is both the repository's unit and a member): a stale
+    // or unknown-check entry is reported once.
+    let mut judged = std::collections::HashSet::new();
+
+    let repository = run_checks_over(
+        checks,
+        &CheckContext {
+            project_root: root.clone(),
+            portfolio_root: ctx.portfolio_root.clone(),
+        },
+        tier,
+        only_check_id,
+        UnitFilter::Only(check::Unit::Repository),
+    );
+    for finding in repository.findings {
+        if finding.check_id != suppression::ALLOWLIST_CHECK_ID
+            || judged.insert(allowlist_key(&finding))
+        {
+            findings.push(finding);
+        }
+    }
+    errors.extend(repository.errors);
+
+    let session = match session::Session::open(&root) {
+        Ok(session) => session,
+        Err(e) => {
+            errors.push(format!("cannot open the workspace session: {e}"));
+            return WorkspaceRun {
+                result: RunResult { findings, errors },
+                members: 0,
+                members_with_errors: 0,
+            };
+        }
+    };
+
+    let total = members.len();
+    let mut analysed = 0;
+    let mut with_errors = 0;
+    session::with_session(&session, || {
+        for (index, member) in members.iter().enumerate() {
+            on_member(&member.name, index + 1, total);
+            let run = run_checks_over(
+                checks,
+                &CheckContext {
+                    project_root: member.dir.clone(),
+                    portfolio_root: ctx.portfolio_root.clone(),
+                },
+                tier,
+                only_check_id,
+                UnitFilter::Only(check::Unit::Package),
+            );
+            analysed += 1;
+            if !run.errors.is_empty() {
+                with_errors += 1;
+            }
+            for mut finding in run.findings {
+                if finding.check_id == suppression::ALLOWLIST_CHECK_ID
+                    && !judged.insert(allowlist_key(&finding))
+                {
+                    continue;
+                }
+                finding.member = Some(member.name.clone());
+                findings.push(finding);
+            }
+            // when a restore failed for good the session's message replaces the member's own errors: it is the cause
+            if let Some(why) = session.poison_message() {
+                let rest: Vec<&str> = members[index + 1..]
+                    .iter()
+                    .map(|m| m.name.as_str())
+                    .collect();
+                errors.push(format!(
+                    "{}: {why}; not analysed: {}",
+                    member.name,
+                    if rest.is_empty() {
+                        "(no more members)".to_string()
+                    } else {
+                        rest.join(", ")
+                    }
+                ));
+                with_errors += 1;
+                return;
+            }
+            errors.extend(
+                run.errors
+                    .into_iter()
+                    .map(|e| format!("{}: {e}", member.name)),
+            );
+        }
+    });
+
+    WorkspaceRun {
+        result: RunResult { findings, errors },
+        members: analysed,
+        members_with_errors: with_errors,
+    }
+}
+
+/// What makes two allowlist-judgement findings the same one.
+fn allowlist_key(finding: &Finding) -> (String, Option<String>, String) {
+    (
+        finding.project.clone(),
+        finding.subject.clone(),
+        finding.summary.clone(),
+    )
+}
+
 pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -> RunResult {
     run_checks_over(
         &registered_checks(),
@@ -183,6 +337,7 @@ mod tests {
                 summary: "ran".into(),
                 detail: "ran".into(),
                 positive_control: Some("ran".into()),
+                member: None,
             }])
         }
     }
@@ -288,6 +443,7 @@ mod tests {
             summary: summary.into(),
             detail: "d".into(),
             positive_control: control.map(str::to_string),
+            member: None,
         }
     }
 

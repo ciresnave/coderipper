@@ -124,6 +124,7 @@ impl Check for UnusedParametersCheck {
                     site.file, site.line
                 ),
                 positive_control: Some(positive_control.clone()),
+                member: None,
             })
             .collect();
         findings.sort_by(|a, b| {

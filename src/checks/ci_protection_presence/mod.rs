@@ -229,6 +229,7 @@ impl Check for CiProtectionPresenceCheck {
                  settings were readable, not merely missing",
                 doc["name"].as_str().unwrap_or(branch)
             )),
+            member: None,
         }])
     }
 }
@@ -285,5 +286,6 @@ fn info_finding(slug: &str, branch: Option<&str>, summary: String, control: Stri
         detail: "Nothing to protect: this is informational, not a defect.".into(),
         summary,
         positive_control: Some(control),
+        member: None,
     }
 }

@@ -157,6 +157,7 @@ impl Check for ReachabilityCheck {
                     hit.file, hit.line
                 ),
                 positive_control: Some(positive_control.clone()),
+                member: None,
             })
             .collect();
 
@@ -180,6 +181,7 @@ impl Check for ReachabilityCheck {
                      a name with something live is hidden too."
                 ),
                 positive_control: Some(positive_control),
+                member: None,
             });
         }
 

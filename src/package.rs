@@ -79,8 +79,6 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
 /// order is the same on every run. `cargo metadata --no-deps` lists exactly the workspace's packages: a directory
 /// under `[workspace] exclude` is not a member and is not listed. Asked from a member's directory it still answers
 /// for the whole workspace; a root package is a member like any other (its directory sorts first).
-// Used by `run_workspace` (the next task of the --workspace plan); until then only the tests call it.
-#[allow(dead_code)]
 pub(crate) fn workspace_members(dir: &Path) -> anyhow::Result<(PathBuf, Vec<Package>)> {
     let meta = metadata(dir)?;
     let mut members = meta.packages;

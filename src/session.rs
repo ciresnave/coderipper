@@ -21,10 +21,6 @@
 //!   `<cache dir>/target` (the slot every `--project` run uses) when it got the lock, else a temporary directory
 //!   outside the checkout.
 
-// `Session` is built by `run_workspace`, the next task of the --workspace plan; until then only the tests (and the hooks in
-// `RewrittenWorktree` and `build_with`, which are inert without an active session) use it. That task removes this allow.
-#![allow(dead_code)]
-
 use crate::build_cache::{self, CacheChoice, CacheDir};
 use crate::github::git_command;
 use std::cell::RefCell;
@@ -43,7 +39,7 @@ pub(crate) struct SessionInner {
     /// Parent directory of the checkout; removed after the checkout is.
     _scratch: tempfile::TempDir,
     /// The lock on the persistent cache's directory, held for the whole run.
-    cache: RefCell<Option<CacheDir>>,
+    _cache: RefCell<Option<CacheDir>>,
     _temp_target: Option<tempfile::TempDir>,
     target: PathBuf,
     cache_dir: Option<PathBuf>,
@@ -116,7 +112,7 @@ impl Session {
                 identity,
                 checkout,
                 _scratch: scratch,
-                cache: RefCell::new(cache),
+                _cache: RefCell::new(cache),
                 _temp_target: temp_target,
                 target,
                 cache_dir,
@@ -127,6 +123,7 @@ impl Session {
     }
 
     /// True once a restore failed for good: the host loop must stop.
+    #[cfg(test)]
     pub(crate) fn is_poisoned(&self) -> bool {
         self.inner.poisoned().is_some()
     }
@@ -153,8 +150,9 @@ impl Session {
 
     /// Tests only: let go of the cache lock (the sabotage of the overlapping-run test).
     #[cfg(test)]
+    #[allow(dead_code)] // only a manual sabotage run of the overlapping-run test calls it
     pub(crate) fn release_lock_for_test(&self) {
-        self.inner.cache.borrow_mut().take();
+        self.inner._cache.borrow_mut().take();
     }
 }
 

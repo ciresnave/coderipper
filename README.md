@@ -70,8 +70,25 @@ root that is itself a package. A virtual workspace root is refused with the list
 The whole repository is checked out in a throwaway worktree (so path dependencies resolve) but only the
 member is rewritten and built, findings carry paths relative to the member, and `.coderipper.toml` is read
 from the member's directory. The checks are project-scope: a `pub` item used only by a sibling member has no
-callers within this package. Dependencies are built once and reused (see "Build cache" below); running every
-member in one command is not supported yet.
+callers within this package. Dependencies are built once and reused (see "Build cache" below).
+
+### `--workspace`: every member in one command
+
+`coderipper check reachability --workspace --project fuel` (also `fast` and `sweep`) runs the checks over **every
+member** of the cargo workspace containing the project (the root, or any member's directory). Each member is judged
+exactly as `--project <member>` would judge it: its own `.coderipper.toml`, the same stale-entry reporting. Checks that
+judge the whole repository (`version-consistency`, `ci-protection-presence`) run once, at the workspace root; a
+`[workspace] exclude`d directory is not a member. Members run in sorted order; stderr shows
+`coderipper: member <name> (i/n)` as each starts and ends with a one-line summary. Every finding leads with its
+**package name** (two members can share a directory name).
+
+All members share one checkout of the repository for the run: each member is rewritten in place, built, and put back
+with `git checkout`, and a sibling nobody touched is compiled once and reused by the next member (about the same
+work as one cold workspace build plus each member's own compile, instead of a full rebuild per member and check). While
+a `--workspace` run is in progress it holds the build cache's lock for that repository, so another coderipper run on the
+same repository builds without the cache and says so. An error in one member (it does not compile) is reported by member and
+the others still run; the process exits non-zero. If the shared checkout cannot be put back to a clean state the run stops
+and says which members were not analysed.
 
 ## Build cache
 
