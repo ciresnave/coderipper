@@ -9,6 +9,17 @@ pub enum Scope {
     Portfolio,
 }
 
+/// What one run of a check judges. A workspace run (`--workspace`) runs a `Package` check once per member and a
+/// `Repository` check once for the whole workspace: a check that reads repository-wide facts (a workspace's
+/// versions, a GitHub repository's settings) would otherwise repeat one finding per member.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unit {
+    /// One cargo package: the project directory is a package's directory.
+    Package,
+    /// The whole repository / workspace.
+    Repository,
+}
+
 /// Whether a check ever leaves the machine.
 ///
 /// This is what actually decides run tier (see [`Check::tier`]), not [`Scope`] — every portfolio
@@ -59,6 +70,11 @@ pub trait Check {
 
     fn tier(&self) -> Tier {
         self.network().tier()
+    }
+
+    /// What one run of this check judges (see [`Unit`]). Most checks judge one package.
+    fn unit(&self) -> Unit {
+        Unit::Package
     }
 
     /// Run the check and return whatever it found, RAW: do not apply the project's allowlist. The

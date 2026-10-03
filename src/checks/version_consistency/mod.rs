@@ -29,7 +29,7 @@
 //! Rust (cargo) manifests only.
 
 use crate::allowlist::Allowlist;
-use crate::check::{Check, CheckContext, Network, Scope};
+use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::package::{metadata, Metadata};
 use std::cmp::Ordering;
@@ -47,6 +47,12 @@ impl Check for VersionConsistencyCheck {
 
     fn scope(&self) -> Scope {
         Scope::Project
+    }
+
+    /// It reads the whole workspace's versions (from a member's directory it only says "run me on the root"), so a
+    /// workspace run takes it once, not once per member.
+    fn unit(&self) -> Unit {
+        Unit::Repository
     }
 
     fn network(&self) -> Network {

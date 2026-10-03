@@ -21,7 +21,7 @@
 //! access to a private repo) is an error. The two honest non-findings, each an `Info` finding saying so: an
 //! archived repository, and one with no commits yet (its default branch does not exist).
 
-use crate::check::{Check, CheckContext, Network, Scope};
+use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::github::{origin_url, parse_github_remote, GhCli, Github};
 
@@ -61,6 +61,11 @@ impl Check for CiProtectionPresenceCheck {
 
     fn scope(&self) -> Scope {
         Scope::Project
+    }
+
+    /// It reads one GitHub repository's settings: one finding per repository, not one per workspace member.
+    fn unit(&self) -> Unit {
+        Unit::Repository
     }
 
     fn network(&self) -> Network {
