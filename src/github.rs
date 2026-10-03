@@ -33,13 +33,21 @@ pub trait Github {
     fn get(&self, path: &str) -> Result<serde_json::Value, ApiError>;
 }
 
+/// `gh api` arguments. Pinned to github.com so a `GH_HOST` in the environment cannot send the question to
+/// another server whose repository happens to share the name.
+pub(crate) fn gh_args(path: &str) -> Vec<String> {
+    ["api", "--hostname", "github.com", path]
+        .map(String::from)
+        .to_vec()
+}
+
 /// The real client: `gh api <path>`, as whichever account `gh` has active.
 pub struct GhCli;
 
 impl Github for GhCli {
     fn get(&self, path: &str) -> Result<serde_json::Value, ApiError> {
         let output = Command::new("gh")
-            .args(["api", path])
+            .args(gh_args(path))
             .output()
             .map_err(|e| ApiError {
                 status: None,
@@ -120,12 +128,20 @@ pub fn parse_github_remote(url: &str) -> Option<RepoRef> {
     })
 }
 
+/// A `git` command for the repository at `dir`. An inherited `GIT_DIR` / `GIT_WORK_TREE` (git exports them
+/// to hooks) would override `current_dir` and make the question about ANOTHER repository.
+pub(crate) fn git_command(dir: &Path, args: &[&str]) -> Command {
+    let mut cmd = Command::new("git");
+    cmd.args(args)
+        .current_dir(dir)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE");
+    cmd
+}
+
 /// The URL of `origin` in the git repository containing `dir`.
 pub fn origin_url(dir: &Path) -> anyhow::Result<String> {
-    let output = Command::new("git")
-        .args(["remote", "get-url", "origin"])
-        .current_dir(dir)
-        .output()?;
+    let output = git_command(dir, &["remote", "get-url", "origin"]).output()?;
     anyhow::ensure!(
         output.status.success(),
         "{} has no `origin` remote ({}); ci-protection-presence needs to know which GitHub repository it is",
@@ -201,6 +217,44 @@ mod tests {
         let err = parse_gh_failure(b"", b"gh: To use GitHub CLI, run: gh auth login");
         assert_eq!(err.status, None);
         assert!(err.message.contains("gh auth login"));
+    }
+
+    #[test]
+    fn git_is_run_without_an_inherited_git_dir() {
+        // Review finding: an exported GIT_DIR (git sets it for hooks) made `git remote get-url origin`
+        // read ANOTHER repository's origin and judge that one.
+        let cmd = git_command(std::path::Path::new("."), &["remote", "get-url", "origin"]);
+        let removed: Vec<_> = cmd
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(key, _)| key.to_string_lossy().to_string())
+            .collect();
+        assert!(removed.contains(&"GIT_DIR".to_string()), "{removed:?}");
+        assert!(
+            removed.contains(&"GIT_WORK_TREE".to_string()),
+            "{removed:?}"
+        );
+    }
+
+    #[test]
+    fn gh_is_pinned_to_github_dot_com_whatever_gh_host_says() {
+        assert_eq!(
+            gh_args("repos/a/b"),
+            vec!["api", "--hostname", "github.com", "repos/a/b"]
+        );
+    }
+
+    #[test]
+    fn the_real_empty_repository_answer_is_a_409_with_its_message() {
+        // Copied from `gh api repos/ciresnave/bayes-optimal/commits?per_page=1` (2026-10-02): the status is a
+        // STRING in the body, and gh's stderr repeats it.
+        let err = parse_gh_failure(
+            br#"{"message":"Git Repository is empty.","documentation_url":"https://docs.github.com/rest/commits/commits#list-commits","status":"409"}"#,
+            b"gh: Git Repository is empty. (HTTP 409)
+",
+        );
+        assert_eq!(err.status, Some(409));
+        assert!(err.message.contains("empty"), "{}", err.message);
     }
 
     #[test]

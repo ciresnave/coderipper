@@ -34,19 +34,23 @@ impl Github for Fake {
     }
 }
 
-fn repo_with_origin(url: Option<&str>) -> tempfile::TempDir {
-    let tmp = tempfile::tempdir().unwrap();
-    Command::new("git")
-        .args(["init", "-q"])
-        .current_dir(tmp.path())
+/// A git command that cannot be redirected by an inherited `GIT_DIR`, and that must succeed.
+fn git(dir: &Path, args: &[&str]) {
+    let status = Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
         .status()
         .unwrap();
+    assert!(status.success(), "git {args:?} failed");
+}
+
+fn repo_with_origin(url: Option<&str>) -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().unwrap();
+    git(tmp.path(), &["init", "-q"]);
     if let Some(url) = url {
-        Command::new("git")
-            .args(["remote", "add", "origin", url])
-            .current_dir(tmp.path())
-            .status()
-            .unwrap();
+        git(tmp.path(), &["remote", "add", "origin", url]);
     }
     tmp
 }
@@ -117,6 +121,15 @@ fn unprotected_branch() -> Value {
 const ORIGIN: &str = "https://github.com/acme/widgets.git";
 const REPO: &str = "repos/acme/widgets";
 const BRANCH: &str = "repos/acme/widgets/branches/main";
+const COMMITS: &str = "repos/acme/widgets/commits?per_page=1";
+
+/// Real answer for a repository with no commits: `409 "Git Repository is empty."`.
+fn empty_repository() -> ApiError {
+    ApiError {
+        status: Some(409),
+        message: "Git Repository is empty.".into(),
+    }
+}
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
     findings.iter().filter_map(|f| f.subject.clone()).collect()
@@ -248,7 +261,7 @@ fn the_default_branch_is_whatever_github_says_not_main() {
             REPO.to_string(),
             "repos/acme/widgets/branches/trunk".to_string(),
             // classic protection requires nothing, so the rulesets are read before the verdict
-            "repos/acme/widgets/rules/branches/trunk".to_string(),
+            "repos/acme/widgets/rules/branches/trunk?per_page=100".to_string(),
         ]
     );
 }
@@ -287,7 +300,11 @@ fn a_repository_with_no_commits_yet_is_informational() {
     };
     let (result, _) = run_with(
         repo.path(),
-        vec![(REPO, Ok(repo_info("main"))), (BRANCH, Err(not_found))],
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Err(not_found)),
+            (COMMITS, Err(empty_repository())),
+        ],
     );
     let found = result.unwrap();
     assert_eq!(found.len(), 1);
@@ -365,6 +382,21 @@ fn it_belongs_to_the_sweep_tier_and_is_not_run_by_fast() {
         .any(|c| c.id() == "ci-protection-presence"));
 }
 
+#[test]
+fn fast_does_not_run_it_and_sweep_does() {
+    // A GitLab origin makes the check fail without any network, which makes "was it run?" observable.
+    let repo = repo_with_origin(Some("https://gitlab.com/acme/widgets.git"));
+    let ctx = CheckContext {
+        project_root: repo.path().to_path_buf(),
+        portfolio_root: repo.path().to_path_buf(),
+    };
+    let mentions = |errors: &[String]| errors.iter().any(|e| e.contains("ci-protection-presence"));
+    let fast = coderipper::run_checks(&ctx, Tier::Fast, None);
+    assert!(!mentions(&fast.errors), "{:?}", fast.errors);
+    let sweep = coderipper::run_checks(&ctx, Tier::Sweep, None);
+    assert!(mentions(&sweep.errors), "{:?}", sweep.errors);
+}
+
 // ---- repository rulesets: GitHub's newer way to require checks, with no classic branch protection ----
 
 fn rules_requiring_checks() -> Value {
@@ -382,7 +414,7 @@ fn rules_requiring_checks() -> Value {
     ])
 }
 
-const RULES: &str = "repos/acme/widgets/rules/branches/main";
+const RULES: &str = "repos/acme/widgets/rules/branches/main?per_page=100";
 
 #[test]
 fn a_ruleset_that_requires_checks_counts_even_without_classic_protection() {
@@ -470,4 +502,171 @@ fn rules_are_not_even_asked_for_when_classic_protection_already_requires_checks(
     );
     assert!(result.unwrap().is_empty());
     assert!(!asked.iter().any(|p| p.contains("/rules/")), "{asked:?}");
+}
+
+// ---- review fixes ----
+
+#[test]
+fn a_404_on_the_branch_is_only_informational_when_the_repository_proves_it_is_empty() {
+    // Review finding: any 404 used to become "no commits yet", exit 0, with nothing confirming it.
+    let repo = repo_with_origin(Some(ORIGIN));
+    let not_found = ApiError {
+        status: Some(404),
+        message: "Branch not found".into(),
+    };
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Err(not_found.clone())),
+            (COMMITS, Ok(json!([{ "sha": "abc1234" }]))),
+        ],
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("404") && err.contains("commits"), "{err}");
+
+    // and when the emptiness check itself fails, that is an error too
+    let down = ApiError {
+        status: Some(500),
+        message: "Server Error".into(),
+    };
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Err(not_found)),
+            (COMMITS, Err(down)),
+        ],
+    );
+    assert!(result.unwrap_err().to_string().contains("500"));
+}
+
+#[test]
+fn a_branch_name_is_percent_encoded_in_the_url_except_for_slashes() {
+    // `#` would otherwise start a fragment: `dev#2` would be read as `dev`.
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, asked) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("release/dev#2 x"))),
+            (
+                "repos/acme/widgets/branches/release/dev%232%20x",
+                Ok(unprotected_branch()),
+            ),
+        ],
+    );
+    assert_eq!(
+        subjects(&result.unwrap()),
+        vec!["acme/widgets@release/dev#2 x"]
+    );
+    assert_eq!(asked[1], "repos/acme/widgets/branches/release/dev%232%20x");
+    assert_eq!(
+        asked[2],
+        "repos/acme/widgets/rules/branches/release/dev%232%20x?per_page=100"
+    );
+}
+
+#[test]
+fn the_subject_uses_githubs_canonical_name_not_the_origins_spelling() {
+    // An `[[allow]]` entry is written with the canonical name; an origin spelled `Acme/Widgets` must match it.
+    let repo = repo_with_origin(Some("git@github.com:Acme/Widgets.git"));
+    let info = json!({ "full_name": "acme/widgets", "default_branch": "main", "archived": false });
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            ("repos/Acme/Widgets", Ok(info)),
+            ("repos/Acme/Widgets/branches/main", Ok(unprotected_branch())),
+        ],
+    );
+    let found = result.unwrap();
+    assert_eq!(subjects(&found), vec!["acme/widgets@main"]);
+    assert_eq!(found[0].project, "widgets");
+}
+
+#[test]
+fn required_status_checks_without_an_enforcement_level_is_an_error_not_a_guess() {
+    let mut branch = protected_branch();
+    branch["protection"]["required_status_checks"]
+        .as_object_mut()
+        .unwrap()
+        .remove("enforcement_level");
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![(REPO, Ok(repo_info("main"))), (BRANCH, Ok(branch))],
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(err.contains("enforcement_level"), "{err}");
+}
+
+#[test]
+fn the_larger_of_contexts_and_checks_counts() {
+    // `contexts` empty but `checks` listing one: GitHub's two lists must not be able to disagree into a High.
+    let mut branch = protected_branch();
+    branch["protection"]["required_status_checks"]["contexts"] = json!([]);
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![(REPO, Ok(repo_info("main"))), (BRANCH, Ok(branch))],
+    );
+    assert!(result.unwrap().is_empty());
+}
+
+#[test]
+fn a_required_workflows_ruleset_rule_also_requires_ci() {
+    // Shape from GitHub's documentation of the `workflows` rule type (not yet seen on a real repo here).
+    let rules = json!([{
+        "type": "workflows",
+        "parameters": { "workflows": [ { "path": ".github/workflows/ci.yml", "repository_id": 1 } ] },
+        "ruleset_source_type": "Organization",
+        "ruleset_id": 7
+    }]);
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Ok(rules)),
+        ],
+    );
+    assert!(result.unwrap().is_empty());
+}
+
+#[test]
+fn a_rules_reply_that_is_not_a_list_is_an_error() {
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Ok(json!({ "message": "surprise" }))),
+        ],
+    );
+    assert!(result.unwrap_err().to_string().contains("not a list"));
+}
+
+#[test]
+fn the_finding_says_what_the_rules_lookup_actually_answered() {
+    let upgrade = ApiError {
+        status: Some(403),
+        message: "Upgrade to GitHub Pro or make this repository public to enable this feature."
+            .into(),
+    };
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Err(upgrade)),
+        ],
+    );
+    let detail = result.unwrap()[0].detail.clone();
+    assert!(detail.contains("cannot have rulesets"), "{detail}");
+    assert!(
+        !detail.contains("0 rule(s)"),
+        "must not claim a rule count it never read: {detail}"
+    );
 }
