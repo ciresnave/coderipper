@@ -1,0 +1,12 @@
+# Coverage is a signal, not a gate (agreed with CireSnave 2026-10-03). Codecov's
+# statuses are informational: they report, and never fail. There is no target
+# and no threshold. What the number does and does not cover is written in
+# .github/workflows/coverage.yml.
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
