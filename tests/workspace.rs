@@ -275,8 +275,10 @@ fn a_refusal_names_the_directory_the_user_passed_not_the_throwaway_checkout() {
         .unwrap_err()
         .to_string();
     assert!(err.contains(&project.display().to_string()), "{err}");
+    // The throwaway checkout is `<tmp>/wt/...`. Look for that as a path COMPONENT: a bare substring test matched
+    // CI's random temp directory `.tmpvsPwtr` (a correct message naming the user's own directory).
     assert!(
-        !err.contains("wt"),
+        !err.contains("/wt") && !err.contains(r"\wt"),
         "must not leak the checkout path: {err}"
     );
 }
