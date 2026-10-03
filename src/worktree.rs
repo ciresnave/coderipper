@@ -13,6 +13,12 @@ pub struct RewrittenWorktree {
 }
 
 impl RewrittenWorktree {
+    /// The source repository (the project directory given to [`Self::create_with`]) this checkout was made
+    /// from, as opposed to the throwaway checkout itself. The build cache is keyed by it.
+    pub fn source_repo(&self) -> &Path {
+        &self.source_repo
+    }
+
     /// Creates a detached worktree of the git repository containing `project_root` at HEAD and
     /// rewrites every `.rs` file under the PACKAGE's `src/` with `rewrite(relative_path, source)`.
     /// `project_root` is the package's directory: the repository root, or a workspace member below

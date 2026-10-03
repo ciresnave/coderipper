@@ -1,4 +1,5 @@
 pub(crate) mod allowlist;
+pub mod build_cache;
 pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;

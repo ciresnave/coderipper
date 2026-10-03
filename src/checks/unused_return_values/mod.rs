@@ -75,7 +75,7 @@ impl Check for UnusedReturnValuesCheck {
         // Besides capping lints: an `allow` (crate-wide or on one module) must not silence the two
         // lints this check counts, or uses inside it silently go uncounted.
         let rustflags = format!("{CAP_LINTS} --force-warn deprecated --force-warn unused_must_use");
-        let build = build_all_targets(&wt.root, &rustflags)?;
+        let build = build_all_targets(&wt.root, Some(wt.source_repo()), &rustflags)?;
 
         // A real compiler error anywhere must never look like a clean result.
         anyhow::ensure!(

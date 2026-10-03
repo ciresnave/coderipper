@@ -60,7 +60,7 @@ impl Check for UnusedParametersCheck {
         })?;
         let sentinel_files = inject_sentinels(&wt.root)?;
         // `--cap-lints=warn`: a `#![deny(warnings)]` must not fail the build and hide the lint.
-        let build = build_all_targets(&wt.root, CAP_LINTS)?;
+        let build = build_all_targets(&wt.root, Some(wt.source_repo()), CAP_LINTS)?;
 
         anyhow::ensure!(
             !build.is_broken(),

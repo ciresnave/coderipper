@@ -2,6 +2,13 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use std::process::Command as StdCommand;
 
+/// The CLI with the build cache OFF, so a test never reads or writes a developer's real cache.
+fn coderipper() -> Command {
+    let mut cmd = Command::cargo_bin("coderipper").unwrap();
+    cmd.env("CODERIPPER_CACHE", "off");
+    cmd
+}
+
 fn clean_fixture_repo() -> tempfile::TempDir {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::write(
@@ -45,8 +52,7 @@ fn fast_mode_runs_cleanly_against_a_real_clean_project() {
     // repo, a write into a shared checkout (`git worktree add`) that a CLI integration test must
     // not do -- fixed by using an isolated, throwaway fixture instead.
     let repo = clean_fixture_repo();
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .arg("fast")
         .arg("--project")
         .arg(repo.path())
@@ -101,8 +107,7 @@ fn a_check_error_makes_the_cli_exit_non_zero() {
         .status()
         .unwrap();
 
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .arg("fast")
         .arg("--project")
         .arg(tmp.path())
@@ -113,8 +118,7 @@ fn a_check_error_makes_the_cli_exit_non_zero() {
 
 #[test]
 fn serve_mode_reports_not_implemented_rather_than_silently_doing_nothing() {
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .arg("serve")
         .assert()
         .failure()
@@ -128,8 +132,7 @@ fn unknown_check_id_produces_no_findings_without_running_any_check() {
     // shared checkout (`git worktree add`) a CLI integration test must not do. An unknown check id
     // is filtered out before any check's `run` is invoked, so a nonexistent path is safe here and
     // also proves the short-circuit: if `run` WERE called, it would fail loudly on this path.
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "does-not-exist", "--project", "/does/not/exist"])
         .assert()
         .failure(); // fails at path canonicalization, never reaches a check
@@ -172,8 +175,7 @@ fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
         }
         tmp
     };
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-return-values", "--project"])
         .arg(repo.path())
         .assert()
@@ -218,8 +220,7 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_does_not_f
             .unwrap();
     }
 
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-return-values", "--project"])
         .arg(tmp.path())
         .assert()
@@ -266,8 +267,7 @@ fn a_malformed_allowlist_fails_the_run_with_an_honest_message() {
             .unwrap();
     }
 
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-return-values", "--project"])
         .arg(tmp.path())
         .assert()
@@ -310,8 +310,7 @@ fn the_unused_parameters_check_runs_by_id_and_reports_a_parameter() {
             .status()
             .unwrap();
     }
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-parameters", "--project"])
         .arg(tmp.path())
         .assert()
@@ -371,8 +370,7 @@ fn workspace_fixture() -> tempfile::TempDir {
 #[test]
 fn a_workspace_member_can_be_the_project() {
     let ws = workspace_fixture();
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-parameters", "--project"])
         .arg(ws.path().join("two"))
         .assert()
@@ -386,8 +384,7 @@ fn a_workspace_member_can_be_the_project() {
 #[test]
 fn a_virtual_workspace_root_asks_for_a_member() {
     let ws = workspace_fixture();
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "unused-parameters", "--project"])
         .arg(ws.path())
         .assert()
@@ -414,8 +411,7 @@ fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
         .unwrap();
         std::fs::write(dir.join("src/lib.rs"), "").unwrap();
     }
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "version-consistency", "--project"])
         .arg(tmp.path())
         .assert()
@@ -445,8 +441,7 @@ fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_t
             .status()
             .unwrap();
     }
-    Command::cargo_bin("coderipper")
-        .unwrap()
+    coderipper()
         .args(["check", "ci-protection-presence", "--project"])
         .arg(tmp.path())
         .assert()

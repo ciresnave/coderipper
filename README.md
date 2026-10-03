@@ -70,8 +70,33 @@ root that is itself a package. A virtual workspace root is refused with the list
 The whole repository is checked out in a throwaway worktree (so path dependencies resolve) but only the
 member is rewritten and built, findings carry paths relative to the member, and `.coderipper.toml` is read
 from the member's directory. The checks are project-scope: a `pub` item used only by a sibling member has no
-callers within this package. Each run builds the member's dependencies from scratch (about two minutes for a
-large crate); running every member in one command is not supported yet.
+callers within this package. Dependencies are built once and reused (see "Build cache" below); running every
+member in one command is not supported yet.
+
+## Build cache
+
+The checks that compile your package build it in a throwaway checkout. Without a cache every run recompiles every
+dependency (about two minutes for a large crate). CodeRipper therefore keeps one persistent target directory per
+repository and toolchain, outside your project, and points cargo at it: a later run, from a *different* throwaway
+checkout, finds the registry, git and out-of-repo path dependencies already built. Measured on `fuel-core` (336
+packages): 234 s cold, 90 s with the cache. What is **not** reused: a path dependency *inside* the repository (a
+sibling workspace member) is rebuilt in every run, because its freshly checked-out files are newer than the cached
+build, and the package being analysed is always rebuilt.
+
+- **Where:** `CODERIPPER_CACHE_DIR`, else `%LOCALAPPDATA%\coderipper\build`, else `$XDG_CACHE_HOME/coderipper/build`,
+  else `~/.cache/coderipper/build`. Never inside a project or its `target/`.
+- **Off:** `CODERIPPER_CACHE=off`. Correctness never depends on the cache: if it cannot be used the build runs
+  uncached, exactly as before, and a note says why.
+- **No hangs:** CodeRipper takes its own lock on the repository's cache directory first and waits at most
+  `CODERIPPER_CACHE_WAIT_SECS` (5), then builds uncached and names the last holder's pid.
+- **Size:** `CODERIPPER_CACHE_MAX_GB` (20). The first build of a run deletes least-recently-used repository
+  directories until the cache fits (never a locked one, never the one in use, never in a directory without the
+  `.coderipper-cache` marker). `coderipper cache status` lists them; `coderipper cache prune [--max-gb N]` trims.
+- Each run that built something ends with one stderr line: `coderipper: cache <dir> - N units fresh, M compiled`.
+- **Known issue, fix pending: do not run two `coderipper` runs on the same repository at the same time** (until 0.2.9). A run
+  can be served another run's compiled copy of the package it is analysing, and then reports that run's findings. One process
+  running several checks one after another is not affected, and a run that overlapped nothing is not affected. If two runs did
+  overlap, discard the later one's findings and re-run it alone. `CODERIPPER_CACHE=off` avoids the problem entirely.
 
 ## Reachability on a package with a library
 
