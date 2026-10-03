@@ -20,6 +20,9 @@ enum Command {
         /// Project to check. Defaults to the current directory.
         #[arg(long)]
         project: Option<PathBuf>,
+        /// Check every member of the cargo workspace containing the project, not just the project.
+        #[arg(long)]
+        workspace: bool,
         /// Root of the portfolio, for Portfolio-scope checks. Defaults to the parent of `project`.
         #[arg(long)]
         portfolio_root: Option<PathBuf>,
@@ -29,6 +32,9 @@ enum Command {
     Sweep {
         #[arg(long)]
         project: Option<PathBuf>,
+        /// Check every member of the cargo workspace containing the project, not just the project.
+        #[arg(long)]
+        workspace: bool,
         #[arg(long)]
         portfolio_root: Option<PathBuf>,
     },
@@ -37,6 +43,9 @@ enum Command {
         id: String,
         #[arg(long)]
         project: Option<PathBuf>,
+        /// Check every member of the cargo workspace containing the project, not just the project.
+        #[arg(long)]
+        workspace: bool,
         #[arg(long)]
         portfolio_root: Option<PathBuf>,
     },
@@ -125,17 +134,20 @@ fn dispatch(
     match cli.command {
         Command::Fast {
             project,
+            workspace,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Fast, None),
+        } => run_and_report(project, portfolio_root, Tier::Fast, None, workspace),
         Command::Sweep {
             project,
+            workspace,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Sweep, None),
+        } => run_and_report(project, portfolio_root, Tier::Sweep, None, workspace),
         Command::Check {
             id,
             project,
+            workspace,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Fast, Some(id)),
+        } => run_and_report(project, portfolio_root, Tier::Fast, Some(id), workspace),
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Serve { port } => {
             anyhow::bail!(
@@ -150,6 +162,7 @@ fn run_and_report(
     portfolio_root: Option<PathBuf>,
     tier: Tier,
     only_check_id: Option<String>,
+    workspace: bool,
 ) -> anyhow::Result<()> {
     let project_root = project.unwrap_or(std::env::current_dir()?).canonicalize()?;
     let portfolio_root = portfolio_root
@@ -161,7 +174,21 @@ fn run_and_report(
         portfolio_root,
     };
 
-    let result = coderipper::run_checks(&ctx, tier, only_check_id.as_deref());
+    let result = if workspace {
+        let run = coderipper::run_workspace(
+            &ctx,
+            tier,
+            only_check_id.as_deref(),
+            &mut |name, index, total| eprintln!("coderipper: member {name} ({index}/{total})"),
+        );
+        eprintln!(
+            "coderipper: workspace: {} members analysed, {} with errors",
+            run.members, run.members_with_errors
+        );
+        run.result
+    } else {
+        coderipper::run_checks(&ctx, tier, only_check_id.as_deref())
+    };
 
     // Review finding: this used to print "no checks registered yet" whenever BOTH findings and
     // errors were empty -- which is what a genuinely clean run also looks like, since a check IS
@@ -175,7 +202,12 @@ fn run_and_report(
     for f in &result.findings {
         println!(
             "[{:?}/{:?}] {} — {} ({})",
-            f.severity, f.confidence, f.project, f.summary, f.check_id
+            f.severity,
+            f.confidence,
+            // a `--workspace` finding leads with its package (two members can share a directory name)
+            f.member.as_deref().unwrap_or(&f.project),
+            f.summary,
+            f.check_id
         );
     }
     for e in &result.errors {

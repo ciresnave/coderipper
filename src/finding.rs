@@ -51,6 +51,10 @@ pub struct Finding {
     pub subject: Option<String>,
     pub summary: String,
     pub detail: String,
+    /// The cargo PACKAGE this finding came from, set by a `--workspace` run (`project` is the member's directory name,
+    /// which two members can share). `None` outside a workspace run, and for findings about the whole repository.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member: Option<String>,
     /// Required whenever the finding's core claim is an absence ("zero callers", "no protection
     /// enforced", "no matching version"). A finding making that kind of claim with this unset is a
     /// bug in the check that produced it, not evidence — see `Finding::validate`.
@@ -109,6 +113,7 @@ mod tests {
             summary: summary.into(),
             detail: "detail text".into(),
             positive_control: positive_control.map(str::to_string),
+            member: None,
         }
     }
 

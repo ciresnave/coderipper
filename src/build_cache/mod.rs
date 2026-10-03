@@ -296,7 +296,6 @@ fn toolchain_id(dir: &Path) -> String {
 /// [`acquire`] for a session: the same rules (the thread-local or process-wide configuration, the process-wide prune
 /// `Once`, never pruning the directory being acquired); the caller keeps the returned [`CacheDir`], and so the
 /// lock, for the whole run instead of one build.
-#[allow(dead_code)] // used by `Session::open`, which `run_workspace` (the next task) will call
 pub(crate) fn acquire_for_session(source_repo: &Path) -> CacheChoice {
     acquire(source_repo)
 }

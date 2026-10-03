@@ -108,6 +108,7 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
         summary: String::new(),
         detail: String::new(),
         positive_control: None,
+        member: None,
     }
 }
 
@@ -176,6 +177,7 @@ mod tests {
             summary: "s".into(),
             detail: "d".into(),
             positive_control: None,
+            member: None,
         }
     }
 
