@@ -3,6 +3,10 @@ name: Coverage
 # A signal, not a gate: this workflow is not a required check and has no threshold. It runs the same tests
 # as CI under cargo-llvm-cov and uploads the lcov report to Codecov. The "Build, test, clippy, fmt" jobs in
 # ci.yml are untouched.
+#
+# What the number covers: lines of `src/` executed by `cargo test` (unit tests and every integration-test binary) on
+# ubuntu only. It does not cover code that only runs on Windows or macOS, and "executed" is not "verified": a line
+# can be run by a test that asserts nothing about it. Codecov's PR statuses are informational (see codecov.yml).
 
 on:
   push:
