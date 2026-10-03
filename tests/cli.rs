@@ -426,3 +426,30 @@ fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
         ))
         .stdout(predicate::str::contains("(version-consistency)"));
 }
+
+#[test]
+fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_the_network() {
+    let tmp = tempfile::tempdir().unwrap();
+    for args in [
+        vec!["init", "-q"],
+        vec![
+            "remote",
+            "add",
+            "origin",
+            "https://gitlab.com/acme/widgets.git",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "ci-protection-presence", "--project"])
+        .arg(tmp.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not a GitHub repository"));
+}

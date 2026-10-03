@@ -3,6 +3,7 @@ pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;
 pub mod finding;
+pub mod github;
 pub(crate) mod package;
 pub(crate) mod suppression;
 pub(crate) mod worktree;
@@ -22,6 +23,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
         Box::new(checks::UnusedReturnValuesCheck),
         Box::new(checks::UnusedParametersCheck),
         Box::new(checks::VersionConsistencyCheck),
+        Box::new(checks::CiProtectionPresenceCheck::new()),
     ]
 }
 
@@ -122,7 +124,8 @@ mod tests {
                 "reachability",
                 "unused-return-values",
                 "unused-parameters",
-                "version-consistency"
+                "version-consistency",
+                "ci-protection-presence"
             ]
         );
     }
