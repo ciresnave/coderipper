@@ -6,11 +6,21 @@
 //! instead. Mechanism, and nothing else: read every package's version with `cargo metadata`, decide
 //! which version the project is at, and report each package that differs.
 //!
-//! - **The project's version** is `[workspace.package] version` when the workspace root defines one;
-//!   otherwise the version most packages are at (a tie goes to the highest version).
-//! - **A tracking exception** is declared in `.coderipper.toml` as a `[[tracks]]` entry: the package
-//!   is left out of the uniformity comparison and is instead compared with the version in the other
-//!   project's CURRENT manifest. An unreadable reference is an error, never a pass.
+//! - **The project is a whole workspace**, so the check is run with `--project` on the WORKSPACE ROOT
+//!   (a virtual workspace root is fine). From a member directory it says so (one `Info` finding) rather
+//!   than guessing: `.coderipper.toml` is read from the directory named, and a verdict that depended on
+//!   which member was named would be wrong.
+//! - **The project's version** is `[workspace.package] version` when the workspace root defines one (even
+//!   a stale one is authoritative: that is what the workspace says it is at); otherwise the version most
+//!   packages are at (a tie goes to the highest). Build metadata (`+build.5`) is not part of the number.
+//! - **A package with no `version` key** (allowed since Cargo 1.75; cargo reports `0.0.0`) has no version
+//!   to compare and is left out.
+//! - **A tracking exception** is declared in `.coderipper.toml` as a `[[tracks]]` entry: the package is
+//!   left out of the uniformity comparison and is instead compared with the other project's CURRENT
+//!   version. The reference is a manifest: a package's manifest (its version as cargo resolves it,
+//!   inheritance included) or a virtual workspace manifest (that workspace's one version). An
+//!   unreadable reference, one with no single version, an unknown package, or two entries for one
+//!   package is an error, never a pass.
 //! - A package may also be silenced with an ordinary `[[allow]]` entry (check `version-consistency`,
 //!   file = its manifest relative to the workspace root, symbol = the package name), which the host
 //!   applies and reports when it goes stale.
@@ -22,8 +32,9 @@ use crate::allowlist::Allowlist;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::package::{metadata, Metadata};
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const CHECK_ID: &str = "version-consistency";
 
@@ -50,42 +61,90 @@ impl Check for VersionConsistencyCheck {
             ctx.project_root.display()
         );
         let workspace_root = meta.workspace_root.canonicalize()?;
-        let packages: Vec<Pkg> = meta.packages_for_comparison(&workspace_root);
+        let project_dir = ctx.project_root.canonicalize()?;
+        let project = ctx
+            .project_root
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if project_dir != workspace_root {
+            return Ok(vec![not_the_workspace_root(
+                &project,
+                &project_dir,
+                &workspace_root,
+            )]);
+        }
 
+        let packages = versioned_packages(&meta, &workspace_root)?;
         let allowlist = Allowlist::load(&ctx.project_root)?;
         let mut tracked: BTreeMap<String, Tracked> = BTreeMap::new();
         for entry in allowlist.tracks() {
             anyhow::ensure!(
-                packages.iter().any(|p| p.name == entry.package),
+                packages.iter().any(|p| p.name == entry.package)
+                    || meta.packages.iter().any(|p| p.name == entry.package),
                 "[[tracks]] names package `{}`, which is not a package of this project (members: {})",
                 entry.package,
-                packages
+                meta.packages
                     .iter()
                     .map(|p| p.name.as_str())
                     .collect::<Vec<_>>()
                     .join(", ")
             );
             let manifest = ctx.project_root.join(&entry.manifest);
-            tracked.insert(
+            let previous = tracked.insert(
                 entry.package.clone(),
                 Tracked {
-                    version: version_in_manifest(&manifest)?,
+                    version: reference_version(&manifest)?,
                     manifest: entry.manifest.clone(),
                     reason: entry.reason.clone(),
                 },
             );
+            anyhow::ensure!(
+                previous.is_none(),
+                "[[tracks]] names package `{}` more than once; one reference per package",
+                entry.package
+            );
         }
 
         let workspace_version = workspace_package_version(&workspace_root)?;
-        let project = ctx
-            .project_root
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default();
         Ok(evaluate(&packages, workspace_version.as_deref(), &tracked)
             .into_iter()
             .map(|p| p.into_finding(&project))
             .collect())
+    }
+}
+
+/// A path as the user should read it: Windows' verbatim prefix (`\\?\C:/...`) that
+/// `canonicalize` adds is noise.
+fn shown(path: &Path) -> String {
+    let text = path.display().to_string();
+    text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
+}
+
+fn not_the_workspace_root(project: &str, project_dir: &Path, workspace_root: &Path) -> Finding {
+    Finding {
+        check_id: CHECK_ID.into(),
+        severity: Severity::Info,
+        confidence: Confidence::High,
+        project: project.to_string(),
+        location: None,
+        subject: None,
+        summary: format!(
+            "version-consistency compares a whole workspace; `{project}` is inside the workspace at {}, \
+             so run it with --project on the workspace root",
+            shown(workspace_root)
+        ),
+        detail: format!(
+            "Every package of the workspace must share one version, and `.coderipper.toml` (the \
+             [[tracks]] and [[allow]] entries) is read from the directory named, so a verdict from a \
+             member's directory would depend on which member was named. {} is not the workspace root.",
+            shown(project_dir)
+        ),
+        positive_control: Some(format!(
+            "cargo metadata reports the workspace root as {}, which is not {}",
+            shown(workspace_root),
+            shown(project_dir)
+        )),
     }
 }
 
@@ -94,11 +153,12 @@ impl Check for VersionConsistencyCheck {
 pub(crate) struct Pkg {
     pub name: String,
     pub version: String,
-    /// Manifest path relative to the workspace root, forward slashes.
+    /// Manifest path relative to the workspace root, forward slashes (`../x/Cargo.toml` for a member
+    /// outside it).
     pub manifest: String,
 }
 
-/// What a `[[tracks]]` entry resolved to: the version of the referenced manifest, read just now.
+/// What a `[[tracks]]` entry resolved to: the version of the reference, read just now.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Tracked {
     pub version: String,
@@ -107,29 +167,54 @@ pub(crate) struct Tracked {
     pub reason: String,
 }
 
-impl Metadata {
-    fn packages_for_comparison(&self, workspace_root: &Path) -> Vec<Pkg> {
-        let mut out: Vec<Pkg> = self
-            .packages
-            .iter()
-            .map(|p| Pkg {
+/// The packages that declare a version of their own (or inherit one). A manifest with no `version`
+/// key gets `0.0.0` from cargo, which would otherwise outvote the real crates.
+fn versioned_packages(meta: &Metadata, workspace_root: &Path) -> anyhow::Result<Vec<Pkg>> {
+    let mut out = Vec::new();
+    for p in &meta.packages {
+        let text = std::fs::read_to_string(&p.manifest_path)?;
+        let table: toml::Table = toml::from_str(&text)
+            .map_err(|e| anyhow::anyhow!("cannot parse {}: {e}", p.manifest_path.display()))?;
+        let declares = table
+            .get("package")
+            .and_then(|pkg| pkg.get("version"))
+            .is_some();
+        if declares {
+            out.push(Pkg {
                 name: p.name.clone(),
                 version: p.version.clone(),
-                manifest: p
-                    .manifest_path
-                    .canonicalize()
-                    .ok()
-                    .and_then(|m| {
-                        m.strip_prefix(workspace_root)
-                            .ok()
-                            .map(|r| r.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
-                    })
-                    .unwrap_or_else(|| p.manifest_path.to_string_lossy().replace('\\', "/")),
-            })
-            .collect();
-        out.sort_by(|a, b| a.name.cmp(&b.name));
-        out
+                manifest: relative_manifest(workspace_root, &p.manifest_path),
+            });
+        }
     }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+fn forward(path: &Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+/// `manifest` relative to `workspace_root`, with `..` where it is outside. Both are made canonical so
+/// the answer does not depend on how the path was spelled.
+fn relative_manifest(workspace_root: &Path, manifest: &Path) -> String {
+    let manifest = manifest
+        .canonicalize()
+        .unwrap_or_else(|_| manifest.to_path_buf());
+    if let Ok(inside) = manifest.strip_prefix(workspace_root) {
+        return forward(inside);
+    }
+    let root: Vec<_> = workspace_root.components().collect();
+    let target: Vec<_> = manifest.components().collect();
+    let common = root.iter().zip(&target).take_while(|(a, b)| a == b).count();
+    let mut out = PathBuf::new();
+    for _ in common..root.len() {
+        out.push("..");
+    }
+    for part in &target[common..] {
+        out.push(part);
+    }
+    forward(&out)
 }
 
 /// `[workspace.package] version` of the manifest at `workspace_root`, when there is one.
@@ -144,26 +229,54 @@ fn workspace_package_version(workspace_root: &Path) -> anyhow::Result<Option<Str
         .map(str::to_string))
 }
 
-/// The version a manifest declares: `[package] version`, or, when that is `{ workspace = true }`
-/// (or the manifest is a virtual workspace root), `[workspace.package] version`.
-pub(crate) fn version_in_manifest(path: &Path) -> anyhow::Result<String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|e| anyhow::anyhow!("cannot read {} to find its version: {e}", path.display()))?;
-    let table: toml::Table = toml::from_str(&text)
-        .map_err(|e| anyhow::anyhow!("cannot parse {}: {e}", path.display()))?;
-    let direct = table
-        .get("package")
-        .and_then(|p| p.get("version"))
-        .and_then(|v| v.as_str());
-    let inherited = table
-        .get("workspace")
-        .and_then(|w| w.get("package"))
-        .and_then(|p| p.get("version"))
-        .and_then(|v| v.as_str());
-    direct
-        .or(inherited)
-        .map(str::to_string)
-        .ok_or_else(|| anyhow::anyhow!("{} declares no version", path.display()))
+/// The version a `[[tracks]]` reference stands for. A package's manifest: the version cargo
+/// resolves for it, `version.workspace = true` included. A virtual workspace manifest: that
+/// workspace's one version (`[workspace.package] version`, or the version all its packages share).
+fn reference_version(manifest: &Path) -> anyhow::Result<String> {
+    anyhow::ensure!(
+        manifest.is_file(),
+        "cannot read {} to find its version: not a file",
+        manifest.display()
+    );
+    let dir = manifest
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("{} has no directory", manifest.display()))?;
+    let meta = metadata(dir).map_err(|e| {
+        anyhow::anyhow!(
+            "cannot read {} to find its version: {e}",
+            manifest.display()
+        )
+    })?;
+    let wanted = manifest.canonicalize()?;
+    if let Some(package) = meta
+        .packages
+        .iter()
+        .find(|p| p.manifest_path.canonicalize().ok().as_ref() == Some(&wanted))
+    {
+        return Ok(package.version.clone());
+    }
+    // not a package's manifest: a virtual workspace, whose version is the one its packages share
+    let root = meta.workspace_root.canonicalize()?;
+    if let Some(v) = workspace_package_version(&root)? {
+        return Ok(v);
+    }
+    let packages = versioned_packages(&meta, &root)?;
+    let first = packages
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("{} declares no version", manifest.display()))?;
+    anyhow::ensure!(
+        packages
+            .iter()
+            .all(|p| strip_build(&p.version) == strip_build(&first.version)),
+        "{} has no single version to track: its packages are at {}",
+        manifest.display(),
+        packages
+            .iter()
+            .map(|p| format!("{} {}", p.name, p.version))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    Ok(first.version.clone())
 }
 
 /// How a version problem arose.
@@ -189,7 +302,7 @@ pub(crate) fn evaluate(
 
     for pkg in packages {
         if let Some(t) = tracked.get(&pkg.name) {
-            if pkg.version != t.version {
+            if strip_build(&pkg.version) != strip_build(&t.version) {
                 problems.push(Problem::TrackMismatch {
                     pkg: pkg.clone(),
                     tracked: t.clone(),
@@ -207,12 +320,15 @@ pub(crate) fn evaluate(
         .map(|p| (p.name.clone(), p.version.clone()))
         .collect();
     let (expected, basis) = match workspace_version {
-        Some(v) => (v.to_string(), "`[workspace.package] version`".to_string()),
+        Some(v) => (
+            strip_build(v).to_string(),
+            "`[workspace.package] version`".to_string(),
+        ),
         None if uniform.len() < 2 => return problems,
         None => {
             let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
             for p in &uniform {
-                *counts.entry(p.version.as_str()).or_default() += 1;
+                *counts.entry(strip_build(&p.version)).or_default() += 1;
             }
             let best = counts
                 .iter()
@@ -228,7 +344,7 @@ pub(crate) fn evaluate(
         }
     };
     for pkg in uniform {
-        if pkg.version != expected {
+        if strip_build(&pkg.version) != expected {
             problems.push(Problem::Outlier {
                 pkg: pkg.clone(),
                 expected: expected.clone(),
@@ -240,22 +356,75 @@ pub(crate) fn evaluate(
     problems
 }
 
-/// `major.minor.patch[-pre]` ordering; anything unparsable sorts below everything parsable, and ties
-/// fall back to plain text order so the result is deterministic.
-pub(crate) fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
-    fn key(v: &str) -> Option<(u64, u64, u64, bool)> {
-        let (core, pre) = match v.split_once('-') {
-            Some((c, _)) => (c, true),
-            None => (v.split_once('+').map_or(v, |(c, _)| c), false),
-        };
-        let mut parts = core.split('.').map(|p| p.parse::<u64>().ok());
-        Some((parts.next()??, parts.next()??, parts.next()??, !pre))
+/// Build metadata (`+build.5`) is not part of a version's precedence or of "the same number".
+fn strip_build(v: &str) -> &str {
+    v.split_once('+').map_or(v, |(core, _)| core)
+}
+
+#[derive(PartialEq, Eq)]
+enum Ident {
+    Num(u64),
+    Alpha(String),
+}
+
+impl Ord for Ident {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Ident::Num(a), Ident::Num(b)) => a.cmp(b),
+            (Ident::Alpha(a), Ident::Alpha(b)) => a.cmp(b),
+            (Ident::Num(_), Ident::Alpha(_)) => Ordering::Less,
+            (Ident::Alpha(_), Ident::Num(_)) => Ordering::Greater,
+        }
     }
-    match (key(a), key(b)) {
-        (Some(x), Some(y)) => x.cmp(&y).then_with(|| a.cmp(b)),
-        (Some(_), None) => std::cmp::Ordering::Greater,
-        (None, Some(_)) => std::cmp::Ordering::Less,
-        (None, None) => a.cmp(b),
+}
+
+impl PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn parse(v: &str) -> Option<((u64, u64, u64), Vec<Ident>)> {
+    let (core, pre) = match strip_build(v).split_once('-') {
+        Some((c, p)) => (c, Some(p)),
+        None => (strip_build(v), None),
+    };
+    let mut parts = core.split('.').map(|p| p.parse::<u64>().ok());
+    let numbers = (parts.next()??, parts.next()??, parts.next()??);
+    if parts.next().is_some() {
+        return None;
+    }
+    let pre = pre
+        .map(|p| {
+            p.split('.')
+                .map(|id| {
+                    id.parse::<u64>()
+                        .map_or_else(|_| Ident::Alpha(id.to_string()), Ident::Num)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Some((numbers, pre))
+}
+
+/// Semver precedence: numeric `major.minor.patch`; a release beats its own pre-release; pre-release
+/// identifiers compare one by one (numbers numerically and below words, a shorter list below a longer
+/// one with the same start); build metadata is ignored. Anything unparsable sorts below everything
+/// parsable, and falls back to plain text order so the result is deterministic.
+pub(crate) fn compare_versions(a: &str, b: &str) -> Ordering {
+    match (parse(a), parse(b)) {
+        (Some((ca, pa)), Some((cb, pb))) => {
+            ca.cmp(&cb)
+                .then_with(|| match (pa.is_empty(), pb.is_empty()) {
+                    (true, true) => Ordering::Equal,
+                    (true, false) => Ordering::Greater,
+                    (false, true) => Ordering::Less,
+                    (false, false) => pa.cmp(&pb),
+                })
+        }
+        (Some(_), None) => Ordering::Greater,
+        (None, Some(_)) => Ordering::Less,
+        (None, None) => strip_build(a).cmp(strip_build(b)),
     }
 }
 
@@ -273,7 +442,10 @@ impl Problem {
                     .map(|(n, v)| format!("{n} {v}"))
                     .collect::<Vec<_>>()
                     .join(", ");
-                let at_expected = all.iter().filter(|(_, v)| *v == expected).count();
+                let at_expected = all
+                    .iter()
+                    .filter(|(_, v)| strip_build(v) == expected)
+                    .count();
                 Finding {
                     check_id: CHECK_ID.into(),
                     severity: Severity::High,
@@ -322,7 +494,7 @@ impl Problem {
                     pkg.name, tracked.reason, tracked.manifest
                 ),
                 positive_control: Some(format!(
-                    "{} was read successfully and declares version {}",
+                    "{} was read successfully and stands for version {}",
                     tracked.manifest, tracked.version
                 )),
             },
@@ -411,6 +583,29 @@ mod tests {
         let found = evaluate(&pkgs, None, &tracked);
         assert_eq!(found.len(), 1);
         assert!(matches!(&found[0], Problem::TrackMismatch { pkg, .. } if pkg.name == "emit"));
+    }
+
+    #[test]
+    fn a_windows_verbatim_path_prefix_is_not_shown_to_the_user() {
+        assert_eq!(shown(Path::new(r"\\?\C:/work/ws")), "C:/work/ws");
+        assert_eq!(shown(Path::new("/home/me/ws")), "/home/me/ws");
+    }
+
+    #[test]
+    fn prerelease_identifiers_compare_numerically_and_build_metadata_is_ignored() {
+        use std::cmp::Ordering::*;
+        // Review findings: `rc.2` < `rc.10`, and `+build-5` must not be split at its own hyphen.
+        assert_eq!(compare_versions("1.0.0-rc.10", "1.0.0-rc.2"), Greater);
+        assert_eq!(compare_versions("1.0.0-alpha", "1.0.0-alpha.1"), Less);
+        assert_eq!(compare_versions("1.0.0-1", "1.0.0-alpha"), Less);
+        assert_eq!(compare_versions("1.0.0+build-5", "0.1.0"), Greater);
+        assert_eq!(compare_versions("1.0.0+a", "1.0.0+b"), Equal);
+    }
+
+    #[test]
+    fn the_same_version_with_different_build_metadata_is_not_an_outlier() {
+        let pkgs = [pkg("a", "1.0.0"), pkg("b", "1.0.0+build.5")];
+        assert!(evaluate(&pkgs, None, &BTreeMap::new()).is_empty());
     }
 
     #[test]

@@ -196,7 +196,9 @@ manifests only. The project's version is `[workspace.package] version` when defi
 to the highest). The narrow exception of the paragraph above is a `[[tracks]]` table in `.coderipper.toml`
 (`package`, `manifest`, `reason`, all required): not a suppression, a declared relationship, so it is read by the
 check itself and the tracked package is compared with the other project's CURRENT manifest; an unreadable reference
-is an error. Ordinary suppression of a package uses the §4 allowlist. Not built: package.json / pyproject manifests.
+is an error. Ordinary suppression of a package uses the §4 allowlist. The check analyzes a whole workspace, so it is run on
+the workspace root (a member's directory gets an `Info` note instead of a verdict); packages with no `version` key
+are left out. Not built: package.json / pyproject manifests.
 
 **`dependency-staleness`** — *`Project` scope, `NetworkRequired`, `sweep` tier.* CireSnave's standing rule:
 dependencies stay on their most recent versions. Mechanism: read each project's lockfile, query the

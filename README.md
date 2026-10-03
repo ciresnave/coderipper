@@ -30,10 +30,14 @@ return value every caller discards). See `docs/superpowers/specs/2026-09-30-audi
 ## Version consistency
 
 `coderipper check version-consistency` reports every package of a project whose version differs from the
-project's (CireSnave's rule: one version per project). The project's version is `[workspace.package] version`
+project's (CireSnave's rule: one version per project). Run it with `--project` on the **workspace root** (a
+virtual workspace root is fine); from a member's directory it only says so. The project's version is `[workspace.package] version`
 when the workspace defines one, otherwise the version most packages are at (a tie goes to the highest). A package
+with no `version` key is left out. A package
 that exists to work with another project's version is declared in `.coderipper.toml`, and is then compared with
-that project's current manifest instead; the reason is required:
+that project's current version instead; the reason is required. `manifest` is a package's manifest (its version
+as cargo resolves it, `version.workspace = true` included) or a virtual workspace's manifest (the one version its
+packages share; an inconsistent one is an error):
 
 ```toml
 [[tracks]]

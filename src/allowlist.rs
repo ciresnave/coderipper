@@ -14,6 +14,7 @@ struct AllowlistFile {
 /// it works with another project, and must match the version in that project's manifest instead
 /// (`version-consistency`, design doc section 5). `manifest` is relative to the project root.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct TrackEntry {
     pub package: String,
     pub manifest: String,
