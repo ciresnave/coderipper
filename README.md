@@ -13,6 +13,7 @@ coderipper sweep                     # everything, including network-backed chec
 coderipper check reachability        # one check by id
 coderipper check unused-return-values  # is a function's return value ever consumed?
 coderipper check unused-parameters   # which function parameters are never used?
+coderipper check version-consistency # does every package of the project share one version?
 ```
 
 A server mode (`coderipper serve`) is planned, for a free hosted instance on
@@ -25,6 +26,29 @@ implemented: `reachability` (dead code, including `pub` items), `unused-paramete
 never used) and `unused-return-values` (a function whose
 return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
 `docs/superpowers/plans/` for what's actually being built and in what order.
+
+## Version consistency
+
+`coderipper check version-consistency` reports every package of a project whose version differs from the
+project's (CireSnave's rule: one version per project). Run it with `--project` on the **workspace root** (a
+virtual workspace root is fine); from a member's directory it only says so. The project's version is `[workspace.package] version`
+when the workspace defines one, otherwise the version most packages are at (a tie goes to the highest). A package
+with no `version` key is left out. A package
+that exists to work with another project's version is declared in `.coderipper.toml`, and is then compared with
+that project's current version instead; the reason is required. `manifest` is a package's manifest (its version
+as cargo resolves it, `version.workspace = true` included) or a virtual workspace's manifest (the one version its
+packages share; an inconsistent one is an error):
+
+```toml
+[[tracks]]
+package = "baracuda-unpopped"
+manifest = "../unpopped/Cargo.toml"
+reason = "emitter for Unpopped; keeps Unpopped's version"
+```
+
+A package can also be silenced with an ordinary `[[allow]]` entry (check `version-consistency`, `file` = its
+manifest relative to the workspace root, `symbol` = the package name). Rust (cargo) manifests only; it reads the
+working tree, not HEAD.
 
 ## Workspaces
 

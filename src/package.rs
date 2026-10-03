@@ -29,6 +29,9 @@ pub(crate) fn git_prefix(dir: &Path) -> anyhow::Result<String> {
 #[derive(Debug, Clone)]
 pub(crate) struct Package {
     pub name: String,
+    /// The version in the package's manifest (`workspace = true` already resolved by cargo).
+    pub version: String,
+    pub manifest_path: PathBuf,
     /// cargo's package id, as it appears in `compiler-message` lines (`package_id`).
     pub id: String,
     pub dir: PathBuf,
@@ -56,12 +59,13 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
         .into_iter()
         .flatten()
         .filter_map(|p| {
+            let manifest_path = PathBuf::from(p["manifest_path"].as_str()?);
             Some(Package {
                 name: p["name"].as_str()?.to_string(),
+                version: p["version"].as_str()?.to_string(),
                 id: p["id"].as_str()?.to_string(),
-                dir: Path::new(p["manifest_path"].as_str()?)
-                    .parent()?
-                    .to_path_buf(),
+                dir: manifest_path.parent()?.to_path_buf(),
+                manifest_path,
             })
         })
         .collect();
@@ -190,6 +194,20 @@ mod tests {
                 .unwrap();
         }
         tmp
+    }
+
+    #[test]
+    fn a_packages_version_and_manifest_path_are_read() {
+        let ws = virtual_workspace();
+        let meta = metadata(ws.path()).unwrap();
+        let a = meta.packages.iter().find(|p| p.name == "a").unwrap();
+        assert_eq!(a.version, "0.1.0");
+        assert!(
+            a.manifest_path.ends_with("Cargo.toml"),
+            "{:?}",
+            a.manifest_path
+        );
+        assert!(a.manifest_path.starts_with(&a.dir));
     }
 
     #[test]

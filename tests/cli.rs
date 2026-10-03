@@ -395,3 +395,34 @@ fn a_virtual_workspace_root_asks_for_a_member() {
         .stderr(predicate::str::contains("not a package directory"))
         .stderr(predicate::str::contains("one, two").or(predicate::str::contains("two, one")));
 }
+
+#[test]
+fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"a\", \"b\", \"c\"]\nresolver = \"2\"\n",
+    )
+    .unwrap();
+    for (name, version) in [("a", "1.0.0"), ("b", "1.0.0"), ("c", "0.9.0")] {
+        let dir = tmp.path().join(name);
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("Cargo.toml"),
+            format!("[package]\nname = \"{name}\"\nversion = \"{version}\"\nedition = \"2021\"\n"),
+        )
+        .unwrap();
+        std::fs::write(dir.join("src/lib.rs"), "").unwrap();
+    }
+    Command::cargo_bin("coderipper")
+        .unwrap()
+        .args(["check", "version-consistency", "--project"])
+        .arg(tmp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("[High/High]"))
+        .stdout(predicate::str::contains(
+            "`c` is at version 0.9.0 but this project is at 1.0.0",
+        ))
+        .stdout(predicate::str::contains("(version-consistency)"));
+}
