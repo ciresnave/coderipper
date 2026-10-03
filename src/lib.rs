@@ -23,6 +23,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
         Box::new(checks::UnusedReturnValuesCheck),
         Box::new(checks::UnusedParametersCheck),
         Box::new(checks::VersionConsistencyCheck),
+        Box::new(checks::CiProtectionPresenceCheck::new()),
     ]
 }
 
@@ -123,7 +124,8 @@ mod tests {
                 "reachability",
                 "unused-return-values",
                 "unused-parameters",
-                "version-consistency"
+                "version-consistency",
+                "ci-protection-presence"
             ]
         );
     }
