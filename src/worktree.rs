@@ -6,10 +6,24 @@ pub struct RewrittenWorktree {
     /// package at its top, `<checkout>/fuel-core` for a workspace member. Everything a check reads,
     /// rewrites or builds is under it.
     pub root: PathBuf,
-    /// The whole checkout, which is what `git worktree remove` takes.
-    worktree_path: PathBuf,
     source_repo: PathBuf,
-    _scratch: tempfile::TempDir, // keeps the parent dir alive for root's lifetime
+    backing: Backing,
+}
+
+/// What owns the checkout `root` is in.
+enum Backing {
+    /// A throwaway checkout of its own, deleted (and unregistered) when the guard drops.
+    Throwaway {
+        /// The whole checkout, which is what `git worktree remove` takes.
+        worktree_path: PathBuf,
+        _scratch: tempfile::TempDir, // keeps the parent dir alive for root's lifetime
+    },
+    /// The member's directory inside a session checkout (see `crate::session`): rewritten in place, and restored
+    /// to HEAD when the guard drops. `prefix` is the member's directory relative to the repository's top level.
+    Session {
+        session: std::rc::Rc<crate::session::SessionInner>,
+        prefix: String,
+    },
 }
 
 impl RewrittenWorktree {
@@ -30,6 +44,10 @@ impl RewrittenWorktree {
     where
         F: FnMut(&str, &str) -> anyhow::Result<String>,
     {
+        // Inside a `--workspace` run the member is rewritten in place in the session's checkout instead.
+        if let Some(session) = crate::session::active_for(project_root) {
+            return Self::create_in_session(session, project_root, rewrite);
+        }
         let prefix = crate::package::git_prefix(project_root)?;
         let scratch = tempfile::tempdir()?;
         let wt_path = scratch.path().join("wt");
@@ -46,9 +64,11 @@ impl RewrittenWorktree {
         // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
         let guard = Self {
             root: wt_path.join(&prefix),
-            worktree_path: wt_path,
             source_repo: project_root.to_path_buf(),
-            _scratch: scratch,
+            backing: Backing::Throwaway {
+                worktree_path: wt_path,
+                _scratch: scratch,
+            },
         };
         anyhow::ensure!(
             guard.root.is_dir(),
@@ -57,30 +77,76 @@ impl RewrittenWorktree {
         );
         crate::package::require_package_as(&guard.root, project_root)?;
 
-        let mut files = walk_rs_files(&guard.root.join("src"))?;
+        guard.rewrite_src(&mut rewrite)?;
+        Ok(guard)
+    }
+
+    /// The session variant of [`Self::create_with`]: the member is the directory `project_root` names inside the
+    /// session's checkout. The guard is built BEFORE rewriting, so an error part-way still restores the member.
+    fn create_in_session<F>(
+        session: std::rc::Rc<crate::session::SessionInner>,
+        project_root: &Path,
+        mut rewrite: F,
+    ) -> anyhow::Result<Self>
+    where
+        F: FnMut(&str, &str) -> anyhow::Result<String>,
+    {
+        if let Some(why) = session.poisoned() {
+            anyhow::bail!(why);
+        }
+        let prefix = crate::package::git_prefix(project_root)?;
+        let guard = Self {
+            root: session.checkout_root().join(&prefix),
+            source_repo: project_root.to_path_buf(),
+            backing: Backing::Session { session, prefix },
+        };
+        anyhow::ensure!(
+            guard.root.is_dir(),
+            "{} is not in the repository's HEAD commit (is it committed?); the checks analyze HEAD",
+            project_root.display()
+        );
+        crate::package::require_package_as(&guard.root, project_root)?;
+        guard.rewrite_src(&mut rewrite)?;
+        Ok(guard)
+    }
+
+    /// Rewrites every `.rs` file under the package's `src/` with `rewrite(relative_path, source)`, in sorted order.
+    fn rewrite_src<F>(&self, rewrite: &mut F) -> anyhow::Result<()>
+    where
+        F: FnMut(&str, &str) -> anyhow::Result<String>,
+    {
+        let mut files = walk_rs_files(&self.root.join("src"))?;
         files.sort();
         for entry in files {
             let relative = entry
-                .strip_prefix(&guard.root)?
+                .strip_prefix(&self.root)?
                 .to_string_lossy()
                 .replace('\\', "/");
             let source = std::fs::read_to_string(&entry)?;
             std::fs::write(&entry, rewrite(&relative, &source)?)?;
         }
-
-        Ok(guard)
+        Ok(())
     }
 }
 
 impl Drop for RewrittenWorktree {
     fn drop(&mut self) {
+        let worktree_path = match &self.backing {
+            Backing::Throwaway { worktree_path, .. } => worktree_path,
+            Backing::Session { session, prefix } => {
+                // The session owns the checkout; only this member goes back to HEAD (files restored by git get a
+                // new mtime, "now", which is what makes the next build of this member recompile it).
+                session.restore_member(prefix);
+                return;
+            }
+        };
         // `git worktree remove` (run from the SOURCE repo, which we now keep a handle to) both
         // deletes the directory AND unregisters it -- unlike a bare rm -rf, which leaves a dangling
         // `git worktree list` entry in the source repo that accumulates across runs. Reviewed
         // finding: in a shared checkout that dangling entry is an unwanted write into a shared .git.
         let removed = Command::new("git")
             .args(["worktree", "remove", "--force"])
-            .arg(&self.worktree_path)
+            .arg(worktree_path)
             .current_dir(&self.source_repo)
             .status()
             .map(|s| s.success())
@@ -88,7 +154,7 @@ impl Drop for RewrittenWorktree {
         if !removed {
             // Source repo may itself be gone (e.g. a test's own tempdir already dropped) -- fall
             // back to a plain directory removal so we don't leak disk space either way.
-            let _ = std::fs::remove_dir_all(&self.worktree_path);
+            let _ = std::fs::remove_dir_all(worktree_path);
         }
     }
 }
