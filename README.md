@@ -93,10 +93,11 @@ build, and the package being analysed is always rebuilt.
   directories until the cache fits (never a locked one, never the one in use, never in a directory without the
   `.coderipper-cache` marker). `coderipper cache status` lists them; `coderipper cache prune [--max-gb N]` trims.
 - Each run that built something ends with one stderr line: `coderipper: cache <dir> - N units fresh, M compiled`.
-- **Known issue, fix pending: do not run two `coderipper` runs on the same repository at the same time** (until 0.2.9). A run
-  can be served another run's compiled copy of the package it is analysing, and then reports that run's findings. One process
-  running several checks one after another is not affected, and a run that overlapped nothing is not affected. If two runs did
-  overlap, discard the later one's findings and re-run it alone. `CODERIPPER_CACHE=off` avoids the problem entirely.
+- **Fixed in 0.2.9: overlapping runs on one repository.** Before 0.2.9, two `coderipper` runs overlapping on the same repository could
+  serve one run the other run's compiled copy of the package it was analysing, so it reported the other run's findings. From 0.2.9, right after
+  taking the cache lock a run sets every file of its checkout to the current time, so cargo recompiles the package instead of reusing another run's
+  artifact (sibling crates inside the repository were already rebuilt on every run). If a refresh is impossible the run builds without the cache and says so.
+  **If you ran two overlapping runs on one repository with 0.2.7 or 0.2.8, discard the later run's findings and re-run it alone.**
 
 ## Reachability on a package with a library
 
