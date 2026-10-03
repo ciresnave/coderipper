@@ -93,6 +93,10 @@ build, and the package being analysed is always rebuilt.
   directories until the cache fits (never a locked one, never the one in use, never in a directory without the
   `.coderipper-cache` marker). `coderipper cache status` lists them; `coderipper cache prune [--max-gb N]` trims.
 - Each run that built something ends with one stderr line: `coderipper: cache <dir> - N units fresh, M compiled`.
+- **Known issue, fix pending: do not run two `coderipper` runs on the same repository at the same time** (until 0.2.9). A run
+  can be served another run's compiled copy of the package it is analysing, and then reports that run's findings. One process
+  running several checks one after another is not affected, and a run that overlapped nothing is not affected. If two runs did
+  overlap, discard the later one's findings and re-run it alone. `CODERIPPER_CACHE=off` avoids the problem entirely.
 
 ## Reachability on a package with a library
 
