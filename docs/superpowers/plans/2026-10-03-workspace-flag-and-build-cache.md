@@ -2,15 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-> **STATUS (revision 5, 2026-10-03): PR 1 (the cache) is merged (#20, 0.2.7). This revision replaces PR 2 and adds a PR 1.1 fix. PR 2 is
-> a *session checkout* design (below), after Task 0 measured that sibling crates are what is left once the cache is in. Revision 4 was audited
-> and the audit found four blocking defects, all accepted and fixed here: (B1) a concurrent CodeRipper run can poison a long session through
-> the shared cache, so the session holds the cache lock for its whole run, and the same interleave exposes the merged PR 1 (new section "PR 1.1");
-> (B2) the planned hazard test could not fail, so it is replaced by an in-crate test that drives the session with an explicit order and
-> checks per-unit freshness; (B3) dev-dependency cycles exist in fuel, so no member ordering is used (it had no measured benefit);
-> (B4) the session's target directory had no path to the build, and `git clean` at a root-package member deleted untracked files and a
-> non-ignored `target/`, so `git clean` is dropped for a tracked-files `git status` check. PR 2 has had no code written and is not approved
-> until revision 5 is re-audited and accepted.**
+> **STATUS (revision 6, 2026-10-03): PR 1 (the cache) is merged (#20, 0.2.7). This revision replaces PR 2 and adds a PR 1.1 fix. PR 2 is
+> a *session checkout* design (below), after Task 0 measured that sibling crates are what is left once the cache is in. Two independent
+> audits so far; labels below are prefixed with the revision whose audit raised them.**
+> **Rev-4 audit (on the first session design), all accepted:** R4-B1 a concurrent CodeRipper run can poison a long session through the shared
+> cache, so the session holds the cache lock for its whole run, and the same interleave exposes the merged PR 1 (section "PR 1.1"); R4-B2 the
+> hazard test could not fail, so it drives the session in-crate with an explicit order and per-unit freshness; R4-B3 dev-dependency cycles exist
+> in fuel, so no member ordering is used (it had no measured benefit); R4-B4 the session's target directory had no path to the build and `git clean`
+> deleted untracked files, so it is dropped for a tracked-files `git status` check.
+> **Rev-5 audit (on revision 5), all accepted:** R5-N1 a session that holds the lock would deadlock against `build_with`'s per-build `acquire`
+> (a second handle in one process gets `WouldBlock`), so in a session `build_with` never calls `acquire`; R5-N2 in-crate tests need a cache seam that
+> does not exist, so a thread-local config override is specified; R5-N3 the overlap test did not pin an arrangement that fails without the lock;
+> plus eight should-fix items (false poison from a rewritten `Cargo.lock`, units keyed ambiguously, `freshen` under-specified, the cycle count, poison
+> semantics, `RewrittenWorktree`'s `Drop`, label collisions, evidence references).
+> PR 2 has had no code written and is not approved until revision 6 is accepted.
 > The rest of this banner is the history of revision 3.
 >
 > **STATUS: PLAN FOR APPROVAL (revision 3, after two independent audits). No code has been written for this plan.**
@@ -79,7 +84,7 @@ command shape the checks use (`cargo build -p <pkg> --lib --message-format=json`
 | L | **Negative control**, same chain: member `c` rewritten, built, restored with an **old** mtime, then dependent `a` built | `a`'s build reports `c` **fresh**: the dependent was compiled against `c`'s *rewritten* artifact while `c`'s source is original. This is the stale hit, and why the restore must stamp **now**, never the old time |
 | — | Size of the shared directory after A-G's shared runs | 533 MB for a 58-unit crate, debug profile, two flag sets |
 
-Rows E-G are saved in `cachexp2.out`, H-I in `cachexp3.out` (A-D in `cachexp.out`), beside the scripts.
+Evidence files, beside the scratch scripts: A-D `cachexp.out`; E-G `cachexp2.out`; H-I `cachexp3.out`; J `cachexp4.out`; K-L `cachexp5.out`; Task 0 `t0.out` (fuel-core, deleted with its scratch directory; the numbers are in the table below) and `t0_vulkan.out`. The R4-B1 cross-checkout interleave has a script (`aud4/cross.py`) and **no saved output yet**; it is re-run and saved in Task H.
 
 What this establishes, and what it does not:
 - **Reuse across different worktree paths works for dependencies that are not in the repository** (B, E, I): such units do not
@@ -190,12 +195,14 @@ Each has a recommendation; none blocks the plan being approved; the task each on
    binary). Audit-confirmed sufficient: only the three building checks call `create_with`, each exactly once per run with one guard, none reads or writes outside the member
    directory, and the crate has no threads. *Blocks Task 5.*
 8. **Order of members: none.** Plain sorted-by-path order. Revision 4 proposed dependents first; row K measured **both orders at 5 units** (so the benefit was unmeasured),
-   and it needs an edge set, and fuel has **8 dependency cycles when dev-dependencies are included** (e.g. `fuel-aocl-cpu-backend -> fuel-dispatch -> fuel-hardware -> fuel-vulkan-backend -> fuel-core -> fuel-aocl-cpu-backend`)
-   and 0 with normal+build edges only. An ordering would have to specify which edges count and what a cycle does; with no ordering the question does not arise. *Blocks nothing.*
+   and it needs an edge set, and fuel has **two cyclic groups when dev-dependencies are included (3 and 7 members; both audits and my own strongly-connected-components count over `cargo metadata --no-deps` agree; the "8 cycles" quoted earlier was a different, unreproduced count and is withdrawn)** (e.g. `fuel-aocl-cpu-backend -> fuel-dispatch -> fuel-hardware -> fuel-vulkan-backend -> fuel-core -> fuel-aocl-cpu-backend`)
+   and none with normal+build edges only. An ordering would have to specify which edges count and what a cycle does; with no ordering the question does not arise. *Blocks nothing.*
 9. **Where cargo builds in a session.** The persistent cache's directory when the session got the cache; otherwise a **session-owned temporary directory outside the checkout**.
-   The path reaches `build_with` through the thread-local (`session::target_dir() -> Option<PathBuf>`), consulted before the cache. A busy or unusable cache must never
-   leave cargo building in `<checkout>/target` (a restore would then risk deleting it). *Blocks Task 5.*
-10. **The session holds the cache lock for its whole run** (audit B1). Recommend yes. A session lives for hours, its sources are older than any artifact another run writes
+   The path reaches `build_with` through the thread-local (`session::target_dir() -> Option<PathBuf>`). **In a session `build_with` does not call `build_cache::acquire` at all** (R5-N1:
+   the session already holds the lock through its own handle, and a second `try_lock` handle in the same process answers `WouldBlock`, which would cost 5 s and a "cache busy" note on every build and
+   then fall back to `<checkout>/target`); it also skips PR 1.1's freshen (a freshen would defeat all sibling reuse), and reports its cache directory to `build_stats` from the session. A busy or unusable cache must never
+   leave cargo building in `<checkout>/target`. *Blocks Task 5.*
+10. **The session holds the cache lock for its whole run** (R4-B1). Recommend yes. A session lives for hours, its sources are older than any artifact another run writes
     in between, and unit hashes are path-independent, so an overlapping CodeRipper run (even a plain `--project` run) that builds a rewritten member into the shared cache makes
     the session's next build serve that artifact as fresh (measured by the auditor; same mechanism as row L). With the lock held, an overlapping run waits its bounded 5 s and
     then builds uncached with a note: correct, slower. The session itself, if it cannot get the lock within its bound, runs with a private temp target (no persistent cache).
@@ -287,7 +294,7 @@ that must survive a toolchain upgrade of CodeRipper itself).
 - Consumes `build_cache::acquire`, `RewrittenWorktree::source_repo()` (new accessor, Task 2 adds it).
 - `build_all_targets` / `build_lib_only` gain `cache_source: Option<&Path>` (the source repository; `None` means "throwaway, as today"). The three checks, which hold a `RewrittenWorktree`, pass `Some(wt.source_repo())`. `reachability` reaches the build through `collect_dead_code_in(worktree_root, targets)`, which gains the same parameter; its 7 unit-test callers in `diagnostics.rs` pass `None` (they hold a bare temp directory, no source repository). Signature changes inside the crate only; no public API.
 - Produces `BuildOutput { ..., pub units_fresh: u32, pub units_compiled: u32 }` (additive), counted from `compiler-artifact.fresh`.
-- **The route from a build to the user** (the audit's B2): `Check::run` is unchanged, so builds report into a process-wide
+- **The route from a build to the user** (rev-3 audit B2): `Check::run` is unchanged, so builds report into a process-wide
   `build_stats` accumulator (`record(units_fresh, units_compiled)`, `note(String)`, `take() -> BuildStats`), which `main` prints
   once, at the end of every run, to **stderr**: `cache: <dir or "off"> — <N> units fresh, <M> compiled` plus any `note` (e.g. `cache busy
   (held since <time>, pid <n>): building without the cache`). A global is the honest choice here: the alternative is a new field on
@@ -325,19 +332,28 @@ that must survive a toolchain upgrade of CodeRipper itself).
 take the cache lock, waiting up to 5 s. If another CodeRipper run finishes a build of the same unit slot at T2 > T1 while this one waits (or before it gets there), cargo finds this
 run's files older than that artifact and calls the unit fresh: this run analyses the *other run's* compile. The slot is shared across checks (reachability `--lib` and
 `unused-parameters` `--all-targets` use the same `RUSTFLAGS` and an identical lib unit) and across checkouts of one clone, so the other run's rewrite, or even its commit, can differ.
-The mechanism was measured by the auditor on a shared target (`aud4/cross.py`: the older checkout's build reports the other run's unit `fresh`, and the artifact contains the other run's rewritten symbol). That
-the *merged code* hits it needs two CodeRipper runs on one repository overlapping within seconds; it is rare and silent, which is the class of failure this project guards against.
+The mechanism was measured by the auditor on a shared target (`aud4/cross.py`: the older checkout's build reports the other run's unit `fresh`, and the artifact contains the other run's rewritten symbol; the script's output was not saved: Task H re-runs it). That
+the *merged code* hits it is **reasoned from the code order, not reproduced**, and needs two CodeRipper runs on one repository overlapping within seconds; it is rare and silent, which is the class of failure this project guards against.
 
 **The fix** (costs nothing: a fresh checkout already has every sibling rebuilt per run, row H): in `build_with`, right after the lock is taken and before cargo runs, set the
 mtime of every non-`.git` file of the checkout to now. A session (PR 2) does not use this, because it holds the lock for the whole run (decision 10).
 
 ### Task H: failing test first, then the fix (needs cargo; after the build-quiet window)
 
-- [ ] `a_build_after_another_run_wrote_the_same_unit_is_never_served_that_runs_artifact` (in-crate, drives `build_all_targets` with a cache config, no CLI): create checkout A and checkout B of
-  one repository (B after A); in A rewrite member `c` (adds `fn rewritten_by_a`) and build it into the cache; then, **without re-creating B**, build `c` in B with a different rewrite
-  from B's older files. Assert B's `c` unit is **compiled**, and that no artifact for `c` contains `rewritten_by_a`. *Fails today: B's unit is fresh.* **Sabotage:** remove the freshen call; the test must fail again.
-- [ ] Implement `freshen_checkout(root)` (walk the checkout's top level from `git rev-parse --show-toplevel`, skipping `.git`; `File::set_modified(now)`), called after `acquire` returns `Shared`.
-- [ ] Commit `fix: a build never reuses a unit another run wrote after this checkout was made`; version patch (the PM allocates).
+**Interfaces:**
+- `build_cache::with_config<T>(config: CacheConfig, f: impl FnOnce() -> T) -> T` (new, `pub(crate)`): a **thread-local override** of the cache configuration, consulted by `acquire` before the process-wide
+  `OnceLock` (R5-N2: the global can be set once per process and in-crate tests run in parallel threads, so a test cannot use it; the default stays "no cache", so no in-crate test touches a real cache). Production code never calls it.
+- `freshen_checkout(toplevel: &Path) -> anyhow::Result<()>` (new): walk **recursively** from the checkout's top level (`git rev-parse --show-toplevel` run in the package directory, because `build_with` is given the package root);
+  skip `.git` (directory or file); do not follow symlinks (`symlink_metadata`; a symlink is skipped, never opened, so a link cannot stamp a file outside the checkout); open each file with write access and `set_modified(now)`,
+  clearing and restoring a read-only attribute where needed. **Error policy (R5-S-c): if any file cannot be stamped, the build does not use the persistent cache** (`Throwaway` with a note naming the file): correct, slower, and never the silent hazard.
+
+- [ ] **Failing test first:** `a_build_after_another_run_wrote_the_same_unit_is_never_served_that_runs_artifact`, in-crate, inside `build_cache::with_config` (no CLI): checkouts A and B of one repository (B created after A);
+  in A rewrite member `c` (adds `fn rewritten_by_a`) and build it into the cache; then, **without re-creating B**, build `c` in B with a different rewrite from B's older files. Assert B's `c` units are **compiled** and that no `c`
+  artifact contains `rewritten_by_a`. *Fails today: B's unit is fresh.* Also `the_same_slot_is_not_shared_across_checks_unsafely`: the cross-**check** case the PM asked for (a `--lib` build with one rewrite, then an `--all-targets` build with
+  another, same flags). **Sabotage:** remove the freshen call; both tests must fail again.
+- [ ] `freshen_checkout_skips_symlinks_and_git_and_reports_an_unstampable_file`, and `an_unstampable_file_makes_the_build_uncached_with_a_note`.
+- [ ] Re-run `aud4/cross.py`'s mechanism once and **save its output** next to the plan evidence (currently a script only).
+- [ ] Commit `fix: a build never reuses a unit another run wrote after this checkout was made`; the version is allocated by the PM (0.2.9 reserved).
 
 # PR 2 — `--workspace`, with sibling reuse (revision 5)
 
@@ -351,7 +367,10 @@ makes every file newer than every cached artifact (row E), so the package's *sib
 2. **Analysing a member** (a check's `create_with` call) rewrites that member's `src/` **in place** in the session checkout, exactly as today's rewrite does, and returns a guard.
    Audit-verified: the three sentinel injectors and all the rewriters only append to or overwrite **existing tracked files under the member's `src/`**; none creates a file or writes outside `src/`.
 3. **When the guard drops** (success, error or panic) the member is restored with `git checkout HEAD -- ':(literal)<member dir>'` (a literal pathspec, so a member whose name has glob characters is safe).
-   **Both** the exit code of the checkout and a following `git status --porcelain --untracked-files=no` over the *whole* checkout are checked; anything dirty is a restore failure. There is **no `git clean`**:
+   **Both** the exit code of the checkout and a following `git status --porcelain --untracked-files=no` over the *whole* checkout are checked; any tracked modification **other than the workspace root's `Cargo.lock`** is a restore failure.
+   (R5-S-a: `cargo build` without `--locked` rewrites a committed `Cargo.lock` that is out of step with the manifests, which this portfolio's "the version changes with every push" rule makes plausible; the restore is member-scoped, so a root `Cargo.lock`
+   is never restored and would otherwise poison the session at the first member. fuel's and coderipper's lock files match their manifests today, so it would not fire on them now. The status check runs after every (member, check), about 129 times on fuel
+   over ~1800 tracked files; its cost is unmeasured and Task 7 reports it.) There is **no `git clean`**:
    it is unnecessary (nothing creates files) and was measured to be harmful (below). Verified: only the files that differ get rewritten, so **only they get a new mtime, which is "now", after the build
    ended**; untouched files keep their mtimes.
 4. **Never restore an old mtime** (row L; the stale artifact was confirmed to contain the rewritten symbol). An artifact compiled from the rewritten source is fresh for any file whose mtime is older than it;
@@ -359,7 +378,8 @@ makes every file newer than every cached artifact (row E), so the package's *sib
    (This is also what a restore through a timestamp-preserving copy would break: Review Focus 7.)
 5. **A failed restore is retried briefly** (a transient lock is real: the auditor reproduced `unable to unlink old` while a file was held open, and an `index.lock` in the worktree's gitdir; both exit non-zero), up to a short bound.
    **If it still fails the session is poisoned**: `Session::is_poisoned()` becomes true, the host loop checks it after every member and stops, reporting the remaining members as not analysed. Poison is a session flag,
-   not an error type: `run_checks_over` flattens check errors to strings, so a typed error would be lost on the way out.
+   not an error type: `run_checks_over` flattens check errors to strings, so a typed error would be lost on the way out. Semantics (R5-S-e): findings a check computed **before** its guard dropped and poisoned stay valid and are
+   reported (the restore failed after the analysis); a later check's `create_with` in the poisoned session returns an error, and **the poison message replaces it** as the member's error (it is the cause); nothing partly built is ever reported as a finding.
 6. **Siblings are compiled once per session per distinct flag set and target kind** (at least two flag sets, row C), then reused, because nothing touches their files. Each analysed (member, check) pays that member's
    own compile (the rewritten source is new). Measured on a 3-crate chain (row K): 5 units instead of 6; the saving grows with the graph, and the fuel numbers are Task 7's.
 7. **Members are analysed in sorted order** (decision 8): no dependency ordering.
@@ -367,12 +387,13 @@ makes every file newer than every cached artifact (row E), so the package's *sib
    Why the lock: a concurrent run could otherwise write a rewritten artifact into the shared slot between two of the session's builds (audit B1).
 9. **A single `--project` run is unchanged**: no session is active, `create_with` makes its own checkout as before (plus PR 1.1's freshen).
 
-**Dev-dependency cycles** (audit B3, executed by the auditor on a fixture and measured on fuel): cargo accepts a cycle through a dev-dependency, and `cargo build -p a --all-targets` builds the cycle's
+**Dev-dependency cycles** (R4-B3, executed by the auditor on a fixture and counted on fuel: two cyclic groups of 3 and 7 members with dev edges, none without): cargo accepts a cycle through a dev-dependency, and `cargo build -p a --all-targets` builds the cycle's
 members. Members a (dev-depends on b), b (depends on a), c (depends on b), analysed with in-place rewrite and restore in order c, b, a: all builds succeeded, no final rlib contained a rewritten symbol, and a pristine
-`-p c --lib` afterwards recompiled a, b and c once and then reported all of them fresh. So **correctness holds under a cycle; the cost is one recompile of the cycle's members**. fuel has 8 such cycles with dev edges and none with normal edges.
+`-p c --lib` afterwards recompiled a, b and c once and then reported all of them fresh. So **correctness holds under a cycle; the cost is one recompile of the cycle's members**. fuel has two such groups (3 and 7 members) with dev edges and none with normal edges.
 
 **What this does not fix:** a *new session* starts with new file mtimes, so the siblings compile once per `--workspace` run (not once per machine). Making them survive between runs needs content-keyed freshness,
-which cargo does not offer on stable. Also not examined: filesystems with 1-2 s timestamp granularity (FAT/exFAT), where "restore stamps now" relies on strict ordering; NTFS, ext4 and APFS are fine.
+which cargo does not offer on stable. Also not examined: filesystems with 1-2 s timestamp granularity (FAT/exFAT), where "restore stamps now" relies on strict ordering; NTFS, ext4 and APFS have sub-millisecond granularity, but the rule still needs the clock to advance between the build and the restore, which a
+fast restore after a sub-millisecond build could in principle violate on a coarse clock; the post-restore stamp therefore adds one millisecond if its mtime does not exceed the build's end time (a one-line guard, tested).
 
 ### Task 4: members and `Check::unit()`
 
@@ -380,11 +401,11 @@ which cargo does not offer on stable. Also not examined: filesystems with 1-2 s 
 
 - `package::workspace_members(dir) -> anyhow::Result<(PathBuf, Vec<Package>)>`: `(workspace_root, members)` from the existing `metadata()` (`cargo metadata --no-deps` lists the workspace's packages; directories under `[workspace] exclude` are not members and are not listed: verified, and README will say so). Sorted by path for a deterministic order.
 - `Check::unit()`: `Package` for `reachability`, `unused-return-values`, `unused-parameters`; **`Repository` for `version-consistency` and `ci-protection-presence`** (the first already analyses a whole workspace and answers `Info` from a member; the second reads the GitHub settings of the repository and would repeat one finding per member).
-- **The audit's B3:** `run_checks_over(checks, ctx, tier, only_check_id)` runs every check of the tier, so it cannot by itself run
+- **Rev-3 audit B3:** `run_checks_over(checks, ctx, tier, only_check_id)` runs every check of the tier, so it cannot by itself run
   "package checks per member, repository checks once". It gains a fifth parameter `units: UnitFilter` (`Any` | `Only(Unit)`); `run_checks`
   passes `Any` and behaves as today, and `run_workspace` calls it with `Only(Repository)` once and `Only(Package)` per member. A named
   check (`check <id> --workspace`) is run only in the unit it declares.
-- **Stale-entry dedupe (audit S11):** `stale_findings` reports unknown-check entries regardless of which checks ran, and on a workspace whose root is
+- **Stale-entry dedupe (rev-3 audit S11):** `stale_findings` reports unknown-check entries regardless of which checks ran, and on a workspace whose root is
   itself a package, the repository-unit run and the root member's run load the same `.coderipper.toml`. `run_workspace` therefore
   keeps the set of allowlist files already judged and drops a second identical stale/unknown finding for the same file and entry.
 - [ ] Failing tests: `a_package_unit_filter_skips_repository_checks_and_the_reverse` (drives `run_checks_over` with fakes);
@@ -393,27 +414,33 @@ which cargo does not offer on stable. Also not examined: filesystems with 1-2 s 
 
 ### Task 5: the session checkout
 
-**Files:** create `src/session.rs`; modify `src/worktree.rs` (`RewrittenWorktree` becomes a two-variant backing), `src/cargo_json.rs` (`build_with` consults `session::target_dir()`), `src/lib.rs`.
+**Files:** create `src/session.rs`; modify `src/worktree.rs` (`RewrittenWorktree` backing), `src/cargo_json.rs` (`build_with` consults the session; `BuildOutput.units`), `src/build_cache/mod.rs` (`git_common_dir` becomes `pub(crate)`; `acquire_for_session`), `src/lib.rs`.
 
 **Interfaces:**
-- `pub(crate) struct Session` owns the checkout, the cache lock (or the temp target directory), the poison flag. `Session::open(source_repo: &Path) -> anyhow::Result<Session>`; `Session::is_poisoned(&self) -> bool`.
+- `build_cache::acquire_for_session(source_repo: &Path) -> CacheChoice` is `acquire` with the lock kept by the caller for as long as it holds the returned `CacheDir`; `Session::open` calls it **once** and keeps the `CacheDir`
+  (and so the lock) for the whole run. It also reads the toolchain id from `rustc -vV` in the source directory at open (a member with its own `rust-toolchain.toml` would share the root's key: rare, noted).
+  `git_common_dir` is made `pub(crate)` so decision 7's "same repository" test and the cache key use one function.
+- `pub(crate) struct Session` owns the checkout, the lock (`CacheDir`) or the temp target directory, and the poison flag as a `Cell<bool>` (`is_poisoned(&self)` takes `&self`). `Session::open(source_repo: &Path) -> anyhow::Result<Session>`.
 - `pub(crate) fn with_session<T>(session: &Session, f: impl FnOnce() -> T) -> T` installs the session in a **thread-local** for the duration of `f` and removes it on exit (RAII, panic-safe).
-- `pub(crate) fn target_dir() -> Option<PathBuf>` (thread-local): the directory `build_with` must use for `CARGO_TARGET_DIR` while a session is active (decision 9).
-- `RewrittenWorktree` currently holds a non-optional `_scratch: TempDir` and `worktree_path`: it becomes an enum backing, `Throwaway { worktree_path, _scratch }` or `Session(Rc<SessionInner>)`; its `Drop` restores through the session handle in the second case. `root` and `source_repo()` keep their meaning, so the three checks do not change.
-- "Same repository" is the canonical git-common-dir comparison (decision 7).
+- `pub(crate) fn target_dir() -> Option<PathBuf>` (thread-local): `Some` while a session is active; `build_with` then **does not call `acquire` and does not freshen**, sets `CARGO_TARGET_DIR` to it, and records its cache directory from the session (R5-N1).
+- `RewrittenWorktree` keeps `pub root` and `source_repo()` **as plain fields outside the new enum** (the checks read `wt.root` directly), and gains a backing enum: `Throwaway { worktree_path, _scratch: TempDir }` or `Session(Rc<SessionInner>)`.
+  Its `Drop` matches on the backing: `Throwaway` runs today's `git worktree remove --force` plus fallback; `Session` only restores the member. **The checkout is removed and the lock released in `SessionInner::drop`**, so a guard that outlives the loop
+  keeps the checkout alive. "The same repository" is the canonical `git_common_dir` comparison (decision 7).
+- `BuildOutput` gains `units: Vec<UnitReport>` with `UnitReport { package_id: String, target: String, kind: String, fresh: bool }` (R5-S-b: keyed by package id *and* target, because `--all-targets` gives a package several units: lib, test, bin). It is used **only by in-crate tests**; the CLI still prints the one aggregate line.
+- `build_stats::record` takes the cache directory from the session when one is active.
 
-**Failing tests first** (unit tests in `session.rs`, fixtures are tempdir git repositories; the build tests use tiny path-dependency crates):
-- `a_session_member_is_restored_byte_for_byte`: rewrite a member's files; drop the guard; the whole checkout's `git status --porcelain --untracked-files=no` is empty and the bytes equal HEAD.
-- `restored_files_get_a_new_mtime_and_untouched_files_keep_theirs`: the rewritten file's mtime is later than the build-end time recorded by the test; every other file's mtime equals what it was.
-- `a_restored_member_is_never_served_as_its_rewritten_self` (**the hazard test, in-crate, with an explicit order**; the audit's B2 showed the CLI cannot produce it): chain `a -> b -> c`; inside `with_session`, analyse `c` (rewrite, `build_all_targets`, drop the guard), then `a`; assert from the build's own per-unit `compiler-artifact` list that `c` is **compiled** in `a`'s build, never fresh. `BuildOutput` gains `units: Vec<(String, bool)>` (package name, fresh) for this; it also replaces the aggregate-only assertions in Task 6. **Sabotage, applied and asserted to have applied:** stamp an old mtime on restore (one hour back); the test must then fail (row L).
-- `a_failed_restore_is_retried_then_poisons_the_session`: a test seam on the restore step fails N times: with N within the retry bound the restore succeeds; beyond it `is_poisoned()` is true and the next `create_with` in the session returns an error naming the dirty checkout.
-- `a_dirty_checkout_after_a_clean_looking_restore_poisons_the_session`: the checkout is left with a modified tracked file (a check wrote outside the member); the post-restore `git status` catches it.
-- `the_session_is_thread_local`: a second thread calling `create_with` while a session is active on the first gets its own throwaway checkout.
-- `without_a_session_create_with_is_unchanged`: the existing `worktree.rs` tests keep passing untouched.
-- `an_error_inside_a_check_still_restores_the_member` (guard dropped on the error path).
-- `a_member_nested_in_another_member_is_restored_without_touching_the_outer_one`, and `a_root_package_member_restores_without_deleting_a_non_ignored_target_or_other_members_untracked_files` (the audit's B4/S1 measurement: this is why `git clean` is gone).
-- `the_session_target_is_outside_the_checkout_when_the_cache_is_busy_or_unusable` (decision 9): hold the cache lock from the test; the session's builds go to its own temp target, never `<checkout>/target`.
-- `an_overlapping_run_cannot_poison_the_session` (decision 10, the audit's B1 interleave): hold a session; from a second checkout, run a build of the same unit with a different rewrite against the same cache config; the second run waits its bound and builds uncached with the busy note, and the session's later build of that unit is **compiled**, not fresh. **Sabotage:** release the session's lock between builds; the test must fail.
+**Failing tests first** (unit tests in `session.rs`, tempdir git repositories with tiny path-dependency crates; every cache test runs inside `build_cache::with_config`, Task H):
+- `a_session_member_is_restored_byte_for_byte`: rewrite a member's files; drop the guard; `git status --porcelain --untracked-files=no` over the whole checkout is empty and the bytes equal HEAD.
+- `restored_files_get_a_new_mtime_and_untouched_files_keep_theirs`.
+- `a_restored_member_is_never_served_as_its_rewritten_self` (**the hazard test, in-crate, explicit order**; the CLI cannot produce it): chain `a -> b -> c`; inside `with_session`, analyse `c` (rewrite, `build_all_targets`, drop the guard), then `a`; assert from `BuildOutput.units` that every `c` unit in `a`'s build is **compiled**. **Sabotage, applied and asserted to have applied:** stamp an old mtime on restore (one hour back); the test must then fail (row L).
+- `a_session_never_waits_on_its_own_lock` (R5-N1): in a session with the cache configured, N builds complete with **no** "cache busy" note and each in far less than the lock wait; **sabotage:** call `acquire` per build; the test must fail (a 5 s wait and a note).
+- `a_failed_restore_is_retried_then_poisons_the_session`; `a_dirty_checkout_after_a_clean_looking_restore_poisons_the_session` (a check wrote a tracked file outside the member); `a_rewritten_root_cargo_lock_does_not_poison_the_session` (R5-S-a: a committed lock out of step with a bumped member version).
+- `the_session_is_thread_local`; `without_a_session_create_with_is_unchanged` (existing `worktree.rs` tests untouched); `an_error_inside_a_check_still_restores_the_member`.
+- `a_member_nested_in_another_member_is_restored_without_touching_the_outer_one`; `a_root_package_member_restores_without_deleting_a_non_ignored_target_or_other_members_untracked_files` (the R4-B4 measurement: this is why `git clean` is gone).
+- `the_session_target_is_outside_the_checkout_when_the_cache_is_busy_or_unusable`: hold the cache lock from the test before `Session::open`; the session builds in its own temp target, never `<checkout>/target`, and says so once.
+- `an_overlapping_run_cannot_poison_the_session` (R4-B1, with the arrangement pinned by R5-N3): **the other run rewrites and builds sibling `c`; the session then analyses dependent `a` without having touched `c`** (a unit the session itself just rewrote is compiled regardless, so
+  it would pass without the lock). The other run runs **on another thread, outside `with_session`** (otherwise the thread-local would make it a session build too). Assert the other run waited its bound and built uncached with the busy note, and that
+  the session's `a` build compiles `c` rather than serving the other run's artifact. **Sabotage:** release the session's lock between builds; the test must fail.
 - [ ] Commit `feat: a session checkout for --workspace runs (rewrite in place, restore, never an old mtime, lock held for the run)`.
 
 ### Task 6: `run_workspace`, tagging, flag
@@ -436,8 +463,8 @@ which cargo does not offer on stable. Also not examined: filesystems with 1-2 s 
 - `repository_checks_run_once_not_per_member`.
 - `members_sharing_a_directory_name_are_told_apart`.
 - `a_member_directory_given_to_workspace_runs_the_whole_workspace`.
-- `a_dev_dependency_cycle_still_analyses_every_member` (the audit's B3): `a` dev-depends on `b`, `b` depends on `a`; both are analysed and report, with no error.
-- `members_are_analysed_in_sorted_order`.
+- `a_dev_dependency_cycle_still_analyses_every_member` (R4-B3): `a` dev-depends on `b`, `b` depends on `a`; both are analysed and report, with no error.
+- `members_are_analysed_in_sorted_order`: the CLI prints one stderr progress line per member as it starts (`coderipper: member <name> (i/n)`), which is also what a person watching a long run needs; the test asserts their order.
 - `the_siblings_are_compiled_once_per_session` (**the payoff, deterministic**): the in-repo chain `a -> b -> c`; the total compiled units of one `--workspace` run (the CLI's `cache:` line) is **less than** the sum of three separate `--project` runs against the same fresh cache. A relative, aggregate assertion only: the CLI prints one aggregate line, so per-unit claims belong to Task 5's in-crate tests, and the per-check unit counts differ (two `RUSTFLAGS` sets, `--lib` versus `--all-targets`). *This replaces the revision-3 test that pinned the opposite for a per-member loop.*
 - The in-repo pin test of PR 1 (`an_in_repo_path_crate_is_still_recompiled...`) stays, because `--project` mode is unchanged.
 - CLI: `--workspace` without a Cargo workspace is an error that says so; `--workspace` with `check ci-protection-presence` runs once.
@@ -465,7 +492,7 @@ Run on this box, on the real 43-member workspace in a throwaway clone (never the
 
 7. **A restored file that is newer than the artifact is correct; one that is older is a stale hit** (row L): the restore must be the last write to the file and must stamp
    "now". Attack: any path that restores through a copy that preserves timestamps (`copy`, `robocopy /COPY:T`, `cp -p`, an archive extract).
-8. **Cyclic dev-dependencies between members:** building a member with `--all-targets` can pull in a member that depends on it (fuel has 8 such cycles). Audit-measured on a fixture: correct, only costlier (the cycle's members recompile once). Covered by `a_dev_dependency_cycle_still_analyses_every_member`.
+8. **Cyclic dev-dependencies between members:** building a member with `--all-targets` can pull in a member that depends on it (fuel has two such groups, of 3 and 7 members). Audit-measured on a fixture: correct, only costlier (the cycle's members recompile once). Covered by `a_dev_dependency_cycle_still_analyses_every_member`.
 9. **A check that creates files, or edits tracked files, outside the member's `src/`** (a `build.rs` output into the source tree, a generated file, a write into a sibling): audit-verified that none of the three checks does today, and a restore that scopes to the member would not see an edit elsewhere; the post-restore `git status --untracked-files=no` over the whole checkout is the guard that turns it into poison instead of silent wrong answers. Untracked files are deliberately *not* removed (`git clean` was measured to delete a non-ignored `target/` and other members' files).
 10. **Two CodeRipper runs on one repository at once** (a `--workspace` run and anything else): the session holds the cache lock for its whole run (decision 10) and the test in Task 5 forces the interleave; PR 1.1 covers plain runs. Attack: any path that writes into the cache directory without holding its lock.
 11. **A restore that fails transiently** (antivirus, an open editor, `index.lock`): retried, then poisons; check that no code path continues analysing a dirty checkout.
