@@ -75,6 +75,19 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
     })
 }
 
+/// `(workspace root, every member)` of the cargo workspace containing `dir`, members sorted by directory so the
+/// order is the same on every run. `cargo metadata --no-deps` lists exactly the workspace's packages: a directory
+/// under `[workspace] exclude` is not a member and is not listed. Asked from a member's directory it still answers
+/// for the whole workspace; a root package is a member like any other (its directory sorts first).
+// Used by `run_workspace` (the next task of the --workspace plan); until then only the tests call it.
+#[allow(dead_code)]
+pub(crate) fn workspace_members(dir: &Path) -> anyhow::Result<(PathBuf, Vec<Package>)> {
+    let meta = metadata(dir)?;
+    let mut members = meta.packages;
+    members.sort_by(|a, b| a.dir.cmp(&b.dir));
+    Ok((meta.workspace_root, members))
+}
+
 fn same_dir(a: &Path, b: &Path) -> bool {
     matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
 }
@@ -194,6 +207,109 @@ mod tests {
                 .unwrap();
         }
         tmp
+    }
+
+    fn names(members: &[Package]) -> Vec<&str> {
+        members.iter().map(|p| p.name.as_str()).collect()
+    }
+
+    #[test]
+    fn members_of_a_virtual_workspace_are_listed_sorted() {
+        let ws = virtual_workspace();
+        let (root, members) = workspace_members(ws.path()).unwrap();
+        assert_eq!(names(&members), vec!["a", "b"]);
+        assert!(same_dir(&root, ws.path()), "{root:?}");
+        // asked from a member's directory, it is still the whole workspace
+        let (_, from_member) = workspace_members(&ws.path().join("b")).unwrap();
+        assert_eq!(names(&from_member), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn members_are_sorted_by_directory_not_by_whatever_order_cargo_lists_them() {
+        // package names sort the opposite way round to their directories, so an unsorted answer is visibly wrong
+        let tmp = tempfile::tempdir().unwrap();
+        write(
+            tmp.path(),
+            &[
+                (
+                    "Cargo.toml",
+                    "[workspace]\nmembers = [\"b\", \"a\"]\nresolver = \"2\"\n",
+                ),
+                ("a/Cargo.toml", &pkg("zzz")),
+                ("a/src/lib.rs", "pub fn f() {}\n"),
+                ("b/Cargo.toml", &pkg("aaa")),
+                ("b/src/lib.rs", "pub fn g() {}\n"),
+            ],
+        );
+        let (_, members) = workspace_members(tmp.path()).unwrap();
+        assert_eq!(
+            names(&members),
+            vec!["zzz", "aaa"],
+            "directory a, then directory b"
+        );
+    }
+
+    #[test]
+    fn a_root_package_workspace_lists_the_root_too() {
+        let tmp = tempfile::tempdir().unwrap();
+        write(
+            tmp.path(),
+            &[
+                (
+                    "Cargo.toml",
+                    &format!("{}\n[workspace]\nmembers = [\"sub\"]\n", pkg("rootpkg")),
+                ),
+                ("src/lib.rs", "pub fn r() {}\n"),
+                ("sub/Cargo.toml", &pkg("sub")),
+                ("sub/src/lib.rs", "pub fn s() {}\n"),
+            ],
+        );
+        let (_, members) = workspace_members(tmp.path()).unwrap();
+        // sorted by directory: the root's own directory sorts before a directory below it
+        assert_eq!(names(&members), vec!["rootpkg", "sub"]);
+    }
+
+    #[test]
+    fn an_excluded_directory_is_not_a_member() {
+        let tmp = tempfile::tempdir().unwrap();
+        write(
+            tmp.path(),
+            &[
+                (
+                    "Cargo.toml",
+                    "[workspace]\nmembers = [\"a\", \"b\"]\nexclude = [\"skip\"]\nresolver = \"2\"\n",
+                ),
+                ("a/Cargo.toml", &pkg("a")),
+                ("a/src/lib.rs", "pub fn f() {}\n"),
+                ("b/Cargo.toml", &pkg("b")),
+                ("b/src/lib.rs", "pub fn g() {}\n"),
+                ("skip/Cargo.toml", &pkg("skipped")),
+                ("skip/src/lib.rs", "pub fn h() {}\n"),
+            ],
+        );
+        let (_, members) = workspace_members(tmp.path()).unwrap();
+        assert_eq!(names(&members), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn two_members_with_the_same_directory_name_are_both_listed() {
+        let tmp = tempfile::tempdir().unwrap();
+        write(
+            tmp.path(),
+            &[
+                (
+                    "Cargo.toml",
+                    "[workspace]\nmembers = [\"x/util\", \"y/util\"]\nresolver = \"2\"\n",
+                ),
+                ("x/util/Cargo.toml", &pkg("x-util")),
+                ("x/util/src/lib.rs", "pub fn f() {}\n"),
+                ("y/util/Cargo.toml", &pkg("y-util")),
+                ("y/util/src/lib.rs", "pub fn g() {}\n"),
+            ],
+        );
+        let (_, members) = workspace_members(tmp.path()).unwrap();
+        assert_eq!(names(&members), vec!["x-util", "y-util"]);
+        assert!(members.iter().all(|m| m.dir.ends_with("util")));
     }
 
     #[test]

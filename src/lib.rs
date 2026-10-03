@@ -38,8 +38,23 @@ pub struct RunResult {
     pub errors: Vec<String>,
 }
 
+/// Which checks a run takes, by what they judge (see [`check::Unit`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnitFilter {
+    /// Every check, whatever it judges (what `run_checks` always did).
+    Any,
+    /// Only the checks that judge this unit.
+    Only(check::Unit),
+}
+
 pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -> RunResult {
-    run_checks_over(&registered_checks(), ctx, tier, only_check_id)
+    run_checks_over(
+        &registered_checks(),
+        ctx,
+        tier,
+        only_check_id,
+        UnitFilter::Any,
+    )
 }
 
 /// `run_checks` over an explicit list, so tests can drive the loop with fake checks.
@@ -48,6 +63,7 @@ fn run_checks_over(
     ctx: &CheckContext,
     tier: Tier,
     only_check_id: Option<&str>,
+    units: UnitFilter,
 ) -> RunResult {
     let mut findings = Vec::new();
     let mut errors = Vec::new();
@@ -62,6 +78,11 @@ fn run_checks_over(
     let registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
 
     for check in checks {
+        if let UnitFilter::Only(unit) = units {
+            if check.unit() != unit {
+                continue;
+            }
+        }
         if let Some(id) = only_check_id {
             if check.id() != id {
                 continue;
@@ -131,6 +152,107 @@ mod tests {
         );
     }
 
+    /// A check that only says what it judges.
+    struct UnitFake {
+        id: &'static str,
+        unit: check::Unit,
+    }
+
+    impl Check for UnitFake {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+        fn scope(&self) -> check::Scope {
+            check::Scope::Project
+        }
+        fn network(&self) -> check::Network {
+            check::Network::LocalOnly
+        }
+        fn unit(&self) -> check::Unit {
+            self.unit
+        }
+        fn run(&self, _ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+            Ok(vec![Finding {
+                check_id: self.id.into(),
+                severity: finding::Severity::Info,
+                confidence: finding::Confidence::High,
+                project: "p".into(),
+                location: None,
+                subject: Some("s".into()),
+                summary: "ran".into(),
+                detail: "ran".into(),
+                positive_control: Some("ran".into()),
+            }])
+        }
+    }
+
+    fn ran(result: &RunResult) -> Vec<String> {
+        let mut ids: Vec<String> = result.findings.iter().map(|f| f.check_id.clone()).collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn a_package_unit_filter_skips_repository_checks_and_the_reverse() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ctx = CheckContext {
+            project_root: tmp.path().to_path_buf(),
+            portfolio_root: tmp.path().to_path_buf(),
+        };
+        let checks: Vec<Box<dyn Check>> = vec![
+            Box::new(UnitFake {
+                id: "per-package",
+                unit: check::Unit::Package,
+            }),
+            Box::new(UnitFake {
+                id: "per-repository",
+                unit: check::Unit::Repository,
+            }),
+        ];
+        let any = run_checks_over(&checks, &ctx, Tier::Fast, None, UnitFilter::Any);
+        assert_eq!(
+            ran(&any),
+            vec!["per-package", "per-repository"],
+            "Any is what run_checks always did"
+        );
+        let package = run_checks_over(
+            &checks,
+            &ctx,
+            Tier::Fast,
+            None,
+            UnitFilter::Only(check::Unit::Package),
+        );
+        assert_eq!(ran(&package), vec!["per-package"]);
+        let repository = run_checks_over(
+            &checks,
+            &ctx,
+            Tier::Fast,
+            None,
+            UnitFilter::Only(check::Unit::Repository),
+        );
+        assert_eq!(ran(&repository), vec!["per-repository"]);
+    }
+
+    #[test]
+    fn the_registered_checks_declare_what_they_judge() {
+        let judged: Vec<(&str, check::Unit)> = registered_checks()
+            .iter()
+            .map(|c| (c.id(), c.unit()))
+            .collect();
+        assert_eq!(
+            judged,
+            vec![
+                ("reachability", check::Unit::Package),
+                ("unused-return-values", check::Unit::Package),
+                ("unused-parameters", check::Unit::Package),
+                // reads the whole workspace's versions: from a member it only says "run me on the root"
+                ("version-consistency", check::Unit::Repository),
+                // reads one GitHub repository's settings: one finding per repository, not per member
+                ("ci-protection-presence", check::Unit::Repository),
+            ]
+        );
+    }
+
     struct Fake {
         id: &'static str,
         result: fn() -> anyhow::Result<Vec<Finding>>,
@@ -180,7 +302,7 @@ mod tests {
             project_root: tmp.path().to_path_buf(),
             portfolio_root: tmp.path().to_path_buf(),
         };
-        run_checks_over(&[Box::new(fake)], &ctx, Tier::Fast, None)
+        run_checks_over(&[Box::new(fake)], &ctx, Tier::Fast, None, UnitFilter::Any)
     }
 
     #[test]
