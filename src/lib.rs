@@ -3,6 +3,7 @@ pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;
 pub mod finding;
+pub mod github;
 pub(crate) mod package;
 pub(crate) mod suppression;
 pub(crate) mod worktree;
