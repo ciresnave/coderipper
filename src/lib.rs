@@ -204,14 +204,70 @@ fn allowlist_key(finding: &Finding) -> (String, Option<String>, String) {
     )
 }
 
+/// Runs the built-in checks (see [`registered_checks`]) over the project at `ctx.project_root`: every check at or below
+/// `tier`, or only the check named `only_check_id` (at any tier). See [`run_checks_with`] for what the host does with
+/// what the checks return.
 pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -> RunResult {
-    run_checks_over(
-        &registered_checks(),
-        ctx,
-        tier,
-        only_check_id,
-        UnitFilter::Any,
-    )
+    run_checks_with(&registered_checks(), ctx, tier, only_check_id)
+}
+
+/// Runs the checks you pass, the way [`run_checks`] runs the built-in ones: through the host, not by calling
+/// [`Check::run`] yourself.
+///
+/// What the host does that a direct `check.run(ctx)` does not:
+/// - **Validates every finding** ([`finding::Finding::validate`]). A finding that claims an absence ("zero", "no ",
+///   "none", "missing", "unreachable", "0 " in its summary) without a `positive_control` is dropped and reported in
+///   `errors`.
+/// - **Applies the project's allowlist**, read from `.coderipper.toml` in `ctx.project_root`. An entry suppresses a
+///   finding only when its `check`, `file` and `symbol` equal the finding's `check_id`, `location.file` and `subject`,
+///   so a check that wants to be suppressible must set a location and a subject.
+/// - **Judges stale entries against the checks you pass.** An entry that suppressed nothing is reported as an `Info`
+///   finding from the check id `allowlist`, and an entry naming a check that is not in `checks` is reported as an
+///   unknown check. If you pass only your own check and the project's `.coderipper.toml` names built-in checks, each
+///   of those entries is reported as unknown: pass the built-in checks too, or use a project without such entries.
+/// - **Keeps the tier rule.** With `only_check_id = None`, a [`check::Tier::Sweep`] check does not run at
+///   [`check::Tier::Fast`]; naming it with `only_check_id` runs it at any tier.
+///
+/// An error from one check (it could not run) is recorded in `errors` and does not stop the others.
+///
+/// ```
+/// use coderipper::check::{Check, CheckContext, Network, Scope, Tier};
+/// use coderipper::finding::{Confidence, Finding, Location, Severity};
+///
+/// /// Reports a `TODO.md` in the project root.
+/// struct TodoFile;
+///
+/// impl Check for TodoFile {
+///     fn id(&self) -> &'static str { "todo-file" }
+///     fn scope(&self) -> Scope { Scope::Project }
+///     fn network(&self) -> Network { Network::LocalOnly }
+///     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+///         if !ctx.project_root.join("TODO.md").exists() {
+///             return Ok(Vec::new());
+///         }
+///         Ok(vec![Finding::new(
+///             "todo-file", Severity::Low, Confidence::High, "demo",
+///             "the project keeps a TODO.md", "TODO.md belongs in the issue tracker",
+///         )
+///         .location(Location::new("TODO.md", None))
+///         .subject("TODO.md")])
+///     }
+/// }
+///
+/// let dir = tempfile::tempdir().unwrap();
+/// std::fs::write(dir.path().join("TODO.md"), "- later\n").unwrap();
+/// let ctx = CheckContext::new(dir.path(), dir.path());
+/// let result = coderipper::run_checks_with(&[Box::new(TodoFile)], &ctx, Tier::Fast, None);
+/// assert!(result.errors.is_empty());
+/// assert_eq!(result.findings.len(), 1);
+/// ```
+pub fn run_checks_with(
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+) -> RunResult {
+    run_checks_over(checks, ctx, tier, only_check_id, UnitFilter::Any)
 }
 
 /// `run_checks` over an explicit list, so tests can drive the loop with fake checks.
