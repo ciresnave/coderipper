@@ -1,6 +1,10 @@
 # CodeRipper's three faces: library, `cargo coderipper`, hosted service — Plan
 
-> **Status: PLAN FOR APPROVAL (revision 2, after one independent reading-only audit; no cargo was run while this was written).**
+> **Status: LIBRARY PLAN APPROVED by the PM on 2026-10-04 with the rulings below (revision 3). Sections 2 (in part) and 3 are plans, not yet approved for build. No cargo was run while this was written.**
+>
+> **PM rulings on the library plan (2026-10-04):** (i) **publishing:** the PM runs `cargo publish` from the PM session with the portfolio's existing crates.io login, after a dry-run, and reads the version back; no lane holds a token. (ii) the **smaller promise table is approved** (a typed error enum comes later, deliberately). (iii) **CLI exit codes join the promise AND the 0/1/2/3 scheme is implemented in PR 2** (0.2.x was never published, so it is not a break; doing it after publication would cost 0.4.0); `--deny` defaults to never-fail like clippy warnings and `--deny medium` is documented for CI. (iv) **PR 2 stays ONE first-release PR**, with a clean commit-per-concern structure and a PR-body index so review can go commit by commit (the commit map is in 1.6). (v) **PR 1 (`toml` 1.x, proposed 0.2.13) starts when the build-quiet window ends; PR 2 after PR 1 merges.** (vi) the cargo subcommand is in PR 2 **only** as far as: the second `[[bin]]` `cargo-coderipper`, bare `cargo coderipper` = `fast`, `--workspace`, `--message-format json`, `--deny`, and the exit codes; `--sweep`, `--check`, `-p`, `--manifest-path`, `short` format are follow-ups. (vii) first published version **0.3.0**, allocated by the PM at the PR 2 gate. Hosted: option A is the recommendation the PM puts to CireSnave; nothing is built.
+>
+> **Earlier status:** revision 2 followed one independent reading-only audit.
 > Revision 2 fixes the audit's 4 blocking findings (callers that `non_exhaustive` breaks, types third parties cannot construct, an example the API could not support, a version scheme that contradicted the portfolio rule) and 10 smaller ones.
 > **Nothing is published until the PM approves the library plan, names the crates.io account that publishes, and reads the publication back.**
 
@@ -42,6 +46,7 @@ A published crate `coderipper` whose **library** is the product: embed the check
 | Faking GitHub | `github::{Github, ApiError, GhCli}` (so `CiProtectionPresenceCheck::with_api` is testable offline: the "easier for us to test" payoff) | `parse_github_remote`, `origin_url`, `RepoRef` |
 | Cache | `build_cache::{CacheConfig, set_cache_config}` (an embedder, e.g. the hosted service, must control it) | `config_from_env`, `status`, `prune_to_cap`, `BuildStats`, `render_stats`, `take_stats`, `RepoDirInfo`, `MARKER`: CLI plumbing the bin uses |
 | Files | the **`.coderipper.toml` allowlist format** (documented in the README and the crate docs) | |
+| CLI | **the exit codes** `0` clean / `1` findings at or above `--deny` / `2` usage error / `3` a check could not run, and `--deny <severity>` (PM ruling iii; the Finding JSON of `--message-format json`) | the human output text, progress lines, the `cache` subcommand |
 
 **Shaping changes (all breaking relative to 0.2.12):**
 1. `#[non_exhaustive]` on `Finding`, `CheckContext`, `Location`, `RunResult`, `WorkspaceRun`, `CacheConfig`, `ApiError` and on `Severity`, `Confidence`, `Scope`, `Unit`, `Network`, `Tier`, `FindingError`, so adding a field or variant later is not breaking.
@@ -88,9 +93,18 @@ Built and run by `cargo test --examples` / `cargo test` in CI; none needs the ne
 
 The portfolio rule is that **every pushed change changes the version** and the PM allocates the number at gate time. So the plan does not pin a number into PRs that land in between.
 1. **PR 1, dependencies:** `toml` 1.x (+ `cargo update`). Version: **proposed** the next patch (0.2.13); the PM allocates.
-2. **PR 2, the first-release PR:** the API shaping (1.2), docs, examples, README, description, metadata, `exclude`, `rust-version`, the CI jobs, and the CHANGELOG entry. One cohesive PR in separate commits, because the docs and examples are written against the shaped API. Version: **proposed 0.3.0** (breaking relative to 0.2.13); the PM allocates.
-   Red-first evidence: a test crate that builds a `Finding`, `Location`, `CacheConfig` and `CheckContext` through the constructors and matches each enum with a wildcard arm; `compile_fail` doctests proving a struct literal of a `non_exhaustive` type is rejected outside the crate; the `run_checks_with` example run as a test; the golden-file tests.
-3. **Release (PM):** publish **the version `main` carries**, expected **0.3.0** if nothing else lands in between. If an unrelated change lands first it becomes 0.3.1 and that is what is published; the release steps say "the version on main", never a literal. *Alternative if PR 2 is too large to review:* split docs/CI into follow-up PRs, accepting that the first published version is then 0.3.1 or 0.3.2.
+2. **PR 2, the first-release PR** (**one PR**, ruling iv): the API shaping (1.2), the exit-code scheme and the minimal `cargo-coderipper` (section 2, ruling vi), docs, examples, README, description, metadata, `exclude`, `rust-version`, the CI jobs, and the CHANGELOG entry. Version: **0.3.0**, allocated by the PM at the gate. **The PR body carries an index of the commits below** so review goes commit by commit; each commit builds and passes its own tests.
+   1. `feat!: #[non_exhaustive] + constructors, and migrate main.rs and tests/ to them` (red-first: mark the types, build `--all-targets`, fix every compiler error; plus a test crate that builds each type through its constructor and matches each enum with a wildcard arm, and `compile_fail` doctests proving a struct literal is rejected outside the crate).
+   2. `feat: run_checks_with` (a user's own `Check` through validation, the allowlist and suppression; `run_checks` becomes a wrapper over it).
+   3. `refactor: hide the plumbing; add the cli feature` (`UnitFilter`, the CLI half of `build_cache`; `required-features`; gate the bin-running tests).
+   4. `feat!: exit codes 0/1/2/3 and --deny for the coderipper CLI` (tests first through the CLI on fixtures: a High finding with no `--deny` exits 0; `--deny medium` exits 1; a check that cannot run exits 3; a usage error exits 2).
+   5. `feat: cargo-coderipper (second bin)` (bare `cargo coderipper` = `fast`, `--workspace`, `--message-format json`, `--deny`; the JSON `reason` lines pinned by a golden-file test).
+   6. `docs: crate-level docs, #![warn(missing_docs)], intra-doc links`.
+   7. `docs: examples and doctests` (run, custom check via `run_checks_with`, fake GitHub).
+   8. `docs: README rewritten to what is built; CHANGELOG 0.3.0; description, rust-version, exclude, categories` (the exact README edit list is in 1.3).
+   9. `ci: doc, MSRV, package dry-run and semver-checks jobs`.
+   10. `chore: version 0.3.0` (last commit).
+3. **Release (the PM, ruling i):** publish **the version `main` carries**, expected **0.3.0** if nothing else lands in between. If an unrelated change lands first it becomes 0.3.1 and that is what is published; the release steps say "the version on main", never a literal. *Alternative if PR 2 is too large to review:* split docs/CI into follow-up PRs, accepting that the first published version is then 0.3.1 or 0.3.2.
 
 ### 1.7 Version number: recommend **0.3.0**
 
