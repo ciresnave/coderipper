@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
 description = "Portfolio-wide code-integration auditor — dead-code/reachability, version consistency, dependency staleness, CI/protection presence, and more. Runs as a CLI (like clippy) or a server."
 license = "MIT OR Apache-2.0"
