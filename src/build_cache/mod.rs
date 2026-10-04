@@ -40,12 +40,56 @@ const LOCK_FILE: &str = ".coderipper.lock";
 const HOLDER_FILE: &str = ".coderipper.holder";
 const POLL: Duration = Duration::from_millis(50);
 
+/// How the build cache behaves: where it lives, how long a run waits for another run's lock on the same repository,
+/// and the size cap.
+///
+/// Build one with [`CacheConfig::new`] and its setters: the struct is `#[non_exhaustive]`, so a struct literal is
+/// rejected outside this crate and a field can be added later without breaking anyone.
+///
+/// ```compile_fail,E0639
+/// use coderipper::build_cache::CacheConfig;
+/// let _ = CacheConfig {
+///     root: "/cache".into(),
+///     wait: std::time::Duration::from_secs(5),
+///     max_bytes: 1 << 30,
+/// };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct CacheConfig {
     pub root: PathBuf,
     /// How long to wait for another CodeRipper run's lock on the same repository before building uncached.
     pub wait: Duration,
     pub max_bytes: u64,
+}
+
+/// The default wait for another run's lock, in seconds.
+const DEFAULT_WAIT_SECS: f64 = 5.0;
+/// The default size cap, in GB (1 GB = 2^30 bytes).
+const DEFAULT_MAX_GB: f64 = 20.0;
+
+impl CacheConfig {
+    /// A cache rooted at `root` with the default wait (5 s for another run's lock on the same repository) and size
+    /// cap (20 GB); adjust with [`CacheConfig::wait`] and [`CacheConfig::max_bytes`].
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self {
+            root: root.into(),
+            wait: Duration::from_secs_f64(DEFAULT_WAIT_SECS),
+            max_bytes: (DEFAULT_MAX_GB * (1u64 << 30) as f64) as u64,
+        }
+    }
+
+    /// How long a run waits for another run's lock on the same repository before building without the cache.
+    pub fn wait(mut self, wait: Duration) -> Self {
+        self.wait = wait;
+        self
+    }
+
+    /// The size cap: least-recently-used repository directories are pruned until the cache fits.
+    pub fn max_bytes(mut self, max_bytes: u64) -> Self {
+        self.max_bytes = max_bytes;
+        self
+    }
 }
 
 static CONFIG: OnceLock<CacheConfig> = OnceLock::new();
@@ -111,8 +155,11 @@ pub fn config_from_env(get: &dyn Fn(&str) -> Option<String>) -> Option<CacheConf
     };
     Some(CacheConfig {
         root,
-        wait: Duration::from_secs_f64(number("CODERIPPER_CACHE_WAIT_SECS").unwrap_or(5.0)),
-        max_bytes: (number("CODERIPPER_CACHE_MAX_GB").unwrap_or(20.0) * (1u64 << 30) as f64) as u64,
+        wait: Duration::from_secs_f64(
+            number("CODERIPPER_CACHE_WAIT_SECS").unwrap_or(DEFAULT_WAIT_SECS),
+        ),
+        max_bytes: (number("CODERIPPER_CACHE_MAX_GB").unwrap_or(DEFAULT_MAX_GB)
+            * (1u64 << 30) as f64) as u64,
     })
 }
 

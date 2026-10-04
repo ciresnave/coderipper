@@ -34,6 +34,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
 /// host's job, see `suppression`), and return what is left plus one `Info` finding per allowlist
 /// entry that no longer suppresses anything. A check whose `run` returns an invalid absence-claim finding is
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
+#[non_exhaustive]
 pub struct RunResult {
     pub findings: Vec<Finding>,
     pub errors: Vec<String>,
@@ -49,6 +50,7 @@ pub enum UnitFilter {
 }
 
 /// What a `--workspace` run did, beyond its findings and errors.
+#[non_exhaustive]
 pub struct WorkspaceRun {
     pub result: RunResult,
     /// Members analysed (a poisoned session stops the loop early).

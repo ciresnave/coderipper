@@ -10,10 +10,29 @@ use std::process::Command;
 
 /// A failed API call. `status` is the HTTP status when GitHub answered, `None` when it never did
 /// (no `gh`, no network, not authenticated).
+///
+/// Build one (for a fake [`Github`]) with [`ApiError::new`]: the struct is `#[non_exhaustive]`, so a struct literal is
+/// rejected outside this crate.
+///
+/// ```compile_fail,E0639
+/// use coderipper::github::ApiError;
+/// let _ = ApiError { status: Some(404), message: "not found".to_string() };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ApiError {
     pub status: Option<u16>,
     pub message: String,
+}
+
+impl ApiError {
+    /// A failed call: `status` is the HTTP status when GitHub answered, `None` when it never did.
+    pub fn new(status: Option<u16>, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
+    }
 }
 
 impl std::fmt::Display for ApiError {

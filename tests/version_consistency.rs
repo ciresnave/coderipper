@@ -44,10 +44,10 @@ fn workspace(members: &[(&str, &str)], extra_root: &str) -> tempfile::TempDir {
 }
 
 fn run(project: &Path) -> anyhow::Result<Vec<Finding>> {
-    VersionConsistencyCheck.run(&CheckContext {
-        project_root: project.to_path_buf(),
-        portfolio_root: project.to_path_buf(),
-    })
+    VersionConsistencyCheck.run(&CheckContext::new(
+        project.to_path_buf(),
+        project.to_path_buf(),
+    ))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
@@ -288,10 +288,7 @@ fn an_allowlist_entry_silences_one_package_and_goes_stale_when_the_versions_agre
         "[[allow]]\ncheck = \"version-consistency\"\nfile = \"c/Cargo.toml\"\nsymbol = \"c\"\nreason = \"c is frozen for a release\"\n",
     )
     .unwrap();
-    let ctx = || CheckContext {
-        project_root: ws.path().to_path_buf(),
-        portfolio_root: ws.path().to_path_buf(),
-    };
+    let ctx = || CheckContext::new(ws.path().to_path_buf(), ws.path().to_path_buf());
     let quiet = coderipper::run_checks(&ctx(), Tier::Fast, Some("version-consistency"));
     assert!(quiet.errors.is_empty(), "{:?}", quiet.errors);
     assert!(quiet.findings.is_empty(), "{:?}", quiet.findings);

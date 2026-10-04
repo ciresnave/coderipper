@@ -2,6 +2,7 @@ use crate::finding::Finding;
 
 /// Which repos a check needs to read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Scope {
     /// Only the project being checked.
     Project,
@@ -13,6 +14,7 @@ pub enum Scope {
 /// `Repository` check once for the whole workspace: a check that reads repository-wide facts (a workspace's
 /// versions, a GitHub repository's settings) would otherwise repeat one finding per member.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Unit {
     /// One cargo package: the project directory is a package's directory.
     Package,
@@ -27,6 +29,7 @@ pub enum Unit {
 /// sibling checkouts on disk) is still fast. What's slow and rate-limit-sensitive is a registry or
 /// GitHub API call, regardless of how many repos a check reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Network {
     LocalOnly,
     NetworkRequired,
@@ -34,6 +37,7 @@ pub enum Network {
 
 /// The tier a check runs in, derived from [`Network`], not [`Scope`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Tier {
     /// Meant to run on every PR, or on demand next to `cargo clippy`.
     Fast,
@@ -52,9 +56,32 @@ impl Network {
 
 /// The context a check runs against: which project (and, for `Portfolio`-scope checks, where to
 /// find its siblings).
+///
+/// Build one with [`CheckContext::new`]: the struct is `#[non_exhaustive]`, so a struct literal is rejected outside
+/// this crate and a field can be added later without breaking anyone.
+///
+/// ```compile_fail,E0639
+/// use coderipper::check::CheckContext;
+/// let _ = CheckContext { project_root: ".".into(), portfolio_root: ".".into() };
+/// ```
+#[non_exhaustive]
 pub struct CheckContext {
     pub project_root: std::path::PathBuf,
     pub portfolio_root: std::path::PathBuf,
+}
+
+impl CheckContext {
+    /// A context for the project at `project_root`; `portfolio_root` is where `Portfolio`-scope checks look for
+    /// siblings (the project's parent directory is the usual choice).
+    pub fn new(
+        project_root: impl Into<std::path::PathBuf>,
+        portfolio_root: impl Into<std::path::PathBuf>,
+    ) -> Self {
+        Self {
+            project_root: project_root.into(),
+            portfolio_root: portfolio_root.into(),
+        }
+    }
 }
 
 /// One pluggable audit. See `docs/superpowers/specs/2026-09-30-audit-host-design.md` §1-2 for the

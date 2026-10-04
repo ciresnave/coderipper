@@ -1,8 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 /// How bad a finding is, independent of how sure we are it's real.
+///
+/// `#[non_exhaustive]`: a variant may be added in a minor release, so an outside `match` needs a wildcard arm.
+///
+/// ```compile_fail,E0004
+/// use coderipper::finding::Severity;
+/// fn rank(s: Severity) -> u8 {
+///     match s {
+///         Severity::Info => 0,
+///         Severity::Low => 1,
+///         Severity::Medium => 2,
+///         Severity::High => 3,
+///         Severity::Critical => 4,
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum Severity {
     Info,
     Low,
@@ -18,6 +34,7 @@ pub enum Severity {
 /// caller); a version mismatch is `High` severity *and* `High` confidence, no ambiguity once read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum Confidence {
     Low,
     Medium,
@@ -27,17 +44,56 @@ pub enum Confidence {
 /// Where in a project a finding points, when it points anywhere specific.
 ///
 /// Omitted (`None`) for project-level findings, e.g. "no branch protection" has no single line.
+///
+/// Build one with [`Location::new`]: the struct is `#[non_exhaustive]`, so a struct literal is rejected outside this
+/// crate and a field can be added later without breaking anyone.
+///
+/// ```compile_fail,E0639
+/// use coderipper::finding::Location;
+/// let _ = Location { file: "src/lib.rs".to_string(), line: None };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Location {
     pub file: String,
     pub line: Option<u32>,
+}
+
+impl Location {
+    /// A location in `file` (relative to the project, forward slashes), at `line` when it is about one line.
+    pub fn new(file: impl Into<String>, line: Option<u32>) -> Self {
+        Self {
+            file: file.into(),
+            line,
+        }
+    }
 }
 
 /// One thing a check found, in the shape every check emits into.
 ///
 /// This shared shape is what lets the host triage findings from different checks into one ranked
 /// list, instead of concatenating each check's own report format.
+///
+/// Build one with [`Finding::new`] and its chained setters: the struct is `#[non_exhaustive]`, so a struct literal is
+/// rejected outside this crate and a field can be added later without breaking anyone.
+///
+/// ```compile_fail,E0639
+/// use coderipper::finding::{Confidence, Finding, Severity};
+/// let _ = Finding {
+///     check_id: "c".to_string(),
+///     severity: Severity::Low,
+///     confidence: Confidence::Low,
+///     project: "p".to_string(),
+///     location: None,
+///     subject: None,
+///     summary: "s".to_string(),
+///     detail: "d".to_string(),
+///     member: None,
+///     positive_control: None,
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct Finding {
     pub check_id: String,
     pub severity: Severity,
@@ -65,6 +121,7 @@ pub struct Finding {
 /// but carry no positive control are a defect in the check, not a real finding — reject them at
 /// construction rather than let a broken check's output reach a report.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum FindingError {
     #[error(
         "finding from check '{check_id}' claims an absence (\"{summary}\") but has no positive_control: {ABSENCE_CLAIM_HELP}"
@@ -78,6 +135,65 @@ const ABSENCE_CLAIM_HELP: &str =
 const ABSENCE_WORDS: &[&str] = &["zero", "no ", "none", "missing", "unreachable", "0 "];
 
 impl Finding {
+    /// A finding with the six parts every finding has; the optional parts start empty and are set with the chained
+    /// setters ([`Finding::location`], [`Finding::subject`], [`Finding::positive_control`], [`Finding::member`]).
+    ///
+    /// ```
+    /// use coderipper::finding::{Confidence, Finding, Location, Severity};
+    ///
+    /// let finding = Finding::new(
+    ///     "my-check", Severity::Low, Confidence::High, "my-project", "an unused helper", "nothing calls it",
+    /// )
+    /// .location(Location::new("src/util.rs", Some(12)))
+    /// .subject("util::helper");
+    /// assert_eq!(finding.subject.as_deref(), Some("util::helper"));
+    /// ```
+    pub fn new(
+        check_id: impl Into<String>,
+        severity: Severity,
+        confidence: Confidence,
+        project: impl Into<String>,
+        summary: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self {
+            check_id: check_id.into(),
+            severity,
+            confidence,
+            project: project.into(),
+            location: None,
+            subject: None,
+            summary: summary.into(),
+            detail: detail.into(),
+            member: None,
+            positive_control: None,
+        }
+    }
+
+    /// Where the finding points.
+    pub fn location(mut self, location: Location) -> Self {
+        self.location = Some(location);
+        self
+    }
+
+    /// The symbol the finding is about: with `check_id` and the location's file it is what an allowlist entry names.
+    pub fn subject(mut self, subject: impl Into<String>) -> Self {
+        self.subject = Some(subject.into());
+        self
+    }
+
+    /// What proves the claim is not a broken query (required when the finding claims an absence).
+    pub fn positive_control(mut self, control: impl Into<String>) -> Self {
+        self.positive_control = Some(control.into());
+        self
+    }
+
+    /// The cargo package a workspace run found it in.
+    pub fn member(mut self, member: impl Into<String>) -> Self {
+        self.member = Some(member.into());
+        self
+    }
+
     /// Rejects an absence-claiming finding that has no positive control. Call this before a check
     /// hands a finding to the host, not just at the end of a report — a caller that only validates
     /// the final report can't tell which check produced a bad finding.

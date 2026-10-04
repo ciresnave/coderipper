@@ -6,10 +6,10 @@ use coderipper::finding::Finding;
 use common::{git_repo_with, MANIFEST};
 
 fn run(repo: &tempfile::TempDir) -> anyhow::Result<Vec<Finding>> {
-    UnusedReturnValuesCheck.run(&CheckContext {
-        project_root: repo.path().to_path_buf(),
-        portfolio_root: repo.path().to_path_buf(),
-    })
+    UnusedReturnValuesCheck.run(&CheckContext::new(
+        repo.path().to_path_buf(),
+        repo.path().to_path_buf(),
+    ))
 }
 
 fn names(findings: &[Finding]) -> Vec<String> {

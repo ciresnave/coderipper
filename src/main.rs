@@ -169,10 +169,7 @@ fn run_and_report(
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
 
-    let ctx = CheckContext {
-        project_root,
-        portfolio_root,
-    };
+    let ctx = CheckContext::new(project_root, portfolio_root);
 
     let result = if workspace {
         let run = coderipper::run_workspace(
