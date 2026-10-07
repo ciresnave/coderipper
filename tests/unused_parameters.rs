@@ -6,7 +6,7 @@ use coderipper::finding::Finding;
 use common::{git_repo_with, MANIFEST};
 
 fn run(repo: &tempfile::TempDir) -> anyhow::Result<Vec<Finding>> {
-    UnusedParametersCheck.run(&CheckContext::new(repo.path().to_path_buf()))
+    UnusedParametersCheck::new().run(&CheckContext::new(repo.path().to_path_buf()))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {

@@ -58,7 +58,7 @@ fn the_reachability_check_finds_exactly_the_dead_function() {
     let repo = fixture_as_a_git_repo();
     let ctx = CheckContext::new(repo.path().to_path_buf());
 
-    let findings = ReachabilityCheck.run(&ctx).unwrap();
+    let findings = ReachabilityCheck::new().run(&ctx).unwrap();
 
     assert_eq!(
         findings.len(),
@@ -95,7 +95,7 @@ reason = "test: confirm the allowlist suppresses a real finding"
 
     let ctx = CheckContext::new(repo.path().to_path_buf());
     // Suppression is the host's job: the check itself returns the raw finding.
-    assert_eq!(ReachabilityCheck.run(&ctx).unwrap().len(), 1);
+    assert_eq!(ReachabilityCheck::new().run(&ctx).unwrap().len(), 1);
     let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert!(result.findings.is_empty(), "{:?}", result.findings);
@@ -147,7 +147,7 @@ fn a_crate_wide_allow_dead_code_makes_the_check_error_not_silently_report_clean(
     );
     let ctx = CheckContext::new(repo.path().to_path_buf());
 
-    let result = ReachabilityCheck.run(&ctx);
+    let result = ReachabilityCheck::new().run(&ctx);
     assert!(
         result.is_err(),
         "a run where the sentinel itself isn't detected must error, not silently report clean"
@@ -161,7 +161,7 @@ fn subjects(findings: &[coderipper::finding::Finding]) -> Vec<String> {
 }
 
 fn run_reachability(repo: &tempfile::TempDir) -> anyhow::Result<Vec<coderipper::finding::Finding>> {
-    ReachabilityCheck.run(&CheckContext::new(repo.path().to_path_buf()))
+    ReachabilityCheck::new().run(&CheckContext::new(repo.path().to_path_buf()))
 }
 
 const LIB_WITH_BIN_USERS: &str = "\

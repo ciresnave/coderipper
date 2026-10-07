@@ -44,7 +44,7 @@ fn workspace(members: &[(&str, &str)], extra_root: &str) -> tempfile::TempDir {
 }
 
 fn run(project: &Path) -> anyhow::Result<Vec<Finding>> {
-    VersionConsistencyCheck.run(&CheckContext::new(project.to_path_buf()))
+    VersionConsistencyCheck::new().run(&CheckContext::new(project.to_path_buf()))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {

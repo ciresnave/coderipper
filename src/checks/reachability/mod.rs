@@ -42,9 +42,22 @@ use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
 
-/// Reports functions nothing calls, including `pub` ones (see the module docs).
+/// Reports functions nothing calls, including `pub` ones (see the module docs). Construct it with
+/// [`ReachabilityCheck::new`] (or `Default`): the struct is `#[non_exhaustive]`, so a field can be added later.
+///
+/// ```compile_fail,E0423
+/// let _ = coderipper::checks::ReachabilityCheck;
+/// ```
 #[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct ReachabilityCheck;
+
+impl ReachabilityCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for ReachabilityCheck {
     fn id(&self) -> &'static str {

@@ -137,6 +137,18 @@ pub struct Finding {
     pub positive_control: Option<String>,
 }
 
+/// Why a finding was refused. `#[non_exhaustive]`, and so is each variant: match with `..`.
+///
+/// ```compile_fail,E0638
+/// use coderipper::finding::FindingError;
+/// fn who(e: FindingError) -> String {
+///     match e {
+///         FindingError::AbsenceClaimMissingControl { check_id, summary } => format!("{check_id}: {summary}"),
+///         _ => String::new(),
+///     }
+/// }
+/// ```
+///
 /// Findings whose language signals an absence claim ("zero", "no", "none", "missing", "unreachable")
 /// but carry no positive control are a defect in the check, not a real finding — reject them at
 /// construction rather than let a broken check's output reach a report.
@@ -144,6 +156,7 @@ pub struct Finding {
 #[non_exhaustive]
 pub enum FindingError {
     /// A finding says something is absent but gives no way to tell that from a broken query.
+    #[non_exhaustive]
     #[error(
         "finding from check '{check_id}' claims an absence (\"{summary}\") but has no positive_control: {ABSENCE_CLAIM_HELP}"
     )]

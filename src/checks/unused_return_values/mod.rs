@@ -34,7 +34,15 @@ pub const CHECK_ID: &str = "unused-return-values";
 
 /// Reports functions whose return value every caller discards (see the module docs).
 #[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct UnusedReturnValuesCheck;
+
+impl UnusedReturnValuesCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for UnusedReturnValuesCheck {
     fn id(&self) -> &'static str {

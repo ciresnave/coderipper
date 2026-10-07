@@ -45,11 +45,18 @@
 //! enums with a wildcard arm. The JSON the command prints (`--message-format json`) is a separate contract, pinned by
 //! golden tests.
 //!
+//! The crate re-exports [`anyhow`] and [`serde_json`], whose types appear in the signatures of [`check::Check::run`] and
+//! [`github::Github::get`], so an implementer uses the version this crate was built with. A new major version of either
+//! is a new major version of this crate.
+//!
 //! # Features
 //!
 //! - `cli` (default): the `coderipper` and `cargo-coderipper` binaries.
 #![warn(missing_docs)]
 #![deny(rustdoc::broken_intra_doc_links)]
+pub use anyhow;
+pub use serde_json;
+
 pub(crate) mod allowlist;
 pub mod build_cache;
 pub(crate) mod cargo_json;
@@ -76,10 +83,10 @@ use suppression::Suppression;
 /// no known need yet for a check this project's own maintainers didn't write.
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
     vec![
-        Box::new(checks::ReachabilityCheck),
-        Box::new(checks::UnusedReturnValuesCheck),
-        Box::new(checks::UnusedParametersCheck),
-        Box::new(checks::VersionConsistencyCheck),
+        Box::new(checks::ReachabilityCheck::new()),
+        Box::new(checks::UnusedReturnValuesCheck::new()),
+        Box::new(checks::UnusedParametersCheck::new()),
+        Box::new(checks::VersionConsistencyCheck::new()),
         Box::new(checks::CiProtectionPresenceCheck::new()),
     ]
 }
@@ -106,10 +113,9 @@ impl RunResult {
     }
 }
 
-/// Which checks a run takes, by what they judge (see [`check::Unit`]). Plumbing for [`run_workspace`].
-#[doc(hidden)]
+/// Which checks a run takes, by what they judge (see [`check::Unit`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnitFilter {
+enum UnitFilter {
     /// Every check, whatever it judges (what `run_checks` always did).
     Any,
     /// Only the checks that judge this unit.

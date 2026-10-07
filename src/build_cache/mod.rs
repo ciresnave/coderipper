@@ -22,7 +22,7 @@
 //!
 //! **Size:** `CODERIPPER_CACHE_MAX_GB` (20). When the first build of a process starts, the least recently used
 //! repository directories are deleted until the cache fits; a locked directory and the one being acquired are
-//! never deleted, and nothing is deleted from a root that lacks the [`MARKER`] file (so pointing the cache at a
+//! never deleted, and nothing is deleted from a root that lacks the `MARKER` file (so pointing the cache at a
 //! directory that is not one cannot delete anything there).
 //!
 //! The default for library users and tests is **no cache**: nothing happens until [`set_cache_config`] is called
@@ -35,8 +35,8 @@ use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// A cache root contains this file. Pruning refuses a directory without it.
-#[doc(hidden)]
-pub const MARKER: &str = ".coderipper-cache";
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) const MARKER: &str = ".coderipper-cache";
 const LOCK_FILE: &str = ".coderipper.lock";
 const HOLDER_FILE: &str = ".coderipper.holder";
 const POLL: Duration = Duration::from_millis(50);
@@ -73,7 +73,7 @@ const DEFAULT_MAX_GB: f64 = 20.0;
 
 impl CacheConfig {
     /// A cache rooted at `root` with the default wait (5 s for another run's lock on the same repository) and size
-    /// cap (20 GB); adjust with [`CacheConfig::wait`] and [`CacheConfig::max_bytes`].
+    /// cap (20 GB); adjust with [`CacheConfig::with_wait`] and [`CacheConfig::with_max_bytes`].
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self {
             root: root.into(),
@@ -83,13 +83,13 @@ impl CacheConfig {
     }
 
     /// How long a run waits for another run's lock on the same repository before building without the cache.
-    pub fn wait(mut self, wait: Duration) -> Self {
+    pub fn with_wait(mut self, wait: Duration) -> Self {
         self.wait = wait;
         self
     }
 
     /// The size cap: least-recently-used repository directories are pruned until the cache fits.
-    pub fn max_bytes(mut self, max_bytes: u64) -> Self {
+    pub fn with_max_bytes(mut self, max_bytes: u64) -> Self {
         self.max_bytes = max_bytes;
         self
     }
@@ -133,8 +133,8 @@ pub fn set_cache_config(config: CacheConfig) -> bool {
 
 /// The cache configuration from the environment, or `None` when the cache is off or no root can be derived.
 /// Takes the lookup as a parameter so every branch is testable without touching the process environment.
-#[doc(hidden)]
-pub fn config_from_env(get: &dyn Fn(&str) -> Option<String>) -> Option<CacheConfig> {
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) fn config_from_env(get: &dyn Fn(&str) -> Option<String>) -> Option<CacheConfig> {
     if get("CODERIPPER_CACHE").is_some_and(|v| v.trim().eq_ignore_ascii_case("off")) {
         return None;
     }
@@ -364,9 +364,9 @@ pub(crate) fn acquire(source_repo: &Path) -> CacheChoice {
 
 // ---- size, listing, pruning ----
 
-#[doc(hidden)]
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 #[derive(Debug, Clone)]
-pub struct RepoDirInfo {
+pub(crate) struct RepoDirInfo {
     pub path: PathBuf,
     pub bytes: u64,
     /// Modification time of the lock file, touched whenever a run takes the directory.
@@ -400,8 +400,8 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Every `<root>/<toolchain>/<repository>` directory.
-#[doc(hidden)]
-pub fn status(root: &Path) -> anyhow::Result<Vec<RepoDirInfo>> {
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) fn status(root: &Path) -> anyhow::Result<Vec<RepoDirInfo>> {
     anyhow::ensure!(
         root.join(MARKER).is_file(),
         "{} has no {MARKER} marker file: it is not a CodeRipper build cache",
@@ -426,9 +426,9 @@ pub fn status(root: &Path) -> anyhow::Result<Vec<RepoDirInfo>> {
 
 /// Deletes the least recently used repository directories until the cache is at most `max_bytes`, skipping
 /// a directory another process has locked and the `keep` directory. Returns what it deleted. Refuses a root
-/// without the [`MARKER`] file.
-#[doc(hidden)]
-pub fn prune_to_cap(
+/// without the `MARKER` file.
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) fn prune_to_cap(
     root: &Path,
     max_bytes: u64,
     keep: Option<&Path>,
@@ -479,9 +479,9 @@ fn remove_if_unlocked(dir: &Path) -> bool {
 
 // ---- what the builds did, for the one line `main` prints at the end of a run ----
 
-#[doc(hidden)]
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 #[derive(Debug, Default, Clone)]
-pub struct BuildStats {
+pub(crate) struct BuildStats {
     pub fresh: u64,
     pub compiled: u64,
     /// Things the user should be told once (a busy or unusable cache).
@@ -516,8 +516,8 @@ pub(crate) fn note(text: String) {
 }
 
 /// Everything recorded so far, resetting the counters.
-#[doc(hidden)]
-pub fn take_stats() -> BuildStats {
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) fn take_stats() -> BuildStats {
     STATS
         .lock()
         .map(|mut stats| std::mem::take(&mut *stats))
@@ -525,8 +525,8 @@ pub fn take_stats() -> BuildStats {
 }
 
 /// The text `main` prints to stderr, or `None` when nothing was built and nothing needs saying.
-#[doc(hidden)]
-pub fn render_stats(stats: &BuildStats) -> Option<String> {
+#[cfg_attr(not(feature = "cli"), allow(dead_code))]
+pub(crate) fn render_stats(stats: &BuildStats) -> Option<String> {
     if stats.fresh == 0 && stats.compiled == 0 && stats.notes.is_empty() {
         return None;
     }

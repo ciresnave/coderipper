@@ -87,8 +87,8 @@ fn a_cache_config_has_defaults_and_setters() {
         "the documented 20 GB cap"
     );
     let tuned = CacheConfig::new("/cache")
-        .wait(Duration::from_secs(1))
-        .max_bytes(1024);
+        .with_wait(Duration::from_secs(1))
+        .with_max_bytes(1024);
     assert_eq!(tuned.wait, Duration::from_secs(1));
     assert_eq!(tuned.max_bytes, 1024);
 }
@@ -196,4 +196,61 @@ fn results_and_findings_have_the_ordinary_derives() {
     assert_eq!(severities.len(), 2, "Severity is Hash");
     let confidences: HashSet<Confidence> = [Confidence::Low, Confidence::High].into();
     assert_eq!(confidences.len(), 2, "Confidence is Hash");
+}
+
+#[test]
+fn a_setter_does_not_share_its_name_with_a_field() {
+    // `config.wait` (the field) and `config.wait(..)` (a setter) both compiled before, and read as a typo.
+    let config = CacheConfig::new("/c")
+        .with_wait(Duration::from_secs(2))
+        .with_max_bytes(7);
+    assert_eq!((config.wait, config.max_bytes), (Duration::from_secs(2), 7));
+}
+
+#[test]
+fn the_remaining_public_structs_have_constructors() {
+    use coderipper::checks::{
+        CiProtectionPresenceCheck, ReachabilityCheck, UnusedParametersCheck,
+        UnusedReturnValuesCheck, VersionConsistencyCheck,
+    };
+    use coderipper::github::{GhCli, RepoRef};
+    let repo = RepoRef::new("acme", "widgets");
+    assert_eq!(
+        (repo.owner.as_str(), repo.name.as_str()),
+        ("acme", "widgets")
+    );
+    // each built-in check is a value you construct, so a field can be added to one later
+    let ids: Vec<&str> = [
+        coderipper::check::Check::id(&ReachabilityCheck::new()),
+        coderipper::check::Check::id(&UnusedParametersCheck::new()),
+        coderipper::check::Check::id(&UnusedReturnValuesCheck::new()),
+        coderipper::check::Check::id(&VersionConsistencyCheck::new()),
+        coderipper::check::Check::id(&CiProtectionPresenceCheck::new()),
+    ]
+    .into();
+    assert_eq!(ids.len(), 5);
+    let _ = GhCli::default();
+}
+
+#[test]
+fn the_dependencies_in_the_signatures_are_reexported() {
+    // `Check::run` returns anyhow::Result and `Github::get` returns serde_json::Value: an implementer needs both types and
+    // should not have to guess which version of each this crate was built with.
+    fn _run() -> coderipper::anyhow::Result<Vec<Finding>> {
+        Ok(Vec::new())
+    }
+    let value: coderipper::serde_json::Value = coderipper::serde_json::json!({ "a": 1 });
+    assert_eq!(value["a"], 1);
+}
+
+#[test]
+fn a_finding_error_is_matched_with_a_rest_pattern() {
+    // the variant is #[non_exhaustive] too: a field can be added to it later
+    let err = Finding::new("c", Severity::Low, Confidence::Low, "p", "no callers", "d")
+        .validate()
+        .unwrap_err();
+    match err {
+        FindingError::AbsenceClaimMissingControl { check_id, .. } => assert_eq!(check_id, "c"),
+        _ => panic!("another variant"),
+    }
 }

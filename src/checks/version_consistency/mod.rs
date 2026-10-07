@@ -41,7 +41,15 @@ pub const CHECK_ID: &str = "version-consistency";
 
 /// Reports a package whose version differs from the rest of its project (see the module docs).
 #[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct VersionConsistencyCheck;
+
+impl VersionConsistencyCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for VersionConsistencyCheck {
     fn id(&self) -> &'static str {

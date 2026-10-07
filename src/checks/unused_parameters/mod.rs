@@ -39,7 +39,15 @@ pub const CHECK_ID: &str = "unused-parameters";
 
 /// Reports function parameters nothing reads (see the module docs).
 #[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct UnusedParametersCheck;
+
+impl UnusedParametersCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for UnusedParametersCheck {
     fn id(&self) -> &'static str {
