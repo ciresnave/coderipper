@@ -79,8 +79,8 @@ use suppression::Suppression;
 
 /// Every compiled-in check, in the order they run.
 ///
-/// v1 deliberately uses a fixed list rather than dynamic plugin loading (design doc §7): there is
-/// no known need yet for a check this project's own maintainers didn't write.
+/// The list is fixed rather than loaded dynamically: there is no known need yet for a check this project's own
+/// maintainers didn't write. To run your own, pass a list to [`run_checks_with`].
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
     vec![
         Box::new(checks::ReachabilityCheck::new()),
@@ -93,7 +93,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
 
 /// Run every registered check at or below the requested tier, collect and validate their
 /// findings, apply the project's allowlist to them (checks return RAW findings; suppression is the
-/// host's job, see `suppression`), and return what is left plus one `Info` finding per allowlist
+/// host's job), and return what is left plus one `Info` finding per allowlist
 /// entry that no longer suppresses anything. A check whose `run` returns an invalid absence-claim finding is
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
 #[derive(Debug, Clone)]

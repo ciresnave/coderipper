@@ -24,8 +24,6 @@
 //!   using a git worktree, not a bug).
 //! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's
 //!   root, not the nested crate's.
-//!
-//! Full detail: the reachability plan's status note and the audit-host design, in the source repository's `docs/`.
 
 mod diagnostics;
 mod foreign;

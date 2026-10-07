@@ -1,7 +1,7 @@
 //! Unused-return-values check (project scope, Rust): is a function's return value ever consumed,
 //! or does every caller discard it?
 //!
-//! Mechanism (design doc §5, as corrected by the plan): in a throwaway worktree, tag every eligible
+//! Mechanism: in a throwaway worktree, tag every eligible
 //! function with `#[must_use = "CR:<id>"]` + `#[deprecated(note = "CR:<id>")]`, build, and join rustc's
 //! `unused_must_use` (ignored call sites) with its `deprecated` (all uses) by the `<id>`.
 //!

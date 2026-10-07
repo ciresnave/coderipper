@@ -7,7 +7,7 @@
 //! diagnostics, and keeps those that land exactly on a parameter of a free function or inherent
 //! method, as found by `syn` (see `sites`).
 //!
-//! **Known limitations / deliberate scope (design doc §5):**
+//! **Known limitations / deliberate scope:**
 //! - `_`-prefixed parameters are exempt by Rust convention and never reported. The spec notes the
 //!   blind spot ("accepted and silently ignored") and explicitly does NOT scope it in.
 //! - Trait declarations, trait default bodies, trait-impl methods and closure parameters are out of

@@ -130,7 +130,7 @@ pub trait Check: Send + Sync {
     }
 
     /// Run the check and return whatever it found, RAW: do not apply the project's allowlist. The
-    /// host suppresses (see `suppression`) because only it can tell which allowlist entries went
+    /// host suppresses, because only it can tell which allowlist entries went
     /// stale. A check that would make an absence claim without a positive control must not
     /// construct that `Finding` at all — see `Finding::validate`, which the host calls on every
     /// finding before it reaches a report. Set `Finding::subject` to the symbol the finding is

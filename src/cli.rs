@@ -60,6 +60,7 @@ impl Deny {
 #[derive(Parser)]
 #[command(
     name = "coderipper",
+    version,
     about = "Audits a Rust project for what clippy does not report — run it next to cargo clippy."
 )]
 struct Cli {
@@ -67,66 +68,48 @@ struct Cli {
     command: Command,
 }
 
+/// What the three run subcommands (`fast`, `sweep`, `check`) share.
+#[derive(clap::Args)]
+struct RunOpts {
+    /// Project to check. Defaults to the current directory.
+    #[arg(long)]
+    project: Option<PathBuf>,
+    /// Check every member of the cargo workspace containing the project, not just the project.
+    #[arg(long)]
+    workspace: bool,
+    /// Root of the portfolio, for checks that read sibling projects. Defaults to the parent of `project`.
+    #[arg(long)]
+    portfolio_root: Option<PathBuf>,
+    /// Exit 1 when a finding is at least this severe. Without it findings are printed but never fail the run, like
+    /// clippy's warnings; CI usually wants `--deny medium`.
+    #[arg(long, value_enum)]
+    deny: Option<Deny>,
+    /// How to write findings to stdout: `human` (default) or `json` (one object per line, like cargo's own
+    /// `--message-format json`).
+    #[arg(long, value_enum, default_value = "human")]
+    message_format: MessageFormat,
+}
+
 #[derive(Subcommand)]
 enum Command {
     /// Run every fast-tier check (local-only: no registry or GitHub API calls). Meant for CI and
     /// on-demand use next to `cargo clippy`.
     Fast {
-        /// Project to check. Defaults to the current directory.
-        #[arg(long)]
-        project: Option<PathBuf>,
-        /// Check every member of the cargo workspace containing the project, not just the project.
-        #[arg(long)]
-        workspace: bool,
-        /// Root of the portfolio, for Portfolio-scope checks. Defaults to the parent of `project`.
-        #[arg(long)]
-        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
-        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
-        #[arg(long, value_enum)]
-        deny: Option<Deny>,
-        /// How to write findings to stdout: `human` (default) or `json` (one object per line, like cargo's own
-        /// `--message-format json`).
-        #[arg(long, value_enum, default_value = "human")]
-        message_format: MessageFormat,
-        portfolio_root: Option<PathBuf>,
+        #[command(flatten)]
+        opts: RunOpts,
     },
     /// Run every check, including network-required ones (registries, GitHub API). Meant for a
     /// periodic or PM-triggered pass, not a per-PR gate.
     Sweep {
-        #[arg(long)]
-        project: Option<PathBuf>,
-        /// Check every member of the cargo workspace containing the project, not just the project.
-        #[arg(long)]
-        workspace: bool,
-        #[arg(long)]
-        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
-        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
-        #[arg(long, value_enum)]
-        deny: Option<Deny>,
-        /// How to write findings to stdout: `human` (default) or `json` (one object per line, like cargo's own
-        /// `--message-format json`).
-        #[arg(long, value_enum, default_value = "human")]
-        message_format: MessageFormat,
-        portfolio_root: Option<PathBuf>,
+        #[command(flatten)]
+        opts: RunOpts,
     },
     /// Run exactly one check by id, at any tier.
     Check {
+        /// The id of the check (see the list in the README), e.g. `reachability`.
         id: String,
-        #[arg(long)]
-        project: Option<PathBuf>,
-        /// Check every member of the cargo workspace containing the project, not just the project.
-        #[arg(long)]
-        workspace: bool,
-        #[arg(long)]
-        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
-        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
-        #[arg(long, value_enum)]
-        deny: Option<Deny>,
-        /// How to write findings to stdout: `human` (default) or `json` (one object per line, like cargo's own
-        /// `--message-format json`).
-        #[arg(long, value_enum, default_value = "human")]
-        message_format: MessageFormat,
-        portfolio_root: Option<PathBuf>,
+        #[command(flatten)]
+        opts: RunOpts,
     },
     /// Inspect or trim the build cache (the persistent target directory the checks build in).
     Cache {
@@ -155,7 +138,18 @@ enum CacheAction {
 
 /// Runs the CLI over `args` (the first is the program name, as in `std::env::args_os`) and returns its exit code.
 pub fn run(args: Vec<OsString>) -> ExitCode {
-    let cli = Cli::parse_from(args);
+    run_named("coderipper", args)
+}
+
+/// [`run`], with `bin_name` as the name the usage line shows (`cargo coderipper` for the cargo subcommand).
+fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
+    let matches = <Cli as clap::CommandFactory>::command()
+        .bin_name(bin_name)
+        .get_matches_from(args);
+    let cli = match <Cli as clap::FromArgMatches>::from_arg_matches(&matches) {
+        Ok(cli) => cli,
+        Err(e) => e.exit(),
+    };
     let from_env = crate::build_cache::config_from_env(&|k| std::env::var(k).ok());
     if let Some(config) = from_env.clone() {
         crate::build_cache::set_cache_config(config);
@@ -215,83 +209,49 @@ fn cache_command(
     Ok(EXIT_CLEAN)
 }
 
-/// What the three run subcommands (`fast`, `sweep`, `check`) share.
+/// A run: what `fast`, `sweep` and `check` each add to the shared options.
 struct RunArgs {
-    project: Option<PathBuf>,
-    portfolio_root: Option<PathBuf>,
+    opts: RunOpts,
     tier: Tier,
     only_check_id: Option<String>,
-    workspace: bool,
-    deny: Option<Deny>,
-    message_format: MessageFormat,
 }
 
 fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> anyhow::Result<u8> {
     match cli.command {
-        Command::Fast {
-            project,
-            workspace,
-            deny,
-            message_format,
-            portfolio_root,
-        } => run_and_report(RunArgs {
-            project,
-            portfolio_root,
+        Command::Fast { opts } => run_and_report(RunArgs {
+            opts,
             tier: Tier::Fast,
             only_check_id: None,
-            workspace,
-            deny,
-            message_format,
         }),
-        Command::Sweep {
-            project,
-            workspace,
-            deny,
-            message_format,
-            portfolio_root,
-        } => run_and_report(RunArgs {
-            project,
-            portfolio_root,
+        Command::Sweep { opts } => run_and_report(RunArgs {
+            opts,
             tier: Tier::Sweep,
             only_check_id: None,
-            workspace,
-            deny,
-            message_format,
         }),
-        Command::Check {
-            id,
-            project,
-            workspace,
-            deny,
-            message_format,
-            portfolio_root,
-        } => run_and_report(RunArgs {
-            project,
-            portfolio_root,
+        Command::Check { id, opts } => run_and_report(RunArgs {
+            opts,
             tier: Tier::Fast,
             only_check_id: Some(id),
-            workspace,
-            deny,
-            message_format,
         }),
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Serve { port } => {
-            anyhow::bail!(
-                "server mode is not implemented yet (port {port} requested) — see design doc §7"
-            )
+            anyhow::bail!("server mode is not implemented yet (port {port} requested)")
         }
     }
 }
 
 fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     let RunArgs {
-        project,
-        portfolio_root,
+        opts:
+            RunOpts {
+                project,
+                workspace,
+                portfolio_root,
+                deny,
+                message_format,
+            },
         tier,
         only_check_id,
-        workspace,
-        deny,
-        message_format,
     } = args;
     if let Some(id) = &only_check_id {
         let known: Vec<&str> = crate::registered_checks().iter().map(|c| c.id()).collect();
@@ -304,12 +264,15 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         }
     }
     let project = project.unwrap_or(std::env::current_dir()?);
-    let project_root = project.canonicalize().map_err(|e| {
-        UsageError(format!(
-            "cannot read the project {}: {e}",
-            project.display()
-        ))
-    })?;
+    let project_root = project
+        .canonicalize()
+        .map(without_verbatim_prefix)
+        .map_err(|e| {
+            UsageError(format!(
+                "cannot read the project {}: {e}",
+                project.display()
+            ))
+        })?;
     let portfolio_root = portfolio_root
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
@@ -420,5 +383,46 @@ pub fn run_as_cargo_subcommand(mut args: Vec<OsString>) -> ExitCode {
     if !names_a_subcommand {
         args.insert(1, "fast".into());
     }
-    run(args)
+    run_named("cargo coderipper", args)
+}
+
+/// `canonicalize` on Windows returns the verbatim form `\\?\C:\dir`, which is noise in a message and in the JSON a CI job
+/// parses. Strips the prefix from a drive path (a `\\?\UNC\server\share` path keeps it: it has no shorter spelling).
+fn without_verbatim_prefix(path: PathBuf) -> PathBuf {
+    match path.to_str().and_then(strip_verbatim_drive) {
+        Some(plain) => PathBuf::from(plain),
+        None => path,
+    }
+}
+
+fn strip_verbatim_drive(path: &str) -> Option<&str> {
+    let rest = path.strip_prefix(r"\\?\")?;
+    let mut chars = rest.chars();
+    let drive = chars.next()?;
+    (drive.is_ascii_alphabetic() && chars.next() == Some(':')).then_some(rest)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_verbatim_drive;
+
+    #[test]
+    fn a_verbatim_drive_path_loses_its_prefix() {
+        assert_eq!(
+            strip_verbatim_drive(r"\\?\C:\Users\me\proj"),
+            Some(r"C:\Users\me\proj")
+        );
+    }
+
+    #[test]
+    fn other_paths_are_left_alone() {
+        assert_eq!(strip_verbatim_drive(r"C:\Users\me"), None);
+        assert_eq!(strip_verbatim_drive("/home/me/proj"), None);
+        assert_eq!(
+            strip_verbatim_drive(r"\\?\UNC\server\share\x"),
+            None,
+            "a UNC path has no shorter spelling"
+        );
+        assert_eq!(strip_verbatim_drive(r"\\?\Volume{1234}\x"), None);
+    }
 }
