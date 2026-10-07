@@ -44,7 +44,7 @@ impl Check for TodoFile {
 fn main() -> anyhow::Result<()> {
     let project = tempfile::tempdir()?;
     std::fs::write(project.path().join("TODO.md"), "- later\n")?;
-    let ctx = CheckContext::new(project.path(), project.path());
+    let ctx = CheckContext::new(project.path());
     let checks: Vec<Box<dyn Check>> = vec![Box::new(TodoFile)];
 
     let result = coderipper::run_checks_with(&checks, &ctx, Tier::Fast, None);

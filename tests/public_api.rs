@@ -59,13 +59,21 @@ fn a_location_may_have_no_line() {
 }
 
 #[test]
-fn a_check_context_takes_anything_path_like() {
-    let a = CheckContext::new("/some/project", "/some");
+fn a_check_context_is_built_from_the_project_alone() {
+    // `portfolio_root` is for checks that read sibling projects; no built-in check does, so it is optional and defaults to
+    // the project's parent directory.
+    let a = CheckContext::new("/some/project");
     assert_eq!(a.project_root, PathBuf::from("/some/project"));
     assert_eq!(a.portfolio_root, PathBuf::from("/some"));
-    let b = CheckContext::new(PathBuf::from("p"), std::path::Path::new("q"));
+    let b = CheckContext::new(PathBuf::from("p")).portfolio_root(std::path::Path::new("q"));
     assert_eq!(b.project_root, PathBuf::from("p"));
     assert_eq!(b.portfolio_root, PathBuf::from("q"));
+    let root = CheckContext::new("/");
+    assert_eq!(
+        root.portfolio_root,
+        PathBuf::from("/"),
+        "a project with no parent is its own portfolio"
+    );
 }
 
 #[test]
@@ -169,7 +177,7 @@ fn the_built_in_checks_are_values_you_can_hold_and_print() {
     let all = coderipper::registered_checks();
     assert_send_sync::<Vec<Box<dyn coderipper::check::Check>>>();
     assert!(!all.is_empty());
-    let ctx = CheckContext::new("a", "b");
+    let ctx = CheckContext::new("a").portfolio_root("b");
     let copy = ctx.clone();
     assert_eq!(format!("{ctx:?}"), format!("{copy:?}"));
 }

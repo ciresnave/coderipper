@@ -62,7 +62,7 @@ coderipper = { version = "0.3", default-features = false }   # no clap, no binar
 ```rust,no_run
 use coderipper::check::{CheckContext, Tier};
 
-let ctx = CheckContext::new("path/to/project", "path/to");
+let ctx = CheckContext::new("path/to/project");
 let result = coderipper::run_checks(&ctx, Tier::Fast, None);
 for finding in &result.findings {
     println!("{:?} {} ({})", finding.severity, finding.summary, finding.check_id);

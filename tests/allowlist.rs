@@ -11,7 +11,7 @@ use common::{git_repo_with, MANIFEST};
 const URV: &str = "unused-return-values";
 
 fn ctx(repo: &tempfile::TempDir) -> CheckContext {
-    CheckContext::new(repo.path().to_path_buf(), repo.path().to_path_buf())
+    CheckContext::new(repo.path().to_path_buf())
 }
 
 fn run_one(repo: &tempfile::TempDir, check_id: &str) -> RunResult {

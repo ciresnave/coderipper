@@ -79,16 +79,24 @@ pub struct CheckContext {
 }
 
 impl CheckContext {
-    /// A context for the project at `project_root`; `portfolio_root` is where `Portfolio`-scope checks look for
-    /// siblings (the project's parent directory is the usual choice).
-    pub fn new(
-        project_root: impl Into<std::path::PathBuf>,
-        portfolio_root: impl Into<std::path::PathBuf>,
-    ) -> Self {
+    /// A context for the project at `project_root`. The portfolio root, where a check that reads sibling projects looks
+    /// for them, defaults to the project's parent directory (the project itself when it has none); change it with
+    /// [`CheckContext::portfolio_root`]. No built-in check reads it.
+    pub fn new(project_root: impl Into<std::path::PathBuf>) -> Self {
+        let project_root = project_root.into();
+        let portfolio_root = project_root
+            .parent()
+            .map_or_else(|| project_root.clone(), std::path::Path::to_path_buf);
         Self {
-            project_root: project_root.into(),
-            portfolio_root: portfolio_root.into(),
+            project_root,
+            portfolio_root,
         }
+    }
+
+    /// Sets where checks that read sibling projects look for them.
+    pub fn portfolio_root(mut self, portfolio_root: impl Into<std::path::PathBuf>) -> Self {
+        self.portfolio_root = portfolio_root.into();
+        self
     }
 }
 
@@ -102,8 +110,11 @@ pub trait Check: Send + Sync {
     /// `check_id`, and as the key for allowlist entries.
     fn id(&self) -> &'static str;
 
-    /// Which repositories the check reads (see [`Scope`]).
-    fn scope(&self) -> Scope;
+    /// Which repositories the check reads (see [`Scope`]). Nothing in the host reads it yet, so it defaults to the
+    /// project; a check that reads sibling projects returns `Scope::Portfolio`.
+    fn scope(&self) -> Scope {
+        Scope::Project
+    }
 
     /// Whether the check leaves the machine (see [`Network`]); this decides its [`Tier`].
     fn network(&self) -> Network;

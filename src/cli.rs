@@ -304,7 +304,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
 
-    let ctx = CheckContext::new(project_root, portfolio_root);
+    let ctx = CheckContext::new(project_root).portfolio_root(portfolio_root);
 
     let result = if workspace {
         let run = crate::run_workspace(

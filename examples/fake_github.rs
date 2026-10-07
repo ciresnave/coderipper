@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
     let check: Vec<Box<dyn Check>> = vec![Box::new(CiProtectionPresenceCheck::with_api(Box::new(
         Fake,
     )))];
-    let ctx = CheckContext::new(project.path(), project.path());
+    let ctx = CheckContext::new(project.path());
     // a network-tier check runs in the sweep tier
     let result = coderipper::run_checks_with(&check, &ctx, Tier::Sweep, None);
 

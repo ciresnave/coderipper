@@ -88,12 +88,7 @@ fn run_with_allowlist(contents: &str) -> coderipper::RunResult {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join(".coderipper.toml"), contents).unwrap();
     let checks: Vec<Box<dyn Check>> = vec![Box::new(TodoFile)];
-    coderipper::run_checks_with(
-        &checks,
-        &CheckContext::new(dir.path(), dir.path()),
-        Tier::Fast,
-        None,
-    )
+    coderipper::run_checks_with(&checks, &CheckContext::new(dir.path()), Tier::Fast, None)
 }
 
 #[test]

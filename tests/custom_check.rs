@@ -98,7 +98,7 @@ fn project_with(files: &[(&str, &str)]) -> tempfile::TempDir {
 }
 
 fn ctx(dir: &Path) -> CheckContext {
-    CheckContext::new(dir, dir)
+    CheckContext::new(dir)
 }
 
 fn boxed(check: impl Check + 'static) -> Vec<Box<dyn Check>> {
@@ -219,4 +219,31 @@ fn a_sweep_tier_check_runs_in_the_fast_tier_only_when_named() {
     assert_eq!(named.findings.len(), 1, "naming it runs it at any tier");
     let in_sweep = run_checks_with(&sweep, &ctx(dir.path()), Tier::Sweep, None);
     assert_eq!(in_sweep.findings.len(), 1);
+}
+
+/// Implements only what a check must: no `scope`, because nothing reads it.
+struct Minimal;
+
+impl Check for Minimal {
+    fn id(&self) -> &'static str {
+        "minimal"
+    }
+    fn network(&self) -> Network {
+        Network::LocalOnly
+    }
+    fn run(&self, _ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn a_check_need_not_declare_a_scope() {
+    let dir = project_with(&[]);
+    let result = run_checks_with(&boxed(Minimal), &ctx(dir.path()), Tier::Fast, None);
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(
+        Minimal.scope(),
+        Scope::Project,
+        "the default is the project"
+    );
 }

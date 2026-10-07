@@ -68,7 +68,7 @@ fn run_with(
         asked: asked.clone(),
     };
     let check = CiProtectionPresenceCheck::with_api(Box::new(fake));
-    let result = check.run(&CheckContext::new(dir.to_path_buf(), dir.to_path_buf()));
+    let result = check.run(&CheckContext::new(dir.to_path_buf()));
     let asked = asked.lock().unwrap().clone();
     (result, asked)
 }
@@ -374,7 +374,7 @@ fn it_belongs_to_the_sweep_tier_and_is_not_run_by_fast() {
 fn fast_does_not_run_it_and_sweep_does() {
     // A GitLab origin makes the check fail without any network, which makes "was it run?" observable.
     let repo = repo_with_origin(Some("https://gitlab.com/acme/widgets.git"));
-    let ctx = CheckContext::new(repo.path().to_path_buf(), repo.path().to_path_buf());
+    let ctx = CheckContext::new(repo.path().to_path_buf());
     let mentions = |errors: &[String]| errors.iter().any(|e| e.contains("ci-protection-presence"));
     let fast = coderipper::run_checks(&ctx, Tier::Fast, None);
     assert!(!mentions(&fast.errors), "{:?}", fast.errors);

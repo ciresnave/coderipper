@@ -22,9 +22,8 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let portfolio = project.parent().unwrap_or(&project).to_path_buf();
 
-    let ctx = CheckContext::new(project, portfolio);
+    let ctx = CheckContext::new(project);
     let result = coderipper::run_checks(&ctx, Tier::Fast, None);
 
     for finding in &result.findings {

@@ -45,10 +45,7 @@ fn workspace_repo(extra: &[(&str, &str)]) -> tempfile::TempDir {
 }
 
 fn run(check: &dyn Check, project: &Path) -> anyhow::Result<Vec<Finding>> {
-    check.run(&CheckContext::new(
-        project.to_path_buf(),
-        project.to_path_buf(),
-    ))
+    check.run(&CheckContext::new(project.to_path_buf()))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
@@ -138,7 +135,7 @@ fn the_allowlist_is_the_members_own() {
         "[[allow]]\ncheck = \"unused-parameters\"\nfile = \"src/lib.rs\"\nsymbol = \"b_dead::unused_b\"\nreason = \"kept for the next release\"\n",
     )]);
     let result = coderipper::run_checks(
-        &CheckContext::new(repo.path().join("b"), repo.path().to_path_buf()),
+        &CheckContext::new(repo.path().join("b")).portfolio_root(repo.path().to_path_buf()),
         Tier::Fast,
         Some("unused-parameters"),
     );

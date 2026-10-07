@@ -19,7 +19,7 @@
 //!
 //! // The project must be a git repository with a commit: the checks analyse HEAD in a throwaway worktree and never
 //! // touch your working tree.
-//! let ctx = CheckContext::new("path/to/project", "path/to");
+//! let ctx = CheckContext::new("path/to/project");
 //! let result = coderipper::run_checks(&ctx, Tier::Fast, None);
 //! for finding in &result.findings {
 //!     println!("{:?} {} ({})", finding.severity, finding.summary, finding.check_id);
@@ -324,7 +324,7 @@ pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -
 ///
 /// let dir = tempfile::tempdir().unwrap();
 /// std::fs::write(dir.path().join("TODO.md"), "- later\n").unwrap();
-/// let ctx = CheckContext::new(dir.path(), dir.path());
+/// let ctx = CheckContext::new(dir.path());
 /// let result = coderipper::run_checks_with(&[Box::new(TodoFile)], &ctx, Tier::Fast, None);
 /// assert!(result.errors.is_empty());
 /// assert_eq!(result.findings.len(), 1);
