@@ -1,0 +1,256 @@
+//! The library's public API as an OUTSIDE crate sees it.
+//!
+//! An integration test is a separate crate, so it can do only what a user of the published library can do. The
+//! types below are `#[non_exhaustive]` (a field or variant can be added later without breaking anyone), which means an
+//! outsider cannot write a struct literal or an exhaustive `match` for them: they build values through constructors
+//! and match enums with a wildcard arm. This file is that contract, and the `compile_fail` doctests in the type docs
+//! prove the other half (that the literal and the exhaustive match really are rejected).
+
+use coderipper::build_cache::CacheConfig;
+use coderipper::check::{CheckContext, Network, Scope, Tier, Unit};
+use coderipper::finding::{Confidence, Finding, FindingError, Location, Severity};
+use coderipper::github::ApiError;
+use std::path::PathBuf;
+use std::time::Duration;
+
+#[test]
+fn a_finding_is_built_through_its_constructor_and_setters() {
+    let finding = Finding::new(
+        "my-check",
+        Severity::Low,
+        Confidence::High,
+        "proj",
+        "a thing",
+        "why it matters",
+    )
+    .location(Location::new("src/lib.rs", Some(3)))
+    .subject("sym")
+    .positive_control("the control that proves the claim")
+    .member("pkg");
+    assert_eq!(finding.check_id, "my-check");
+    assert_eq!(finding.severity, Severity::Low);
+    assert_eq!(finding.confidence, Confidence::High);
+    assert_eq!(finding.project, "proj");
+    assert_eq!(finding.summary, "a thing");
+    assert_eq!(finding.detail, "why it matters");
+    assert_eq!(finding.location, Some(Location::new("src/lib.rs", Some(3))));
+    assert_eq!(finding.subject.as_deref(), Some("sym"));
+    assert_eq!(
+        finding.positive_control.as_deref(),
+        Some("the control that proves the claim")
+    );
+    assert_eq!(finding.member.as_deref(), Some("pkg"));
+}
+
+#[test]
+fn a_new_finding_has_no_optional_parts() {
+    let finding = Finding::new("c", Severity::Info, Confidence::Low, "p", "s", "d");
+    assert!(finding.location.is_none());
+    assert!(finding.subject.is_none());
+    assert!(finding.positive_control.is_none());
+    assert!(finding.member.is_none());
+}
+
+#[test]
+fn a_location_may_have_no_line() {
+    let whole_project = Location::new("Cargo.toml", None);
+    assert_eq!(whole_project.file, "Cargo.toml");
+    assert_eq!(whole_project.line, None);
+}
+
+#[test]
+fn a_check_context_is_built_from_the_project_alone() {
+    // `portfolio_root` is for checks that read sibling projects; no built-in check does, so it is optional and defaults to
+    // the project's parent directory.
+    let a = CheckContext::new("/some/project");
+    assert_eq!(a.project_root, PathBuf::from("/some/project"));
+    assert_eq!(a.portfolio_root, PathBuf::from("/some"));
+    let b = CheckContext::new(PathBuf::from("p")).portfolio_root(std::path::Path::new("q"));
+    assert_eq!(b.project_root, PathBuf::from("p"));
+    assert_eq!(b.portfolio_root, PathBuf::from("q"));
+    let root = CheckContext::new("/");
+    assert_eq!(
+        root.portfolio_root,
+        PathBuf::from("/"),
+        "a project with no parent is its own portfolio"
+    );
+}
+
+#[test]
+fn a_cache_config_has_defaults_and_setters() {
+    let config = CacheConfig::new("/cache");
+    assert_eq!(config.root, PathBuf::from("/cache"));
+    assert_eq!(config.wait, Duration::from_secs(5), "the documented wait");
+    assert_eq!(
+        config.max_bytes,
+        20 * (1u64 << 30),
+        "the documented 20 GB cap"
+    );
+    let tuned = CacheConfig::new("/cache")
+        .with_wait(Duration::from_secs(1))
+        .with_max_bytes(1024);
+    assert_eq!(tuned.wait, Duration::from_secs(1));
+    assert_eq!(tuned.max_bytes, 1024);
+}
+
+#[test]
+fn an_api_error_is_built_for_a_fake_and_displays_its_status() {
+    let with_status = ApiError::new(Some(404), "not found");
+    assert_eq!(with_status.status, Some(404));
+    assert_eq!(with_status.to_string(), "not found (HTTP 404)");
+    let without = ApiError::new(None, "no gh on this machine");
+    assert_eq!(without.to_string(), "no gh on this machine");
+}
+
+#[test]
+fn enums_are_matched_with_a_wildcard_arm() {
+    // `#[non_exhaustive]`: a variant added later must not break this match, so the compiler demands the `_` arm.
+    fn severity(s: Severity) -> &'static str {
+        match s {
+            Severity::High => "high",
+            _ => "other",
+        }
+    }
+    fn confidence(c: Confidence) -> &'static str {
+        match c {
+            Confidence::High => "high",
+            _ => "other",
+        }
+    }
+    fn scope(s: Scope) -> &'static str {
+        match s {
+            Scope::Project => "project",
+            _ => "other",
+        }
+    }
+    fn unit(u: Unit) -> &'static str {
+        match u {
+            Unit::Package => "package",
+            _ => "other",
+        }
+    }
+    fn network(n: Network) -> &'static str {
+        match n {
+            Network::LocalOnly => "local",
+            _ => "other",
+        }
+    }
+    fn tier(t: Tier) -> &'static str {
+        match t {
+            Tier::Fast => "fast",
+            _ => "other",
+        }
+    }
+    fn finding_error(e: &FindingError) -> &'static str {
+        match e {
+            FindingError::AbsenceClaimMissingControl { .. } => "absence",
+            _ => "other",
+        }
+    }
+    assert_eq!(severity(Severity::High), "high");
+    assert_eq!(confidence(Confidence::Low), "other");
+    assert_eq!(scope(Scope::Project), "project");
+    assert_eq!(unit(Unit::Repository), "other");
+    assert_eq!(network(Network::NetworkRequired), "other");
+    assert_eq!(tier(Tier::Fast), "fast");
+    let invalid = Finding::new("c", Severity::Low, Confidence::Low, "p", "no callers", "d");
+    let err = invalid.validate().unwrap_err();
+    assert_eq!(finding_error(&err), "absence");
+}
+
+fn assert_send_sync<T: Send + Sync + ?Sized>() {}
+
+#[test]
+fn checks_and_github_clients_can_cross_threads() {
+    // A hosted service, a thread pool or an async runtime needs this; adding the bounds after publishing would break
+    // every implementer that holds an Rc or a RefCell, so they are part of the traits from the first release.
+    assert_send_sync::<dyn coderipper::check::Check>();
+    assert_send_sync::<dyn coderipper::github::Github>();
+    assert_send_sync::<Box<dyn coderipper::check::Check>>();
+    assert_send_sync::<coderipper::RunResult>();
+    assert_send_sync::<Finding>();
+    assert_send_sync::<CheckContext>();
+}
+
+#[test]
+fn the_built_in_checks_are_values_you_can_hold_and_print() {
+    let all = coderipper::registered_checks();
+    assert_send_sync::<Vec<Box<dyn coderipper::check::Check>>>();
+    assert!(!all.is_empty());
+    let ctx = CheckContext::new("a").portfolio_root("b");
+    let copy = ctx.clone();
+    assert_eq!(format!("{ctx:?}"), format!("{copy:?}"));
+}
+
+#[test]
+fn results_and_findings_have_the_ordinary_derives() {
+    use std::collections::HashSet;
+    let finding = Finding::new("c", Severity::Low, Confidence::High, "p", "s", "d");
+    assert_eq!(finding.clone(), finding, "Finding is PartialEq + Clone");
+    let result = coderipper::RunResult::new(vec![finding.clone()], vec!["e".to_string()]);
+    let again = result.clone();
+    assert_eq!(format!("{result:?}"), format!("{again:?}"));
+    assert_eq!(result.findings.len(), 1);
+    assert_eq!(result.errors, ["e"]);
+    let severities: HashSet<Severity> = [Severity::Low, Severity::Low, Severity::High].into();
+    assert_eq!(severities.len(), 2, "Severity is Hash");
+    let confidences: HashSet<Confidence> = [Confidence::Low, Confidence::High].into();
+    assert_eq!(confidences.len(), 2, "Confidence is Hash");
+}
+
+#[test]
+fn a_setter_does_not_share_its_name_with_a_field() {
+    // `config.wait` (the field) and `config.wait(..)` (a setter) both compiled before, and read as a typo.
+    let config = CacheConfig::new("/c")
+        .with_wait(Duration::from_secs(2))
+        .with_max_bytes(7);
+    assert_eq!((config.wait, config.max_bytes), (Duration::from_secs(2), 7));
+}
+
+#[test]
+fn the_remaining_public_structs_have_constructors() {
+    use coderipper::checks::{
+        CiProtectionPresenceCheck, ReachabilityCheck, UnusedParametersCheck,
+        UnusedReturnValuesCheck, VersionConsistencyCheck,
+    };
+    use coderipper::github::{GhCli, RepoRef};
+    let repo = RepoRef::new("acme", "widgets");
+    assert_eq!(
+        (repo.owner.as_str(), repo.name.as_str()),
+        ("acme", "widgets")
+    );
+    // each built-in check is a value you construct, so a field can be added to one later
+    let ids: Vec<&str> = [
+        coderipper::check::Check::id(&ReachabilityCheck::new()),
+        coderipper::check::Check::id(&UnusedParametersCheck::new()),
+        coderipper::check::Check::id(&UnusedReturnValuesCheck::new()),
+        coderipper::check::Check::id(&VersionConsistencyCheck::new()),
+        coderipper::check::Check::id(&CiProtectionPresenceCheck::new()),
+    ]
+    .into();
+    assert_eq!(ids.len(), 5);
+    let _ = GhCli::default();
+}
+
+#[test]
+fn the_dependencies_in_the_signatures_are_reexported() {
+    // `Check::run` returns anyhow::Result and `Github::get` returns serde_json::Value: an implementer needs both types and
+    // should not have to guess which version of each this crate was built with.
+    fn _run() -> coderipper::anyhow::Result<Vec<Finding>> {
+        Ok(Vec::new())
+    }
+    let value: coderipper::serde_json::Value = coderipper::serde_json::json!({ "a": 1 });
+    assert_eq!(value["a"], 1);
+}
+
+#[test]
+fn a_finding_error_is_matched_with_a_rest_pattern() {
+    // the variant is #[non_exhaustive] too: a field can be added to it later
+    let err = Finding::new("c", Severity::Low, Confidence::Low, "p", "no callers", "d")
+        .validate()
+        .unwrap_err();
+    match err {
+        FindingError::AbsenceClaimMissingControl { check_id, .. } => assert_eq!(check_id, "c"),
+        _ => panic!("another variant"),
+    }
+}

@@ -10,10 +10,31 @@ use std::process::Command;
 
 /// A failed API call. `status` is the HTTP status when GitHub answered, `None` when it never did
 /// (no `gh`, no network, not authenticated).
+///
+/// Build one (for a fake [`Github`]) with [`ApiError::new`]: the struct is `#[non_exhaustive]`, so a struct literal is
+/// rejected outside this crate.
+///
+/// ```compile_fail,E0639
+/// use coderipper::github::ApiError;
+/// let _ = ApiError { status: Some(404), message: "not found".to_string() };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct ApiError {
+    /// The HTTP status, when GitHub answered.
     pub status: Option<u16>,
+    /// What went wrong, in words.
     pub message: String,
+}
+
+impl ApiError {
+    /// A failed call: `status` is the HTTP status when GitHub answered, `None` when it never did.
+    pub fn new(status: Option<u16>, message: impl Into<String>) -> Self {
+        Self {
+            status,
+            message: message.into(),
+        }
+    }
 }
 
 impl std::fmt::Display for ApiError {
@@ -29,7 +50,8 @@ impl std::error::Error for ApiError {}
 
 /// Reads one JSON document from the GitHub REST API. `path` is relative to the API root, e.g.
 /// `repos/ciresnave/coderipper/branches/main`.
-pub trait Github {
+pub trait Github: Send + Sync {
+    /// Reads `path` (relative to the API root) and returns the JSON document, or why it could not.
     fn get(&self, path: &str) -> Result<serde_json::Value, ApiError>;
 }
 
@@ -42,6 +64,8 @@ pub(crate) fn gh_args(path: &str) -> Vec<String> {
 }
 
 /// The real client: `gh api <path>`, as whichever account `gh` has active.
+#[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct GhCli;
 
 impl Github for GhCli {
@@ -96,11 +120,29 @@ pub(crate) fn parse_gh_failure(stdout: &[u8], stderr: &[u8]) -> ApiError {
     ApiError { status, message }
 }
 
-/// Which GitHub repository a remote URL names.
+/// Which GitHub repository a remote URL names. Build one with [`RepoRef::new`]: the struct is `#[non_exhaustive]`.
+///
+/// ```compile_fail,E0639
+/// use coderipper::github::RepoRef;
+/// let _ = RepoRef { owner: "acme".to_string(), name: "widgets".to_string() };
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct RepoRef {
+    /// The user or organisation.
     pub owner: String,
+    /// The repository's name, without `.git`.
     pub name: String,
+}
+
+impl RepoRef {
+    /// The repository `owner/name`.
+    pub fn new(owner: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            owner: owner.into(),
+            name: name.into(),
+        }
+    }
 }
 
 /// `https://github.com/o/n(.git)`, `git@github.com:o/n(.git)`, `ssh://git@github.com/o/n(.git)`,

@@ -1,3 +1,5 @@
+//! The built-in checks. Each module documents what its check judges, how, and what it cannot see.
+
 pub mod ci_protection_presence;
 pub mod reachability;
 pub mod unused_parameters;

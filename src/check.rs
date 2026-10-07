@@ -1,7 +1,10 @@
+//! The [`Check`] trait, what a check declares about itself, and the [`CheckContext`] it runs against.
+
 use crate::finding::Finding;
 
 /// Which repos a check needs to read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Scope {
     /// Only the project being checked.
     Project,
@@ -13,6 +16,7 @@ pub enum Scope {
 /// `Repository` check once for the whole workspace: a check that reads repository-wide facts (a workspace's
 /// versions, a GitHub repository's settings) would otherwise repeat one finding per member.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Unit {
     /// One cargo package: the project directory is a package's directory.
     Package,
@@ -27,13 +31,17 @@ pub enum Unit {
 /// sibling checkouts on disk) is still fast. What's slow and rate-limit-sensitive is a registry or
 /// GitHub API call, regardless of how many repos a check reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Network {
+    /// Reads only the machine it runs on (the repository, its build): a fast-tier check.
     LocalOnly,
+    /// Calls a registry or the GitHub API: a sweep-tier check, rate-limited and slow.
     NetworkRequired,
 }
 
 /// The tier a check runs in, derived from [`Network`], not [`Scope`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Tier {
     /// Meant to run on every PR, or on demand next to `cargo clippy`.
     Fast,
@@ -42,6 +50,7 @@ pub enum Tier {
 }
 
 impl Network {
+    /// The tier a check with this network behaviour runs in.
     pub fn tier(self) -> Tier {
         match self {
             Network::LocalOnly => Tier::Fast,
@@ -52,22 +61,65 @@ impl Network {
 
 /// The context a check runs against: which project (and, for `Portfolio`-scope checks, where to
 /// find its siblings).
+///
+/// Build one with [`CheckContext::new`]: the struct is `#[non_exhaustive]`, so a struct literal is rejected outside
+/// this crate and a field can be added later without breaking anyone.
+///
+/// ```compile_fail,E0639
+/// use coderipper::check::CheckContext;
+/// let _ = CheckContext { project_root: ".".into(), portfolio_root: ".".into() };
+/// ```
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct CheckContext {
+    /// The project being checked (its directory).
     pub project_root: std::path::PathBuf,
+    /// Where `Portfolio`-scope checks look for the project's siblings.
     pub portfolio_root: std::path::PathBuf,
 }
 
-/// One pluggable audit. See `docs/superpowers/specs/2026-09-30-audit-host-design.md` §1-2 for the
-/// design this trait implements.
-pub trait Check {
-    /// Stable identifier, e.g. `"reachability"`. Used in `--check <id>`, in every `Finding`'s
+impl CheckContext {
+    /// A context for the project at `project_root`. The portfolio root, where a check that reads sibling projects looks
+    /// for them, defaults to the project's parent directory (the project itself when it has none); change it with
+    /// [`CheckContext::portfolio_root`]. No built-in check reads it.
+    pub fn new(project_root: impl Into<std::path::PathBuf>) -> Self {
+        let project_root = project_root.into();
+        let portfolio_root = project_root
+            .parent()
+            .map_or_else(|| project_root.clone(), std::path::Path::to_path_buf);
+        Self {
+            project_root,
+            portfolio_root,
+        }
+    }
+
+    /// Sets where checks that read sibling projects look for them.
+    pub fn portfolio_root(mut self, portfolio_root: impl Into<std::path::PathBuf>) -> Self {
+        self.portfolio_root = portfolio_root.into();
+        self
+    }
+}
+
+/// One pluggable audit. Run it through the host with [`crate::run_checks_with`], which validates its findings and applies
+/// the project's allowlist; calling [`Check::run`] directly skips both.
+///
+/// `Send + Sync` are supertraits so a check can run on a thread pool, an async runtime or a service; a check that holds
+/// an `Rc` or a `RefCell` must hold an `Arc` or a `Mutex` instead.
+pub trait Check: Send + Sync {
+    /// Stable identifier, e.g. `"reachability"`. Used in `coderipper check <id>`, in every `Finding`'s
     /// `check_id`, and as the key for allowlist entries.
     fn id(&self) -> &'static str;
 
-    fn scope(&self) -> Scope;
+    /// Which repositories the check reads (see [`Scope`]). Nothing in the host reads it yet, so it defaults to the
+    /// project; a check that reads sibling projects returns `Scope::Portfolio`.
+    fn scope(&self) -> Scope {
+        Scope::Project
+    }
 
+    /// Whether the check leaves the machine (see [`Network`]); this decides its [`Tier`].
     fn network(&self) -> Network;
 
+    /// The tier the check runs in: derived from [`Check::network`], override only with a reason.
     fn tier(&self) -> Tier {
         self.network().tier()
     }
@@ -78,7 +130,7 @@ pub trait Check {
     }
 
     /// Run the check and return whatever it found, RAW: do not apply the project's allowlist. The
-    /// host suppresses (see `suppression`) because only it can tell which allowlist entries went
+    /// host suppresses, because only it can tell which allowlist entries went
     /// stale. A check that would make an absence claim without a positive control must not
     /// construct that `Finding` at all — see `Finding::validate`, which the host calls on every
     /// finding before it reaches a report. Set `Finding::subject` to the symbol the finding is

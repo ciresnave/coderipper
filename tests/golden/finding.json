@@ -1,0 +1,15 @@
+{
+  "check_id": "unused-return-values",
+  "severity": "medium",
+  "confidence": "high",
+  "project": "widgets",
+  "location": {
+    "file": "src/lib.rs",
+    "line": 12
+  },
+  "subject": "render",
+  "summary": "`render`'s return value is discarded at every call site",
+  "detail": "Nothing reads what `render` returns.",
+  "member": "widgets-core",
+  "positive_control": "the same query finds `draw`, whose result is read"
+}

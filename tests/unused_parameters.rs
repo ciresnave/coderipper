@@ -6,10 +6,7 @@ use coderipper::finding::Finding;
 use common::{git_repo_with, MANIFEST};
 
 fn run(repo: &tempfile::TempDir) -> anyhow::Result<Vec<Finding>> {
-    UnusedParametersCheck.run(&CheckContext {
-        project_root: repo.path().to_path_buf(),
-        portfolio_root: repo.path().to_path_buf(),
-    })
+    UnusedParametersCheck::new().run(&CheckContext::new(repo.path().to_path_buf()))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
@@ -151,10 +148,7 @@ fn the_host_applies_the_allowlist_to_a_qualified_subject() {
         ),
     ]);
     let result = coderipper::run_checks(
-        &CheckContext {
-            project_root: repo.path().to_path_buf(),
-            portfolio_root: repo.path().to_path_buf(),
-        },
+        &CheckContext::new(repo.path().to_path_buf()),
         Tier::Fast,
         Some("unused-parameters"),
     );

@@ -25,6 +25,7 @@ use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::github::{origin_url, parse_github_remote, GhCli, Github};
 
+/// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "ci-protection-presence";
 
 /// `Finding.location.file` of every finding here: repository settings are not a file, so this names
@@ -32,6 +33,7 @@ pub const CHECK_ID: &str = "ci-protection-presence";
 /// `symbol = "owner/repo@branch"`).
 pub const SETTINGS_FILE: &str = "github:branch-protection";
 
+/// Reports a default branch that enforces no required status checks (see the module docs).
 pub struct CiProtectionPresenceCheck {
     api: Box<dyn Github>,
 }

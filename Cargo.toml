@@ -1,20 +1,37 @@
 [package]
 name = "coderipper"
-version = "0.2.13"
+version = "0.3.0"
 edition = "2021"
-description = "Portfolio-wide code-integration auditor — dead-code/reachability, version consistency, dependency staleness, CI/protection presence, and more. Runs as a CLI (like clippy) or a server."
+description = "Audits a Rust project for what clippy does not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
+# 1.89 is where `File::try_lock` (the build cache's advisory lock) was stabilised; CI builds with it.
+rust-version = "1.89"
 repository = "https://github.com/ciresnave/coderipper"
 readme = "README.md"
 keywords = ["audit", "dead-code", "lint", "code-quality", "monorepo"]
 categories = ["development-tools", "command-line-utilities"]
+# The package is the library, the two binaries and the examples. `tests/` is out because tests/fixtures holds nested
+# Cargo.toml files, which cargo would treat as separate packages; `docs/` is the design history, not user documentation.
+exclude = ["docs/", ".github/", "codecov.yml", "tests/"]
+
+[features]
+default = ["cli"]
+# The command-line program. A library user turns it off (`default-features = false`) and does not compile clap.
+cli = ["dep:clap"]
 
 [[bin]]
 name = "coderipper"
 path = "src/main.rs"
+required-features = ["cli"]
+
+# `cargo coderipper`: cargo runs any `cargo-<name>` on PATH as the subcommand `<name>`.
+[[bin]]
+name = "cargo-coderipper"
+path = "src/cargo_main.rs"
+required-features = ["cli"]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"

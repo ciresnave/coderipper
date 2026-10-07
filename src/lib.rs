@@ -1,8 +1,70 @@
+//! CodeRipper audits a Rust project for integration defects that the compiler and clippy do not report: public
+//! functions nothing calls, return values every caller discards, parameters nothing reads, crates in one project
+//! that disagree on their version, and a repository whose default branch enforces no CI.
+//!
+//! It is one engine with three faces:
+//!
+//! - **A library** (this crate): run the built-in checks with [`run_checks`], or your own [`check::Check`] through the
+//!   same host with [`run_checks_with`].
+//! - **A command**, `coderipper`, and **a cargo subcommand**, `cargo coderipper`, which run next to `cargo clippy`.
+//!   They are built by the default `cli` feature; a library user writes `default-features = false` and compiles
+//!   neither them nor `clap`. The command is documented in the README, not here: its code is not API.
+//! - **A hosted service** is planned; nothing of it is in this crate.
+//!
+//! # Running the built-in checks
+//!
+//! ```no_run
+//! use coderipper::check::{CheckContext, Tier};
+//! use coderipper::finding::Severity;
+//!
+//! // The project must be a git repository with a commit: the checks analyse HEAD in a throwaway worktree and never
+//! // touch your working tree.
+//! let ctx = CheckContext::new("path/to/project");
+//! let result = coderipper::run_checks(&ctx, Tier::Fast, None);
+//! for finding in &result.findings {
+//!     println!("{:?} {} ({})", finding.severity, finding.summary, finding.check_id);
+//! }
+//! // A check that could not run is an entry in `errors`, never a silent absence of findings.
+//! assert!(result.errors.is_empty());
+//! let worst = result.findings.iter().map(|f| f.severity).max();
+//! assert!(worst.is_none_or(|s| s < Severity::High));
+//! ```
+//!
+//! # Writing a check
+//!
+//! Implement [`check::Check`] and run it with [`run_checks_with`]. The host validates every finding (a claim of
+//! absence needs a `positive_control`: see [`finding::Finding::validate`]), applies the project's `.coderipper.toml`
+//! allowlist, and reports allowlist entries that no longer match anything. See [`run_checks_with`] for a complete,
+//! runnable example.
+//!
+//! # Stability
+//!
+//! The traits [`check::Check`] and [`github::Github`] are `Send + Sync`, and a method added to either later will have a
+//! default body, so an existing implementation keeps compiling. Types you receive from this crate (`Finding`, `Severity`, `CheckContext`, ...) are `#[non_exhaustive]`, so a field
+//! or a variant can be added in a minor release without breaking you: build them with their constructors and match
+//! enums with a wildcard arm. The JSON the command prints (`--message-format json`) is a separate contract, pinned by
+//! golden tests.
+//!
+//! The crate re-exports [`anyhow`] and [`serde_json`], whose types appear in the signatures of [`check::Check::run`] and
+//! [`github::Github::get`], so an implementer uses the version this crate was built with. A new major version of either
+//! is a new major version of this crate.
+//!
+//! # Features
+//!
+//! - `cli` (default): the `coderipper` and `cargo-coderipper` binaries.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
+pub use anyhow;
+pub use serde_json;
+
 pub(crate) mod allowlist;
 pub mod build_cache;
 pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;
+#[cfg(feature = "cli")]
+#[doc(hidden)]
+pub mod cli;
 pub mod finding;
 pub mod github;
 pub(crate) mod package;
@@ -17,31 +79,43 @@ use suppression::Suppression;
 
 /// Every compiled-in check, in the order they run.
 ///
-/// v1 deliberately uses a fixed list rather than dynamic plugin loading (design doc §7): there is
-/// no known need yet for a check this project's own maintainers didn't write.
+/// The list is fixed rather than loaded dynamically: there is no known need yet for a check this project's own
+/// maintainers didn't write. To run your own, pass a list to [`run_checks_with`].
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
     vec![
-        Box::new(checks::ReachabilityCheck),
-        Box::new(checks::UnusedReturnValuesCheck),
-        Box::new(checks::UnusedParametersCheck),
-        Box::new(checks::VersionConsistencyCheck),
+        Box::new(checks::ReachabilityCheck::new()),
+        Box::new(checks::UnusedReturnValuesCheck::new()),
+        Box::new(checks::UnusedParametersCheck::new()),
+        Box::new(checks::VersionConsistencyCheck::new()),
         Box::new(checks::CiProtectionPresenceCheck::new()),
     ]
 }
 
 /// Run every registered check at or below the requested tier, collect and validate their
 /// findings, apply the project's allowlist to them (checks return RAW findings; suppression is the
-/// host's job, see `suppression`), and return what is left plus one `Info` finding per allowlist
+/// host's job), and return what is left plus one `Info` finding per allowlist
 /// entry that no longer suppresses anything. A check whose `run` returns an invalid absence-claim finding is
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct RunResult {
+    /// The validated findings that the allowlist did not suppress, plus the allowlist's own `Info` findings.
     pub findings: Vec<Finding>,
+    /// What went wrong: a check that failed to run, a finding the host rejected as invalid, an unreadable allowlist.
+    /// A non-empty list means the audit is incomplete, whatever `findings` says.
     pub errors: Vec<String>,
+}
+
+impl RunResult {
+    /// A result with these findings and errors: for a wrapper or a test double that must return one.
+    pub fn new(findings: Vec<Finding>, errors: Vec<String>) -> Self {
+        Self { findings, errors }
+    }
 }
 
 /// Which checks a run takes, by what they judge (see [`check::Unit`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnitFilter {
+enum UnitFilter {
     /// Every check, whatever it judges (what `run_checks` always did).
     Any,
     /// Only the checks that judge this unit.
@@ -49,7 +123,9 @@ pub enum UnitFilter {
 }
 
 /// What a `--workspace` run did, beyond its findings and errors.
+#[non_exhaustive]
 pub struct WorkspaceRun {
+    /// Every member's findings (each marked with its [`Finding::member`](finding::Finding::member)) and every error.
     pub result: RunResult,
     /// Members analysed (a poisoned session stops the loop early).
     pub members: usize,
@@ -89,6 +165,10 @@ fn run_workspace_over(
         members: 0,
         members_with_errors: 0,
     };
+    // before visiting any member: a wrong id would otherwise repeat its error once per member
+    if let Some(problem) = check_list_problem(checks, only_check_id) {
+        return failed(problem);
+    }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
         Ok(found) => found,
         Err(e) => return failed(e.to_string()),
@@ -202,14 +282,92 @@ fn allowlist_key(finding: &Finding) -> (String, Option<String>, String) {
     )
 }
 
+/// Runs the built-in checks (see [`registered_checks`]) over the project at `ctx.project_root`: every check at or below
+/// `tier`, or only the check named `only_check_id` (at any tier). See [`run_checks_with`] for what the host does with
+/// what the checks return.
 pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -> RunResult {
-    run_checks_over(
-        &registered_checks(),
-        ctx,
-        tier,
-        only_check_id,
-        UnitFilter::Any,
-    )
+    run_checks_with(&registered_checks(), ctx, tier, only_check_id)
+}
+
+/// Runs the checks you pass, the way [`run_checks`] runs the built-in ones: through the host, not by calling
+/// [`Check::run`] yourself.
+///
+/// What the host does that a direct `check.run(ctx)` does not:
+/// - **Validates every finding** ([`finding::Finding::validate`]). A finding whose summary claims an absence (contains
+///   the whole word "zero", "no", "none", "missing", "unreachable" or "0"; "10 threads" and "casino" do not count)
+///   without a `positive_control` is dropped and reported in `errors`.
+/// - **Applies the project's allowlist**, read from `.coderipper.toml` in `ctx.project_root`. An entry suppresses a
+///   finding only when its `check`, `file` and `symbol` equal the finding's `check_id`, `location.file` and `subject`,
+///   so a check that wants to be suppressible must set a location and a subject.
+/// - **Judges stale entries against the checks you pass.** An entry that suppressed nothing is reported as an `Info`
+///   finding from the check id `allowlist`, and an entry naming a check that is not in `checks` is reported as an
+///   unknown check. If you pass only your own check and the project's `.coderipper.toml` names built-in checks, each
+///   of those entries is reported as unknown: pass the built-in checks too, or use a project without such entries.
+/// - **Keeps the tier rule.** With `only_check_id = None`, a [`check::Tier::Sweep`] check does not run at
+///   [`check::Tier::Fast`]; naming it with `only_check_id` runs it at any tier.
+///
+/// An error from one check (it could not run) is recorded in `errors` and does not stop the others.
+///
+/// ```
+/// use coderipper::check::{Check, CheckContext, Network, Scope, Tier};
+/// use coderipper::finding::{Confidence, Finding, Location, Severity};
+///
+/// /// Reports a `TODO.md` in the project root.
+/// struct TodoFile;
+///
+/// impl Check for TodoFile {
+///     fn id(&self) -> &'static str { "todo-file" }
+///     fn scope(&self) -> Scope { Scope::Project }
+///     fn network(&self) -> Network { Network::LocalOnly }
+///     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+///         if !ctx.project_root.join("TODO.md").exists() {
+///             return Ok(Vec::new());
+///         }
+///         Ok(vec![Finding::new(
+///             "todo-file", Severity::Low, Confidence::High, "demo",
+///             "the project keeps a TODO.md", "TODO.md belongs in the issue tracker",
+///         )
+///         .location(Location::new("TODO.md", None))
+///         .subject("TODO.md")])
+///     }
+/// }
+///
+/// let dir = tempfile::tempdir().unwrap();
+/// std::fs::write(dir.path().join("TODO.md"), "- later\n").unwrap();
+/// let ctx = CheckContext::new(dir.path());
+/// let result = coderipper::run_checks_with(&[Box::new(TodoFile)], &ctx, Tier::Fast, None);
+/// assert!(result.errors.is_empty());
+/// assert_eq!(result.findings.len(), 1);
+/// ```
+pub fn run_checks_with(
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+) -> RunResult {
+    run_checks_over(checks, ctx, tier, only_check_id, UnitFilter::Any)
+}
+
+/// Why this list of checks and this `only_check_id` cannot be run, if they cannot: a named check that does not exist
+/// (a typo must not read as a clean run) or two checks sharing an id (the id keys allowlist entries and `only_check_id`).
+fn check_list_problem(checks: &[Box<dyn Check>], only_check_id: Option<&str>) -> Option<String> {
+    let ids: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    if let Some(id) = ids
+        .iter()
+        .enumerate()
+        .find_map(|(i, id)| ids[..i].contains(id).then_some(id))
+    {
+        return Some(format!(
+            "the check id \"{id}\" is used by more than one check; ids must be unique"
+        ));
+    }
+    let wanted = only_check_id?;
+    (!ids.contains(&wanted)).then(|| {
+        format!(
+            "no check named \"{wanted}\"; the checks are: {}",
+            ids.join(", ")
+        )
+    })
 }
 
 /// `run_checks` over an explicit list, so tests can drive the loop with fake checks.
@@ -220,6 +378,12 @@ fn run_checks_over(
     only_check_id: Option<&str>,
     units: UnitFilter,
 ) -> RunResult {
+    if let Some(problem) = check_list_problem(checks, only_check_id) {
+        return RunResult {
+            findings: Vec::new(),
+            errors: vec![problem],
+        };
+    }
     let mut findings = Vec::new();
     let mut errors = Vec::new();
 
@@ -504,15 +668,18 @@ mod tests {
     }
 
     #[test]
-    fn unknown_check_id_matches_nothing_without_running_anything() {
-        // A bogus id should short-circuit before any check's (potentially expensive, real-build)
-        // `run` is ever called -- verified by using a path that would fail if `run` were invoked.
-        let ctx = CheckContext {
-            project_root: std::path::PathBuf::from("/does/not/exist"),
-            portfolio_root: std::path::PathBuf::from("/does/not/exist"),
-        };
+    fn unknown_check_id_is_an_error_and_runs_nothing() {
+        // A bogus id short-circuits before any check's (potentially expensive, real-build) `run` is ever called --
+        // verified by using a path that would fail if `run` were invoked -- and is an ERROR: "no findings" and "nothing
+        // ran" are different answers (it used to be an empty, clean result).
+        let ctx = CheckContext::new("/does/not/exist");
         let result = run_checks(&ctx, Tier::Fast, Some("no-such-check"));
         assert!(result.findings.is_empty());
-        assert!(result.errors.is_empty());
+        assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
+        assert!(result.errors[0].contains("no check named \"no-such-check\""));
+        assert!(
+            result.errors[0].contains("reachability"),
+            "lists the real ids"
+        );
     }
 }

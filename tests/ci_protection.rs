@@ -26,10 +26,10 @@ impl Github for Fake {
             if path.contains("/rules/branches/") {
                 return Ok(json!([]));
             }
-            Err(ApiError {
-                status: Some(404),
-                message: format!("no canned answer for {path}"),
-            })
+            Err(ApiError::new(
+                Some(404),
+                format!("no canned answer for {path}"),
+            ))
         })
     }
 }
@@ -68,10 +68,7 @@ fn run_with(
         asked: asked.clone(),
     };
     let check = CiProtectionPresenceCheck::with_api(Box::new(fake));
-    let result = check.run(&CheckContext {
-        project_root: dir.to_path_buf(),
-        portfolio_root: dir.to_path_buf(),
-    });
+    let result = check.run(&CheckContext::new(dir.to_path_buf()));
     let asked = asked.lock().unwrap().clone();
     (result, asked)
 }
@@ -125,10 +122,7 @@ const COMMITS: &str = "repos/acme/widgets/commits?per_page=1";
 
 /// Real answer for a repository with no commits: `409 "Git Repository is empty."`.
 fn empty_repository() -> ApiError {
-    ApiError {
-        status: Some(409),
-        message: "Git Repository is empty.".into(),
-    }
+    ApiError::new(Some(409), "Git Repository is empty.")
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
@@ -294,10 +288,7 @@ fn an_archived_repository_is_informational_not_a_defect() {
 #[test]
 fn a_repository_with_no_commits_yet_is_informational() {
     let repo = repo_with_origin(Some(ORIGIN));
-    let not_found = ApiError {
-        status: Some(404),
-        message: "Branch not found".into(),
-    };
+    let not_found = ApiError::new(Some(404), "Branch not found");
     let (result, _) = run_with(
         repo.path(),
         vec![
@@ -336,10 +327,7 @@ fn a_reply_without_the_protection_object_is_an_error_never_clean() {
 #[test]
 fn api_failures_are_errors_with_the_status() {
     let repo = repo_with_origin(Some(ORIGIN));
-    let forbidden = ApiError {
-        status: Some(403),
-        message: "API rate limit exceeded".into(),
-    };
+    let forbidden = ApiError::new(Some(403), "API rate limit exceeded");
     let (result, _) = run_with(repo.path(), vec![(REPO, Err(forbidden.clone()))]);
     let err = result.unwrap_err().to_string();
     assert!(err.contains("403") && err.contains("rate limit"), "{err}");
@@ -386,10 +374,7 @@ fn it_belongs_to_the_sweep_tier_and_is_not_run_by_fast() {
 fn fast_does_not_run_it_and_sweep_does() {
     // A GitLab origin makes the check fail without any network, which makes "was it run?" observable.
     let repo = repo_with_origin(Some("https://gitlab.com/acme/widgets.git"));
-    let ctx = CheckContext {
-        project_root: repo.path().to_path_buf(),
-        portfolio_root: repo.path().to_path_buf(),
-    };
+    let ctx = CheckContext::new(repo.path().to_path_buf());
     let mentions = |errors: &[String]| errors.iter().any(|e| e.contains("ci-protection-presence"));
     let fast = coderipper::run_checks(&ctx, Tier::Fast, None);
     assert!(!mentions(&fast.errors), "{:?}", fast.errors);
@@ -454,11 +439,10 @@ fn rules_that_require_no_status_checks_do_not_rescue_an_unprotected_branch() {
 fn a_plan_that_cannot_have_rulesets_is_not_an_error() {
     // Real answer for a private repo on a free plan: 403 "Upgrade to GitHub Pro ...". Rulesets cannot
     // exist there, so the classic reading stands.
-    let upgrade = ApiError {
-        status: Some(403),
-        message: "Upgrade to GitHub Pro or make this repository public to enable this feature."
-            .into(),
-    };
+    let upgrade = ApiError::new(
+        Some(403),
+        "Upgrade to GitHub Pro or make this repository public to enable this feature.",
+    );
     let repo = repo_with_origin(Some(ORIGIN));
     let (result, _) = run_with(
         repo.path(),
@@ -473,10 +457,7 @@ fn a_plan_that_cannot_have_rulesets_is_not_an_error() {
 
 #[test]
 fn a_rules_lookup_that_fails_for_another_reason_is_an_error_never_a_verdict() {
-    let boom = ApiError {
-        status: Some(500),
-        message: "Server Error".into(),
-    };
+    let boom = ApiError::new(Some(500), "Server Error");
     let repo = repo_with_origin(Some(ORIGIN));
     let (result, _) = run_with(
         repo.path(),
@@ -510,10 +491,7 @@ fn rules_are_not_even_asked_for_when_classic_protection_already_requires_checks(
 fn a_404_on_the_branch_is_only_informational_when_the_repository_proves_it_is_empty() {
     // Review finding: any 404 used to become "no commits yet", exit 0, with nothing confirming it.
     let repo = repo_with_origin(Some(ORIGIN));
-    let not_found = ApiError {
-        status: Some(404),
-        message: "Branch not found".into(),
-    };
+    let not_found = ApiError::new(Some(404), "Branch not found");
     let (result, _) = run_with(
         repo.path(),
         vec![
@@ -526,10 +504,7 @@ fn a_404_on_the_branch_is_only_informational_when_the_repository_proves_it_is_em
     assert!(err.contains("404") && err.contains("commits"), "{err}");
 
     // and when the emptiness check itself fails, that is an error too
-    let down = ApiError {
-        status: Some(500),
-        message: "Server Error".into(),
-    };
+    let down = ApiError::new(Some(500), "Server Error");
     let (result, _) = run_with(
         repo.path(),
         vec![
@@ -649,11 +624,10 @@ fn a_rules_reply_that_is_not_a_list_is_an_error() {
 
 #[test]
 fn the_finding_says_what_the_rules_lookup_actually_answered() {
-    let upgrade = ApiError {
-        status: Some(403),
-        message: "Upgrade to GitHub Pro or make this repository public to enable this feature."
-            .into(),
-    };
+    let upgrade = ApiError::new(
+        Some(403),
+        "Upgrade to GitHub Pro or make this repository public to enable this feature.",
+    );
     let repo = repo_with_origin(Some(ORIGIN));
     let (result, _) = run_with(
         repo.path(),

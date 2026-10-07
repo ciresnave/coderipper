@@ -1,14 +1,23 @@
 # CodeRipper
 
-Portfolio-wide code-integration auditor. Finds things a compiler's own lints won't tell you: functions
-with no callers (including `pub` ones — `rustc`'s `dead_code` lint deliberately skips those), public APIs
-nobody outside the crate actually uses, version drift across a project's crates, stale dependencies, and
-more, as pluggable checks under one host.
+Audits a Rust project for the integration defects that the compiler and clippy do not report: public functions
+nothing calls (`rustc`'s `dead_code` lint deliberately skips `pub` items), return values every caller discards,
+parameters nothing reads, crates in one project that disagree on their version, and a repository whose default
+branch enforces no CI. Each is a pluggable check under one host that reports in one `Finding` shape.
 
-Run it next to `cargo clippy`:
+It is one engine with three faces: **a library**, **a command** (`coderipper`) that is also **a cargo subcommand**
+(`cargo coderipper`), and, planned, a hosted service for open-source projects (not part of this crate).
+
+## Run it next to clippy
 
 ```sh
-coderipper fast                      # every fast (local-only) check, current project
+cargo install coderipper
+
+cargo coderipper                     # every fast (local-only) check on the project in the current directory
+cargo coderipper --deny medium       # ... and exit 1 if anything is Medium or worse (what CI usually wants)
+cargo coderipper --workspace         # every member of the cargo workspace
+
+coderipper fast                      # the same, as a plain command
 coderipper sweep                     # everything, including network-backed checks
 coderipper check reachability        # one check by id
 coderipper check unused-return-values  # is a function's return value ever consumed?
@@ -17,16 +26,66 @@ coderipper check version-consistency # does every package of the project share o
 coderipper check ci-protection-presence # does the default branch require status checks? (network; sweep tier)
 ```
 
-A server mode (`coderipper serve`) is planned, for a free hosted instance on
-[ThinkersJournal.com](https://thinkersjournal.com) for open-source projects — not implemented yet.
+The project must be a git repository with a commit: the checks analyse `HEAD` in a throwaway worktree and never touch
+your working tree.
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | every check ran and nothing is at or above `--deny` (without `--deny`, any run that finished) |
+| 1 | a finding at or above `--deny` |
+| 2 | usage error: an unknown flag or `--deny` level, an unknown check id, or a project path that cannot be read |
+| 3 | the audit could not be completed: a check could not run (this outranks 1), or the command itself failed (for example `cache status` with the cache off) |
+
+`--deny <info|low|medium|high|critical>` is off by default: like clippy's warnings, findings are printed but do not
+fail the run, so adding CodeRipper to a project does not break its CI. A CI job that should gate writes
+`cargo coderipper --deny medium`.
+
+## Machine-readable output
+
+`--message-format json` prints one JSON object per line on stdout, each with a `"reason"`, the way cargo's own
+`--message-format json` does: a `coderipper-finding` line per finding (the `Finding` fields), then one
+`coderipper-summary` line with `findings`, `errors` and `exit_code`. In this mode stdout carries only JSON.
+
+```sh
+cargo coderipper --message-format json --deny medium
+```
+
+## As a library
+
+```toml
+[dependencies]
+coderipper = { version = "0.3", default-features = false }   # no clap, no binaries
+```
+
+```rust,no_run
+use coderipper::check::{CheckContext, Tier};
+
+let ctx = CheckContext::new("path/to/project");
+let result = coderipper::run_checks(&ctx, Tier::Fast, None);
+for finding in &result.findings {
+    println!("{:?} {} ({})", finding.severity, finding.summary, finding.check_id);
+}
+assert!(result.errors.is_empty()); // a check that could not run is an error, never a silent absence of findings
+```
+
+Write your own check by implementing `coderipper::check::Check` and run it with `coderipper::run_checks_with`, which
+gives it the host's validation and the project's allowlist. The `examples/` directory has a runnable example of each:
+the built-in checks (`run_on_a_project`), your own check (`custom_check`), and a check that talks to GitHub tested
+with no network (`fake_github`). The data types are `#[non_exhaustive]`: build them with their constructors and
+match enums with a wildcard arm. `Check` and `Github` are `Send + Sync`. The minimum supported Rust version is 1.89.
+
+**The build cache is the command's, not the library's.** `coderipper` turns it on from `CODERIPPER_CACHE_DIR` and friends (see "Build cache" below). A library
+user gets no cache unless they call `coderipper::build_cache::set_cache_config(CacheConfig::new(dir))` once per process (a second call returns `false`), and the
+notes the command prints when the cache is busy or unusable are not available to a library; the checks then build uncached, which is correct and slower.
 
 ## Status
 
-Early. The host, the shared `Finding` schema, and the check-plugin interface exist, and three checks are
-implemented: `reachability` (dead code, including `pub` items), `unused-parameters` (a function parameter
-never used) and `unused-return-values` (a function whose
-return value every caller discards). See `docs/superpowers/specs/2026-09-30-audit-host-design.md` for the design, and
-`docs/superpowers/plans/` for what's actually being built and in what order.
+The host, the shared `Finding` schema, and the check-plugin interface exist, and five checks are implemented:
+`reachability` (dead code, including `pub` items), `unused-parameters` (a function parameter never used),
+`unused-return-values` (a function whose return value every caller discards), `version-consistency` (one version per
+project) and `ci-protection-presence` (the default branch requires status checks).
 
 ## Version consistency
 
@@ -110,11 +169,6 @@ build, and the package being analysed is always rebuilt.
   directories until the cache fits (never a locked one, never the one in use, never in a directory without the
   `.coderipper-cache` marker). `coderipper cache status` lists them; `coderipper cache prune [--max-gb N]` trims.
 - Each run that built something ends with one stderr line: `coderipper: cache <dir> - N units fresh, M compiled`.
-- **Fixed in 0.2.9: overlapping runs on one repository.** Before 0.2.9, two `coderipper` runs overlapping on the same repository could
-  serve one run the other run's compiled copy of the package it was analysing, so it reported the other run's findings. From 0.2.9, right after
-  taking the cache lock a run sets every file of its checkout to the current time, so cargo recompiles the package instead of reusing another run's
-  artifact (sibling crates inside the repository were already rebuilt on every run). If a refresh is impossible the run builds without the cache and says so.
-  **If you ran two overlapping runs on one repository with 0.2.7 or 0.2.8, discard the later run's findings and re-run it alone.**
 
 ## Reachability on a package with a library
 

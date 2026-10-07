@@ -45,10 +45,7 @@ fn workspace_repo(extra: &[(&str, &str)]) -> tempfile::TempDir {
 }
 
 fn run(check: &dyn Check, project: &Path) -> anyhow::Result<Vec<Finding>> {
-    check.run(&CheckContext {
-        project_root: project.to_path_buf(),
-        portfolio_root: project.to_path_buf(),
-    })
+    check.run(&CheckContext::new(project.to_path_buf()))
 }
 
 fn subjects(findings: &[Finding]) -> Vec<String> {
@@ -70,28 +67,28 @@ fn files(findings: &[Finding]) -> Vec<String> {
 #[test]
 fn unused_parameters_on_a_member_reports_that_package_only_with_package_relative_paths() {
     let repo = workspace_repo(&[]);
-    let b = run(&UnusedParametersCheck, &repo.path().join("b")).unwrap();
+    let b = run(&UnusedParametersCheck::new(), &repo.path().join("b")).unwrap();
     assert_eq!(subjects(&b), vec!["b_dead::unused_b"]);
     assert_eq!(files(&b), vec!["src/lib.rs"]);
     // the sibling is analyzed on its own, not as a side effect
-    let a = run(&UnusedParametersCheck, &repo.path().join("a")).unwrap();
+    let a = run(&UnusedParametersCheck::new(), &repo.path().join("a")).unwrap();
     assert_eq!(subjects(&a), vec!["a_unused_param::p"]);
 }
 
 #[test]
 fn unused_return_values_on_a_member_reports_that_package_only() {
     let repo = workspace_repo(&[]);
-    let b = run(&UnusedReturnValuesCheck, &repo.path().join("b")).unwrap();
+    let b = run(&UnusedReturnValuesCheck::new(), &repo.path().join("b")).unwrap();
     assert_eq!(subjects(&b), vec!["b_helper"]);
     assert_eq!(files(&b), vec!["src/lib.rs"]);
-    let a = run(&UnusedReturnValuesCheck, &repo.path().join("a")).unwrap();
+    let a = run(&UnusedReturnValuesCheck::new(), &repo.path().join("a")).unwrap();
     assert_eq!(subjects(&a), vec!["a_discards"]);
 }
 
 #[test]
 fn reachability_on_a_member_reports_that_package_only() {
     let repo = workspace_repo(&[]);
-    let b = run(&ReachabilityCheck, &repo.path().join("b")).unwrap();
+    let b = run(&ReachabilityCheck::new(), &repo.path().join("b")).unwrap();
     // nothing in b calls these (b has no bin or test), and `dead_in_a` etc. are not b's to report
     assert_eq!(
         subjects(&b),
@@ -105,7 +102,7 @@ fn a_project_scope_check_does_not_count_a_sibling_members_use() {
     // `used_by_b` is called by member b, but this check's scope is one package: for `a` it has zero
     // callers. (Whether another crate in the portfolio uses a pub item is the portfolio-scope pass.)
     let repo = workspace_repo(&[]);
-    let a = run(&ReachabilityCheck, &repo.path().join("a")).unwrap();
+    let a = run(&ReachabilityCheck::new(), &repo.path().join("a")).unwrap();
     assert!(
         subjects(&a).contains(&"used_by_b".to_string()),
         "{:?}",
@@ -117,9 +114,9 @@ fn a_project_scope_check_does_not_count_a_sibling_members_use() {
 fn a_virtual_workspace_root_is_refused_by_every_check_and_names_the_members() {
     let repo = workspace_repo(&[]);
     for check in [
-        &ReachabilityCheck as &dyn Check,
-        &UnusedParametersCheck,
-        &UnusedReturnValuesCheck,
+        &ReachabilityCheck::new() as &dyn Check,
+        &UnusedParametersCheck::new(),
+        &UnusedReturnValuesCheck::new(),
     ] {
         let err = run(check, repo.path()).unwrap_err().to_string();
         assert!(
@@ -138,10 +135,7 @@ fn the_allowlist_is_the_members_own() {
         "[[allow]]\ncheck = \"unused-parameters\"\nfile = \"src/lib.rs\"\nsymbol = \"b_dead::unused_b\"\nreason = \"kept for the next release\"\n",
     )]);
     let result = coderipper::run_checks(
-        &CheckContext {
-            project_root: repo.path().join("b"),
-            portfolio_root: repo.path().to_path_buf(),
-        },
+        &CheckContext::new(repo.path().join("b")).portfolio_root(repo.path().to_path_buf()),
         Tier::Fast,
         Some("unused-parameters"),
     );
@@ -158,9 +152,9 @@ fn a_workspace_root_that_is_itself_a_package_is_analyzed_as_that_package() {
         ("sub/Cargo.toml", &package("sub", "")),
         ("sub/src/lib.rs", "pub fn sub_fn(unused_sub: i32) {}\n"),
     ]);
-    let root = run(&UnusedParametersCheck, repo.path()).unwrap();
+    let root = run(&UnusedParametersCheck::new(), repo.path()).unwrap();
     assert_eq!(subjects(&root), vec!["root_fn::unused_root"]);
-    let sub = run(&UnusedParametersCheck, &repo.path().join("sub")).unwrap();
+    let sub = run(&UnusedParametersCheck::new(), &repo.path().join("sub")).unwrap();
     assert_eq!(subjects(&sub), vec!["sub_fn::unused_sub"]);
 }
 
@@ -178,7 +172,7 @@ fn a_workspace_below_the_repository_root_uses_both_prefixes_correctly() {
         ("proj/m/src/lib.rs", "pub fn f(unused_m: i32) {}\n"),
         ("other/README.md", "unrelated sibling directory\n"),
     ]);
-    let found = run(&UnusedParametersCheck, &repo.path().join("proj/m")).unwrap();
+    let found = run(&UnusedParametersCheck::new(), &repo.path().join("proj/m")).unwrap();
     assert_eq!(subjects(&found), vec!["f::unused_m"]);
     assert_eq!(files(&found), vec!["src/lib.rs"]);
 }
@@ -202,7 +196,7 @@ fn a_path_dependency_of_the_root_package_is_not_reported_as_the_root_packages_de
         ),
     ]);
     assert_eq!(
-        subjects(&run(&ReachabilityCheck, repo.path()).unwrap()),
+        subjects(&run(&ReachabilityCheck::new(), repo.path()).unwrap()),
         vec!["root_fn"]
     );
 }
@@ -228,7 +222,7 @@ fn a_member_nested_below_another_member_is_not_reported_as_the_outer_ones() {
             "pub fn inner_pub() -> i32 { 1 }\nfn inner_private_dead() {}\n",
         ),
     ]);
-    let found = run(&ReachabilityCheck, &repo.path().join("b")).unwrap();
+    let found = run(&ReachabilityCheck::new(), &repo.path().join("b")).unwrap();
     assert_eq!(subjects(&found), vec!["b_fn"]);
     assert_eq!(files(&found), vec!["src/lib.rs"]);
 }
@@ -246,7 +240,7 @@ fn default_members_do_not_make_a_sibling_part_of_the_analysis() {
         ("sub/src/lib.rs", "pub fn sub_pub() {}\nfn sub_dead() {}\n"),
     ]);
     assert_eq!(
-        subjects(&run(&ReachabilityCheck, repo.path()).unwrap()),
+        subjects(&run(&ReachabilityCheck::new(), repo.path()).unwrap()),
         vec!["root_fn"]
     );
 }
@@ -261,7 +255,7 @@ fn a_member_that_is_not_committed_says_so() {
         "pub fn f(unused: i32) {}\n",
     )
     .unwrap();
-    let err = run(&UnusedParametersCheck, &repo.path().join("c"))
+    let err = run(&UnusedParametersCheck::new(), &repo.path().join("c"))
         .unwrap_err()
         .to_string();
     assert!(err.contains("HEAD") && err.contains("committed"), "{err}");
@@ -271,7 +265,7 @@ fn a_member_that_is_not_committed_says_so() {
 fn a_refusal_names_the_directory_the_user_passed_not_the_throwaway_checkout() {
     let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", "pub fn f() {}\n")]);
     let project = repo.path().join("src");
-    let err = run(&UnusedParametersCheck, &project)
+    let err = run(&UnusedParametersCheck::new(), &project)
         .unwrap_err()
         .to_string();
     assert!(err.contains(&project.display().to_string()), "{err}");

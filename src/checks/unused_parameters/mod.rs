@@ -7,7 +7,7 @@
 //! diagnostics, and keeps those that land exactly on a parameter of a free function or inherent
 //! method, as found by `syn` (see `sites`).
 //!
-//! **Known limitations / deliberate scope (design doc §5):**
+//! **Known limitations / deliberate scope:**
 //! - `_`-prefixed parameters are exempt by Rust convention and never reported. The spec notes the
 //!   blind spot ("accepted and silently ignored") and explicitly does NOT scope it in.
 //! - Trait declarations, trait default bodies, trait-impl methods and closure parameters are out of
@@ -34,9 +34,20 @@ use sentinel::{inject_sentinels, SENTINEL_ARG, SENTINEL_FN};
 use sites::{find_param_sites, ParamSite};
 use std::collections::BTreeSet;
 
+/// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "unused-parameters";
 
+/// Reports function parameters nothing reads (see the module docs).
+#[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct UnusedParametersCheck;
+
+impl UnusedParametersCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for UnusedParametersCheck {
     fn id(&self) -> &'static str {

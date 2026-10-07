@@ -24,9 +24,6 @@
 //!   using a git worktree, not a bug).
 //! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's
 //!   root, not the nested crate's.
-//!
-//! Full detail: `docs/superpowers/plans/2026-09-30-reachability-project-scope.md`'s status note, and
-//! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
 
 mod diagnostics;
 mod foreign;
@@ -43,7 +40,22 @@ use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
 
+/// Reports functions nothing calls, including `pub` ones (see the module docs). Construct it with
+/// [`ReachabilityCheck::new`] (or `Default`): the struct is `#[non_exhaustive]`, so a field can be added later.
+///
+/// ```compile_fail,E0423
+/// let _ = coderipper::checks::ReachabilityCheck;
+/// ```
+#[derive(Debug, Clone, Copy, Default)]
+#[non_exhaustive]
 pub struct ReachabilityCheck;
+
+impl ReachabilityCheck {
+    /// The check.
+    pub fn new() -> Self {
+        Self
+    }
+}
 
 impl Check for ReachabilityCheck {
     fn id(&self) -> &'static str {
