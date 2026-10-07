@@ -158,7 +158,19 @@ pub enum FindingError {
 const ABSENCE_CLAIM_HELP: &str =
     "an absence claim without a positive control is indistinguishable from a broken query; set positive_control or don't emit the finding";
 
-const ABSENCE_WORDS: &[&str] = &["zero", "no ", "none", "missing", "unreachable", "0 "];
+/// The words that make a summary an absence claim. Matched as whole words (see [`claims_absence`]), so "10 threads",
+/// "version 1.0" and "casino" are not claims.
+const ABSENCE_WORDS: &[&str] = &["zero", "no", "none", "missing", "unreachable", "0"];
+
+/// Whether `summary` contains one of [`ABSENCE_WORDS`] as a whole word: words are separated by whitespace and lose the
+/// punctuation around them ("callers." and "(no" count), but not what is inside them ("1.0", "no-op", "casino").
+fn claims_absence(summary: &str) -> bool {
+    summary
+        .to_lowercase()
+        .split_whitespace()
+        .map(|word| word.trim_matches(|c: char| !c.is_alphanumeric()))
+        .any(|word| ABSENCE_WORDS.contains(&word))
+}
 
 impl Finding {
     /// A finding with the six parts every finding has; the optional parts start empty and are set with the chained
@@ -224,10 +236,7 @@ impl Finding {
     /// hands a finding to the host, not just at the end of a report — a caller that only validates
     /// the final report can't tell which check produced a bad finding.
     pub fn validate(self) -> Result<Self, FindingError> {
-        let claims_absence = ABSENCE_WORDS
-            .iter()
-            .any(|w| self.summary.to_lowercase().contains(w));
-        if claims_absence && self.positive_control.is_none() {
+        if claims_absence(&self.summary) && self.positive_control.is_none() {
             return Err(FindingError::AbsenceClaimMissingControl {
                 check_id: self.check_id,
                 summary: self.summary,

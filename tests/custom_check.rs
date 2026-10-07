@@ -325,3 +325,70 @@ fn a_workspace_run_with_an_unknown_check_id_says_so_instead_of_visiting_every_me
         run.result.errors
     );
 }
+
+/// What the host says about a finding with this summary and no positive control.
+fn is_rejected_as_an_absence_claim(summary: &str) -> bool {
+    struct One(String);
+    impl Check for One {
+        fn id(&self) -> &'static str {
+            "one"
+        }
+        fn network(&self) -> Network {
+            Network::LocalOnly
+        }
+        fn run(&self, _ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+            Ok(vec![Finding::new(
+                "one",
+                Severity::Low,
+                Confidence::High,
+                "p",
+                self.0.clone(),
+                "d",
+            )])
+        }
+    }
+    let dir = project_with(&[]);
+    let result = run_checks_with(
+        &boxed(One(summary.to_string())),
+        &ctx(dir.path()),
+        Tier::Fast,
+        None,
+    );
+    !result.errors.is_empty()
+}
+
+#[test]
+fn a_summary_that_only_contains_an_absence_word_inside_another_word_is_accepted() {
+    // The rule exists to catch "no callers" / "zero uses" claims that need a positive control; it used to match substrings,
+    // so ordinary summaries were rejected with a message claiming an absence.
+    for ok in [
+        "config uses 10 threads",
+        "version 1.0 is pinned",
+        "a casino module",
+        "nonetheless fine",
+        "knowledge base is stale",
+        "no-op handler is registered",
+    ] {
+        assert!(!is_rejected_as_an_absence_claim(ok), "{ok:?} was rejected");
+    }
+}
+
+#[test]
+fn a_real_absence_claim_without_a_control_is_still_rejected() {
+    for claim in [
+        "no callers",
+        "`f` has no callers.",
+        "None of its callers read the value",
+        "zero call sites",
+        "found 0 call sites",
+        "0 call sites",
+        "missing entry for x",
+        "Unreachable from every target",
+        "(no protection)",
+    ] {
+        assert!(
+            is_rejected_as_an_absence_claim(claim),
+            "{claim:?} was accepted"
+        );
+    }
+}

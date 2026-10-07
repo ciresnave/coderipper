@@ -287,9 +287,9 @@ pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -
 /// [`Check::run`] yourself.
 ///
 /// What the host does that a direct `check.run(ctx)` does not:
-/// - **Validates every finding** ([`finding::Finding::validate`]). A finding that claims an absence ("zero", "no ",
-///   "none", "missing", "unreachable", "0 " in its summary) without a `positive_control` is dropped and reported in
-///   `errors`.
+/// - **Validates every finding** ([`finding::Finding::validate`]). A finding whose summary claims an absence (contains
+///   the whole word "zero", "no", "none", "missing", "unreachable" or "0"; "10 threads" and "casino" do not count)
+///   without a `positive_control` is dropped and reported in `errors`.
 /// - **Applies the project's allowlist**, read from `.coderipper.toml` in `ctx.project_root`. An entry suppresses a
 ///   finding only when its `check`, `file` and `symbol` equal the finding's `check_id`, `location.file` and `subject`,
 ///   so a check that wants to be suppressible must set a location and a subject.
