@@ -1,6 +1,48 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use coderipper::check::{CheckContext, Tier};
+use coderipper::finding::Severity;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
+
+// Exit codes (a promise to CI, documented in the README):
+const EXIT_CLEAN: u8 = 0; // every check ran and nothing is at or above `--deny` (no `--deny`: any run that finished)
+const EXIT_FINDINGS: u8 = 1; // a finding at or above `--deny`
+const EXIT_USAGE: u8 = 2; // bad arguments (clap exits 2 itself) or a project path that cannot be read
+const EXIT_COULD_NOT_RUN: u8 = 3; // a check could not run, so part of the audit did not happen
+
+/// The invocation was wrong (exit 2), as opposed to the audit failing (exit 3).
+#[derive(Debug)]
+struct UsageError(String);
+
+impl std::fmt::Display for UsageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for UsageError {}
+
+/// `--deny`'s values: the severity at which a finding fails the run.
+#[derive(Clone, Copy, ValueEnum)]
+enum Deny {
+    Info,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl Deny {
+    fn severity(self) -> Severity {
+        match self {
+            Deny::Info => Severity::Info,
+            Deny::Low => Severity::Low,
+            Deny::Medium => Severity::Medium,
+            Deny::High => Severity::High,
+            Deny::Critical => Severity::Critical,
+        }
+    }
+}
 
 #[derive(Parser)]
 #[command(
@@ -25,6 +67,10 @@ enum Command {
         workspace: bool,
         /// Root of the portfolio, for Portfolio-scope checks. Defaults to the parent of `project`.
         #[arg(long)]
+        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
+        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
+        #[arg(long, value_enum)]
+        deny: Option<Deny>,
         portfolio_root: Option<PathBuf>,
     },
     /// Run every check, including network-required ones (registries, GitHub API). Meant for a
@@ -36,6 +82,10 @@ enum Command {
         #[arg(long)]
         workspace: bool,
         #[arg(long)]
+        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
+        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
+        #[arg(long, value_enum)]
+        deny: Option<Deny>,
         portfolio_root: Option<PathBuf>,
     },
     /// Run exactly one check by id, at any tier.
@@ -47,6 +97,10 @@ enum Command {
         #[arg(long)]
         workspace: bool,
         #[arg(long)]
+        /// Exit 1 when a finding is at least this severe (info, low, medium, high, critical). Without it findings are
+        /// printed but never fail the run, like clippy's warnings; CI usually wants `--deny medium`.
+        #[arg(long, value_enum)]
+        deny: Option<Deny>,
         portfolio_root: Option<PathBuf>,
     },
     /// Inspect or trim the build cache (the persistent target directory the checks build in).
@@ -74,7 +128,7 @@ enum CacheAction {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> ExitCode {
     let cli = Cli::parse();
     let from_env = coderipper::build_cache::config_from_env(&|k| std::env::var(k).ok());
     if let Some(config) = from_env.clone() {
@@ -88,13 +142,23 @@ fn main() -> anyhow::Result<()> {
     {
         eprintln!("{text}");
     }
-    result
+    ExitCode::from(match result {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("coderipper: {e:#}");
+            if e.is::<UsageError>() {
+                EXIT_USAGE
+            } else {
+                EXIT_COULD_NOT_RUN
+            }
+        }
+    })
 }
 
 fn cache_command(
     action: CacheAction,
     config: Option<coderipper::build_cache::CacheConfig>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<u8> {
     use coderipper::build_cache::{prune_to_cap, status};
     let config = config.ok_or_else(|| {
         anyhow::anyhow!(
@@ -124,30 +188,40 @@ fn cache_command(
             println!("removed {} directories", removed.len());
         }
     }
-    Ok(())
+    Ok(EXIT_CLEAN)
 }
 
 fn dispatch(
     cli: Cli,
     cache_config: Option<coderipper::build_cache::CacheConfig>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<u8> {
     match cli.command {
         Command::Fast {
             project,
             workspace,
+            deny,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Fast, None, workspace),
+        } => run_and_report(project, portfolio_root, Tier::Fast, None, workspace, deny),
         Command::Sweep {
             project,
             workspace,
+            deny,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Sweep, None, workspace),
+        } => run_and_report(project, portfolio_root, Tier::Sweep, None, workspace, deny),
         Command::Check {
             id,
             project,
             workspace,
+            deny,
             portfolio_root,
-        } => run_and_report(project, portfolio_root, Tier::Fast, Some(id), workspace),
+        } => run_and_report(
+            project,
+            portfolio_root,
+            Tier::Fast,
+            Some(id),
+            workspace,
+            deny,
+        ),
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Serve { port } => {
             anyhow::bail!(
@@ -163,8 +237,15 @@ fn run_and_report(
     tier: Tier,
     only_check_id: Option<String>,
     workspace: bool,
-) -> anyhow::Result<()> {
-    let project_root = project.unwrap_or(std::env::current_dir()?).canonicalize()?;
+    deny: Option<Deny>,
+) -> anyhow::Result<u8> {
+    let project = project.unwrap_or(std::env::current_dir()?);
+    let project_root = project.canonicalize().map_err(|e| {
+        UsageError(format!(
+            "cannot read the project {}: {e}",
+            project.display()
+        ))
+    })?;
     let portfolio_root = portfolio_root
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
@@ -193,7 +274,7 @@ fn run_and_report(
     // updated). Distinguish the two real cases instead.
     if result.findings.is_empty() && result.errors.is_empty() {
         println!("coderipper: no issues found");
-        return Ok(());
+        return Ok(EXIT_CLEAN);
     }
 
     for f in &result.findings {
@@ -213,12 +294,17 @@ fn run_and_report(
 
     // Review finding: errors were printed to stderr but `main` still returned `Ok(())`, so the
     // process exited 0 even when a check genuinely failed to run -- a CI pipeline gating on exit
-    // code would see success. A check error must fail the run.
+    // code would see success. A check error must fail the run, and it outranks a finding: a run that
+    // could not judge everything must not look like a complete one that found something.
     anyhow::ensure!(
         result.errors.is_empty(),
         "{} error(s) during the run (see above)",
         result.errors.len()
     );
 
-    Ok(())
+    let denied = deny.map(Deny::severity);
+    if denied.is_some_and(|level| result.findings.iter().any(|f| f.severity >= level)) {
+        return Ok(EXIT_FINDINGS);
+    }
+    Ok(EXIT_CLEAN)
 }
