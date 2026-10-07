@@ -43,6 +43,7 @@ use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
 
 /// Reports functions nothing calls, including `pub` ones (see the module docs).
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ReachabilityCheck;
 
 impl Check for ReachabilityCheck {

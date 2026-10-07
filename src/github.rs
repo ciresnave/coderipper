@@ -50,7 +50,7 @@ impl std::error::Error for ApiError {}
 
 /// Reads one JSON document from the GitHub REST API. `path` is relative to the API root, e.g.
 /// `repos/ciresnave/coderipper/branches/main`.
-pub trait Github {
+pub trait Github: Send + Sync {
     /// Reads `path` (relative to the API root) and returns the JSON document, or why it could not.
     fn get(&self, path: &str) -> Result<serde_json::Value, ApiError>;
 }
@@ -64,6 +64,7 @@ pub(crate) fn gh_args(path: &str) -> Vec<String> {
 }
 
 /// The real client: `gh api <path>`, as whichever account `gh` has active.
+#[derive(Debug, Clone, Copy, Default)]
 pub struct GhCli;
 
 impl Github for GhCli {

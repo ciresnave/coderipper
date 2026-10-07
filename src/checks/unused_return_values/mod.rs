@@ -33,6 +33,7 @@ use sentinel::{inject_sentinel, SENTINEL_FN};
 pub const CHECK_ID: &str = "unused-return-values";
 
 /// Reports functions whose return value every caller discards (see the module docs).
+#[derive(Debug, Clone, Copy, Default)]
 pub struct UnusedReturnValuesCheck;
 
 impl Check for UnusedReturnValuesCheck {

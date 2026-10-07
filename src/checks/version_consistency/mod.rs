@@ -40,6 +40,7 @@ use std::path::{Path, PathBuf};
 pub const CHECK_ID: &str = "version-consistency";
 
 /// Reports a package whose version differs from the rest of its project (see the module docs).
+#[derive(Debug, Clone, Copy, Default)]
 pub struct VersionConsistencyCheck;
 
 impl Check for VersionConsistencyCheck {

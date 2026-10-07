@@ -38,6 +38,7 @@ use std::collections::BTreeSet;
 pub const CHECK_ID: &str = "unused-parameters";
 
 /// Reports function parameters nothing reads (see the module docs).
+#[derive(Debug, Clone, Copy, Default)]
 pub struct UnusedParametersCheck;
 
 impl Check for UnusedParametersCheck {

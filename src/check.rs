@@ -69,6 +69,7 @@ impl Network {
 /// use coderipper::check::CheckContext;
 /// let _ = CheckContext { project_root: ".".into(), portfolio_root: ".".into() };
 /// ```
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct CheckContext {
     /// The project being checked (its directory).
@@ -93,7 +94,10 @@ impl CheckContext {
 
 /// One pluggable audit. Run it through the host with [`crate::run_checks_with`], which validates its findings and applies
 /// the project's allowlist; calling [`Check::run`] directly skips both.
-pub trait Check {
+///
+/// `Send + Sync` are supertraits so a check can run on a thread pool, an async runtime or a service; a check that holds
+/// an `Rc` or a `RefCell` must hold an `Arc` or a `Mutex` instead.
+pub trait Check: Send + Sync {
     /// Stable identifier, e.g. `"reachability"`. Used in `coderipper check <id>`, in every `Finding`'s
     /// `check_id`, and as the key for allowlist entries.
     fn id(&self) -> &'static str;

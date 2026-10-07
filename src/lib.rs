@@ -39,7 +39,8 @@
 //!
 //! # Stability
 //!
-//! Types you receive from this crate (`Finding`, `Severity`, `CheckContext`, ...) are `#[non_exhaustive]`, so a field
+//! The traits [`check::Check`] and [`github::Github`] are `Send + Sync`, and a method added to either later will have a
+//! default body, so an existing implementation keeps compiling. Types you receive from this crate (`Finding`, `Severity`, `CheckContext`, ...) are `#[non_exhaustive]`, so a field
 //! or a variant can be added in a minor release without breaking you: build them with their constructors and match
 //! enums with a wildcard arm. The JSON the command prints (`--message-format json`) is a separate contract, pinned by
 //! golden tests.
@@ -88,6 +89,7 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
 /// host's job, see `suppression`), and return what is left plus one `Info` finding per allowlist
 /// entry that no longer suppresses anything. A check whose `run` returns an invalid absence-claim finding is
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RunResult {
     /// The validated findings that the allowlist did not suppress, plus the allowlist's own `Info` findings.
@@ -95,6 +97,13 @@ pub struct RunResult {
     /// What went wrong: a check that failed to run, a finding the host rejected as invalid, an unreadable allowlist.
     /// A non-empty list means the audit is incomplete, whatever `findings` says.
     pub errors: Vec<String>,
+}
+
+impl RunResult {
+    /// A result with these findings and errors: for a wrapper or a test double that must return one.
+    pub fn new(findings: Vec<Finding>, errors: Vec<String>) -> Self {
+        Self { findings, errors }
+    }
 }
 
 /// Which checks a run takes, by what they judge (see [`check::Unit`]). Plumbing for [`run_workspace`].

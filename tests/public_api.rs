@@ -149,3 +149,43 @@ fn enums_are_matched_with_a_wildcard_arm() {
     let err = invalid.validate().unwrap_err();
     assert_eq!(finding_error(&err), "absence");
 }
+
+fn assert_send_sync<T: Send + Sync + ?Sized>() {}
+
+#[test]
+fn checks_and_github_clients_can_cross_threads() {
+    // A hosted service, a thread pool or an async runtime needs this; adding the bounds after publishing would break
+    // every implementer that holds an Rc or a RefCell, so they are part of the traits from the first release.
+    assert_send_sync::<dyn coderipper::check::Check>();
+    assert_send_sync::<dyn coderipper::github::Github>();
+    assert_send_sync::<Box<dyn coderipper::check::Check>>();
+    assert_send_sync::<coderipper::RunResult>();
+    assert_send_sync::<Finding>();
+    assert_send_sync::<CheckContext>();
+}
+
+#[test]
+fn the_built_in_checks_are_values_you_can_hold_and_print() {
+    let all = coderipper::registered_checks();
+    assert_send_sync::<Vec<Box<dyn coderipper::check::Check>>>();
+    assert!(!all.is_empty());
+    let ctx = CheckContext::new("a", "b");
+    let copy = ctx.clone();
+    assert_eq!(format!("{ctx:?}"), format!("{copy:?}"));
+}
+
+#[test]
+fn results_and_findings_have_the_ordinary_derives() {
+    use std::collections::HashSet;
+    let finding = Finding::new("c", Severity::Low, Confidence::High, "p", "s", "d");
+    assert_eq!(finding.clone(), finding, "Finding is PartialEq + Clone");
+    let result = coderipper::RunResult::new(vec![finding.clone()], vec!["e".to_string()]);
+    let again = result.clone();
+    assert_eq!(format!("{result:?}"), format!("{again:?}"));
+    assert_eq!(result.findings.len(), 1);
+    assert_eq!(result.errors, ["e"]);
+    let severities: HashSet<Severity> = [Severity::Low, Severity::Low, Severity::High].into();
+    assert_eq!(severities.len(), 2, "Severity is Hash");
+    let confidences: HashSet<Confidence> = [Confidence::Low, Confidence::High].into();
+    assert_eq!(confidences.len(), 2, "Confidence is Hash");
+}

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Severity {
@@ -39,7 +39,7 @@ pub enum Severity {
 /// Kept separate from [`Severity`] on purpose: a symbol-reference miss is a plausible defect at
 /// `High` severity but only `Medium` confidence (name collisions, trait dispatch can hide a real
 /// caller); a version mismatch is `High` severity *and* `High` confidence, no ambiguity once read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Confidence {
@@ -105,7 +105,7 @@ impl Location {
 ///     positive_control: None,
 /// };
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Finding {
     /// The id of the check that reported it ([`Check::id`](crate::check::Check::id)).
