@@ -19,6 +19,12 @@ name = "coderipper"
 path = "src/main.rs"
 required-features = ["cli"]
 
+# `cargo coderipper`: cargo runs any `cargo-<name>` on PATH as the subcommand `<name>`.
+[[bin]]
+name = "cargo-coderipper"
+path = "src/cargo_main.rs"
+required-features = ["cli"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
 serde = { version = "1", features = ["derive"] }

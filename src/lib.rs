@@ -3,6 +3,9 @@ pub mod build_cache;
 pub(crate) mod cargo_json;
 pub mod check;
 pub mod checks;
+#[cfg(feature = "cli")]
+#[doc(hidden)]
+pub mod cli;
 pub mod finding;
 pub mod github;
 pub(crate) mod package;
