@@ -1,0 +1,13 @@
+# Every key the allowlist file format has. This file is a contract with every project that has a .coderipper.toml:
+# a key renamed or made optional here breaks them. See tests/golden.rs.
+
+[[allow]]
+check = "todo-file"
+file = "TODO.md"
+symbol = "TODO.md"
+reason = "kept on purpose"
+
+[[tracks]]
+package = "widgets-emitter"
+manifest = "../widgets/Cargo.toml"
+reason = "emitter for widgets; keeps widgets' version"

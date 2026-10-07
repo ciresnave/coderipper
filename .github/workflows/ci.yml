@@ -47,3 +47,54 @@ jobs:
 
       - name: cargo test
         run: cargo test --no-fail-fast
+
+  # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
+  docs:
+    name: Docs build clean, library builds without the cli feature
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: cargo doc (a missing doc or a broken link fails)
+        run: cargo doc --no-deps
+      - name: the library alone (no clap, no binaries)
+        run: |
+          cargo clippy --no-default-features --all-targets -- -D warnings
+          cargo test --no-default-features --lib
+          cargo test --no-default-features --doc
+
+  msrv:
+    name: Builds on the declared minimum Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Keep in step with `rust-version` in Cargo.toml (1.89 is where File::try_lock was stabilised).
+      - uses: dtolnay/rust-toolchain@1.89
+      - run: cargo build --all-targets --locked
+
+  package:
+    name: The published package builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # Packages the crate, then builds the packaged copy: a file the package leaves out that the build needs fails here.
+      - run: cargo package --locked
+
+  semver:
+    name: Public API changes are matched by the version
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      # Nothing is published to crates.io yet, so the baseline is the pull request's base commit.
+      - uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ github.event.pull_request.base.sha }}
