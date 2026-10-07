@@ -5,7 +5,7 @@
 //! shared target directory a build from a *different* worktree path finds every registry, git and out-of-repo
 //! dependency unit `fresh`. Cargo's own fingerprinting does the reuse; this module only gives it a stable place to
 //! live. (An in-repo path crate is rebuilt in every new worktree, because its checkout is newer than the artifact.
-//! That limit is stated in `docs/superpowers/plans/2026-10-03-workspace-flag-and-build-cache.md`.)
+//! That limit is stated in the source repository's workspace-flag plan.)
 //!
 //! **Where it lives:** `CODERIPPER_CACHE_DIR`, else `%LOCALAPPDATA%\coderipper\build`, else
 //! `$XDG_CACHE_HOME/coderipper/build`, else `~/.cache/coderipper/build`. Never a project's `target/` (that carries
@@ -58,9 +58,11 @@ const POLL: Duration = Duration::from_millis(50);
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct CacheConfig {
+    /// The directory the cache lives in: `<root>/<toolchain>/<repository>/`.
     pub root: PathBuf,
     /// How long to wait for another CodeRipper run's lock on the same repository before building uncached.
     pub wait: Duration,
+    /// The size cap: least-recently-used repository directories are pruned until the cache fits.
     pub max_bytes: u64,
 }
 

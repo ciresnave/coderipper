@@ -34,8 +34,10 @@ use sentinel::{inject_sentinels, SENTINEL_ARG, SENTINEL_FN};
 use sites::{find_param_sites, ParamSite};
 use std::collections::BTreeSet;
 
+/// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "unused-parameters";
 
+/// Reports function parameters nothing reads (see the module docs).
 pub struct UnusedParametersCheck;
 
 impl Check for UnusedParametersCheck {

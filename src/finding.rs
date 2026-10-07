@@ -1,3 +1,5 @@
+//! [`Finding`], the one shape every check reports in, with its [`Severity`] and [`Confidence`].
+
 use serde::{Deserialize, Serialize};
 
 /// How bad a finding is, independent of how sure we are it's real.
@@ -20,10 +22,15 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Severity {
+    /// Worth knowing, nothing to fix (a stale allowlist entry, a repository too young to judge).
     Info,
+    /// A defect with a small cost.
     Low,
+    /// A defect that will cost someone time.
     Medium,
+    /// A defect that is likely to cause a failure.
     High,
+    /// A defect that is a failure.
     Critical,
 }
 
@@ -36,8 +43,11 @@ pub enum Severity {
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum Confidence {
+    /// A plausible reading; expect false positives.
     Low,
+    /// Probably real; something the check cannot see could change the verdict.
     Medium,
+    /// Read directly from the project, no ambiguity.
     High,
 }
 
@@ -55,7 +65,10 @@ pub enum Confidence {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Location {
+    /// The file, relative to the project, with forward slashes. A check about something that is not a file may name its
+    /// own place (the CI-protection check uses `github:branch-protection`).
     pub file: String,
+    /// The line, when the finding is about one line.
     pub line: Option<u32>,
 }
 
@@ -95,17 +108,24 @@ impl Location {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Finding {
+    /// The id of the check that reported it ([`Check::id`](crate::check::Check::id)).
     pub check_id: String,
+    /// How bad it is.
     pub severity: Severity,
+    /// How sure the check is that it is real.
     pub confidence: Confidence,
+    /// The project it is about, by directory name.
     pub project: String,
+    /// Where it points, when it points anywhere specific.
     pub location: Option<Location>,
     /// The symbol the finding is about (a function name, ...), when it is about one. Together with
     /// `check_id` and `location.file` it is the finding's fingerprint, which is what an allowlist
     /// entry (`.coderipper.toml`) names. `None` for findings that aren't about a single symbol.
     #[serde(default)]
     pub subject: Option<String>,
+    /// One line: what is wrong.
     pub summary: String,
+    /// Why it matters and how to resolve it.
     pub detail: String,
     /// The cargo PACKAGE this finding came from, set by a `--workspace` run (`project` is the member's directory name,
     /// which two members can share). `None` outside a workspace run, and for findings about the whole repository.
@@ -123,10 +143,16 @@ pub struct Finding {
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum FindingError {
+    /// A finding says something is absent but gives no way to tell that from a broken query.
     #[error(
         "finding from check '{check_id}' claims an absence (\"{summary}\") but has no positive_control: {ABSENCE_CLAIM_HELP}"
     )]
-    AbsenceClaimMissingControl { check_id: String, summary: String },
+    AbsenceClaimMissingControl {
+        /// The check that emitted the finding.
+        check_id: String,
+        /// The finding's summary, which made the claim.
+        summary: String,
+    },
 }
 
 const ABSENCE_CLAIM_HELP: &str =

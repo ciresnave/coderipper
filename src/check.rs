@@ -1,3 +1,5 @@
+//! The [`Check`] trait, what a check declares about itself, and the [`CheckContext`] it runs against.
+
 use crate::finding::Finding;
 
 /// Which repos a check needs to read.
@@ -31,7 +33,9 @@ pub enum Unit {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Network {
+    /// Reads only the machine it runs on (the repository, its build): a fast-tier check.
     LocalOnly,
+    /// Calls a registry or the GitHub API: a sweep-tier check, rate-limited and slow.
     NetworkRequired,
 }
 
@@ -46,6 +50,7 @@ pub enum Tier {
 }
 
 impl Network {
+    /// The tier a check with this network behaviour runs in.
     pub fn tier(self) -> Tier {
         match self {
             Network::LocalOnly => Tier::Fast,
@@ -66,7 +71,9 @@ impl Network {
 /// ```
 #[non_exhaustive]
 pub struct CheckContext {
+    /// The project being checked (its directory).
     pub project_root: std::path::PathBuf,
+    /// Where `Portfolio`-scope checks look for the project's siblings.
     pub portfolio_root: std::path::PathBuf,
 }
 
@@ -84,17 +91,20 @@ impl CheckContext {
     }
 }
 
-/// One pluggable audit. See `docs/superpowers/specs/2026-09-30-audit-host-design.md` §1-2 for the
-/// design this trait implements.
+/// One pluggable audit. Run it through the host with [`crate::run_checks_with`], which validates its findings and applies
+/// the project's allowlist; calling [`Check::run`] directly skips both.
 pub trait Check {
-    /// Stable identifier, e.g. `"reachability"`. Used in `--check <id>`, in every `Finding`'s
+    /// Stable identifier, e.g. `"reachability"`. Used in `coderipper check <id>`, in every `Finding`'s
     /// `check_id`, and as the key for allowlist entries.
     fn id(&self) -> &'static str;
 
+    /// Which repositories the check reads (see [`Scope`]).
     fn scope(&self) -> Scope;
 
+    /// Whether the check leaves the machine (see [`Network`]); this decides its [`Tier`].
     fn network(&self) -> Network;
 
+    /// The tier the check runs in: derived from [`Check::network`], override only with a reason.
     fn tier(&self) -> Tier {
         self.network().tier()
     }

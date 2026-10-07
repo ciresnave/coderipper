@@ -1,3 +1,54 @@
+//! CodeRipper audits a Rust project for integration defects that the compiler and clippy do not report: public
+//! functions nothing calls, return values every caller discards, parameters nothing reads, crates in one project
+//! that disagree on their version, and a repository whose default branch enforces no CI.
+//!
+//! It is one engine with three faces:
+//!
+//! - **A library** (this crate): run the built-in checks with [`run_checks`], or your own [`check::Check`] through the
+//!   same host with [`run_checks_with`].
+//! - **A command**, `coderipper`, and **a cargo subcommand**, `cargo coderipper`, which run next to `cargo clippy`.
+//!   They are built by the default `cli` feature; a library user writes `default-features = false` and compiles
+//!   neither them nor `clap`. The command is documented in the README, not here: its code is not API.
+//! - **A hosted service** is planned; nothing of it is in this crate.
+//!
+//! # Running the built-in checks
+//!
+//! ```no_run
+//! use coderipper::check::{CheckContext, Tier};
+//! use coderipper::finding::Severity;
+//!
+//! // The project must be a git repository with a commit: the checks analyse HEAD in a throwaway worktree and never
+//! // touch your working tree.
+//! let ctx = CheckContext::new("path/to/project", "path/to");
+//! let result = coderipper::run_checks(&ctx, Tier::Fast, None);
+//! for finding in &result.findings {
+//!     println!("{:?} {} ({})", finding.severity, finding.summary, finding.check_id);
+//! }
+//! // A check that could not run is an entry in `errors`, never a silent absence of findings.
+//! assert!(result.errors.is_empty());
+//! let worst = result.findings.iter().map(|f| f.severity).max();
+//! assert!(worst.is_none_or(|s| s < Severity::High));
+//! ```
+//!
+//! # Writing a check
+//!
+//! Implement [`check::Check`] and run it with [`run_checks_with`]. The host validates every finding (a claim of
+//! absence needs a `positive_control`: see [`finding::Finding::validate`]), applies the project's `.coderipper.toml`
+//! allowlist, and reports allowlist entries that no longer match anything. See [`run_checks_with`] for a complete,
+//! runnable example.
+//!
+//! # Stability
+//!
+//! Types you receive from this crate (`Finding`, `Severity`, `CheckContext`, ...) are `#[non_exhaustive]`, so a field
+//! or a variant can be added in a minor release without breaking you: build them with their constructors and match
+//! enums with a wildcard arm. The JSON the command prints (`--message-format json`) is a separate contract, pinned by
+//! golden tests.
+//!
+//! # Features
+//!
+//! - `cli` (default): the `coderipper` and `cargo-coderipper` binaries.
+#![warn(missing_docs)]
+#![deny(rustdoc::broken_intra_doc_links)]
 pub(crate) mod allowlist;
 pub mod build_cache;
 pub(crate) mod cargo_json;
@@ -39,7 +90,10 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
 #[non_exhaustive]
 pub struct RunResult {
+    /// The validated findings that the allowlist did not suppress, plus the allowlist's own `Info` findings.
     pub findings: Vec<Finding>,
+    /// What went wrong: a check that failed to run, a finding the host rejected as invalid, an unreadable allowlist.
+    /// A non-empty list means the audit is incomplete, whatever `findings` says.
     pub errors: Vec<String>,
 }
 
@@ -56,6 +110,7 @@ pub enum UnitFilter {
 /// What a `--workspace` run did, beyond its findings and errors.
 #[non_exhaustive]
 pub struct WorkspaceRun {
+    /// Every member's findings (each marked with its [`Finding::member`](finding::Finding::member)) and every error.
     pub result: RunResult,
     /// Members analysed (a poisoned session stops the loop early).
     pub members: usize,

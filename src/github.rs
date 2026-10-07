@@ -21,7 +21,9 @@ use std::process::Command;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ApiError {
+    /// The HTTP status, when GitHub answered.
     pub status: Option<u16>,
+    /// What went wrong, in words.
     pub message: String,
 }
 
@@ -49,6 +51,7 @@ impl std::error::Error for ApiError {}
 /// Reads one JSON document from the GitHub REST API. `path` is relative to the API root, e.g.
 /// `repos/ciresnave/coderipper/branches/main`.
 pub trait Github {
+    /// Reads `path` (relative to the API root) and returns the JSON document, or why it could not.
     fn get(&self, path: &str) -> Result<serde_json::Value, ApiError>;
 }
 
@@ -118,7 +121,9 @@ pub(crate) fn parse_gh_failure(stdout: &[u8], stderr: &[u8]) -> ApiError {
 /// Which GitHub repository a remote URL names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoRef {
+    /// The user or organisation.
     pub owner: String,
+    /// The repository's name, without `.git`.
     pub name: String,
 }
 

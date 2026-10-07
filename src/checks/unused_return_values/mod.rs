@@ -29,8 +29,10 @@ use classify::classify;
 use rewriter::{annotate, use_ranges_only};
 use sentinel::{inject_sentinel, SENTINEL_FN};
 
+/// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "unused-return-values";
 
+/// Reports functions whose return value every caller discards (see the module docs).
 pub struct UnusedReturnValuesCheck;
 
 impl Check for UnusedReturnValuesCheck {

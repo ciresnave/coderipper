@@ -36,8 +36,10 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+/// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "version-consistency";
 
+/// Reports a package whose version differs from the rest of its project (see the module docs).
 pub struct VersionConsistencyCheck;
 
 impl Check for VersionConsistencyCheck {

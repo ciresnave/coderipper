@@ -25,8 +25,7 @@
 //! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's
 //!   root, not the nested crate's.
 //!
-//! Full detail: `docs/superpowers/plans/2026-09-30-reachability-project-scope.md`'s status note, and
-//! `docs/superpowers/specs/2026-09-30-audit-host-design.md`.
+//! Full detail: the reachability plan's status note and the audit-host design, in the source repository's `docs/`.
 
 mod diagnostics;
 mod foreign;
@@ -43,6 +42,7 @@ use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
 
+/// Reports functions nothing calls, including `pub` ones (see the module docs).
 pub struct ReachabilityCheck;
 
 impl Check for ReachabilityCheck {
