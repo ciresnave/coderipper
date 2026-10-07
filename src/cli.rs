@@ -60,7 +60,7 @@ impl Deny {
 #[derive(Parser)]
 #[command(
     name = "coderipper",
-    about = "Portfolio-wide code-integration auditor — run it next to cargo clippy, or as a server."
+    about = "Audits a Rust project for what clippy does not report — run it next to cargo clippy."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -133,8 +133,8 @@ enum Command {
         #[command(subcommand)]
         action: CacheAction,
     },
-    /// Run as an HTTP server (not yet implemented — planned for the ThinkersJournal.com hosted
-    /// instance; see docs/superpowers/specs/2026-09-30-audit-host-design.md §7).
+    /// Run as an HTTP server (not implemented; planned for a hosted instance). Hidden from `--help`.
+    #[command(hide = true)]
     Serve {
         #[arg(long, default_value = "8080")]
         port: u16,

@@ -4,6 +4,45 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## Unreleased - the first release as a library (0.3.0 proposed; the portfolio PM allocates the number at the gate)
+
+CodeRipper becomes three things at once: a library, a command that is also a cargo subcommand, and (planned, not in this
+crate) a hosted service. This is the library's first release.
+
+### Breaking
+- `Finding`, `Location`, `Severity`, `Confidence`, `FindingError`, `CheckContext`, `Scope`, `Unit`, `Network`, `Tier`,
+  `ApiError`, `CacheConfig`, `RunResult` and `WorkspaceRun` are `#[non_exhaustive]`: a field or variant can be added later
+  without breaking anyone. Build them with `Finding::new` + `.location()` / `.subject()` / `.positive_control()` /
+  `.member()`, `Location::new`, `CheckContext::new`, `ApiError::new`, `CacheConfig::new` + `.wait()` / `.max_bytes()`, and
+  match enums with a wildcard arm.
+- **Exit codes.** `coderipper` now exits 0 (clean), 1 (a finding at or above `--deny`), 2 (usage error, including a project
+  path that cannot be read) or 3 (a check could not run). Before, a check that could not run and a bad project path both
+  exited 1, and findings could not fail a run at all.
+- The command-line plumbing in the library (`UnitFilter`, and in `build_cache`: `config_from_env`, `status`,
+  `prune_to_cap`, `take_stats`, `render_stats`, `MARKER`, `RepoDirInfo`, `BuildStats`) is `#[doc(hidden)]`: still public so
+  the binaries can use it, no longer covered by the version number.
+
+### Added
+- **`run_checks_with`**: run your own `Check` (or any list of checks) through the host's validation and the project's
+  allowlist. `run_checks` is now a wrapper over it.
+- **`cargo coderipper`**: a second binary; a bare `cargo coderipper` is `fast`.
+- **`--deny <info|low|medium|high|critical>`** on `fast`, `sweep` and `check`. Off by default (findings print but never fail the
+  run, like clippy warnings); CI writes `--deny medium`.
+- **`--message-format json`**: one JSON object per line with a `"reason"` (`coderipper-finding`, `coderipper-summary`).
+- A `cli` cargo feature (default on) gates `clap` and the two binaries: `default-features = false` is the library alone.
+- Crate documentation, `#![warn(missing_docs)]`, three runnable examples (each run by a test), and `rust-version = "1.89"`
+  (where `File::try_lock`, used by the build cache's lock, was stabilised).
+
+### Changed
+- The `serve` subcommand, which only ever said "not implemented", is hidden from `--help`.
+- The package no longer ships `docs/`, `.github/`, `codecov.yml` or `tests/`; the README, the package description and the
+  command's `--help` no longer promise dependency checking or a server, which do not exist.
+
+## 0.2.13 - 2026-10-04
+
+### Changed
+- Dependency `toml` 0.9 to 1.
+
 ## 0.2.12 - 2026-10-03
 
 ### Added
