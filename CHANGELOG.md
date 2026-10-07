@@ -10,33 +10,48 @@ CodeRipper becomes three things at once: a library, a command that is also a car
 crate) a hosted service. This is the library's first release.
 
 ### Breaking
-- `Finding`, `Location`, `Severity`, `Confidence`, `FindingError`, `CheckContext`, `Scope`, `Unit`, `Network`, `Tier`,
-  `ApiError`, `CacheConfig`, `RunResult` and `WorkspaceRun` are `#[non_exhaustive]`: a field or variant can be added later
-  without breaking anyone. Build them with `Finding::new` + `.location()` / `.subject()` / `.positive_control()` /
-  `.member()`, `Location::new`, `CheckContext::new`, `ApiError::new`, `CacheConfig::new` + `.wait()` / `.max_bytes()`, and
-  match enums with a wildcard arm.
-- **Exit codes.** `coderipper` now exits 0 (clean), 1 (a finding at or above `--deny`), 2 (usage error, including a project
-  path that cannot be read) or 3 (a check could not run). Before, a check that could not run and a bad project path both
-  exited 1, and findings could not fail a run at all.
-- The command-line plumbing in the library (`UnitFilter`, and in `build_cache`: `config_from_env`, `status`,
-  `prune_to_cap`, `take_stats`, `render_stats`, `MARKER`, `RepoDirInfo`, `BuildStats`) is `#[doc(hidden)]`: still public so
-  the binaries can use it, no longer covered by the version number.
+- **The data types are `#[non_exhaustive]`**: `Finding`, `Location`, `Severity`, `Confidence`, `FindingError` (and its variant),
+  `CheckContext`, `Scope`, `Unit`, `Network`, `Tier`, `ApiError`, `CacheConfig`, `RunResult`, `WorkspaceRun`, `RepoRef`, `GhCli` and the
+  four unit-struct checks, so a field or variant can be added later without breaking anyone. Build them with `Finding::new` +
+  `.location()` / `.subject()` / `.positive_control()` / `.member()`, `Location::new`, `CheckContext::new`, `ApiError::new`,
+  `RunResult::new`, `RepoRef::new`, `CacheConfig::new` + `.with_wait()` / `.with_max_bytes()`, and `ReachabilityCheck::new()` (and the
+  other built-in checks), and match enums with a wildcard arm.
+- **`Check` and `Github` are `Send + Sync`**, so checks run on a thread pool or in a service. A method added to either later will
+  have a default body.
+- **`CheckContext::new(project_root)`** takes the project alone; the portfolio root (which no built-in check reads) defaults to the
+  project's parent and is set with `.portfolio_root(path)`. `Check::scope()` has a default (`Scope::Project`).
+- **An unknown check id is an error**, no longer a clean empty run: the library returns it in `errors`, the command exits 2 with the
+  list of checks. Two checks sharing an id are refused.
+- **Exit codes.** `coderipper` now exits 0 (clean), 1 (a finding at or above `--deny`), 2 (usage error: bad flag, unknown check id,
+  a project path that cannot be read) or 3 (the audit could not be completed: a check could not run, or the command failed). Before, a
+  check that could not run and a bad project path both exited 1, and findings could not fail a run at all.
+- The command-line plumbing in the library (`UnitFilter`; in `build_cache`: `config_from_env`, `status`, `prune_to_cap`, `take_stats`,
+  `render_stats`, `MARKER`, `RepoDirInfo`, `BuildStats`) is no longer public (it was only ever for the binaries).
 
 ### Added
-- **`run_checks_with`**: run your own `Check` (or any list of checks) through the host's validation and the project's
-  allowlist. `run_checks` is now a wrapper over it.
+- **`run_checks_with`**: run your own `Check` (or any list of checks) through the host's validation and the project's allowlist.
+  `run_checks` is now a wrapper over it.
 - **`cargo coderipper`**: a second binary; a bare `cargo coderipper` is `fast`.
-- **`--deny <info|low|medium|high|critical>`** on `fast`, `sweep` and `check`. Off by default (findings print but never fail the
-  run, like clippy warnings); CI writes `--deny medium`.
+- **`--deny <info|low|medium|high|critical>`** on `fast`, `sweep` and `check`. Off by default (findings print but never fail the run, like
+  clippy warnings); CI writes `--deny medium`.
 - **`--message-format json`**: one JSON object per line with a `"reason"` (`coderipper-finding`, `coderipper-summary`).
+- `--version`; `coderipper::anyhow` and `coderipper::serde_json` (re-exports of the types in the trait signatures); `Debug` / `Clone` /
+  `PartialEq` / `Hash` where a library user expects them.
 - A `cli` cargo feature (default on) gates `clap` and the two binaries: `default-features = false` is the library alone.
-- Crate documentation, `#![warn(missing_docs)]`, three runnable examples (each run by a test), and `rust-version = "1.89"`
-  (where `File::try_lock`, used by the build cache's lock, was stabilised).
+- Crate documentation, `#![warn(missing_docs)]`, three runnable examples (each run by a test), golden files for the `Finding` JSON and
+  the `.coderipper.toml` format, and `rust-version = "1.89"` (where `File::try_lock`, used by the build cache's lock, was stabilised;
+  1.88 fails to compile it, measured).
+- CI jobs: docs (`-D warnings`), the library alone, MSRV, `cargo package`, and cargo-semver-checks on pull requests.
 
 ### Changed
+- The absence-claim rule in `Finding::validate` matches whole words: "10 threads", "version 1.0" and "casino" are no longer rejected as
+  claims of an absence.
 - The `serve` subcommand, which only ever said "not implemented", is hidden from `--help`.
-- The package no longer ships `docs/`, `.github/`, `codecov.yml` or `tests/`; the README, the package description and the
-  command's `--help` no longer promise dependency checking or a server, which do not exist.
+- The package no longer ships `docs/`, `.github/`, `codecov.yml` or `tests/`; the README, the package description and the command's
+  `--help` no longer promise dependency checking or a server, which do not exist.
+
+### Fixed
+- Windows: the `\?\` prefix of a canonicalized path no longer appears in messages and JSON.
 
 ## 0.2.13 - 2026-10-04
 
