@@ -121,3 +121,27 @@ fn the_readme_history_lives_in_the_changelog_and_the_library_section_explains_th
         "the exit-code table says what an unknown check id does"
     );
 }
+
+#[test]
+fn the_newest_changelog_entry_is_the_version_in_cargo_toml() {
+    let version = CARGO_TOML
+        .lines()
+        .find_map(|l| l.strip_prefix("version = \""))
+        .and_then(|v| v.strip_suffix('"'))
+        .expect("a version");
+    let changelog = include_str!("../CHANGELOG.md");
+    let newest = changelog
+        .lines()
+        .find_map(|l| l.strip_prefix("## "))
+        .expect("a changelog entry");
+    assert!(
+        newest.starts_with(&format!("{version} ")),
+        "the newest CHANGELOG heading is {newest:?}, but Cargo.toml says {version}"
+    );
+    let mut parts = version.split('.');
+    let series = format!("{}.{}", parts.next().unwrap(), parts.next().unwrap());
+    assert!(
+        README.contains(&format!("version = \"{series}\"")),
+        "the README's dependency line does not name the {series} series"
+    );
+}

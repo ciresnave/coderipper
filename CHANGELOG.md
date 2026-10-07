@@ -4,7 +4,7 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
-## Unreleased - the first release as a library (0.3.0 proposed; the portfolio PM allocates the number at the gate)
+## 0.3.0 - 2026-10-06
 
 CodeRipper becomes three things at once: a library, a command that is also a cargo subcommand, and (planned, not in this
 crate) a hosted service. This is the library's first release.
