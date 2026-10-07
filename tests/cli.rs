@@ -1,3 +1,4 @@
+#![cfg(feature = "cli")]
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::process::Command as StdCommand;

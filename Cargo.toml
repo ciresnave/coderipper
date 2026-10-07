@@ -9,12 +9,18 @@ readme = "README.md"
 keywords = ["audit", "dead-code", "lint", "code-quality", "monorepo"]
 categories = ["development-tools", "command-line-utilities"]
 
+[features]
+default = ["cli"]
+# The command-line program. A library user turns it off (`default-features = false`) and does not compile clap.
+cli = ["dep:clap"]
+
 [[bin]]
 name = "coderipper"
 path = "src/main.rs"
+required-features = ["cli"]
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "4", features = ["derive"], optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"

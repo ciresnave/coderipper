@@ -40,7 +40,8 @@ pub struct RunResult {
     pub errors: Vec<String>,
 }
 
-/// Which checks a run takes, by what they judge (see [`check::Unit`]).
+/// Which checks a run takes, by what they judge (see [`check::Unit`]). Plumbing for [`run_workspace`].
+#[doc(hidden)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnitFilter {
     /// Every check, whatever it judges (what `run_checks` always did).

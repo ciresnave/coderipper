@@ -1,3 +1,4 @@
+#![cfg(feature = "cli")]
 //! The build cache through the real CLI. Each test sets its cache environment on the CHILD process only (no
 //! race between tests), and uses `unused-parameters`, which builds the package, so the `cache:` line the CLI
 //! prints on stderr says how many compilation units were reused (`fresh`) and how many were built.
