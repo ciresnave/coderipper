@@ -293,6 +293,16 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         deny,
         message_format,
     } = args;
+    if let Some(id) = &only_check_id {
+        let known: Vec<&str> = crate::registered_checks().iter().map(|c| c.id()).collect();
+        if !known.contains(&id.as_str()) {
+            return Err(UsageError(format!(
+                "no check named \"{id}\"; the checks are: {}",
+                known.join(", ")
+            ))
+            .into());
+        }
+    }
     let project = project.unwrap_or(std::env::current_dir()?);
     let project_root = project.canonicalize().map_err(|e| {
         UsageError(format!(

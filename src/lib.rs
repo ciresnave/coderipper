@@ -159,6 +159,10 @@ fn run_workspace_over(
         members: 0,
         members_with_errors: 0,
     };
+    // before visiting any member: a wrong id would otherwise repeat its error once per member
+    if let Some(problem) = check_list_problem(checks, only_check_id) {
+        return failed(problem);
+    }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
         Ok(found) => found,
         Err(e) => return failed(e.to_string()),
@@ -338,6 +342,28 @@ pub fn run_checks_with(
     run_checks_over(checks, ctx, tier, only_check_id, UnitFilter::Any)
 }
 
+/// Why this list of checks and this `only_check_id` cannot be run, if they cannot: a named check that does not exist
+/// (a typo must not read as a clean run) or two checks sharing an id (the id keys allowlist entries and `only_check_id`).
+fn check_list_problem(checks: &[Box<dyn Check>], only_check_id: Option<&str>) -> Option<String> {
+    let ids: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    if let Some(id) = ids
+        .iter()
+        .enumerate()
+        .find_map(|(i, id)| ids[..i].contains(id).then_some(id))
+    {
+        return Some(format!(
+            "the check id \"{id}\" is used by more than one check; ids must be unique"
+        ));
+    }
+    let wanted = only_check_id?;
+    (!ids.contains(&wanted)).then(|| {
+        format!(
+            "no check named \"{wanted}\"; the checks are: {}",
+            ids.join(", ")
+        )
+    })
+}
+
 /// `run_checks` over an explicit list, so tests can drive the loop with fake checks.
 fn run_checks_over(
     checks: &[Box<dyn Check>],
@@ -346,6 +372,12 @@ fn run_checks_over(
     only_check_id: Option<&str>,
     units: UnitFilter,
 ) -> RunResult {
+    if let Some(problem) = check_list_problem(checks, only_check_id) {
+        return RunResult {
+            findings: Vec::new(),
+            errors: vec![problem],
+        };
+    }
     let mut findings = Vec::new();
     let mut errors = Vec::new();
 
@@ -630,15 +662,18 @@ mod tests {
     }
 
     #[test]
-    fn unknown_check_id_matches_nothing_without_running_anything() {
-        // A bogus id should short-circuit before any check's (potentially expensive, real-build)
-        // `run` is ever called -- verified by using a path that would fail if `run` were invoked.
-        let ctx = CheckContext {
-            project_root: std::path::PathBuf::from("/does/not/exist"),
-            portfolio_root: std::path::PathBuf::from("/does/not/exist"),
-        };
+    fn unknown_check_id_is_an_error_and_runs_nothing() {
+        // A bogus id short-circuits before any check's (potentially expensive, real-build) `run` is ever called --
+        // verified by using a path that would fail if `run` were invoked -- and is an ERROR: "no findings" and "nothing
+        // ran" are different answers (it used to be an empty, clean result).
+        let ctx = CheckContext::new("/does/not/exist");
         let result = run_checks(&ctx, Tier::Fast, Some("no-such-check"));
         assert!(result.findings.is_empty());
-        assert!(result.errors.is_empty());
+        assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
+        assert!(result.errors[0].contains("no check named \"no-such-check\""));
+        assert!(
+            result.errors[0].contains("reachability"),
+            "lists the real ids"
+        );
     }
 }

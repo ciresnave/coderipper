@@ -166,3 +166,16 @@ fn the_workspace_run_uses_the_same_codes() {
     )
     .code(0);
 }
+
+#[test]
+fn a_check_id_that_does_not_exist_is_a_usage_error_and_exits_2() {
+    // Used to print "no issues found" and exit 0: a typo in a CI step was green forever.
+    let repo = clean_project();
+    run(&["check", "unused-return-valuse"], repo.path())
+        .code(2)
+        .stderr(predicate::str::contains(
+            "no check named \"unused-return-valuse\"",
+        ))
+        .stderr(predicate::str::contains("unused-return-values"))
+        .stdout(predicate::str::contains("no issues found").not());
+}

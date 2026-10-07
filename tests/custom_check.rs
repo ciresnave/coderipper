@@ -247,3 +247,81 @@ fn a_check_need_not_declare_a_scope() {
         "the default is the project"
     );
 }
+
+#[test]
+fn naming_a_check_that_does_not_exist_is_an_error_not_a_clean_run() {
+    // A typo in a CI step must not be green forever: "no findings" and "nothing ran" are different answers.
+    let dir = project_with(&[]);
+    let result = run_checks_with(
+        &boxed(TodoFile),
+        &ctx(dir.path()),
+        Tier::Fast,
+        Some("todo-fiel"),
+    );
+    assert!(result.findings.is_empty());
+    assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
+    assert!(
+        result.errors[0].contains("no check named \"todo-fiel\""),
+        "{}",
+        result.errors[0]
+    );
+    assert!(
+        result.errors[0].contains("todo-file"),
+        "the error lists the checks that exist: {}",
+        result.errors[0]
+    );
+}
+
+#[test]
+fn naming_a_check_that_exists_is_still_fine() {
+    let dir = project_with(&[("TODO.md", "- later\n")]);
+    let result = run_checks_with(
+        &boxed(TodoFile),
+        &ctx(dir.path()),
+        Tier::Fast,
+        Some("todo-file"),
+    );
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.findings.len(), 1);
+}
+
+#[test]
+fn two_checks_with_one_id_are_refused() {
+    // The id is the key of allowlist entries and of `only_check_id`; two checks sharing it would make both ambiguous.
+    let dir = project_with(&[("TODO.md", "- later\n")]);
+    let twice: Vec<Box<dyn Check>> = vec![Box::new(TodoFile), Box::new(TodoFile)];
+    let result = run_checks_with(&twice, &ctx(dir.path()), Tier::Fast, None);
+    assert!(
+        result.findings.is_empty(),
+        "nothing runs: {:?}",
+        result.findings
+    );
+    assert!(
+        result
+            .errors
+            .iter()
+            .any(|e| e.contains("todo-file") && e.contains("more than one check")),
+        "{:?}",
+        result.errors
+    );
+}
+
+#[test]
+fn a_workspace_run_with_an_unknown_check_id_says_so_instead_of_visiting_every_member() {
+    let dir = project_with(&[]);
+    let run = coderipper::run_workspace(
+        &ctx(dir.path()),
+        Tier::Fast,
+        Some("nope"),
+        &mut |_, _, _| {},
+    );
+    assert_eq!(run.members, 0);
+    assert!(
+        run.result
+            .errors
+            .iter()
+            .any(|e| e.contains("no check named \"nope\"")),
+        "{:?}",
+        run.result.errors
+    );
+}
