@@ -3,7 +3,8 @@
 use crate::finding::Finding;
 
 /// Which repos a check needs to read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Scope {
     /// Only the project being checked.
@@ -15,7 +16,8 @@ pub enum Scope {
 /// What one run of a check judges. A workspace run (`--workspace`) runs a `Package` check once per member and a
 /// `Repository` check once for the whole workspace: a check that reads repository-wide facts (a workspace's
 /// versions, a GitHub repository's settings) would otherwise repeat one finding per member.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum Unit {
     /// One cargo package: the project directory is a package's directory.
@@ -30,12 +32,14 @@ pub enum Unit {
 /// repo already lives checked out locally, so a `Portfolio`-scope, `LocalOnly` check (reading
 /// sibling checkouts on disk) is still fast. What's slow and rate-limit-sensitive is a registry or
 /// GitHub API call, regardless of how many repos a check reads.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[non_exhaustive]
 pub enum Network {
-    /// Reads only the machine it runs on (the repository, its build): a fast-tier check.
+    /// Reads only the machine it runs on (the repository, its build): a fast-tier check. Spelled `local` in a catalog record.
+    #[serde(rename = "local")]
     LocalOnly,
-    /// Calls a registry or the GitHub API: a sweep-tier check, rate-limited and slow.
+    /// Calls a registry or the GitHub API: a sweep-tier check, rate-limited and slow. Spelled `network` in a catalog record.
+    #[serde(rename = "network")]
     NetworkRequired,
 }
 

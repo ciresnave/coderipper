@@ -4,6 +4,17 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.2 - 2026-10-08 (proposed; the PM allocates the number at gate time)
+
+### Added
+- **`coderipper::catalog`**: the rule catalog of the multi-language design (P2, first PR). A `Rule` is a record in CodeRipper's own
+  words (statement, rationale, scope, network, unit, default severity, `kb_refs`, aliases, lifecycle); `Catalog::builtin()` loads the
+  records under `rules/`, and `Catalog::parse` loads any set of record files strictly (an unknown or missing field, a blank statement, an
+  ID or alias claimed twice is an error naming the file). The five existing checks have records, and a test fails if a record and its
+  check disagree about scope, network or unit.
+- `Scope`, `Unit` and `Network` can be deserialized (`local` / `network` for `Network`).
+- No behaviour change for the command or `run_checks`: nothing reads the catalog yet.
+
 ## 0.3.1 - 2026-10-08 (proposed; the PM allocates the number at gate time)
 
 ### Added
