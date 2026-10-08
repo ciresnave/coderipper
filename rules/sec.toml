@@ -1,0 +1,241 @@
+# Rule records, domain SEC (security). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "SEC-001"
+title = "No unsanitised taint flow to dangerous sinks"
+domain = "SEC"
+statement = "Data from untrusted sources must not reach sensitive operations such as queries, shell commands, file paths, outbound requests or deserialisers without being validated or encoded first."
+rationale = "Injection, path traversal, request forgery and unsafe deserialisation all come from the same cause: attacker-supplied data passing a trust boundary without inspection."
+evidence_tiers = ["V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Parse and validate input at the boundary, use parameterised queries and argument lists instead of strings, canonicalise paths, restrict outbound destinations, and never rebuild attacker-supplied payloads as arbitrary class hierarchies."
+related = ["SEC-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-002"
+title = "No committed secrets"
+domain = "SEC"
+statement = "Credentials, tokens and keys do not appear in tracked files or anywhere in the repository history."
+rationale = "A committed secret is exposed to everyone with read access, forever, and is routinely harvested by automated scanners."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "critical"
+confidence_class = "high"
+kb_refs = []
+remediation = "Revoke and rotate any exposed secret, move values into a secret store or environment, and run a secret scanner in pre-commit and in CI, including over history."
+related = ["SEC-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-003"
+title = "Authorization on every entry point"
+domain = "SEC"
+statement = "Every externally reachable handler enforces access control, preferably through default-deny middleware, and object-level and tenant checks are present where data belongs to a user or tenant."
+rationale = "Missing or inconsistent authorization is among the most common serious weaknesses, and it is invisible to scanners that only look for dangerous calls."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "low"
+kb_refs = []
+remediation = "List every route, join the list to the enforced policy, centralise the checks in one deny-by-default layer and add object-level ownership checks; have a reviewer look at the semantic cases."
+related = ["SEC-007", "SEC-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-004"
+title = "No cryptography misuse"
+domain = "SEC"
+statement = "Encryption, hashing and random-number code only looks protective if it uses a discouraged algorithm or mode, embeds a fixed key or initialisation vector, draws security values from an ordinary generator, or skips verification of the peer's certificate."
+rationale = "Cryptographic mistakes silently remove the protection the code is supposed to provide while still appearing to work."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Use a vetted library's high-level API, a cryptographically secure random source, a modern password hash, keys from a secret store, and leave certificate validation switched on."
+related = ["SEC-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-005"
+title = "Unsafe and native code inventory"
+domain = "SEC"
+statement = "Uses of unsafe or native code are counted, kept to a minimum and each justified; crates that need none can forbid it outright."
+rationale = "Memory-unsafe code is where a large share of severe vulnerabilities originate, so confining it makes review and auditing tractable."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Forbid unsafe code where possible, otherwise isolate it in a small module with a written safety argument and track the count over time."
+related = ["SEC-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-006"
+title = "No known exploitable dependency vulnerabilities"
+domain = "SEC"
+statement = "No dependency has a known, exploitable vulnerability unless each remaining one has a recorded waiver."
+rationale = "Shipped code is mostly third-party, and published advisories make known weaknesses easy for attackers to find and use."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Match the lockfile against an advisory database, upgrade or replace the affected dependency, and record a dated waiver with a reason for anything you must keep."
+related = ["SUP-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["third_party"]
+
+[[rule]]
+id = "SEC-007"
+title = "A current threat model"
+domain = "SEC"
+statement = "A threat model exists, is kept up to date, maps threats to controls, and a change to trust boundaries (new endpoint, integration or data store) triggers a review."
+rationale = "Declaring trust boundaries is the starting point for every other security decision, and an out-of-date model gives false comfort."
+evidence_tiers = ["V5", "V4"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Keep a threat model in the repository, review it whenever the diff adds endpoints or external calls, and link each threat to the control that addresses it."
+related = ["SEC-003", "SEC-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-008"
+title = "No sensitive data in logs or telemetry"
+domain = "SEC"
+statement = "Personal data and secrets are kept out of log lines, error messages and telemetry."
+rationale = "Logs are copied widely and kept long, so anything written to them is exposed to far more people than the original data was."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Redact or omit sensitive fields before logging, wrap secrets in types that print as masked, and review log statements that handle user records."
+related = ["SEC-001", "SEC-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-009"
+title = "Least privilege in infrastructure definitions"
+domain = "SEC"
+statement = "Wildcard permissions and elevated container privileges let a single breach spread through the whole environment, so infrastructure definitions should grant each workload only the named actions and resources it needs."
+rationale = "Over-broad grants turn any single compromise into a compromise of the whole environment."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Narrow policies to named actions and resources, drop container privileges and capabilities, and scan the definitions with a policy tool in CI."
+related = ["REL-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-010"
+title = "Model-assisted review of risky changes"
+domain = "SEC"
+statement = "Changes that touch authentication, authorization, cryptography or parsing receive an extra review pass by a language-model reviewer, with a human confirming every finding."
+rationale = "Logic flaws and authorization gaps escape pattern-based scanners; a model can raise candidates, but only evidence-backed and human-confirmed ones should count."
+evidence_tiers = ["V4", "V5"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Route high-risk diffs to the model reviewer, require each finding to cite the code it concerns, and never let the model be the sole gate."
+related = ["SEC-003", "SEC-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

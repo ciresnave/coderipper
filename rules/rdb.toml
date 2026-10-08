@@ -1,4 +1,4 @@
-# Rule records, domain RDB (readability and dead weight). Written in CodeRipper's own words.
+# Rule records, domain RDB (readability and dead weight). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
 id = "unused-parameters"
@@ -23,4 +23,318 @@ lifecycle = "advisory"
 
 [rule.applicability]
 languages = ["rust"]
+scopes = ["first_party"]
+
+# Rule records, domain RDB (readability and naming). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "RDB-001"
+title = "Code matches the project formatter"
+domain = "RDB"
+statement = "Every source file is exactly what the project's chosen automatic formatter would produce."
+rationale = "Settling layout by machine ends arguments over style and keeps diffs about substance rather than whitespace."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Run the formatter over the tree and commit the result; run it in check mode in CI so drift fails fast."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-002"
+title = "Identifiers follow language naming conventions"
+domain = "RDB"
+statement = "Names of variables, functions, types and constants follow the conventions of their language and of the project."
+rationale = "Readers rely on casing and shape to tell kinds of things apart; a house style that deviates costs attention everywhere."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Rename offenders to the language convention, and enable the naming lints so new ones are caught on entry."
+related = ["RDB-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-003"
+title = "Cognitive complexity stays within bounds"
+domain = "RDB"
+statement = "Function cognitive complexity should stay under a warning level near 15 and an error level near 30, and a function being edited should not become more complex than it was."
+rationale = "Cognitive complexity tracks how hard code is to understand better than path counting does, so it is a usable proxy for reading effort."
+evidence_tiers = ["V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Flatten the control flow by exiting early on the failure cases, and pull out pieces that deserve a name. Generated code, parsers and state-machine implementations may be exempted with a recorded reason."
+related = ["RDB-004", "RDB-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-004"
+title = "Nesting, parameter count and flag arguments stay small"
+domain = "RDB"
+statement = "Functions keep nesting shallow, take a modest number of parameters, and avoid boolean flag arguments that switch behaviour."
+rationale = "Deep nesting and long or flag-laden signatures are classic smells that raise reading effort and invite call-site mistakes. Treat any numeric limit as a signal, not a verdict."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Use early exits to cut nesting, group related parameters into a type, and replace a flag with two functions or an enum."
+related = ["RDB-003", "TYP-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-005"
+title = "Duplicated knowledge across clone groups"
+domain = "RDB"
+statement = "Clone groups above a minimum size are reported, weighted by how often the copies change, so that one fact is not maintained in several places. Copies that merely look alike by chance may be waived."
+rationale = "When the same decision lives in several spots, a fix to one leaves the others wrong. Similar text that expresses unrelated ideas is not a real duplication, and merging it creates a bad abstraction."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Merge copies that carry the same knowledge into one definition; note a justified exemption for look-alikes that are independent."
+related = ["RDB-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-006"
+title = "No dead code, unused imports or unused private items"
+domain = "RDB"
+statement = "Nothing in the tree is unreferenced: no unused imports, locals, private functions or private types."
+rationale = "Dead code still has to be read, maintained and reasoned about, and it misleads about what the system does."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Delete the unused item; in a dynamic language, confirm it is not reached by reflection or a string lookup first."
+related = ["unused-parameters", "reachability"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-007"
+title = "Magic literals get names"
+domain = "RDB"
+statement = "Bare numeric or string literals whose meaning is not obvious are replaced by named constants or dedicated types."
+rationale = "A literal like 86400 says nothing about intent and, when repeated, is easy to change in one place only."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Introduce a named constant or a small type that states the meaning. Obvious values such as 0 or 1 in context need no name."
+related = ["TYP-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-008"
+title = "Comment hygiene: owned TODOs, no commented-out code"
+domain = "RDB"
+statement = "Each TODO names an owner and a date or ticket by which it expires, and code that has been commented out is deleted rather than kept."
+rationale = "Anonymous to-dos never get done, and disabled code rots while the version history already preserves it."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add an owner and expiry to the TODO or resolve it; delete the commented-out block."
+related = ["RDB-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-009"
+title = "Names tell the truth about behaviour"
+domain = "RDB"
+statement = "Whatever a function or type is called, it behaves that way, and that includes any side effects."
+rationale = "A misleading name makes callers rely on behaviour that is not there, a defect no compiler catches."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Rename to describe the real behaviour, or change the code to honour the name; split out an effect the name hides."
+related = ["RDB-002", "EFX-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-010"
+title = "Comments and docstrings match current behaviour"
+domain = "RDB"
+statement = "Comments and documentation strings agree with what the code does now, including its parameters and error cases."
+rationale = "A stale comment is worse than none because it is trusted, and it silently contradicts the code."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Update or remove the comment. A deterministic check can at least compare documented parameter names with the real ones."
+related = ["RDB-008", "RDB-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-011"
+title = "Terminology follows the project glossary"
+domain = "RDB"
+statement = "Each domain concept is called by one agreed term across the code, as set down in a project glossary."
+rationale = "Synonyms for one concept make readers wonder whether two things differ, and make searching unreliable."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Rename the stray identifiers to the glossary term, or extend the glossary if the new word is deliberate."
+related = ["RDB-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-012"
+title = "Additions match how the repository already works"
+domain = "RDB"
+statement = "Fresh code is written the way the rest of the repository already does comparable things."
+rationale = "A codebase with one way per task is quicker to read; a newcomer's private idiom adds a second way to learn."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Mine the existing patterns, show the author the closest examples, and rework the new code to match."
+related = ["RDB-001", "RDB-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "RDB-013"
+title = "Diff readability against a rubric"
+domain = "RDB"
+statement = "Changes are reviewed for readability: each function held to a single abstraction level, no surprising control flow, and no hidden coupling."
+rationale = "Several readability faults cannot be measured by a metric but show up plainly when a reviewer reads with a checklist."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Treat the output as advice to the author: restructure functions that mix levels of detail and make hidden dependencies explicit."
+related = ["RDB-003", "RDB-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
 scopes = ["first_party"]

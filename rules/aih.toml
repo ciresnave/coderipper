@@ -1,0 +1,193 @@
+# Rule records, domain AIH (AI-assisted development hygiene). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "AIH-001"
+title = "One policy for humans, agents and CI"
+domain = "AIH"
+statement = "The same rule set, at the same pinned version, runs on a developer machine, inside a coding agent's loop and in the CI pipeline."
+rationale = "An agent that only meets the rules in CI learns of a violation after the work is done; giving it the identical verifier up front lets it correct itself while generating."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Publish the policy as one versioned bundle, pin its version, and call it from the local hook, the agent configuration and the CI job alike."
+related = ["AIH-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-002"
+title = "Referenced APIs and new packages really exist"
+domain = "AIH"
+statement = "Every API a change calls must resolve when the project builds, and every newly added package must exist in its registry and be checked for what it truly is."
+rationale = "Assistants invent plausible function names and package names; an invented package name can be claimed by an attacker, turning a hallucination into a supply-chain entry point."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Build the change, look every newly added dependency up in its registry, and review its publisher, age and contents before accepting it."
+related = ["AIH-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-003"
+title = "New helpers do not repeat existing utilities"
+domain = "AIH"
+statement = "Before a new helper function is accepted, a search of the project's existing symbols should show that nothing already does the same job."
+rationale = "Generated code tends to write fresh utilities instead of finding the one already present, which multiplies near-copies."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Replace the new helper with a call to the existing utility, or extend the existing one if it lacks something."
+related = ["AIH-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-004"
+title = "A change stays within the task it was given"
+domain = "AIH"
+statement = "Mixing unrelated edits or wholesale reformatting into a diff makes it unreviewable; every change should contain just what its task calls for."
+rationale = "Oversized or wandering diffs cannot be reviewed meaningfully, so errors slip through and real changes hide among cosmetic ones."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Split the unrelated edits and formatting changes into their own commits or pull requests, and keep the logic change small."
+related = ["AIH-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-005"
+title = "Tests check the specification, not the code's own output"
+domain = "AIH"
+statement = "Tests added alongside generated code must express required behavior taken from a specification, not simply record whatever the generated code currently returns."
+rationale = "A test derived from the implementation can only confirm it; such circular tests pass even when the behavior is wrong."
+evidence_tiers = ["V2", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Write the expected results from the requirement before running the code, and check the changed code with mutation testing to see that the tests would notice a fault."
+related = ["AIH-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-006"
+title = "Generated code follows the local conventions"
+domain = "AIH"
+statement = "New code should match the style and patterns already established in the repository, as learned from the existing code rather than from generic habit."
+rationale = "Assistants default to common idioms from their training; unless pointed at local practice they produce code that reads as foreign to its surroundings."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Rework the new code to mirror the nearest comparable implementation in the repository, and give agents a few canonical examples to copy from."
+related = ["AIH-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-007"
+title = "AI-assisted commits are marked in their trailers"
+domain = "AIH"
+statement = "Where the organization's policy calls for it, a commit made with an AI assistant says so in a trailer line of its message."
+rationale = "The marker lets a team measure the effect of assistants on quality and review load; it is meant for analysis, not for assigning blame."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "high"
+kb_refs = []
+remediation = "Add the agreed trailer to the commit message, and install a commit-message check that requires it where the policy applies."
+related = ["AIH-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-008"
+title = "No abstractions or options nobody asked for"
+domain = "AIH"
+statement = "Code should not carry speculative layers, parameters or configuration switches that the task did not require."
+rationale = "Assistants readily add generality for imagined future needs; it adds surface to read and maintain without delivering anything today."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Remove the unused abstraction or option and reintroduce it only when a second real use appears."
+related = ["AIH-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

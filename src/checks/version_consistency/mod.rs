@@ -1,5 +1,7 @@
 //! Version-consistency check (project scope, local): do all of a project's packages share one version?
 //!
+//! Rule record: `version-consistency` in `rules/wsp.toml` (the rule catalog). Background in `docs/rules/wsp.md`; it overlaps WSP-003 (partly) of the owner's knowledge base, which this check covers only in part.
+//!
 //! CireSnave's standing rule: every crate in a project carries the same version number, so a consumer
 //! can tell which ones go together. One narrow exception: a crate that exists to work with a version of
 //! ANOTHER project (an emitter crate tracking the project it targets) keeps that project's version

@@ -1,4 +1,4 @@
-# Rule records, domain WSP (workspace and repository hygiene). Written in CodeRipper's own words.
+# Rule records, domain WSP (workspace and repository hygiene). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
 id = "version-consistency"
@@ -45,6 +45,224 @@ aliases = []
 remediation = "Require the CI checks on the default branch through branch protection or a ruleset."
 related = ["version-consistency"]
 lifecycle = "advisory"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+# Catalog records for the multi-codebase and workspace governance domain. Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "WSP-001"
+title = "Every repository is registered with an owner"
+domain = "WSP"
+statement = "Each repository appears in an inventory that records its owner, its importance level, and its stage of life (active, maintained, retiring)."
+rationale = "Without a record of ownership and criticality nobody can say who answers for a repository or which ones deserve the strictest gates."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Add the repository to the inventory, filling in owner, importance level and stage of life, and keep a CODEOWNERS file in step."
+related = ["WSP-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-002"
+title = "Cross-repository dependencies point the right way and do not loop"
+domain = "WSP"
+statement = "Joining the dependency graphs of all repositories must show edges that obey the declared direction (shared platform code never leans on product code) and no cycles among repositories at the same declared tier."
+rationale = "Upward or circular dependencies between repositories spread the damage of any change and make independent release impossible."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Move the shared piece down into a lower tier or invert the dependency behind an interface, so edges only run from higher tiers to lower ones."
+related = ["WSP-003", "WSP-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-003"
+title = "Internal library versions stay within the skew policy"
+domain = "WSP"
+statement = "Consumers of an internal library use a release no more than the allowed number of versions behind the newest one, and nobody depends on a library that has been formally retired."
+rationale = "Old versions linger quietly; the wider the spread of versions in use, the costlier every fix and every migration becomes."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Upgrade the consumer to a release inside the policy window, or move off the retired library by its published retirement date."
+related = ["WSP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-004"
+title = "Widely used libraries are tested against their dependents before release"
+domain = "WSP"
+statement = "An internal library with many dependents proves a candidate release against those dependents (building and testing them with the change) before it ships."
+rationale = "The authors of a library cannot foresee every use; running real dependents is the cheapest way to learn what a change breaks."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add a pre-release job that builds and tests the library's main dependents against the candidate, and block the release on failures."
+related = ["WSP-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-005"
+title = "Organization policy is inherited and exceptions are waived"
+domain = "WSP"
+statement = "Repositories take their baseline policy from one organization-level source; any local departure is written down as a waiver that gives its reason."
+rationale = "Policy copied by hand drifts; policy inherited with visible exceptions stays uniform and reviewable."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Reference the shared baseline from the repository's configuration and write each override as a waiver that states why."
+related = ["WSP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-006"
+title = "Copied code across repositories"
+domain = "WSP"
+statement = "The same or nearly the same implementation, whether a vendored copy or a rewritten look-alike, should not live in several repositories."
+rationale = "Copies diverge: a defect fixed in one place stays alive in the others, and nobody knows which one is authoritative."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Extract the shared code into one published library and have the repositories depend on it, or record why the copy is intentional."
+related = ["WSP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-007"
+title = "Interfaces between repositories have contract tests"
+domain = "WSP"
+statement = "Where one repository relies on an interface owned by another, tests pin that agreement and run on both sides."
+rationale = "A boundary that only humans remember breaks silently when either side changes; an executable contract fails loudly and early."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Write contract tests for the shared interface and run them in the pipelines of both the provider and the consumer."
+related = ["WSP-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-008"
+title = "Conventions do not drift between repositories"
+domain = "WSP"
+statement = "Repositories of one organization should agree on formatter settings, lint strictness, minimum toolchain version and CI templates unless a recorded reason says otherwise."
+rationale = "Each divergence taxes everyone who moves between repositories and makes organization-wide changes harder to apply."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Align the repository with the shared configuration or template, or document the intended difference as a waiver."
+related = ["WSP-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "WSP-009"
+title = "Repositories forced to release together"
+domain = "WSP"
+statement = "History showing that certain repositories can only be released or deployed at the same moment points to hidden coupling between them."
+rationale = "Lockstep releases mean the repositories behave as one program split across several places, with the costs of both layouts and the benefits of neither."
+evidence_tiers = ["V3"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Introduce compatible interfaces with version tolerance so each repository can ship alone, or merge the repositories if they truly are one unit."
+related = ["WSP-002"]
+lifecycle = "experimental"
 
 [rule.applicability]
 languages = ["any"]

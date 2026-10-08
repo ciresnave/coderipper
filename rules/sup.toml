@@ -1,0 +1,313 @@
+# Rule records, domain SUP (supply chain). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "SUP-001"
+title = "Lockfile committed, CI resolves strictly from it"
+domain = "SUP"
+statement = "A project that ships as an application keeps its lockfile in version control, and its CI installs exactly what the lockfile says, failing if the two disagree."
+rationale = "Without a pinned resolution, every build may pull different transitive code, so a build cannot be reproduced and a poisoned release flows straight in."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Commit the lockfile and switch CI installs to the strict mode of the package manager (locked, frozen, or clean-install)."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-002"
+title = "Dependencies free of known advisories"
+domain = "SUP"
+statement = "No resolved dependency version appears in a public vulnerability database unless a recorded waiver explains why it stays."
+rationale = "Known flaws in third-party code are the cheapest route for an attacker, and databases make them detectable mechanically."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "network"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Upgrade or replace the affected dependency; where that is impossible, record a time-limited waiver naming the advisory and the reason."
+related = ["SUP-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-003"
+title = "Dependency licences satisfy policy"
+domain = "SUP"
+statement = "Every dependency, direct or transitive, carries a licence that the project's declared licence policy allows."
+rationale = "An incompatible licence can make shipping the product unlawful, and the problem is found cheaply only before release."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Replace the dependency, obtain different terms, or amend the policy deliberately and record the decision."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-004"
+title = "Dependencies only from approved sources"
+domain = "SUP"
+statement = "Dependencies come only from registries on an allowlist; release builds contain no unreviewed git or local-path dependencies."
+rationale = "A dependency fetched from an arbitrary location bypasses registry protections and cannot be tied to a reviewed, immutable release."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Publish or vendor the dependency through an approved registry, or add the source to the allowlist after review."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-005"
+title = "Limit on multiple versions of one dependency"
+domain = "SUP"
+statement = "The dependency graph holds no more than an agreed number of distinct versions of any one package."
+rationale = "Duplicates inflate binaries and attack surface, and can cause type or behaviour mismatches where two versions meet."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Align version requirements so the graph resolves to one version, or raise the budget for a justified exception."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-006"
+title = "Declared dependencies that are never used"
+domain = "SUP"
+statement = "Every dependency a manifest declares is actually used by the code it belongs to."
+rationale = "An unused dependency still costs build time and still brings its vulnerabilities and transitive code, for no benefit."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Remove the declaration, or document why a dependency that looks unused is needed (for instance a feature-only or macro use)."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-007"
+title = "Justification record for each new dependency"
+domain = "SUP"
+statement = "Adding a dependency comes with a short record covering the reason, alternatives considered, maintenance health, size of its transitive tree, and whether it pulls in procedural macros, build scripts or any unsafe code."
+rationale = "Each dependency is a lasting trust decision; writing the reasoning down makes the cost visible and reviewable at the moment it is cheapest to refuse."
+evidence_tiers = ["V4", "V5"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "network"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Attach the justification record to the change that adds the dependency and have a person approve it."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-008"
+title = "CI workflows pinned and least-privileged"
+domain = "SUP"
+statement = "Third-party actions in CI workflows are pinned to immutable commit hashes, and workflow tokens receive only the permissions each job needs."
+rationale = "A mutable tag or an over-powered token lets a compromised upstream action run with the project's own credentials."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Pin each action to a full commit hash and declare minimal permissions at workflow or job level."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-009"
+title = "Release produces and stores an SBOM"
+domain = "SUP"
+statement = "Each release generates a software bill of materials in a standard format and keeps it with the release artifacts."
+rationale = "When a new vulnerability is announced, an inventory of exactly what shipped lets consumers answer the question within minutes."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add an SBOM generation step to the release workflow and publish the output alongside the artifacts."
+related = ["SUP-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-010"
+title = "Signed artifacts with build provenance"
+domain = "SUP"
+statement = "Release artifacts are signed and carry build provenance that meets the supply-chain assurance level the project has chosen."
+rationale = "Consumers can only trust that an artifact came from the declared source and build if that claim is verifiable."
+evidence_tiers = ["V0", "V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Generate provenance attestations in the release pipeline and sign artifacts with a keyless or managed key."
+related = ["SUP-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-011"
+title = "Third-party code excluded from own analysis"
+domain = "SUP"
+statement = "Analysis tools skip source that the project merely vendors from elsewhere, so that only code the team owns gets judged."
+rationale = "Judging code the team does not maintain by the team's own standards produces noise that buries real findings."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "List vendored directories in the exclusion configuration of the analysis tools."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-012"
+title = "New package names screened for squatting"
+domain = "SUP"
+statement = "A package name added as a dependency is checked for existence, age, popularity and closeness to well-known names."
+rationale = "Attackers register look-alike names and names that coding assistants invent, counting on someone installing them unchecked."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "low"
+kb_refs = []
+remediation = "Confirm the package is the intended one by checking its registry history and repository before keeping it."
+related = ["SUP-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-013"
+title = "Only audited versions in sensitive tiers"
+domain = "SUP"
+statement = "In parts of the system designated as sensitive, every dependency version has a recorded human audit."
+rationale = "Scanners find known problems only; for the highest-risk code, review by a person is the remaining safeguard."
+evidence_tiers = ["V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Audit the version and record the result, or replace the dependency with something already audited."
+related = ["SUP-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

@@ -1,6 +1,8 @@
 //! Reachability check (project scope): does every function in a Rust crate get called from
 //! somewhere, including `pub` items that `rustc`'s own `dead_code` lint deliberately exempts.
 //!
+//! Rule record: `reachability` in `rules/mod.toml` (the rule catalog). Background in `docs/rules/mod.md`; it overlaps MOD-001 (partly) and RDB-006 (partly) of the owner's knowledge base, which this check covers only in part.
+//!
 //! **Packages with a library:** only the library is built (the `pub` downgrade would break every
 //! other target that imports it by crate name). A lib item that a bin, an integration test, an
 //! example or a bench names is therefore NOT reported, and neither is anything such an item reaches:

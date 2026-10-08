@@ -1,0 +1,289 @@
+# Rule records, domain API (API evolution). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "API-001"
+title = "Breaking public changes since last release"
+domain = "API"
+statement = "Comparing the public interface against the last release finds no incompatible change that has not been declared as breaking."
+rationale = "Consumers rely on a published interface as a promise, and tool-detectable breakage is cheap to catch before it ships."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Restore compatibility, or release the change as a breaking one with the version bump and notice that implies."
+related = ["API-003", "API-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-002"
+title = "Public surface snapshot reviewed when changed"
+domain = "API"
+statement = "The public interface is recorded in a snapshot file, and any change to that snapshot is surfaced for review."
+rationale = "Accidental exposure is common; a visible diff makes every widening or narrowing of the interface an explicit decision."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Regenerate the snapshot and have a reviewer approve the interface difference."
+related = ["API-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-003"
+title = "Version number matches kind of change"
+domain = "API"
+statement = "The version bump in a release is at least as large as the kind of change detected: major for breaking, minor for additions."
+rationale = "Version numbers are how consumers decide whether an upgrade is safe, so a mismatch silently misleads them."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Raise the version to the level the detected change requires, or remove the change that forces it."
+related = ["API-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-004"
+title = "Deprecation notices carry full lifecycle data"
+domain = "API"
+statement = "Each deprecation states the version it began in, what replaces the item, and when removal is planned."
+rationale = "A bare deprecation tells consumers to worry but not how or when to act, so migration stalls."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add the since-version, the replacement, and the removal target to the deprecation notice."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-005"
+title = "Serialized formats tested for old and new readers"
+domain = "API"
+statement = "Persisted and wire formats have tests showing that older data still reads in newer code and, where policy requires, the reverse."
+rationale = "Data outlives the code that wrote it, and a format change that strands stored data is hard to undo."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add stored sample files and write-then-read tests across the supported versions."
+related = ["API-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-006"
+title = "Schema changes obey evolution rules"
+domain = "API"
+statement = "Changes to schemas never reuse or retype a field, and never add a new required field to an existing message."
+rationale = "Those changes make old and new participants misread each other's data without any visible error."
+evidence_tiers = ["V0"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Add a new field instead, mark the old one retired, and keep its identifier reserved."
+related = ["API-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-007"
+title = "Database migrations safe step by step"
+domain = "API"
+statement = "Each migration step is non-destructive, aware of locking, and still works with the previous version of the application."
+rationale = "Deployments overlap old and new code, so a step that breaks either side causes downtime or data loss during rollout."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Split the change into expand, backfill, switch and contract steps, each safe on its own."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-008"
+title = "Public API exposes no third-party types"
+domain = "API"
+statement = "Public signatures do not name types from other libraries unless the project has declared the exception."
+rationale = "Exposing another library's types ties your version policy to theirs, so their breaking change becomes yours."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Wrap the type in your own, or record the exposure as a deliberate, declared exception."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-009"
+title = "Extension points flagged on exported enums and structs"
+domain = "API"
+statement = "Public enums and structs expected to gain members are marked so that adding them is not a breaking change."
+rationale = "Without the marker, extending the type forces a major version, which discourages healthy growth."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Mark the type as non-exhaustive or sealed, or document that it is intentionally closed."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-010"
+title = "Doc samples build and execute"
+domain = "API"
+statement = "Code samples in documentation are compiled, and run where practical, as part of the test suite."
+rationale = "Examples that no longer compile mislead new users and signal that the documentation is not maintained."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Turn samples into doctests or compile-checked snippets and fix those that fail."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-011"
+title = "Command-line, config and exit-code surfaces under test"
+domain = "API"
+statement = "Command-line flags, configuration keys and exit codes are covered by tests that fail when they change."
+rationale = "Scripts and deployments depend on these surfaces, so changing them casually breaks users who never read the source."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add snapshot or contract tests for each user-visible command-line and configuration surface."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "API-012"
+title = "Unpromised behaviour not accidentally relied upon"
+domain = "API"
+statement = "Behaviour the documentation does not promise is not made unintentionally dependable, for instance by an order that happens to be stable."
+rationale = "Once a user base is large, even incidental details get leaned on, so a detail that stays constant by luck quietly becomes an obligation that locks the implementation; varying it on purpose avoids that."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Compare documented guarantees against observed behaviour and deliberately vary or document what is not promised."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

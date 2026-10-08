@@ -1,4 +1,4 @@
-# Rule records, domain ERR (errors). Written in CodeRipper's own words; kb_refs cite the owner's knowledge base by ID only.
+# Rule records, domain ERR (errors). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
 id = "unused-return-values"
@@ -24,4 +24,268 @@ lifecycle = "advisory"
 
 [rule.applicability]
 languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-001"
+title = "Errors are not swallowed"
+domain = "ERR"
+statement = "A failure result must be looked at: no empty catch blocks, no bare except that passes, no ignored Result values, and no underscore binding that discards a fallible call without a stated reason."
+rationale = "When a failure vanishes silently the program carries on in a state nobody checked, and later symptoms cannot be traced back to the cause."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Handle the failure, propagate it to the owner, or record in a comment why dropping it is safe at that exact spot."
+related = ["ERR-011", "unused-return-values"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-002"
+title = "Catch-all handlers only at boundaries"
+domain = "ERR"
+statement = "Handlers that catch every kind of failure belong only in a short list of designated outermost functions, such as a request loop or task runner."
+rationale = "A catch-all deep inside the code masks causes that should surface and turns distinct bugs into one indistinguishable outcome."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Narrow the handler to the failures it can truly deal with, or move the catch-all up to a declared boundary function."
+related = ["ERR-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-003"
+title = "No panics or unchecked indexing on input paths"
+domain = "ERR"
+statement = "Code that can be reached from external input should not panic, unwrap without a check, or index into data without bounds handling."
+rationale = "Anyone who controls the input can then crash the process or a worker, which is both a reliability and a denial-of-service problem."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Return a typed error for bad input, use checked accessors, and reserve unwrap or expect for invariants with a written justification."
+related = ["ERR-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-004"
+title = "Library errors are typed so callers can match them"
+domain = "ERR"
+statement = "Public functions in libraries report failure through specific error types a caller can branch on, not through plain strings, boxed dynamic errors, or the base exception class."
+rationale = "Callers that must parse message text to decide what to do break whenever the wording changes, so the error shape is part of the API contract."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Define an enum or exception hierarchy for the library's failures and return it from public functions; let applications wrap it with context."
+related = ["ERR-005", "ERR-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-005"
+title = "Cross-boundary errors keep context and cause"
+domain = "ERR"
+statement = "When a failure crosses from one component to another it is wrapped with what was being attempted and the original cause stays attached."
+rationale = "Without the operation, resource and underlying cause, an incident responder cannot tell where a failure began or why."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Wrap the error at the boundary with a message naming the operation and resource, and chain the original error as its cause."
+related = ["ERR-004", "ERR-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-006"
+title = "Domain errors free of transport details"
+domain = "ERR"
+statement = "Error types that belong to the domain layer must not mention HTTP status codes, database driver errors, or other details of how the failure is delivered."
+rationale = "Transport vocabulary in the core couples business logic to one delivery mechanism and leaks internals to callers."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Keep domain errors in domain terms and translate them to status codes or driver-specific forms in the adapter at the edge."
+related = ["ARC-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-007"
+title = "Resources released on error paths"
+domain = "ERR"
+statement = "Files, locks, connections and similar resources are released on every exit path including failures, using scope-bound cleanup constructs."
+rationale = "A resource that is freed only on the success path leaks under exactly the conditions where the system is already stressed."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Tie release to scope exit with RAII, defer, finally, a context manager or using, rather than to the happy path of the code."
+related = ["ERR-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-008"
+title = "Error branches covered by tests"
+domain = "ERR"
+statement = "The paths that handle failures are exercised by tests, for example through injected faults, coverage of the branches that handle failures, or mutation of failure handling."
+rationale = "Failure handling is the least-run code in a system, so untested it tends to fail precisely when it is first needed."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add tests that force each important failure and assert the resulting behavior, using a fault-injection helper where the failure is hard to trigger."
+related = ["TST-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-009"
+title = "Errors and logs leak no sensitive data"
+domain = "ERR"
+statement = "Error messages and log output must not carry secrets, credentials, personal data or other sensitive values."
+rationale = "Messages travel to log stores, dashboards and users, so anything placed in them is exposed far beyond its original trust boundary."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "low"
+kb_refs = []
+remediation = "Redact or omit sensitive fields when building messages, log identifiers instead of values, and keep internal detail out of anything shown to callers."
+related = ["ERR-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-010"
+title = "Compound state changes say whether they are all-or-nothing"
+domain = "ERR"
+statement = "Operations that change several pieces of state in sequence should declare how they stay consistent if interrupted: a transaction, a rollback, or a compensating step."
+rationale = "A failure midway through a multi-step update leaves a half-applied state that no single component owns or can detect."
+evidence_tiers = ["V4", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Wrap the sequence in a transaction, or write down and implement the compensation that undoes completed steps; confirm with a crash-injection test."
+related = ["ERR-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ERR-011"
+title = "Non-throwing parse results are checked"
+domain = "ERR"
+statement = "Parsing calls that signal failure through a return value, such as a try-parse form or an optional result, must have that signal tested before the value is used."
+rationale = "These APIs avoid exceptions, so skipping the check yields a default or empty value that silently flows onward as if it were real data."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Branch on the success flag or the presence of the value, and handle the failure case explicitly."
+related = ["ERR-001", "unused-return-values"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]

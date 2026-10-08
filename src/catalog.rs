@@ -3,7 +3,8 @@
 //! A [`Rule`] says what a rule claims, why, and how it behaves (scope, network, unit, default severity, how contested
 //! it is). Records live in `rules/<domain>.toml` at the crate root, one `[[rule]]` table each, and are compiled in;
 //! [`Catalog::builtin`] is the catalog of this release. They are written in CodeRipper's own words: a rule's
-//! `kb_refs` cite the owner's knowledge base by ID only, never its text.
+//! `kb_refs` cite the owner's knowledge base by ID only, never its text. The catalog is informed by the owner's knowledge base v2
+//! (October 2026): its rule IDs and ideas carry over, its text does not.
 //!
 //! A record file is parsed strictly: an unknown field, a missing field, a blank statement or a repeated ID is an error
 //! that names the file, never a rule that quietly loads wrong. The five built-in checks keep their kebab-case IDs
@@ -19,11 +20,32 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// The built-in record files: `(file name, contents)`, one per domain.
+/// The built-in record files: `(file name, contents)`, one per domain (21 domains, 221 rules: the 216 of the knowledge base plus the
+/// five original checks).
 const BUILTIN_FILES: &[(&str, &str)] = &[
+    ("aih.toml", include_str!("../rules/aih.toml")),
+    ("api.toml", include_str!("../rules/api.toml")),
+    ("arc.toml", include_str!("../rules/arc.toml")),
+    (
+        "concurrency.toml",
+        include_str!("../rules/concurrency.toml"),
+    ),
+    ("cor.toml", include_str!("../rules/cor.toml")),
+    ("doc.toml", include_str!("../rules/doc.toml")),
+    ("efx.toml", include_str!("../rules/efx.toml")),
     ("err.toml", include_str!("../rules/err.toml")),
+    ("evo.toml", include_str!("../rules/evo.toml")),
+    ("ext.toml", include_str!("../rules/ext.toml")),
+    ("gov.toml", include_str!("../rules/gov.toml")),
     ("mod.toml", include_str!("../rules/mod.toml")),
+    ("ops.toml", include_str!("../rules/ops.toml")),
+    ("prf.toml", include_str!("../rules/prf.toml")),
     ("rdb.toml", include_str!("../rules/rdb.toml")),
+    ("rel.toml", include_str!("../rules/rel.toml")),
+    ("sec.toml", include_str!("../rules/sec.toml")),
+    ("sup.toml", include_str!("../rules/sup.toml")),
+    ("tst.toml", include_str!("../rules/tst.toml")),
+    ("typ.toml", include_str!("../rules/typ.toml")),
     ("wsp.toml", include_str!("../rules/wsp.toml")),
 ];
 

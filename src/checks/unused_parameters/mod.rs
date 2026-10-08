@@ -1,5 +1,7 @@
 //! Unused-parameters check (project scope, Rust): which function parameters are never used?
 //!
+//! Rule record: `unused-parameters` in `rules/rdb.toml` (the rule catalog). Background in `docs/rules/rdb.md`; it overlaps RDB-006 (partly) of the owner's knowledge base, which this check covers only in part.
+//!
 //! Rust already has this lint (`unused_variables`), default-on. What it does not do is report in
 //! CodeRipper's unified `Finding` shape, ignore the forced signatures of trait impls, or tell a
 //! parameter from a local (rustc words both identically). So this check does not re-detect
