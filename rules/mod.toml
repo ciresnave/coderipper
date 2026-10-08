@@ -1,0 +1,26 @@
+# Rule records, domain MOD (modules and public surface). Written in CodeRipper's own words.
+
+[[rule]]
+id = "reachability"
+title = "Code nothing calls"
+domain = "MOD"
+statement = "Every function is reachable from somewhere that is not itself dead, including public items, which the compiler's own dead-code lint exempts."
+rationale = "Uncalled public items still have to be maintained, documented and kept compatible, and they widen the surface other code can come to depend on."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = ["RDB-006", "MOD-001"]
+aliases = []
+remediation = "Delete the item, or give it a caller; if it is public API on purpose, allowlist it with the reason."
+related = ["unused-parameters"]
+lifecycle = "advisory"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]

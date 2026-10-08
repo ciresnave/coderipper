@@ -1,0 +1,51 @@
+# Rule records, domain WSP (workspace and repository hygiene). Written in CodeRipper's own words.
+
+[[rule]]
+id = "version-consistency"
+title = "One version across a project"
+domain = "WSP"
+statement = "Every package of a project carries the same version number, except a package that deliberately tracks the version of another project it works with."
+rationale = "Consumers read matching numbers as 'these go together'; a stray number sends them to the wrong combination."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = ["WSP-003"]
+aliases = []
+remediation = "Bring the package to the project's version, or declare it as tracking another project in .coderipper.toml."
+related = ["ci-protection-presence"]
+lifecycle = "advisory"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ci-protection-presence"
+title = "The default branch enforces required checks"
+domain = "WSP"
+statement = "The repository's default branch refuses changes until its required status checks pass; having some protection rule is not enough if it requires nothing."
+rationale = "A protection rule that requires no checks protects nothing, and a branch that looks protected but enforces zero checks gives false assurance."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+aliases = []
+remediation = "Require the CI checks on the default branch through branch protection or a ruleset."
+related = ["version-consistency"]
+lifecycle = "advisory"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

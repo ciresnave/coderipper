@@ -60,6 +60,7 @@ pub use serde_json;
 pub(crate) mod allowlist;
 pub mod build_cache;
 pub(crate) mod cargo_json;
+pub mod catalog;
 pub mod check;
 pub mod checks;
 #[cfg(feature = "cli")]

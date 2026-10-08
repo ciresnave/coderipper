@@ -1,0 +1,27 @@
+# Rule records, domain ERR (errors). Written in CodeRipper's own words; kb_refs cite the owner's knowledge base by ID only.
+
+[[rule]]
+id = "unused-return-values"
+title = "A return value every caller discards"
+domain = "ERR"
+statement = "A function whose result is thrown away at every call site either returns something nobody needs or hides a result callers should be checking."
+rationale = "A value computed and always ignored is wasted work at best; at worst it is an error or status that no caller ever looks at."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+# medium is the severity when every caller discards the value; a partial discard is reported lower
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = ["ERR-001", "ERR-011"]
+aliases = []
+remediation = "Stop returning the value, or make the callers use it; if discarding it is deliberate, allowlist the function with the reason."
+related = ["unused-parameters"]
+lifecycle = "advisory"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]

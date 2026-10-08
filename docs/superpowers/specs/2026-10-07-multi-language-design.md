@@ -83,7 +83,7 @@ language (§12); the hosted infrastructure (§9 states only the posture).
  coderipper (CLI) / library
    │  detects languages per project root (manifest files), reads .coderipper.toml (profile, allowlist)
    ▼
- HOST  ── rule catalog (rules/*.yaml) ─ decides WHICH rules run (profile, run tier, unit, scope)
+ HOST  ── rule catalog (rules/*.toml) ─ decides WHICH rules run (profile, run tier, unit, scope)
    │          │
    │          ├── built-in module: rust      (the five checks, in process, same interface)
    │          ├── built-in module: neutral   (rules that need no parser: manifests, CI, lockfiles, docs, VCS)
@@ -102,11 +102,14 @@ language-specific: how to build the facts, which tool covers which rule, how a t
 
 ### 4.1 Record format
 
-One YAML record per rule, adopting the knowledge base's rule-record shape (its section III.6) with CodeRipper's additions
+One record per rule, adopting the knowledge base's rule-record shape (its section III.6) with CodeRipper's additions
 (marked *new*). Guideline text, agent-facing instruction text and the machine description come from this one record, so
-they cannot drift apart. Records live in `rules/<domain>.yaml` (one file per domain; a list of records).
+they cannot drift apart. Records live in `rules/<domain>.toml` (one file per domain; a list of records).
+
+**Format change made in P2 (2026-10-08): TOML, not YAML.** The records below are shown as YAML because that is how the knowledge base writes its own; CodeRipper's files are TOML (`[[rule]]` tables), because the crate already reads `.coderipper.toml` and `serde_yaml` is deprecated. Field names and meanings are unchanged, except that `default_severity` takes a `Severity` value (`info` ... `critical`) and `thresholds` is not accepted yet (it is added with the first rule that needs one).
 
 ```yaml
+# (shown as YAML; the files are TOML, see above)
 - id: version-consistency      # stable; NEW rules use the KB's IDs verbatim (ARC-004 ...), the five legacy IDs are kept as they are
   title: ...                   # our own words
   domain: WSP
@@ -122,7 +125,7 @@ they cannot drift apart. Records live in `rules/<domain>.yaml` (one file per dom
   unit: repository             # package | repository            (existing: Check::unit; this check judges the whole workspace)
   executes_project_code: false # NEW: does checking it run build scripts, config, plugins, tests? (§9)
   applicability: { languages: [any], scopes: [first_party] }   # NEW use of the KB's field
-  default_severity: error
+  default_severity: high       # a Severity: info | low | medium | high | critical
   confidence_class: high
   thresholds: { type: absolute, value: 0 }    # optional; defaults only (principle 7)
   aliases: []                                 # NEW: other IDs this record answers to (empty unless a legacy rule later gains a KB ID)
