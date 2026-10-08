@@ -1,0 +1,47 @@
+id	domain	label	evidence_tiers	class	also	scope	network	executes_code	kb_tools	note
+OPS-001	OPS	single typed validated config entry point	V0,V1	P	N	project	local	no	-	-
+OPS-002	OPS	config keys documented, defaulted, no orphans	V1	P	N,L	project	local	no	-	-
+OPS-003	OPS	structured logging, no raw printing in libraries	V0,V1	P	-	project	local	no	Clippy,ESLint	-
+OPS-004	OPS	trace context flows through outbound calls	V1	P	X	project	local	yes	-	tests assert propagation at runtime
+OPS-005	OPS	golden-signal metrics per endpoint and dependency	V1,V2	P	X	project	local	yes	-	-
+OPS-006	OPS	no secrets in configuration files	V0	N	-	project	local	no	-	delegates to SEC-002
+OPS-007	OPS	feature flags carry owner, expiry, get removed	V0,V3	N	H,P	project	local	no	-	registry check static; staleness needs history
+OPS-008	OPS	health and readiness endpoints present	V1,V2	P	X	project	local	yes	-	-
+OPS-009	OPS	alerts tied to SLOs with runbooks	V4,V5	N	M,L	project	local	no	-	-
+OPS-010	OPS	build and version info exposed	V0	N	P	project	local	no	-	-
+DOC-001	DOC	public items have documentation	V0	P	-	project	local	no	rustc,Javadoc/Doclint,pydocstyle,TypeDoc	-
+DOC-002	DOC	Code samples in docs build and execute	V2	X	-	project	local	yes	-	-
+DOC-003	DOC	components have purpose and owner in spec	V0	A	N	project	local	no	-	-
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	A,L,H	project	local	no	-	-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	-	project	local	no	-	-
+DOC-006	DOC	docs and comments drift from behaviour	V4	L	P	project	local	no	-	-
+DOC-007	DOC	architecture diagrams match real dependency graph	V1	A	P	project	local	no	-	-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	H,L	project	local	no	-	-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	L	project	local	no	-	existence is plain; consistency needs judgment
+DOC-010	DOC	documentation links resolve	V0	N	-	project	network	no	-	external links need network
+EVO-001	EVO	hotspot ranking from churn, complexity, defects	V3	H	P	project	local	no	CodeScene	-
+EVO-002	EVO	hidden co-change coupling without declared edge	V3	H	A	project	local	no	-	-
+EVO-003	EVO	divergent change clusters inside modules	V3	H	P	project	local	no	-	-
+EVO-004	EVO	Ownership concentration signalling knowledge-loss risk	V3	H	-	project	local	no	-	advisory only
+EVO-005	EVO	erosion trend of violations and waivers	V0,V3	T	H	project	local	no	-	reporting over catalog's own findings
+EVO-006	EVO	stale specs for long-untouched components	V3,V4	H	L,A	project	local	no	-	-
+EVO-007	EVO	defect clustering by component	V3	H	-	project	network	no	-	issue tracker link optional
+EVO-008	EVO	change-size distribution tracking	V3	H	-	project	network	no	-	PR metadata from forge
+EVO-009	EVO	per-function complexity trend across commits	V1,V3	H	P	project	local	no	-	-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	-	portfolio	local	no	-	-
+WSP-002	WSP	cross-repo dependency direction and acyclicity	V0	A	N	portfolio	local	no	-	-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	-	portfolio	local	no	-	-
+WSP-004	WSP	downstream compatibility tests before library release	V2	X	-	portfolio	local	yes	-	-
+WSP-005	WSP	org baseline inherited, overrides waived	V0	T	N	portfolio	local	no	-	-
+WSP-006	WSP	Copied or near-duplicate code across repositories	V1,V4	P	L	portfolio	local	no	-	-
+WSP-007	WSP	Contracts between repositories are tested	V2	X	P	portfolio	local	yes	-	-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	-	portfolio	local	no	-	-
+WSP-009	WSP	Repositories that must release or deploy in lockstep	V3	H	-	portfolio	local	no	-	-
+AIH-001	AIH	same policy in local, agent and CI runs	V0	N	T	project	local	no	-	-
+AIH-002	AIH	referenced APIs resolve, new packages exist and vetted	V0	P	N	project	network	yes	-	build plus registry lookup
+AIH-003	AIH	new helpers do not duplicate existing utilities	V1,V4	L	P	project	local	no	-	-
+AIH-004	AIH	diff scope matches task, no mixed reformatting	V1,V4	N	L	project	local	no	-	diff statistics deterministic; task match needs LLM
+AIH-005	AIH	tests assert spec, not observed output	V2,V4	X	L	project	local	yes	-	-
+AIH-006	AIH	Generated code follows local conventions mined from the repository	V4	L	P	project	local	no	-	-
+AIH-007	AIH	Commits made with AI help record that in trailers	V0	N	-	project	local	no	-	-
+AIH-008	AIH	no speculative abstractions or options	V1,V4	L	P	project	local	no	-	-

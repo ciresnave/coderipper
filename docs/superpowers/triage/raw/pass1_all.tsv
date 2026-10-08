@@ -1,0 +1,217 @@
+id	domain	label	evidence_tiers	class	also	scope	network	executes_code	kb_tools	note
+GOV-001	GOV	Findings baseline snapshot with decreasing ratchet	V0	T	P	project	local	no	-	Fingerprinting findings across edits is the hard part
+GOV-002	GOV	Waiver records with owner and expiry	V0,V5	T	M	project	local	no	-	Waiver content itself is a human decision artifact
+GOV-003	GOV	Rule maturity stages driven by precision	V0	T	-	project	local	no	-	-
+GOV-004	GOV	Rule policy versioned and tested with fixtures	V0	T	X	project	local	no	-	Testing rules means running them against fixtures
+GOV-005	GOV	Code scope classification with per-scope rules	V0	T	N	project	local	no	-	-
+GOV-006	GOV	Reports must carry severity, confidence, proof and remediation	V0	T	-	project	local	no	-	-
+GOV-007	GOV	Per-dimension reporting instead of composite score	V0	T	-	project	local	no	-	-
+GOV-008	GOV	Staged gates from editor to runtime	V0,V1,V2	T	X	project	local	no	-	Runtime SLO gates require telemetry
+GOV-009	GOV	Rules ship rationale and remediation guidance	V5	T	M	project	local	no	-	-
+MOD-001	MOD	Minimal documented public surface	V0	P	-	project	local	yes	rustc,ArchUnit,api-extractor	Visibility lints from compiler diagnostics
+MOD-002	MOD	No module dependency cycles	V0	P	A	project	local	no	SCC,ArchUnit,dependency-cruiser,import-linter,cargo-modules	Levels of modules may be declared
+MOD-003	MOD	No deep imports into module internals	V0	P	A	project	local	no	ArchUnit,eslint,import-linter,Go	Needs notion of what is a module's public interface
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	-	project	local	no	LCOM	Low confidence alone
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	H	project	local	no	CodeScene	Growth trend needs history
+MOD-006	MOD	Divergent change from unrelated commit clusters	V3	H	-	project	local	no	-	-
+MOD-007	MOD	LLM responsibility summary versus declared purpose	V4	L	P,H	project	local	no	-	Advisory only
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	L	project	local	no	-	LLM confirms no added policy or translation
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	-	project	local	no	-	Must exclude iterators and builders; low precision
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	-	project	local	no	-	Depends on an invariant-bearing tag
+ARC-001	ARC	Dependency edges match declared component graph	V0	A	P	project	local	yes	ArchUnit,NetArchTest,ArchUnitNET,dependency-cruiser,import-linter,deptrac,go-arch-lint,depguard,cargo-metadata	cargo metadata may run build tooling
+ARC-002	ARC	Component dependency graph is acyclic	V0	A	P	project	local	no	Tarjan	-
+ARC-003	ARC	Stable-policy components avoid volatile components	V0	A	P	project	local	no	-	Needs spec tags; feature-conditional edges count
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	A	project	local	yes	-	Type-resolved facts; needs forbidden namespace list from spec
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	A	project	local	no	-	Instability metric from coupling counts
+ARC-006	ARC	Component public API within budget, no third-party types	V0	A	P	project	local	yes	cargo-public-api,rustc,api-extractor,japicmp	Budget is declared
+ARC-007	ARC	Only owning component touches its data stores	V1	A	P	project	local	no	-	Needs owner mapping for tables and topics
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	L	project	local	no	-	Justification judgment is the LLM part
+ARC-009	ARC	Boundary violation and waiver trend per component	V0,V3	H	A,T	project	local	no	-	Uses waiver data over time
+ARC-010	ARC	Change respects architecture decision records	V4	L	A	project	local	no	-	Advisory
+ARC-011	ARC	Distributed-monolith signals across services	V1,V3	H	A,P	portfolio	local	no	-	Needs service graph, possibly several repos
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	A	project	local	no	-	Roots must be declared
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	-	project	local	yes	Clippy	Compiler exhaustiveness and restriction lint
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	-	project	local	no	-	-
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	-	project	local	no	-	Excludes test code
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	-	project	local	no	-	-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	-	project	local	no	DIT	-
+EXT-006	EXT	Shared contract tests run against all implementations	V2	X	P	project	local	yes	Pact	Presence is static, passing needs execution
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	H	project	local	no	-	History shows never extended
+EXT-008	EXT	Adding a variant touches too many files	V3	H	P	project	local	no	-	-
+EXT-009	EXT	Stable components edited for new variants	V3	H	A	project	local	no	-	Needs stable tags from spec
+EXT-010	EXT	Abstraction matches real axis of variation	V4	L	-	project	local	no	-	Advisory
+RDB-001	RDB	Project formatter output is enforced	V0	P	-	project	local	no	rustfmt,Prettier,Black,Ruff,gofmt,clang-format,EditorConfig	-
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	-	project	local	no	ESLint,Clippy,rustc,Pylint,Ruff,Checkstyle	-
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	T	project	local	no	SonarQube,ESLint,Clippy,CodeScene	regression gating on touched functions needs baseline
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	-	project	local	no	Clippy	-
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	L,H	project	local	no	jscpd,PMD-CPD,Sonar	churn flagging and semantic clones need history and LLM
+RDB-006	RDB	Unused code, imports and private items	V0	P	-	project	local	no	knip,vulture,cargo-udeps,machete	-
+RDB-007	RDB	Unnamed magic literals	V1	P	L	project	local	no	-	advisory, low precision
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	P,M	project	local	no	-	regex for TODOs; commented-out code needs parsing; ticket lookup optional
+RDB-009	RDB	Names match actual behaviour	V4	L	P	project	local	no	-	-
+RDB-010	RDB	Comments and docstrings match current behaviour	V4	L	P	project	local	no	-	parameter-name cross-check is deterministic part
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	P,L	project	local	no	-	glossary file plus identifier text search
+RDB-012	RDB	Fresh code matches conventions the repository already uses	V4	L	P	project	local	no	-	-
+RDB-013	RDB	Diff readability review against rubric	V4	L	-	project	local	no	-	advisory
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	L	project	local	no	-	-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	-	project	local	no	-	-
+TYP-003	TYP	Invariant-holding types are built only through validated paths	V0,V1	P	A	project	local	no	-	types identified by tag or annotation
+TYP-004	TYP	External data parsed into domain types first	V1	P	A	project	local	no	-	needs data-flow from deserialization to core
+TYP-005	TYP	Money and exact quantities avoid binary floating point	V1	P	A	project	local	no	-	needs domain-tagged modules
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	-	project	local	no	Clippy,Error-Prone	-
+TYP-007	TYP	Boolean blindness in signatures	V1	P	-	project	local	no	-	-
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	L,X	project	local	no	-	presence check deterministic; consistency needs LLM
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	X	project	local	no	-	-
+EFX-001	EFX	Pure-tagged components avoid effectful APIs	V0	A	P	project	local	no	Clippy,ArchUnit,ESLint,import-linter	deny-list per declared component
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	-	project	local	no	-	-
+EFX-003	EFX	Environment reads confined to config module	V0	N	P	project	local	no	-	regex for env reads; refers to OPS-001
+EFX-004	EFX	Deterministic results across runs and threads	V2	X	-	project	local	yes	-	runs algorithm repeatedly and hashes outputs
+EFX-005	EFX	Methods that both change state and answer queries	V1	P	L	project	local	no	-	advisory, low precision
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	L,A	project	local	no	-	-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	L	project	local	no	-	-
+ERR-001	ERR	Errors are not swallowed	V0	P	-	project	local	no	rustc,Clippy,Semgrep	-
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	A	project	local	no	-	allowlist of boundary functions
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	X	project	local	no	Clippy	fuzzing is dynamic confirmation
+ERR-004	ERR	Library errors are typed so callers can match them	V1	P	-	project	local	no	-	-
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	L	project	local	no	-	-
+ERR-006	ERR	Domain errors free of transport details	V0	A	P	project	local	no	-	spec-driven via ARC-004
+ERR-007	ERR	Resources released on error paths	V1,V2	P	X	project	local	no	-	leak tests after injected failures
+ERR-008	ERR	Error branches covered by tests	V2	X	-	project	local	yes	-	fault injection, error-arm coverage, mutation testing
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	L	project	local	no	-	needs flow from sensitive fields into log or error output
+ERR-010	ERR	Compound state changes say whether they are all-or-nothing	V4,V2	L	X,P	project	local	no	-	crash-injection tests as dynamic part
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	-	project	local	no	-	-
+COR-001	COR	public API docs state errors, panics, safety	V0,V1	P	-	project	local	yes	Clippy,missing_errors_doc,missing_panics_doc,missing_safety_doc,Javadoc,docstring-linters	-
+COR-002	COR	invariant types enforce invariants in code	V1,V4	P	L	project	local	no	-	LLM compares documented versus enforced invariants
+COR-003	COR	codec pairs have round-trip property tests	V1,V2	P	X	project	local	no	-	-
+COR-004	COR	reference-implementation algorithms get differential tests	V2	X	A,P	project	local	yes	-	keyed on a spec tag
+COR-005	COR	requirements and doc claims traced to asserting tests	V4	L	X	project	local	yes	-	mutation score is the secondary evidence
+COR-006	COR	unsafe confined, justified, and run under Miri	V0,V2	P	X	project	local	yes	Miri,ASan,UBSan,TSan,MSan	forbid attribute and unsafe inventory are parser-level
+COR-007	COR	no float equality; tolerances declared	V1	P	-	project	local	yes	Clippy,float_cmp,AST	-
+COR-008	COR	critical protocols modelled and code traced to model	V5,V2	A	M,X,L	project	local	yes	TLA+,Alloy	model artifacts are the declared spec; ambiguous
+COR-009	COR	critical functions have proof harnesses in CI	V2	X	P,A	project	local	yes	Kani,Prusti,Creusot,Verus,Dafny	which functions are critical comes from spec
+COR-010	COR	idempotency and ordering claims tested with replay	V2	X	L	project	local	yes	-	fault and replay harness needed
+TST-001	TST	changed-code coverage meets threshold	V2	X	T	project	local	yes	cargo-llvm-cov,JaCoCo,coverage.py,diff-cover,Istanbul/c8,gcov/llvm-cov	threshold gating is a ratchet feature
+TST-002	TST	mutation score on diff meets threshold	V2	X	T	project	local	yes	cargo-mutants,PIT,Stryker/Stryker.NET,mutmut,Mull	-
+TST-003	TST	no empty, trivial, or non-calling tests	V0,V1	P	X	project	local	no	AST	coverage attribution per test is the execution path
+TST-004	TST	over-mocking heuristics in tests	V1	P	-	project	local	no	AST	-
+TST-005	TST	flaky tests quarantined with owner and expiry	V2,V3	X	M,T	project	network	yes	-	needs CI history from a service
+TST-006	TST	tests hermetic: no network, clock, filesystem	V1,V2	X	P	project	local	yes	-	run with network off and time frozen
+TST-007	TST	bug fixes ship a regression test	V3,V4	H	L	project	local	no	-	commit classification then diff inspection
+TST-008	TST	test names agree with assertions	V4	L	P	project	local	no	-	-
+TST-009	TST	risky modules have fuzz or property targets	V1,V2	P	X,L	project	local	no	-	module classification via tags or LLM
+TST-010	TST	cross-component interfaces have two-sided contract tests	V2	X	A	portfolio	local	yes	Pact	spans repos
+TST-011	TST	tests order-independent and parallel-safe	V2	X	-	project	local	yes	cargo-nextest,pytest-xdist,JUnit-parallelism	-
+TST-012	TST	Test duration budgets with size classes	V2	X	-	project	local	yes	-	CI timing
+TST-013	TST	expected values not derived from implementation	V4,V2	L	X	project	local	yes	-	see AIH-005
+CON-001	CON	data-race freedom by language or race detector	V0,V2	P	X	project	local	yes	Compiler,Go-race,ThreadSanitizer,Java-tools	-
+CON-002	CON	Locks are not held across awaits or blocking calls	V0,V1	P	-	project	local	yes	Clippy,await_holding_lock,await_holding_refcell_ref,analyzers	-
+CON-003	CON	no blocking calls inside async code	V1,V2	P	X	project	local	yes	-	known-blocking API list; stall detection is runtime
+CON-004	CON	queues and spawns bounded with overflow policy	V1	P	A	project	local	no	-	policy lives in spec
+CON-005	CON	no detached tasks without retained handle	V1	P	-	project	local	no	AST	-
+CON-006	CON	lock-order cycle and deadlock detection	V2	X	P	project	local	yes	parking_lot,loom,shuttle	-
+CON-007	CON	resources released deterministically incl. error paths	V1,V2	P	X	project	local	yes	-	leak counters run in tests
+CON-008	CON	externally-dependent awaits carry timeouts	V1	P	A	project	local	no	AST	exceptions declared in spec
+CON-009	CON	cancellation-safety documented for stateful async	V4	L	M,P	project	local	no	-	LLM flags candidates; humans decide
+CON-010	CON	weak atomic orderings justified in comments	V1,V4	P	L	project	local	no	-	comment presence deterministic; quality needs LLM
+CON-011	CON	shared-state items have declared owners	V1	A	P	project	local	no	-	see EFX-002
+REL-001	REL	outbound calls have timeouts or deadlines	V0,V1	P	N	project	local	no	Semgrep	client construction patterns plus config
+REL-002	REL	Retries follow the declared policy	V1,V4	P	L	project	local	no	-	idempotency judgement needs LLM
+REL-003	REL	channels bounded with overflow policy	V1	P	A	project	local	no	-	duplicate of CON-004
+REL-004	REL	message handlers idempotent with redelivery tests	V4,V2	L	X	project	local	yes	-	-
+REL-005	REL	deployment manifests define probes and limits	V0	N	-	project	local	no	OPA/Rego,Kyverno,Conftest,Checkov	YAML/IaC parsing only
+REL-006	REL	graceful shutdown with signal handling exists	V1,V2	P	X	project	local	yes	AST	shutdown test is the execution part
+REL-007	REL	failure model exists per external-dependency component	V4,V5	N	L,M	project	local	no	-	presence check deterministic; sign-off human
+REL-008	REL	Each declared failure mode has an injection test	V2	X	-	project	local	yes	Toxiproxy	-
+REL-009	REL	elapsed time uses monotonic clocks	V1	P	-	project	local	no	-	-
+REL-010	REL	Stateful components are exercised by crash-recovery tests	V2	X	-	project	local	yes	-	-
+REL-011	REL	declared breakers or bulkheads used where spec requires	V1	A	P	project	local	no	-	-
+REL-012	REL	SLO conformance as runtime fitness function	V2,V3	X	T	project	network	no	-	telemetry-driven gates
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	-	project	local	no	CodeQL,Semgrep_taint_mode,Snyk_Code,Checkmarx	-
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	-	project	local	no	gitleaks,trufflehog	history scan needs VCS access
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	L	project	local	no	-	object-level and tenant checks need semantic judgment
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	-	project	local	no	-	-
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	-	project	local	no	cargo-geiger	forbid attribute is a parser fact
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	-	project	network	no	-	same check as SUP-002
+SEC-007	SEC	Current threat model tied to controls	V5,V4	M	L	project	local	no	-	presence checkable; currency and mapping need judgment
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	L	project	local	no	-	-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	-	project	local	no	Checkov,Trivy_config_scanning,OPA/Kyverno	-
+SEC-010	SEC	Model-assisted security review of risky diffs	V4,V5	L	M	project	local	no	-	advisory only; human confirms findings
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	-	project	local	no	Cargo_--locked,npm_ci,pip_constraints/hashes,Go_modules	CI config inspected as text
+SUP-002	SUP	Dependencies free of known advisories	V0	N	-	project	network	no	cargo-audit,cargo-deny_advisories,OSV-Scanner,npm_audit,pip-audit	-
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	-	project	local	no	cargo-deny_licenses,license_checkers	-
+SUP-004	SUP	Dependencies only from approved sources	V0	N	-	project	local	no	cargo-deny_sources,registry_config	-
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	-	project	local	no	cargo-deny_bans,cargo_tree_-d,package_manager_reports	-
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	-	project	local	no	cargo-udeps,cargo-machete,cargo-shear,deptry,depcheck,knip	needs import resolution
+SUP-007	SUP	Justification record for each new dependency	V4,V5	M	L	project	network	no	-	LLM gathers facts; human approves
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	-	project	local	no	actionlint,zizmor,OpenSSF_Scorecard	-
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	-	project	local	no	CycloneDX_generators,SPDX_generators	checks release artifacts or workflow config
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	M	project	network	no	SLSA_generators,Sigstore	target level is a human choice
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	-	project	local	no	-	references GOV-005 rather than a tool
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	-	project	network	no	-	registry existence, age, download and similarity checks
+SUP-013	SUP	Only audited versions in sensitive tiers	V5	M	N	project	local	no	cargo-vet	audit records are human artifacts
+API-001	API	Breaking public changes since last release	V0	P	-	project	local	yes	cargo-semver-checks,japicmp/revapi,api-extractor,griffe,Go_apidiff,buf_breaking,oasdiff,graphql-inspector	some tools compile the project
+API-002	API	Public surface snapshot reviewed when changed	V0	P	M	project	local	yes	cargo-public-api,API_Extractor	snapshot diff is deterministic; review is human
+API-003	API	Version number matches kind of change	V0	P	-	project	local	yes	semver_checkers,release_tooling	-
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	-	project	local	no	-	-
+API-005	API	Serialized formats tested for old and new readers	V2	X	-	project	local	yes	Golden_files,round-trip,version_matrix	-
+API-006	API	Schema changes obey evolution rules	V0	N	-	project	local	no	Schema_registry_compatibility_checks,buf,Avro_and_JSON_Schema_compat_tools	schema files, not a general-purpose language
+API-007	API	Database migrations safe step by step	V1,V4	P	L	project	local	no	squawk	SQL parsing; sequencing review needs LLM
+API-008	API	Public API exposes no third-party types	V0	P	A	project	local	no	-	see ARC-006; declaration lists allowed exceptions
+API-009	API	Growth points marked on public enums and structs	V1	P	-	project	local	no	-	-
+API-010	API	Documentation examples compile and run	V2	X	-	project	local	yes	Rust_doctests,Python_doctest,Java_snippet_compilation	-
+API-011	API	CLI flags, config keys, exit codes pinned by tests	V2	X	-	project	local	yes	Snapshot_tests	-
+API-012	API	Unpromised behaviour not accidentally relied upon	V1,V4	L	P	project	local	no	-	compares docs guarantees to behaviour
+PRF-001	PRF	Hot paths have budgets enforced by benchmarks	V2	X	A	project	local	yes	criterion,divan,iai-callgrind,JMH,pytest-benchmark,Go_benchmarks	budget lives in a spec
+PRF-002	PRF	Statistically detected benchmark regressions	V2	X	-	project	local	yes	Benchmark_comparison_tooling	-
+PRF-003	PRF	Algorithmic red flags in code	V1,V2	P	X	project	local	no	Clippy_perf_group,ORM_query-count_assertions	-
+PRF-004	PRF	No allocation inside tagged hot loops	V1,V2	P	X	project	local	no	dhat	static pattern first, allocation counters to confirm
+PRF-005	PRF	Caches and collections lacking growth bounds	V1	P	-	project	local	no	-	paired with CON-004
+PRF-006	PRF	Performance exceptions documented with benchmark link	V1,V4	P	L	project	local	no	-	marker presence deterministic; linkage quality needs LLM
+PRF-007	PRF	Critical query plans avoid full table scans	V2	X	-	project	local	yes	EXPLAIN	needs a live database
+PRF-008	PRF	Tail latency tracked beside averages	V2,V3	X	-	project	local	no	-	runtime telemetry on tagged paths
+OPS-001	OPS	single typed validated config entry point	V0,V1	P	N	project	local	no	-	-
+OPS-002	OPS	config keys documented, defaulted, no orphans	V1	P	N,L	project	local	no	-	-
+OPS-003	OPS	structured logging, no raw printing in libraries	V0,V1	P	-	project	local	no	Clippy,ESLint	-
+OPS-004	OPS	trace context flows through outbound calls	V1	P	X	project	local	yes	-	tests assert propagation at runtime
+OPS-005	OPS	golden-signal metrics per endpoint and dependency	V1,V2	P	X	project	local	yes	-	-
+OPS-006	OPS	no secrets in configuration files	V0	N	-	project	local	no	-	delegates to SEC-002
+OPS-007	OPS	feature flags carry owner, expiry, get removed	V0,V3	N	H,P	project	local	no	-	registry check static; staleness needs history
+OPS-008	OPS	health and readiness endpoints present	V1,V2	P	X	project	local	yes	-	-
+OPS-009	OPS	alerts tied to SLOs with runbooks	V4,V5	N	M,L	project	local	no	-	-
+OPS-010	OPS	build and version info exposed	V0	N	P	project	local	no	-	-
+DOC-001	DOC	public items have documentation	V0	P	-	project	local	no	rustc,Javadoc/Doclint,pydocstyle,TypeDoc	-
+DOC-002	DOC	Code samples in docs build and execute	V2	X	-	project	local	yes	-	-
+DOC-003	DOC	components have purpose and owner in spec	V0	A	N	project	local	no	-	-
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	A,L,H	project	local	no	-	-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	-	project	local	no	-	-
+DOC-006	DOC	docs and comments drift from behaviour	V4	L	P	project	local	no	-	-
+DOC-007	DOC	architecture diagrams match real dependency graph	V1	A	P	project	local	no	-	-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	H,L	project	local	no	-	-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	L	project	local	no	-	existence is plain; consistency needs judgment
+DOC-010	DOC	documentation links resolve	V0	N	-	project	network	no	-	external links need network
+EVO-001	EVO	hotspot ranking from churn, complexity, defects	V3	H	P	project	local	no	CodeScene	-
+EVO-002	EVO	hidden co-change coupling without declared edge	V3	H	A	project	local	no	-	-
+EVO-003	EVO	divergent change clusters inside modules	V3	H	P	project	local	no	-	-
+EVO-004	EVO	Ownership concentration signalling knowledge-loss risk	V3	H	-	project	local	no	-	advisory only
+EVO-005	EVO	erosion trend of violations and waivers	V0,V3	T	H	project	local	no	-	reporting over catalog's own findings
+EVO-006	EVO	stale specs for long-untouched components	V3,V4	H	L,A	project	local	no	-	-
+EVO-007	EVO	defect clustering by component	V3	H	-	project	network	no	-	issue tracker link optional
+EVO-008	EVO	change-size distribution tracking	V3	H	-	project	network	no	-	PR metadata from forge
+EVO-009	EVO	per-function complexity trend across commits	V1,V3	H	P	project	local	no	-	-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	-	portfolio	local	no	-	-
+WSP-002	WSP	cross-repo dependency direction and acyclicity	V0	A	N	portfolio	local	no	-	-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	-	portfolio	local	no	-	-
+WSP-004	WSP	downstream compatibility tests before library release	V2	X	-	portfolio	local	yes	-	-
+WSP-005	WSP	org baseline inherited, overrides waived	V0	T	N	portfolio	local	no	-	-
+WSP-006	WSP	Copied or near-duplicate code across repositories	V1,V4	P	L	portfolio	local	no	-	-
+WSP-007	WSP	Contracts between repositories are tested	V2	X	P	portfolio	local	yes	-	-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	-	portfolio	local	no	-	-
+WSP-009	WSP	Repositories that must release or deploy in lockstep	V3	H	-	portfolio	local	no	-	-
+AIH-001	AIH	same policy in local, agent and CI runs	V0	N	T	project	local	no	-	-
+AIH-002	AIH	referenced APIs resolve, new packages exist and vetted	V0	P	N	project	network	yes	-	build plus registry lookup
+AIH-003	AIH	new helpers do not duplicate existing utilities	V1,V4	L	P	project	local	no	-	-
+AIH-004	AIH	diff scope matches task, no mixed reformatting	V1,V4	N	L	project	local	no	-	diff statistics deterministic; task match needs LLM
+AIH-005	AIH	tests assert spec, not observed output	V2,V4	X	L	project	local	yes	-	-
+AIH-006	AIH	Generated code follows local conventions mined from the repository	V4	L	P	project	local	no	-	-
+AIH-007	AIH	Commits made with AI help record that in trailers	V0	N	-	project	local	no	-	-
+AIH-008	AIH	no speculative abstractions or options	V1,V4	L	P	project	local	no	-	-

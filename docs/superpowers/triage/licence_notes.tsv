@@ -1,0 +1,3 @@
+coordinate	note	source	checked
+pypi:semgrep	the engine is LGPL-2.1-or-later, but the Semgrep Registry rules are under the Semgrep Rules License v1.0: own internal business purposes only, not to be distributed or offered to others as a service; so no bundling in the default catalog and not usable by a hosted mode unless the rules are our own	https://semgrep.dev/legal/rules-license	2026-10-08
+pypi:pylint	GPL-2.0-or-later: used only as a separate process, never linked or bundled	registry metadata	2026-10-07

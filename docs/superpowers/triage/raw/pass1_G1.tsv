@@ -1,0 +1,42 @@
+id	domain	label	evidence_tiers	class	also	scope	network	executes_code	kb_tools	note
+GOV-001	GOV	Findings baseline snapshot with decreasing ratchet	V0	T	P	project	local	no	-	Fingerprinting findings across edits is the hard part
+GOV-002	GOV	Waiver records with owner and expiry	V0,V5	T	M	project	local	no	-	Waiver content itself is a human decision artifact
+GOV-003	GOV	Rule maturity stages driven by precision	V0	T	-	project	local	no	-	-
+GOV-004	GOV	Rule policy versioned and tested with fixtures	V0	T	X	project	local	no	-	Testing rules means running them against fixtures
+GOV-005	GOV	Code scope classification with per-scope rules	V0	T	N	project	local	no	-	-
+GOV-006	GOV	Reports must carry severity, confidence, proof and remediation	V0	T	-	project	local	no	-	-
+GOV-007	GOV	Per-dimension reporting instead of composite score	V0	T	-	project	local	no	-	-
+GOV-008	GOV	Staged gates from editor to runtime	V0,V1,V2	T	X	project	local	no	-	Runtime SLO gates require telemetry
+GOV-009	GOV	Rules ship rationale and remediation guidance	V5	T	M	project	local	no	-	-
+MOD-001	MOD	Minimal documented public surface	V0	P	-	project	local	yes	rustc,ArchUnit,api-extractor	Visibility lints from compiler diagnostics
+MOD-002	MOD	No module dependency cycles	V0	P	A	project	local	no	SCC,ArchUnit,dependency-cruiser,import-linter,cargo-modules	Levels of modules may be declared
+MOD-003	MOD	No deep imports into module internals	V0	P	A	project	local	no	ArchUnit,eslint,import-linter,Go	Needs notion of what is a module's public interface
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	-	project	local	no	LCOM	Low confidence alone
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	H	project	local	no	CodeScene	Growth trend needs history
+MOD-006	MOD	Divergent change from unrelated commit clusters	V3	H	-	project	local	no	-	-
+MOD-007	MOD	LLM responsibility summary versus declared purpose	V4	L	P,H	project	local	no	-	Advisory only
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	L	project	local	no	-	LLM confirms no added policy or translation
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	-	project	local	no	-	Must exclude iterators and builders; low precision
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	-	project	local	no	-	Depends on an invariant-bearing tag
+ARC-001	ARC	Dependency edges match declared component graph	V0	A	P	project	local	yes	ArchUnit,NetArchTest,ArchUnitNET,dependency-cruiser,import-linter,deptrac,go-arch-lint,depguard,cargo-metadata	cargo metadata may run build tooling
+ARC-002	ARC	Component dependency graph is acyclic	V0	A	P	project	local	no	Tarjan	-
+ARC-003	ARC	Stable-policy components avoid volatile components	V0	A	P	project	local	no	-	Needs spec tags; feature-conditional edges count
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	A	project	local	yes	-	Type-resolved facts; needs forbidden namespace list from spec
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	A	project	local	no	-	Instability metric from coupling counts
+ARC-006	ARC	Component public API within budget, no third-party types	V0	A	P	project	local	yes	cargo-public-api,rustc,api-extractor,japicmp	Budget is declared
+ARC-007	ARC	Only owning component touches its data stores	V1	A	P	project	local	no	-	Needs owner mapping for tables and topics
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	L	project	local	no	-	Justification judgment is the LLM part
+ARC-009	ARC	Boundary violation and waiver trend per component	V0,V3	H	A,T	project	local	no	-	Uses waiver data over time
+ARC-010	ARC	Change respects architecture decision records	V4	L	A	project	local	no	-	Advisory
+ARC-011	ARC	Distributed-monolith signals across services	V1,V3	H	A,P	portfolio	local	no	-	Needs service graph, possibly several repos
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	A	project	local	no	-	Roots must be declared
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	-	project	local	yes	Clippy	Compiler exhaustiveness and restriction lint
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	-	project	local	no	-	-
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	-	project	local	no	-	Excludes test code
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	-	project	local	no	-	-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	-	project	local	no	DIT	-
+EXT-006	EXT	Shared contract tests run against all implementations	V2	X	P	project	local	yes	Pact	Presence is static, passing needs execution
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	H	project	local	no	-	History shows never extended
+EXT-008	EXT	Adding a variant touches too many files	V3	H	P	project	local	no	-	-
+EXT-009	EXT	Stable components edited for new variants	V3	H	A	project	local	no	-	Needs stable tags from spec
+EXT-010	EXT	Abstraction matches real axis of variation	V4	L	-	project	local	no	-	Advisory

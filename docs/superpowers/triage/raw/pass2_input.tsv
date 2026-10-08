@@ -1,0 +1,92 @@
+id	domain	label	evidence_tiers	class	also	executes_code	kb_tools
+MOD-001	MOD	Minimal documented public surface	V0	P	-	yes	rustc,ArchUnit,api-extractor
+MOD-002	MOD	No module dependency cycles	V0	P	A	no	SCC,ArchUnit,dependency-cruiser,import-linter,cargo-modules
+MOD-003	MOD	No deep imports into module internals	V0	P	A	no	ArchUnit,eslint,import-linter,Go
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	-	no	LCOM
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	H	no	CodeScene
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	L	no	-
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	-	no	-
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	-	no	-
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	A	yes	-
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	A	no	-
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	L	no	-
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	A	no	-
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	-	yes	Clippy
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	-	no	-
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	-	no	-
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	-	no	-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	-	no	DIT
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	H	no	-
+RDB-001	RDB	Project formatter output is enforced	V0	P	-	no	rustfmt,Prettier,Black,Ruff,gofmt,clang-format,EditorConfig
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	-	no	ESLint,Clippy,rustc,Pylint,Ruff,Checkstyle
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	T	no	SonarQube,ESLint,Clippy,CodeScene
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	-	no	Clippy
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	L,H	no	jscpd,PMD-CPD,Sonar
+RDB-006	RDB	Unused code, imports and private items	V0	P	-	no	knip,vulture,cargo-udeps,machete
+RDB-007	RDB	Unnamed magic literals	V1	P	L	no	-
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	P,M	no	-
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	P,L	no	-
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	L	no	-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	-	no	-
+TYP-003	TYP	Invariant-holding types are built only through validated paths	V0,V1	P	A	no	-
+TYP-004	TYP	External data parsed into domain types first	V1	P	A	no	-
+TYP-005	TYP	Money and exact quantities avoid binary floating point	V1	P	A	no	-
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	-	no	Clippy,Error-Prone
+TYP-007	TYP	Boolean blindness in signatures	V1	P	-	no	-
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	L,X	no	-
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	X	no	-
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	-	no	-
+EFX-003	EFX	Environment reads confined to config module	V0	N	P	no	-
+EFX-005	EFX	Methods that both change state and answer queries	V1	P	L	no	-
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	L,A	no	-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	L	no	-
+ERR-001	ERR	Errors are not swallowed	V0	P	-	no	rustc,Clippy,Semgrep
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	A	no	-
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	X	no	Clippy
+ERR-004	ERR	Library errors are typed so callers can match them	V1	P	-	no	-
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	L	no	-
+ERR-007	ERR	Resources released on error paths	V1,V2	P	X	no	-
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	L	no	-
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	-	no	-
+COR-001	COR	public API docs state errors, panics, safety	V0,V1	P	-	yes	Clippy,missing_errors_doc,missing_panics_doc,missing_safety_doc,Javadoc,docstring-linters
+COR-002	COR	invariant types enforce invariants in code	V1,V4	P	L	no	-
+COR-003	COR	codec pairs have round-trip property tests	V1,V2	P	X	no	-
+COR-006	COR	unsafe confined, justified, and run under Miri	V0,V2	P	X	yes	Miri,ASan,UBSan,TSan,MSan
+COR-007	COR	no float equality; tolerances declared	V1	P	-	yes	Clippy,float_cmp,AST
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	-	no	CodeQL,Semgrep_taint_mode,Snyk_Code,Checkmarx
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	-	no	gitleaks,trufflehog
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	L	no	-
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	-	no	-
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	-	no	cargo-geiger
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	-	no	-
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	L	no	-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	-	no	Checkov,Trivy_config_scanning,OPA/Kyverno
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	-	no	Cargo_--locked,npm_ci,pip_constraints/hashes,Go_modules
+SUP-002	SUP	Dependencies free of known advisories	V0	N	-	no	cargo-audit,cargo-deny_advisories,OSV-Scanner,npm_audit,pip-audit
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	-	no	cargo-deny_licenses,license_checkers
+SUP-004	SUP	Dependencies only from approved sources	V0	N	-	no	cargo-deny_sources,registry_config
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	-	no	cargo-deny_bans,cargo_tree_-d,package_manager_reports
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	-	no	cargo-udeps,cargo-machete,cargo-shear,deptry,depcheck,knip
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	-	no	actionlint,zizmor,OpenSSF_Scorecard
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	-	no	CycloneDX_generators,SPDX_generators
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	M	no	SLSA_generators,Sigstore
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	-	no	-
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	-	no	-
+API-001	API	Breaking public changes since last release	V0	P	-	yes	cargo-semver-checks,japicmp/revapi,api-extractor,griffe,Go_apidiff,buf_breaking,oasdiff,graphql-inspector
+API-002	API	Public surface snapshot reviewed when changed	V0	P	M	yes	cargo-public-api,API_Extractor
+API-003	API	Version number matches kind of change	V0	P	-	yes	semver_checkers,release_tooling
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	-	no	-
+API-006	API	Schema changes obey evolution rules	V0	N	-	no	Schema_registry_compatibility_checks,buf,Avro_and_JSON_Schema_compat_tools
+API-007	API	Database migrations safe step by step	V1,V4	P	L	no	squawk
+API-008	API	Public API exposes no third-party types	V0	P	A	no	-
+API-009	API	Growth points marked on public enums and structs	V1	P	-	no	-
+DOC-001	DOC	public items have documentation	V0	P	-	no	rustc,Javadoc/Doclint,pydocstyle,TypeDoc
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	A,L,H	no	-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	-	no	-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	H,L	no	-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	L	no	-
+DOC-010	DOC	documentation links resolve	V0	N	-	no	-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	-	no	-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	-	no	-
+WSP-006	WSP	Copied or near-duplicate code across repositories	V1,V4	P	L	no	-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	-	no	-

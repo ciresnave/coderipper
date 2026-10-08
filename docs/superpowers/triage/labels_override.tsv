@@ -1,0 +1,22 @@
+id	column	text	reason
+GOV-006	label	Reports must carry severity, confidence, proof and remediation	provenance: the agent label repeated the knowledge base wording
+ARC-002	label	Component dependency graph is acyclic	provenance: the agent label repeated the knowledge base wording
+RDB-012	label	Fresh code matches conventions the repository already uses	provenance: the agent label repeated the knowledge base wording
+TYP-003	label	Invariant-holding types are built only through validated paths	provenance: the agent label repeated the knowledge base wording
+TYP-005	label	Money and exact quantities avoid binary floating point	provenance: the agent label repeated the knowledge base wording
+EFX-005	label	Methods that both change state and answer queries	provenance: the agent label repeated the knowledge base wording
+ERR-004	label	Library errors are typed so callers can match them	provenance: the agent label repeated the knowledge base wording
+ERR-009	note	needs flow from sensitive fields into log or error output	provenance: the agent label repeated the knowledge base wording
+ERR-010	label	Compound state changes say whether they are all-or-nothing	provenance: the agent label repeated the knowledge base wording
+TST-012	label	Test duration budgets with size classes	provenance: the agent label repeated the knowledge base wording
+CON-002	label	Locks are not held across awaits or blocking calls	provenance: the agent label repeated the knowledge base wording
+REL-002	label	Retries follow the declared policy	provenance: the agent label repeated the knowledge base wording
+REL-008	label	Each declared failure mode has an injection test	provenance: the agent label repeated the knowledge base wording
+REL-010	label	Stateful components are exercised by crash-recovery tests	provenance: the agent label repeated the knowledge base wording
+DOC-002	label	Code samples in docs build and execute	provenance: the agent label repeated the knowledge base wording
+EVO-004	label	Ownership concentration signalling knowledge-loss risk	provenance: the agent label repeated the knowledge base wording
+WSP-006	label	Copied or near-duplicate code across repositories	provenance: the agent label repeated the knowledge base wording
+WSP-007	label	Contracts between repositories are tested	provenance: the agent label repeated the knowledge base wording
+WSP-009	label	Repositories that must release or deploy in lockstep	provenance: the agent label repeated the knowledge base wording
+AIH-006	label	Generated code follows local conventions mined from the repository	provenance: the agent label repeated the knowledge base wording
+AIH-007	label	Commits made with AI help record that in trailers	provenance: the agent label repeated the knowledge base wording

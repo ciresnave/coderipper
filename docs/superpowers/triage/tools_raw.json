@@ -1,0 +1,843 @@
+{
+ "records": [
+  {
+   "coordinate": "builtin:clippy",
+   "status": "not looked up (ships with the language toolchain)",
+   "tool_names_seen": [
+    "clippy"
+   ]
+  },
+  {
+   "coordinate": "builtin:rustc",
+   "status": "not looked up (ships with the language toolchain)",
+   "tool_names_seen": [
+    "rustc"
+   ]
+  },
+  {
+   "coordinate": "builtin:rustfmt",
+   "status": "not looked up (ships with the language toolchain)",
+   "tool_names_seen": [
+    "rustfmt"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-audit",
+   "latest_release": "2026-06-05T12:33:04.440539Z",
+   "latest_version": "0.22.2",
+   "licence": "Apache-2.0 OR MIT",
+   "repo_archived": false,
+   "repo_licence": "NOASSERTION",
+   "repo_pushed_at": "2026-10-03T08:10:21Z",
+   "repo_slug": "rustsec/rustsec",
+   "repo_status": 200,
+   "repo_url": "https://github.com/rustsec/rustsec",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-audit"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-audit"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-deny",
+   "latest_release": "2026-07-09T17:58:09.303885Z",
+   "latest_version": "0.20.2",
+   "licence": "MIT OR Apache-2.0",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-07T10:06:53Z",
+   "repo_slug": "EmbarkStudios/cargo-deny",
+   "repo_status": 200,
+   "repo_url": "https://github.com/EmbarkStudios/cargo-deny",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-deny"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-deny"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-geiger",
+   "latest_release": "2025-08-31T08:40:31.637036Z",
+   "latest_version": "0.13.0",
+   "licence": "Apache-2.0 OR MIT",
+   "repo_archived": false,
+   "repo_licence": null,
+   "repo_pushed_at": "2026-09-14T02:03:51Z",
+   "repo_slug": "rust-secure-code/cargo-geiger",
+   "repo_status": 200,
+   "repo_url": "https://github.com/rust-secure-code/cargo-geiger",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-geiger"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-geiger"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-machete",
+   "latest_release": "2026-04-15T16:52:18.726549Z",
+   "latest_version": "0.9.2",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-09-07T17:17:44Z",
+   "repo_slug": "bnjbvr/cargo-machete",
+   "repo_status": 200,
+   "repo_url": "https://github.com/bnjbvr/cargo-machete",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-machete"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-machete"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-modules",
+   "latest_release": "2026-08-03T10:16:59.087696Z",
+   "latest_version": "0.27.0",
+   "licence": "MPL-2.0",
+   "repo_archived": false,
+   "repo_licence": "MPL-2.0",
+   "repo_pushed_at": "2026-10-05T08:43:31Z",
+   "repo_slug": "regexident/cargo-modules",
+   "repo_status": 200,
+   "repo_url": "https://github.com/regexident/cargo-modules",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-modules"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-modules"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-public-api",
+   "latest_release": "2026-05-25T17:36:08.607019Z",
+   "latest_version": "0.52.0",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-09-21T18:17:30Z",
+   "repo_slug": "cargo-public-api/cargo-public-api",
+   "repo_status": 200,
+   "repo_url": "https://github.com/cargo-public-api/cargo-public-api",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-public-api"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-public-api"
+   ]
+  },
+  {
+   "coordinate": "crates:cargo-semver-checks",
+   "latest_release": "2026-10-03T22:41:05.598960Z",
+   "latest_version": "0.51.0",
+   "licence": "Apache-2.0 OR MIT",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-05T23:28:00Z",
+   "repo_slug": "obi1kenobi/cargo-semver-checks",
+   "repo_status": 200,
+   "repo_url": "https://github.com/obi1kenobi/cargo-semver-checks",
+   "status": 200,
+   "tool_names_seen": [
+    "cargo-semver-checks"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/cargo-semver-checks"
+   ]
+  },
+  {
+   "coordinate": "crates:lychee",
+   "latest_release": "2026-05-01T15:41:34.001507Z",
+   "latest_version": "0.24.2",
+   "licence": "Apache-2.0 OR MIT",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-05T12:44:56Z",
+   "repo_slug": "lycheeverse/lychee",
+   "repo_status": 200,
+   "repo_url": "https://github.com/lycheeverse/lychee",
+   "status": 200,
+   "tool_names_seen": [
+    "lychee"
+   ],
+   "urls": [
+    "https://crates.io/api/v1/crates/lychee"
+   ]
+  },
+  {
+   "coordinate": "github:bufbuild/buf",
+   "latest_release": "2026-09-11T13:27:59Z",
+   "latest_version": "v1.73.0",
+   "licence": "Apache-2.0",
+   "release_status": 200,
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-07T21:55:56Z",
+   "repo_slug": "bufbuild/buf",
+   "repo_status": 200,
+   "repo_url": "https://github.com/bufbuild/buf",
+   "status": 200,
+   "tool_names_seen": [
+    "buf"
+   ],
+   "urls": [
+    "gh api repos/bufbuild/buf",
+    "gh api repos/bufbuild/buf/releases/latest"
+   ]
+  },
+  {
+   "coordinate": "github:gitleaks/gitleaks",
+   "latest_release": "2026-03-21T02:17:58Z",
+   "latest_version": "v8.30.1",
+   "licence": "MIT",
+   "release_status": 200,
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-09-30T04:14:02Z",
+   "repo_slug": "gitleaks/gitleaks",
+   "repo_status": 200,
+   "repo_url": "https://github.com/gitleaks/gitleaks",
+   "status": 200,
+   "tool_names_seen": [
+    "gitleaks"
+   ],
+   "urls": [
+    "gh api repos/gitleaks/gitleaks",
+    "gh api repos/gitleaks/gitleaks/releases/latest"
+   ]
+  },
+  {
+   "coordinate": "github:google/osv-scanner",
+   "latest_release": "2026-09-14T02:55:16Z",
+   "latest_version": "v2.6.0",
+   "licence": "Apache-2.0",
+   "release_status": 200,
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-08T00:37:10Z",
+   "repo_slug": "google/osv-scanner",
+   "repo_status": 200,
+   "repo_url": "https://github.com/google/osv-scanner",
+   "status": 200,
+   "tool_names_seen": [
+    "osv-scanner"
+   ],
+   "urls": [
+    "gh api repos/google/osv-scanner",
+    "gh api repos/google/osv-scanner/releases/latest"
+   ]
+  },
+  {
+   "coordinate": "github:rust-lang/miri",
+   "licence": "Apache-2.0",
+   "release_status": "gh: gh: Not Found (HTTP 404)",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-07T20:49:51Z",
+   "repo_slug": "rust-lang/miri",
+   "repo_status": 200,
+   "repo_url": "https://github.com/rust-lang/miri",
+   "status": 200,
+   "tool_names_seen": [
+    "miri"
+   ],
+   "urls": [
+    "gh api repos/rust-lang/miri",
+    "gh api repos/rust-lang/miri/releases/latest"
+   ]
+  },
+  {
+   "coordinate": "github:sbdchd/squawk",
+   "latest_release": "2026-10-04T15:17:11Z",
+   "latest_version": "v2.67.0",
+   "licence": "Apache-2.0",
+   "release_status": 200,
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-05T23:01:27Z",
+   "repo_slug": "sbdchd/squawk",
+   "repo_status": 200,
+   "repo_url": "https://github.com/sbdchd/squawk",
+   "status": 200,
+   "tool_names_seen": [
+    "squawk"
+   ],
+   "urls": [
+    "gh api repos/sbdchd/squawk",
+    "gh api repos/sbdchd/squawk/releases/latest"
+   ]
+  },
+  {
+   "coordinate": "npm:@cyclonedx/cyclonedx-npm",
+   "latest_release": "2026-08-11T14:38:29.963Z",
+   "latest_version": "6.0.1",
+   "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-03T16:03:26Z",
+   "repo_slug": "CycloneDX/cyclonedx-node-npm",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+   "status": 200,
+   "tool_names_seen": [
+    "cyclonedx-npm"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/@cyclonedx%2Fcyclonedx-npm"
+   ]
+  },
+  {
+   "coordinate": "npm:@microsoft/api-extractor",
+   "latest_release": "2026-10-06T01:54:09.474Z",
+   "latest_version": "7.59.4",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "@microsoft/api-extractor",
+   "repo_archived": false,
+   "repo_licence": "NOASSERTION",
+   "repo_pushed_at": "2026-10-07T21:11:49Z",
+   "repo_slug": "microsoft/rushstack",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/microsoft/rushstack.git",
+   "status": 200,
+   "tool_names_seen": [
+    "api-extractor"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/@microsoft%2Fapi-extractor"
+   ]
+  },
+  {
+   "coordinate": "npm:dependency-cruiser",
+   "latest_release": "2026-09-30T19:18:29.691Z",
+   "latest_version": "18.5.0",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "The MIT License (MIT)",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-01T20:08:37Z",
+   "repo_slug": "sverweij/dependency-cruiser",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/sverweij/dependency-cruiser.git",
+   "status": 200,
+   "tool_names_seen": [
+    "dependency-cruiser"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/dependency-cruiser"
+   ]
+  },
+  {
+   "coordinate": "npm:eslint",
+   "latest_release": "2026-10-02T20:08:19.213Z",
+   "latest_version": "10.12.0",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright OpenJS Foundation and other contributors, <www.openjsf.org>",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-07T04:58:43Z",
+   "repo_slug": "eslint/eslint",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/eslint/eslint.git",
+   "status": 200,
+   "tool_names_seen": [
+    "eslint"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/eslint"
+   ]
+  },
+  {
+   "coordinate": "npm:eslint-plugin-import",
+   "latest_release": "2025-06-20T21:59:09.822Z",
+   "latest_version": "2.32.0",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "The MIT License (MIT)",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-08-23T16:57:53Z",
+   "repo_slug": "import-js/eslint-plugin-import",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/import-js/eslint-plugin-import.git",
+   "status": 200,
+   "tool_names_seen": [
+    "eslint"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/eslint-plugin-import"
+   ]
+  },
+  {
+   "coordinate": "npm:eslint-plugin-jsdoc",
+   "latest_release": "2026-10-07T08:22:22.589Z",
+   "latest_version": "65.2.0",
+   "licence": "BSD-3-Clause",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright (c) 2018, Gajus Kuizinas (http://gajus.com/)",
+   "repo_archived": false,
+   "repo_licence": "NOASSERTION",
+   "repo_pushed_at": "2026-10-07T08:15:00Z",
+   "repo_slug": "gajus/eslint-plugin-jsdoc",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/gajus/eslint-plugin-jsdoc.git",
+   "status": 200,
+   "tool_names_seen": [
+    "eslint"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/eslint-plugin-jsdoc"
+   ]
+  },
+  {
+   "coordinate": "npm:jscpd",
+   "latest_release": "2026-09-30T18:11:43.825Z",
+   "latest_version": "5.4.0",
+   "licence": "MIT",
+   "licence_file_flag": "no licence file found in the package",
+   "licence_file_head": "",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-07T19:41:33Z",
+   "repo_slug": "kucherenko/jscpd",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/kucherenko/jscpd.git",
+   "status": 200,
+   "tool_names_seen": [
+    "jscpd"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/jscpd"
+   ]
+  },
+  {
+   "coordinate": "npm:knip",
+   "latest_release": "2026-10-06T16:07:13.970Z",
+   "latest_version": "6.40.0",
+   "licence": "ISC",
+   "licence_file_flag": "",
+   "licence_file_head": "ISC License (ISC)",
+   "repo_archived": false,
+   "repo_licence": "ISC",
+   "repo_pushed_at": "2026-10-07T13:57:46Z",
+   "repo_slug": "webpro-nl/knip",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/webpro-nl/knip.git",
+   "status": 200,
+   "tool_names_seen": [
+    "knip"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/knip"
+   ]
+  },
+  {
+   "coordinate": "npm:license-checker-rseidelsohn",
+   "latest_release": "2026-05-27T14:15:44.165Z",
+   "latest_version": "5.0.1",
+   "licence": "BSD-3-Clause",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright 2012 Yahoo Inc.",
+   "repo_archived": false,
+   "repo_licence": "BSD-3-Clause",
+   "repo_pushed_at": "2026-10-07T15:00:07Z",
+   "repo_slug": "RSeidelsohn/license-checker-rseidelsohn",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/RSeidelsohn/license-checker-rseidelsohn.git",
+   "status": 200,
+   "tool_names_seen": [
+    "license-checker-rseidelsohn"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/license-checker-rseidelsohn"
+   ]
+  },
+  {
+   "coordinate": "npm:npm",
+   "latest_release": "2026-09-30T16:46:11.700Z",
+   "latest_version": "12.2.0",
+   "licence": "Artistic-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "The npm application",
+   "repo_archived": false,
+   "repo_licence": "NOASSERTION",
+   "repo_pushed_at": "2026-10-06T20:51:32Z",
+   "repo_slug": "npm/cli",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/npm/cli.git",
+   "status": 200,
+   "tool_names_seen": [
+    "npm"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/npm"
+   ]
+  },
+  {
+   "coordinate": "npm:prettier",
+   "latest_release": "2026-09-23T06:31:34.693Z",
+   "latest_version": "3.9.9",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright \u00a9 James Long and contributors",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-06T14:19:24Z",
+   "repo_slug": "prettier/prettier",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/prettier/prettier.git",
+   "status": 200,
+   "tool_names_seen": [
+    "prettier"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/prettier"
+   ]
+  },
+  {
+   "coordinate": "npm:squawk-cli",
+   "latest_release": "2026-10-04T15:35:10.603Z",
+   "latest_version": "2.67.0",
+   "licence": "(Apache-2.0 OR MIT)",
+   "licence_file_flag": "no licence file found in the package",
+   "licence_file_head": "",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-05T23:01:27Z",
+   "repo_slug": "sbdchd/squawk",
+   "repo_status": 200,
+   "repo_url": "git+ssh://git@github.com/sbdchd/squawk.git",
+   "status": 200,
+   "tool_names_seen": [
+    "squawk"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/squawk-cli"
+   ]
+  },
+  {
+   "coordinate": "npm:typedoc",
+   "latest_release": "2026-07-05T22:54:07.305Z",
+   "latest_version": "0.28.20",
+   "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-07-13T01:33:41Z",
+   "repo_slug": "TypeStrong/TypeDoc",
+   "repo_status": 200,
+   "repo_url": "git://github.com/TypeStrong/TypeDoc.git",
+   "status": 200,
+   "tool_names_seen": [
+    "typedoc"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/typedoc"
+   ]
+  },
+  {
+   "coordinate": "npm:typescript",
+   "latest_release": "2026-07-08T15:55:18.431Z",
+   "latest_version": "7.0.2",
+   "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-08T00:39:32Z",
+   "repo_slug": "microsoft/TypeScript",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/microsoft/TypeScript.git",
+   "status": 200,
+   "tool_names_seen": [
+    "tsc"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/typescript"
+   ]
+  },
+  {
+   "coordinate": "npm:typescript-eslint",
+   "latest_release": "2026-10-05T17:08:41.691Z",
+   "latest_version": "8.71.1",
+   "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "MIT License",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-07T23:44:38Z",
+   "repo_slug": "typescript-eslint/typescript-eslint",
+   "repo_status": 200,
+   "repo_url": "https://github.com/typescript-eslint/typescript-eslint.git",
+   "status": 200,
+   "tool_names_seen": [
+    "eslint"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/typescript-eslint"
+   ]
+  },
+  {
+   "coordinate": "pypi:bandit",
+   "latest_release": "2026-02-25T06:44:13.694900Z",
+   "latest_version": "1.9.4",
+   "licence": "Apache-2.0",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-06T01:17:09Z",
+   "repo_slug": "PyCQA/bandit",
+   "repo_status": 200,
+   "repo_url": "https://github.com/PyCQA/bandit",
+   "status": 200,
+   "tool_names_seen": [
+    "bandit"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/bandit/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:checkov",
+   "latest_release": "2026-10-07T12:44:29.130898Z",
+   "latest_version": "3.3.26",
+   "licence": "Apache License 2.0",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-07T23:03:47Z",
+   "repo_slug": "bridgecrewio/checkov",
+   "repo_status": 200,
+   "repo_url": "https://github.com/bridgecrewio/checkov",
+   "status": 200,
+   "tool_names_seen": [
+    "checkov"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/checkov/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:complexipy",
+   "latest_release": "2026-09-07T02:26:32.607638Z",
+   "latest_version": "8.0.1",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-01T18:57:32Z",
+   "repo_slug": "rohaquinlop/complexipy",
+   "repo_status": 200,
+   "repo_url": "https://github.com/rohaquinlop/complexipy",
+   "status": 200,
+   "tool_names_seen": [
+    "complexipy"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/complexipy/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:deptry",
+   "latest_release": "2026-03-18T23:22:11.269240Z",
+   "latest_version": "0.25.1",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-07T10:03:08Z",
+   "repo_slug": "osprey-oss/deptry",
+   "repo_status": 200,
+   "repo_url": "https://github.com/osprey-oss/deptry",
+   "status": 200,
+   "tool_names_seen": [
+    "deptry"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/deptry/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:django-migration-linter",
+   "latest_release": "2026-01-04T13:08:23.819910Z",
+   "latest_version": "6.0.0",
+   "licence": "Apache-2.0",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-09-19T15:53:46Z",
+   "repo_slug": "3YOURMIND/django-migration-linter",
+   "repo_status": 200,
+   "repo_url": "https://github.com/3YOURMIND/django-migration-linter",
+   "status": 200,
+   "tool_names_seen": [
+    "django-migration-linter"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/django-migration-linter/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:griffe",
+   "latest_release": "2026-10-06T09:54:33.565846Z",
+   "latest_version": "2.3.2",
+   "licence": "ISC",
+   "repo_archived": false,
+   "repo_licence": "ISC",
+   "repo_pushed_at": "2026-10-06T09:54:49Z",
+   "repo_slug": "mkdocstrings/griffe",
+   "repo_status": 200,
+   "repo_url": "https://github.com/mkdocstrings/griffe",
+   "status": 200,
+   "tool_names_seen": [
+    "griffe"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/griffe/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:import-linter",
+   "latest_release": "2026-09-04T14:47:54.878239Z",
+   "latest_version": "2.15",
+   "licence": "BSD 2-Clause License",
+   "repo_archived": false,
+   "repo_licence": "BSD-2-Clause",
+   "repo_pushed_at": "2026-09-16T07:43:07Z",
+   "repo_slug": "seddonym/import-linter",
+   "repo_status": 200,
+   "repo_url": "https://github.com/seddonym/import-linter/",
+   "status": 200,
+   "tool_names_seen": [
+    "import-linter"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/import-linter/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:pylint",
+   "latest_release": "2026-10-02T22:49:40.451283Z",
+   "latest_version": "4.1.2",
+   "licence": "GPL-2.0-or-later",
+   "repo_archived": false,
+   "repo_licence": "GPL-2.0",
+   "repo_pushed_at": "2026-10-07T21:35:16Z",
+   "repo_slug": "pylint-dev/pylint",
+   "repo_status": 200,
+   "repo_url": "https://github.com/pylint-dev/pylint",
+   "status": 200,
+   "tool_names_seen": [
+    "pylint"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/pylint/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:pyright",
+   "latest_release": "2026-09-10T12:26:51.427844Z",
+   "latest_version": "1.1.414",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-09-10T12:26:55Z",
+   "repo_slug": "RobertCraigie/pyright-python",
+   "repo_status": 200,
+   "repo_url": "https://github.com/RobertCraigie/pyright-python",
+   "status": 200,
+   "tool_names_seen": [
+    "pyright"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/pyright/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:ruff",
+   "latest_release": "2026-10-01T18:02:36.072842Z",
+   "latest_version": "0.16.10",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-08T00:40:02Z",
+   "repo_slug": "astral-sh/ruff",
+   "repo_status": 200,
+   "repo_url": "https://github.com/astral-sh/ruff",
+   "status": 200,
+   "tool_names_seen": [
+    "ruff"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/ruff/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:semgrep",
+   "latest_release": "2026-10-07T23:22:36.432025Z",
+   "latest_version": "1.180.0",
+   "licence": "LGPL-2.1-or-later",
+   "repo_archived": false,
+   "repo_licence": "LGPL-2.1",
+   "repo_pushed_at": "2026-10-08T00:01:40Z",
+   "repo_slug": "semgrep/semgrep",
+   "repo_status": 200,
+   "repo_url": "https://github.com/semgrep/semgrep",
+   "status": 200,
+   "tool_names_seen": [
+    "semgrep"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/semgrep/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:vulture",
+   "latest_release": "2026-03-25T14:41:26.210949Z",
+   "latest_version": "2.16",
+   "licence": "MIT License",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-09-25T09:10:05Z",
+   "repo_slug": "jendrikseipp/vulture",
+   "repo_status": 200,
+   "repo_url": "https://github.com/jendrikseipp/vulture",
+   "status": 200,
+   "tool_names_seen": [
+    "vulture"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/vulture/json"
+   ]
+  },
+  {
+   "coordinate": "pypi:zizmor",
+   "latest_release": "2026-09-09T05:26:58.842334Z",
+   "latest_version": "1.30.1",
+   "licence": "MIT",
+   "repo_archived": false,
+   "repo_licence": "MIT",
+   "repo_pushed_at": "2026-10-05T13:47:02Z",
+   "repo_slug": "zizmorcore/zizmor",
+   "repo_status": 200,
+   "repo_url": "https://github.com/zizmorcore/zizmor",
+   "status": 200,
+   "tool_names_seen": [
+    "zizmor"
+   ],
+   "urls": [
+    "https://pypi.org/pypi/zizmor/json"
+   ]
+  }
+ ],
+ "retrieved": "2026-10-08T00:45Z"
+}

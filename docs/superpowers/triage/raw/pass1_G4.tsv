@@ -1,0 +1,44 @@
+id	domain	label	evidence_tiers	class	also	scope	network	executes_code	kb_tools	note
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	-	project	local	no	CodeQL,Semgrep_taint_mode,Snyk_Code,Checkmarx	-
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	-	project	local	no	gitleaks,trufflehog	history scan needs VCS access
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	L	project	local	no	-	object-level and tenant checks need semantic judgment
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	-	project	local	no	-	-
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	-	project	local	no	cargo-geiger	forbid attribute is a parser fact
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	-	project	network	no	-	same check as SUP-002
+SEC-007	SEC	Current threat model tied to controls	V5,V4	M	L	project	local	no	-	presence checkable; currency and mapping need judgment
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	L	project	local	no	-	-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	-	project	local	no	Checkov,Trivy_config_scanning,OPA/Kyverno	-
+SEC-010	SEC	Model-assisted security review of risky diffs	V4,V5	L	M	project	local	no	-	advisory only; human confirms findings
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	-	project	local	no	Cargo_--locked,npm_ci,pip_constraints/hashes,Go_modules	CI config inspected as text
+SUP-002	SUP	Dependencies free of known advisories	V0	N	-	project	network	no	cargo-audit,cargo-deny_advisories,OSV-Scanner,npm_audit,pip-audit	-
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	-	project	local	no	cargo-deny_licenses,license_checkers	-
+SUP-004	SUP	Dependencies only from approved sources	V0	N	-	project	local	no	cargo-deny_sources,registry_config	-
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	-	project	local	no	cargo-deny_bans,cargo_tree_-d,package_manager_reports	-
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	-	project	local	no	cargo-udeps,cargo-machete,cargo-shear,deptry,depcheck,knip	needs import resolution
+SUP-007	SUP	Justification record for each new dependency	V4,V5	M	L	project	network	no	-	LLM gathers facts; human approves
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	-	project	local	no	actionlint,zizmor,OpenSSF_Scorecard	-
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	-	project	local	no	CycloneDX_generators,SPDX_generators	checks release artifacts or workflow config
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	M	project	network	no	SLSA_generators,Sigstore	target level is a human choice
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	-	project	local	no	-	references GOV-005 rather than a tool
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	-	project	network	no	-	registry existence, age, download and similarity checks
+SUP-013	SUP	Only audited versions in sensitive tiers	V5	M	N	project	local	no	cargo-vet	audit records are human artifacts
+API-001	API	Breaking public changes since last release	V0	P	-	project	local	yes	cargo-semver-checks,japicmp/revapi,api-extractor,griffe,Go_apidiff,buf_breaking,oasdiff,graphql-inspector	some tools compile the project
+API-002	API	Public surface snapshot reviewed when changed	V0	P	M	project	local	yes	cargo-public-api,API_Extractor	snapshot diff is deterministic; review is human
+API-003	API	Version number matches kind of change	V0	P	-	project	local	yes	semver_checkers,release_tooling	-
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	-	project	local	no	-	-
+API-005	API	Serialized formats tested for old and new readers	V2	X	-	project	local	yes	Golden_files,round-trip,version_matrix	-
+API-006	API	Schema changes obey evolution rules	V0	N	-	project	local	no	Schema_registry_compatibility_checks,buf,Avro_and_JSON_Schema_compat_tools	schema files, not a general-purpose language
+API-007	API	Database migrations safe step by step	V1,V4	P	L	project	local	no	squawk	SQL parsing; sequencing review needs LLM
+API-008	API	Public API exposes no third-party types	V0	P	A	project	local	no	-	see ARC-006; declaration lists allowed exceptions
+API-009	API	Growth points marked on public enums and structs	V1	P	-	project	local	no	-	-
+API-010	API	Documentation examples compile and run	V2	X	-	project	local	yes	Rust_doctests,Python_doctest,Java_snippet_compilation	-
+API-011	API	CLI flags, config keys, exit codes pinned by tests	V2	X	-	project	local	yes	Snapshot_tests	-
+API-012	API	Unpromised behaviour not accidentally relied upon	V1,V4	L	P	project	local	no	-	compares docs guarantees to behaviour
+PRF-001	PRF	Hot paths have budgets enforced by benchmarks	V2	X	A	project	local	yes	criterion,divan,iai-callgrind,JMH,pytest-benchmark,Go_benchmarks	budget lives in a spec
+PRF-002	PRF	Statistically detected benchmark regressions	V2	X	-	project	local	yes	Benchmark_comparison_tooling	-
+PRF-003	PRF	Algorithmic red flags in code	V1,V2	P	X	project	local	no	Clippy_perf_group,ORM_query-count_assertions	-
+PRF-004	PRF	No allocation inside tagged hot loops	V1,V2	P	X	project	local	no	dhat	static pattern first, allocation counters to confirm
+PRF-005	PRF	Caches and collections lacking growth bounds	V1	P	-	project	local	no	-	paired with CON-004
+PRF-006	PRF	Performance exceptions documented with benchmark link	V1,V4	P	L	project	local	no	-	marker presence deterministic; linkage quality needs LLM
+PRF-007	PRF	Critical query plans avoid full table scans	V2	X	-	project	local	yes	EXPLAIN	needs a live database
+PRF-008	PRF	Tail latency tracked beside averages	V2,V3	X	-	project	local	no	-	runtime telemetry on tagged paths

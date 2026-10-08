@@ -1,0 +1,92 @@
+id	language	status	tool	tool_src	coordinate	tool_rule	output	executes_code	confidence	note
+MOD-001	python	implemented-native	-	-	-	-	unknown	no	medium	Audit __all__, underscore naming and docstring presence on public names
+MOD-002	python	delegated	pylint	agent	pypi:pylint	R0401	json	yes	medium	cyclic-import check; rcfile can load plugins and init hooks
+MOD-003	python	delegated	import-linter	kb	pypi:import-linter	forbidden contract	text	no	medium	Contracts must be declared; flags imports into internal modules
+MOD-004	python	implemented-native	-	-	-	-	unknown	no	low	Method-attribute graph components per class; no known mature tool
+MOD-005	python	implemented-native	-	-	-	-	unknown	no	medium	Percentile outliers over own size and coupling facts
+MOD-008	python	implemented-native	-	-	-	-	unknown	no	low	AST pattern for single forwarded-call bodies
+MOD-009	python	implemented-native	-	-	-	-	unknown	no	low	AST attribute-chain depth, excluding fluent and iterator idioms
+MOD-010	python	implemented-native	-	-	-	-	unknown	no	low	Python privacy is convention; check frozen dataclasses and validated __post_init__
+ARC-004	python	implemented-native	-	-	-	-	unknown	no	low	Needs resolved annotation types from signatures against forbidden namespaces
+ARC-005	python	implemented-native	-	-	-	-	unknown	no	medium	Instability computed from the import graph
+ARC-008	python	implemented-native	-	-	-	-	unknown	no	low	Call depth, single-implementation ABCs; justification judged separately
+ARC-012	python	implemented-native	-	-	-	-	unknown	no	low	AST search for adapter construction outside declared roots
+EXT-001	python	delegated	pyright	agent	pypi:pyright	reportMatchNotExhaustive	json	no	medium	Exhaustive match on enums and unions; mypy assert_never alternative
+EXT-002	python	implemented-native	-	-	-	-	unknown	no	low	isinstance and type() tests on abstract bases in client code
+EXT-003	python	implemented-native	-	-	-	-	unknown	no	medium	NotImplementedError or pass-only overrides in non-test concrete classes
+EXT-004	python	implemented-native	-	-	-	-	unknown	no	low	Per-client member usage of Protocols and ABCs
+EXT-005	python	delegated	pylint	agent	pypi:pylint	R0901	json	yes	medium	too-many-ancestors bounds depth; protected mutable state unchecked
+EXT-007	python	implemented-native	-	-	-	-	unknown	no	low	ABCs with one subclass and unused extension points
+RDB-001	python	delegated	ruff	kb	pypi:ruff	format --check	text	no	high	Formatter check mode fails when files would change
+RDB-002	python	delegated	ruff	kb	pypi:ruff	N (pep8-naming)	json	no	high	PEP 8 naming rules
+RDB-003	python	delegated	complexipy	agent	pypi:complexipy	-	json	no	medium	Cognitive complexity per function; regression gating is CodeRipper's
+RDB-004	python	delegated	ruff	agent	pypi:ruff	PLR0913,FBT001,FBT002	json	no	medium	Argument count and boolean flag parameters; nesting depth not covered
+RDB-005	python	delegated	jscpd	kb	npm:jscpd	-	json	no	medium	Token clone detection; semantic clones need V4
+RDB-006	python	delegated	vulture	kb	pypi:vulture	-	text	no	medium	Finds unused functions, classes, imports; dynamic use gives false positives
+RDB-007	python	delegated	ruff	agent	pypi:ruff	PLR2004	json	no	low	Only flags magic values in comparisons
+RDB-008	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+RDB-011	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+TYP-001	python	implemented-native	-	-	-	-	unknown	no	low	Name heuristics on annotations; semantic classification needs V4
+TYP-002	python	implemented-native	-	-	-	-	unknown	no	medium	AST comparisons against repeated string literal sets
+TYP-003	python	implemented-native	-	-	-	-	unknown	no	low	No enforced privacy; check frozen dataclasses and constructor validation
+TYP-004	python	implemented-native	-	-	-	-	unknown	no	low	Data flow from json and request sources into core calls
+TYP-005	python	implemented-native	-	-	-	-	unknown	no	low	float annotations on money-named values in tagged modules
+TYP-006	python	delegated	pyright	agent	pypi:pyright	reportOptionalMemberAccess	json	no	medium	Unguarded Optional use is the null-assertion analogue
+TYP-007	python	delegated	ruff	agent	pypi:ruff	FBT001,FBT002,FBT003	json	no	high	flake8-boolean-trap port
+TYP-008	python	implemented-native	-	-	-	-	unknown	no	low	Compare documented invariants with asserts and validators
+TYP-009	python	implemented-native	-	-	-	-	unknown	no	low	Detect enum-driven transitions lacking a guarded transition table
+EFX-002	python	implemented-native	-	-	-	-	unknown	no	medium	Module-level mutable bindings and global statements outside allowlist
+EFX-003	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+EFX-005	python	implemented-native	-	-	-	-	unknown	no	low	Heuristic on methods that both mutate and return
+EFX-006	python	implemented-native	-	-	-	-	unknown	no	low	Call-graph reachability from pure-tagged functions to effect APIs
+EFX-007	python	implemented-native	-	-	-	-	unknown	no	low	Cache decorators and shared mutable objects need ownership docs
+ERR-001	python	delegated	ruff	agent	pypi:ruff	S110,BLE001,E722	json	no	high	Bare except and except-pass patterns
+ERR-002	python	delegated	ruff	agent	pypi:ruff	BLE001	json	no	medium	Blind except flagged; boundary allowlist applied by CodeRipper
+ERR-003	python	NOT-COVERED	-	-	-	-	unknown	no	low	Python raises exceptions rather than panics; input reachability analysis not worth building yet
+ERR-004	python	delegated	ruff	agent	pypi:ruff	TRY002	json	no	medium	Flags raising bare Exception; typed hierarchy checks are partial
+ERR-005	python	delegated	ruff	agent	pypi:ruff	B904	json	no	medium	Raise inside except must chain with from
+ERR-007	python	delegated	ruff	agent	pypi:ruff	SIM115	json	no	medium	Files opened without context manager; other resources not covered
+ERR-009	python	implemented-native	-	-	-	-	unknown	no	low	Sensitive-name values reaching log and exception messages
+ERR-011	python	delegated	pyright	agent	pypi:pyright	reportOptionalMemberAccess	json	no	medium	Catches unchecked re.match style None results
+COR-001	python	delegated	ruff	agent	pypi:ruff	DOC501,DOC201	json	no	medium	Preview docstring-section rules for raises and returns
+COR-002	python	implemented-native	-	-	-	-	unknown	no	low	Constructor validation presence against documented invariants
+COR-003	python	implemented-native	-	-	-	-	unknown	no	low	Encode/decode pair detection plus hypothesis test presence
+COR-006	python	not-applicable	-	-	-	-	unknown	no	low	Python has no unsafe blocks; native extensions are covered by SEC-005
+COR-007	python	implemented-native	-	-	-	-	unknown	no	medium	AST equality comparisons involving float-typed operands
+SEC-001	python	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	medium	Taint-mode rules for Python frameworks; CodeQL is an alternative
+SEC-002	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SEC-003	python	implemented-native	-	-	-	-	unknown	no	low	Route inventory for Flask, Django, FastAPI joined to auth decorators
+SEC-004	python	delegated	bandit	agent	pypi:bandit	-	json	no	high	Weak hashes, non-CSPRNG, disabled TLS verification, hard-coded secrets
+SEC-005	python	implemented-native	-	-	-	-	unknown	no	low	Inventory of ctypes, cffi and C extension usage
+SEC-006	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SEC-008	python	implemented-native	-	-	-	-	unknown	no	low	Sensitive-name values reaching logging calls
+SEC-009	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-001	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-002	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-003	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-004	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-005	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-006	python	delegated	deptry	kb	pypi:deptry	DEP002	json	no	high	Unused declared dependencies; also reports missing and misplaced ones
+SUP-008	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-009	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-010	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-011	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-012	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+API-001	python	delegated	griffe	kb	pypi:griffe	check	text	no	high	Compares public API against a previous git ref statically
+API-002	python	delegated	griffe	agent	pypi:griffe	dump	json	no	medium	API snapshot via dump; review gating is CodeRipper's
+API-003	python	implemented-native	-	-	-	-	unknown	no	medium	Compare version bump with griffe breaking-change findings
+API-004	python	implemented-native	-	-	-	-	unknown	no	low	Check warnings.deprecated or decorator arguments for version and replacement
+API-006	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+API-007	python	delegated	django-migration-linter	agent	pypi:django-migration-linter	-	text	yes	low	Django only, loads project; Alembic needs SQL export
+API-008	python	implemented-native	-	-	-	-	unknown	no	low	Third-party types in public annotations via resolved type facts
+API-009	python	not-applicable	-	-	-	-	unknown	no	low	No non-exhaustive or sealed marker mechanism in Python
+DOC-001	python	delegated	ruff	agent	pypi:ruff	D100-D107	json	no	high	Missing docstring rules; pydocstyle is the unmaintained original
+DOC-004	python	implemented-native	-	-	-	-	unknown	no	low	Import-graph diff triggers an ADR presence check
+DOC-005	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-008	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-009	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-010	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-001	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-003	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-006	python	delegated	jscpd	agent	npm:jscpd	-	json	no	low	Run across repo checkouts; semantic clones need V4
+WSP-008	python	implemented-native	-	-	-	-	unknown	no	medium	neutral module

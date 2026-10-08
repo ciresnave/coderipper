@@ -1,5 +1,11 @@
 # CodeRipper — design
 
+> **Proposed supersession (approval pending: board item 144), 2026-10-07.** CodeRipper is meant to check many languages across many
+> codebases: `2026-10-07-multi-language-design.md` *proposes* to replace §7 "Plugin loading: compiled-in checks for v1" with language
+> modules (built-in or separate executables), to extend §2 (the `Finding` schema) additively and §6 with an opt-in coverage line, and
+> to keep §1, §3, §4 and §5 as written. Until that proposal is approved, **this document remains the design of record**; read the new
+> one for the proposal about languages, modules, tools and coverage. This document is otherwise unchanged.
+
 **Status: APPROVED, repo created, nothing implemented yet.** Written 2026-09-30 by the portfolio PM, named
 and approved by CireSnave the same day (`github.com/ciresnave/coderipper`, MIT OR Apache-2.0, Rust). History:
 started as one tool (reachability/dead-code detection only). CireSnave asked whether that should instead be
