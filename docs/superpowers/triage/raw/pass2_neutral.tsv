@@ -1,0 +1,25 @@
+id	language	status	tool	tool_src	coordinate	tool_rule	output	executes_code	confidence	note
+RDB-008	neutral	implemented-native	-	-	-	-	json	no	medium	regex for TODO owner and expiry; commented-out code is a weaker heuristic
+RDB-011	neutral	implemented-native	-	-	-	-	json	no	medium	glossary term lookup over identifiers by token split, no parser
+EFX-003	neutral	implemented-native	-	-	-	-	json	no	medium	regex for common environment read calls outside the config module
+SEC-002	neutral	delegated	gitleaks	kb	github:gitleaks/gitleaks	-	sarif	no	high	scans files and git history for secrets
+SEC-006	neutral	delegated	osv-scanner	agent	github:google/osv-scanner	-	json	no	high	reads many lockfile formats against the OSV database
+SEC-009	neutral	delegated	checkov	kb	pypi:checkov	-	sarif	no	medium	scans Terraform, Kubernetes, Dockerfile and workflow definitions
+SUP-001	neutral	implemented-native	-	-	-	-	json	no	medium	known lockfile names tracked in git; CI files grepped for strict install flags
+SUP-002	neutral	delegated	osv-scanner	kb	github:google/osv-scanner	-	json	no	high	multi-ecosystem advisory scan from lockfiles
+SUP-003	neutral	NOT-COVERED	-	-	-	-	-	no	low	needs per-ecosystem manifest parsing; handled by language modules
+SUP-004	neutral	NOT-COVERED	-	-	-	-	-	no	low	source allowlists live in per-ecosystem manifests; handled by language modules
+SUP-005	neutral	NOT-COVERED	-	-	-	-	-	no	low	duplicate versions need lockfile parsing per ecosystem; language modules
+SUP-008	neutral	delegated	zizmor	kb	pypi:zizmor	-	sarif	no	medium	GitHub Actions pinning and permissions audit; actionlint complements
+SUP-009	neutral	implemented-native	-	-	-	-	json	no	low	looks for SBOM generation step or artifact in release workflows
+SUP-010	neutral	implemented-native	-	-	-	-	json	no	low	looks for provenance and signing steps in release workflows
+SUP-011	neutral	implemented-native	-	-	-	-	json	no	medium	checks vendored directories appear in exclusion config of analysis
+SUP-012	neutral	implemented-native	-	-	-	-	api	no	low	registry existence and age lookups; deps.dev API spans ecosystems
+API-006	neutral	delegated	buf	kb	github:bufbuild/buf	buf breaking	json	no	medium	protobuf schemas only; other formats need their own tools
+DOC-005	neutral	implemented-native	-	-	-	-	json	no	medium	parses ADR front matter for status and supersession links
+DOC-008	neutral	implemented-native	-	-	-	-	json	no	medium	changelog touched when diff changes non-test source paths
+DOC-009	neutral	implemented-native	-	-	-	-	json	no	medium	glossary file presence and term consistency by text search
+DOC-010	neutral	delegated	lychee	agent	crates:lychee	-	json	no	high	link checker for markdown, HTML and plain text
+WSP-001	neutral	implemented-native	-	-	-	-	json	no	medium	registry file and CODEOWNERS presence per repository
+WSP-003	neutral	NOT-COVERED	-	-	-	-	-	no	low	version skew needs manifest parsing per ecosystem; language modules
+WSP-008	neutral	implemented-native	-	-	-	-	json	no	low	compares generic config files such as editorconfig and CI templates across repos

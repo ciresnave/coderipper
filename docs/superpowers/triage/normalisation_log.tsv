@@ -1,0 +1,28 @@
+id	language	change
+SEC-002	rust	R2 delegated:gitleaks -> implemented-native via neutral (gitleaks)
+SEC-006	rust	R4 kept: ecosystem-specific cargo-audit (neutral uses osv-scanner)
+SEC-009	rust	R2 delegated:checkov -> implemented-native via neutral (checkov)
+SUP-002	rust	R4 kept: ecosystem-specific cargo-audit (neutral uses osv-scanner)
+SUP-008	rust	R2 delegated:zizmor -> implemented-native via neutral (zizmor)
+API-006	rust	R2 delegated:buf -> implemented-native via neutral (buf)
+DOC-010	rust	R2 delegated:lychee -> implemented-native via neutral (lychee)
+SEC-002	typescript	R2 implemented-native:- -> implemented-native via neutral (gitleaks)
+SEC-006	typescript	R2 delegated:osv-scanner -> implemented-native via neutral (osv-scanner)
+SEC-009	typescript	R2 implemented-native:- -> implemented-native via neutral (checkov)
+SUP-002	typescript	R2 delegated:osv-scanner -> implemented-native via neutral (osv-scanner)
+SUP-008	typescript	R2 implemented-native:- -> implemented-native via neutral (zizmor)
+API-006	typescript	R2 implemented-native:- -> implemented-native via neutral (buf)
+DOC-010	typescript	R2 implemented-native:- -> implemented-native via neutral (lychee)
+WSP-003	typescript	R3 note replaced: neutral cell is NOT-COVERED
+SEC-002	python	R2 implemented-native:- -> implemented-native via neutral (gitleaks)
+SEC-006	python	R2 implemented-native:- -> implemented-native via neutral (osv-scanner)
+SEC-009	python	R2 implemented-native:- -> implemented-native via neutral (checkov)
+SUP-002	python	R2 implemented-native:- -> implemented-native via neutral (osv-scanner)
+SUP-003	python	R3 note replaced: neutral cell is NOT-COVERED
+SUP-004	python	R3 note replaced: neutral cell is NOT-COVERED
+SUP-005	python	R3 note replaced: neutral cell is NOT-COVERED
+SUP-008	python	R2 implemented-native:- -> implemented-native via neutral (zizmor)
+API-006	python	R2 implemented-native:- -> implemented-native via neutral (buf)
+DOC-010	python	R2 implemented-native:- -> implemented-native via neutral (lychee)
+WSP-003	python	R3 note replaced: neutral cell is NOT-COVERED
+MOD-003	rust	"R5 not-applicable -> NOT-COVERED: spot-check 2026-10-07: ""not applicable"" overstated what the compiler covers"

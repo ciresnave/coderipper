@@ -1,0 +1,41 @@
+id	domain	label	evidence_tiers	class	also	scope	network	executes_code	kb_tools	note
+RDB-001	RDB	Project formatter output is enforced	V0	P	-	project	local	no	rustfmt,Prettier,Black,Ruff,gofmt,clang-format,EditorConfig	-
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	-	project	local	no	ESLint,Clippy,rustc,Pylint,Ruff,Checkstyle	-
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	T	project	local	no	SonarQube,ESLint,Clippy,CodeScene	regression gating on touched functions needs baseline
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	-	project	local	no	Clippy	-
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	L,H	project	local	no	jscpd,PMD-CPD,Sonar	churn flagging and semantic clones need history and LLM
+RDB-006	RDB	Unused code, imports and private items	V0	P	-	project	local	no	knip,vulture,cargo-udeps,machete	-
+RDB-007	RDB	Unnamed magic literals	V1	P	L	project	local	no	-	advisory, low precision
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	P,M	project	local	no	-	regex for TODOs; commented-out code needs parsing; ticket lookup optional
+RDB-009	RDB	Names match actual behaviour	V4	L	P	project	local	no	-	-
+RDB-010	RDB	Comments and docstrings match current behaviour	V4	L	P	project	local	no	-	parameter-name cross-check is deterministic part
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	P,L	project	local	no	-	glossary file plus identifier text search
+RDB-012	RDB	New code follows mined local conventions	V4	L	P	project	local	no	-	-
+RDB-013	RDB	Diff readability review against rubric	V4	L	-	project	local	no	-	advisory
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	L	project	local	no	-	-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	-	project	local	no	-	-
+TYP-003	TYP	Invariant-bearing types have private fields and constructors	V0,V1	P	A	project	local	no	-	types identified by tag or annotation
+TYP-004	TYP	External data parsed into domain types first	V1	P	A	project	local	no	-	needs data-flow from deserialization to core
+TYP-005	TYP	No floating point for money	V1	P	A	project	local	no	-	needs domain-tagged modules
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	-	project	local	no	Clippy,Error-Prone	-
+TYP-007	TYP	Boolean blindness in signatures	V1	P	-	project	local	no	-	-
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	L,X	project	local	no	-	presence check deterministic; consistency needs LLM
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	X	project	local	no	-	-
+EFX-001	EFX	Pure-tagged components avoid effectful APIs	V0	A	P	project	local	no	Clippy,ArchUnit,ESLint,import-linter	deny-list per declared component
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	-	project	local	no	-	-
+EFX-003	EFX	Environment reads confined to config module	V0	N	P	project	local	no	-	regex for env reads; refers to OPS-001
+EFX-004	EFX	Deterministic results across runs and threads	V2	X	-	project	local	yes	-	runs algorithm repeatedly and hashes outputs
+EFX-005	EFX	Command-query mixing in object APIs	V1	P	L	project	local	no	-	advisory, low precision
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	L,A	project	local	no	-	-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	L	project	local	no	-	-
+ERR-001	ERR	Errors are not swallowed	V0	P	-	project	local	no	rustc,Clippy,Semgrep	-
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	A	project	local	no	-	allowlist of boundary functions
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	X	project	local	no	Clippy	fuzzing is dynamic confirmation
+ERR-004	ERR	Public APIs return typed matchable errors	V1	P	-	project	local	no	-	-
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	L	project	local	no	-	-
+ERR-006	ERR	Domain errors free of transport details	V0	A	P	project	local	no	-	spec-driven via ARC-004
+ERR-007	ERR	Resources released on error paths	V1,V2	P	X	project	local	no	-	leak tests after injected failures
+ERR-008	ERR	Error branches covered by tests	V2	X	-	project	local	yes	-	fault injection, error-arm coverage, mutation testing
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	L	project	local	no	-	taint to log and error sinks
+ERR-010	ERR	Multi-step state changes declare atomicity	V4,V2	L	X,P	project	local	no	-	crash-injection tests as dynamic part
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	-	project	local	no	-	-

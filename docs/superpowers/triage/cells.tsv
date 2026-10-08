@@ -1,0 +1,298 @@
+id	domain	label	evidence_tiers	class	language	status	tool	tool_src	coordinate	tool_rule	output	executes_code	confidence	note	licence	latest_version	latest_release	maintained	verified
+MOD-001	MOD	Minimal documented public surface	V0	P	rust	delegated	rustc	kb	builtin:rustc	rustc:unreachable_pub	json	yes	high	unreachable_pub plus missing_docs lints via cargo check JSON messages					strong
+MOD-001	MOD	Minimal documented public surface	V0	P	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	medium	Needs built .d.ts; plain JS needs declaration emit; knip finds unused exports	MIT	7.59.4	2026-10-06	yes	weak
+MOD-001	MOD	Minimal documented public surface	V0	P	python	implemented-native	-	-	-	-	-	no	medium	Audit __all__, underscore naming and docstring presence on public names					-
+MOD-002	MOD	No module dependency cycles	V0	P	rust	delegated	cargo-modules	kb	crates:cargo-modules	-	text	yes	medium	module graph acyclicity check; crate cycles already impossible in Cargo	MPL-2.0	0.27.0	2026-08-03	yes	weak
+MOD-002	MOD	No module dependency cycles	V0	P	typescript	delegated	dependency-cruiser	kb	npm:dependency-cruiser	no-circular	json	no	high	Handles TS and JS imports; CodeRipper supplies its own config	MIT	18.5.0	2026-09-30	yes	strong
+MOD-002	MOD	No module dependency cycles	V0	P	python	delegated	pylint	agent	pypi:pylint	R0401	json	yes	medium	cyclic-import check; rcfile can load plugins and init hooks	GPL-2.0-or-later	4.1.2	2026-10-02	yes	strong
+MOD-003	MOD	No deep imports into module internals	V0	P	rust	NOT-COVERED	-	-	-	-	-	no	medium	compiler enforces privacy across crates; intra-crate pub(crate) reach-through is not checked					-
+MOD-003	MOD	No deep imports into module internals	V0	P	typescript	delegated	eslint	kb	npm:eslint-plugin-import	import/no-internal-modules	json	yes	medium	Works for plain JS too; allowed entry paths must be configured	MIT	2.32.0	2025-06-20	yes	strong
+MOD-003	MOD	No deep imports into module internals	V0	P	python	delegated	import-linter	kb	pypi:import-linter	forbidden contract	text	no	medium	Contracts must be declared; flags imports into internal modules	BSD 2-Clause License	2.15	2026-09-04	yes	strong
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn-parsed fields-by-method usage graph, connected components					-
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	Members-by-field graph from TS AST; classes only, weak for function modules					-
+MOD-004	MOD	Low-cohesion types splitting into usage clusters	V1	P	python	implemented-native	-	-	-	-	-	no	low	Method-attribute graph components per class; no known mature tool					-
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	percentile of LOC, members and fan-out over syn facts and cargo metadata					-
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Percentile outliers from CodeRipper's own size and fan-out facts					-
+MOD-005	MOD	Size and coupling outliers by percentile	V1	P	python	implemented-native	-	-	-	-	-	no	medium	Percentile outliers over own size and coupling facts					-
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	medium	syn pattern: method body is a single forwarded call with same arguments					-
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	medium	AST pattern for single forwarded call with identical arguments; LLM confirms					-
+MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	AST pattern for single forwarded-call bodies					-
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	rust	implemented-native	-	-	-	-	-	no	low	syn method-call chain length, excluding iterator and builder chains					-
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	AST member-chain length excluding iterator and builder chains; advisory only					-
+MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	python	implemented-native	-	-	-	-	-	no	low	AST attribute-chain depth, excluding fluent and iterator idioms					-
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn visibility check on tagged types: private fields plus constructor					-
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Private or readonly fields plus validated constructor; plain JS only has #fields					-
+MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	python	implemented-native	-	-	-	-	-	no	low	Python privacy is convention; check frozen dataclasses and validated __post_init__					-
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	rust	implemented-native	-	-	-	-	-	yes	medium	needs resolved types; rustdoc JSON of policy crates against forbidden crate list					-
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Type-resolved signatures via TS compiler API; plain JS has no signature types					-
+ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	python	implemented-native	-	-	-	-	-	no	low	Needs resolved annotation types from signatures against forbidden namespaces					-
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	high	instability from cargo metadata workspace graph					-
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	typescript	delegated	dependency-cruiser	agent	npm:dependency-cruiser	moreUnstable	json	no	medium	Instability metric and moreUnstable rule flag edges toward less stable modules	MIT	18.5.0	2026-09-30	yes	strong
+ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	python	implemented-native	-	-	-	-	-	no	medium	Instability computed from the import graph					-
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	low	single-impl traits and forwarding layers from syn facts					-
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Pass-through layers and single-implementation interfaces from AST and call graph					-
+ARC-008	ARC	Unjustified indirection layers and abstractions	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Call depth, single-implementation ABCs; justification judged separately					-
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	low	syn search for adapter constructors outside declared composition roots					-
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	AST: adapter construction and container lookups outside declared root files					-
+ARC-012	ARC	Concrete construction only in composition roots	V0,V1	P	python	implemented-native	-	-	-	-	-	no	low	AST search for adapter construction outside declared roots					-
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::wildcard_enum_match_arm	json	yes	high	restriction lint; build scripts run during cargo clippy					strong
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	typescript	delegated	eslint	agent	npm:typescript-eslint	@typescript-eslint/switch-exhaustiveness-check	json	yes	high	Needs type info; plain JS has no closed unions to check	MIT	8.71.1	2026-10-05	yes	strong
+EXT-001	EXT	Closed variant sets matched exhaustively	V0,V1	P	python	delegated	pyright	agent	pypi:pyright	reportMatchNotExhaustive	json	no	medium	Exhaustive match on enums and unions; mypy assert_never alternative	MIT	1.1.414	2026-09-10	yes	strong
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn search for downcast_ref, downcast and Any use in client code					-
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Flag instanceof and casts on abstraction types in client code; TS only					-
+EXT-002	EXT	No downcasts or type tests on abstractions	V1	P	python	implemented-native	-	-	-	-	-	no	low	isinstance and type() tests on abstract bases in client code					-
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	rust	delegated	clippy	agent	builtin:clippy	clippy::unimplemented	json	yes	medium	with clippy::todo; silent no-op impls are not detected					strong
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Not-implemented throws and empty overrides in classes; no-empty-function covers part					-
+EXT-003	EXT	Implementations do not stub out their contract	V0,V1	P	python	implemented-native	-	-	-	-	-	no	medium	NotImplementedError or pass-only overrides in non-test concrete classes					-
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs per-client trait usage analysis; not worth building yet					-
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	Per-client member usage of interfaces; TS interfaces are structural so clients vary					-
+EXT-004	EXT	Fat interfaces with disjoint client usage	V1	P	python	implemented-native	-	-	-	-	-	no	low	Per-client member usage of Protocols and ABCs					-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	rust	not-applicable	-	-	-	-	-	no	high	Rust has no implementation inheritance or protected state					-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Extends-chain depth and protected mutable fields via TS compiler facts					-
+EXT-005	EXT	Bounded inheritance depth and no protected mutable state	V1	P	python	delegated	pylint	agent	pypi:pylint	R0901	json	yes	medium	too-many-ancestors bounds depth; protected mutable state unchecked	GPL-2.0-or-later	4.1.2	2026-10-02	yes	strong
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	rust	implemented-native	-	-	-	-	-	no	low	traits with one impl and no other use; unused type parameters					-
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	typescript	implemented-native	-	-	-	-	-	no	low	Unused type parameters, single-implementation interfaces; knip supplies unused-export facts					-
+EXT-007	EXT	Speculative generality: unused abstraction points	V1,V3	P	python	implemented-native	-	-	-	-	-	no	low	ABCs with one subclass and unused extension points					-
+RDB-001	RDB	Project formatter output is enforced	V0	P	rust	delegated	rustfmt	kb	builtin:rustfmt	cargo fmt --check	text	no	high	check mode fails when output differs from project formatting					strong
+RDB-001	RDB	Project formatter output is enforced	V0	P	typescript	delegated	prettier	kb	npm:prettier	-	text	no	high	Run in check mode; applies equally to plain JS	MIT	3.9.9	2026-09-23	yes	weak
+RDB-001	RDB	Project formatter output is enforced	V0	P	python	delegated	ruff	kb	pypi:ruff	format --check	text	no	high	Formatter check mode fails when files would change	MIT	0.16.10	2026-10-01	yes	weak
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	rust	delegated	rustc	kb	builtin:rustc	rustc:non_snake_case	json	yes	high	non_camel_case_types and non_upper_case_globals lints too					strong
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	typescript	delegated	eslint	kb	npm:typescript-eslint	@typescript-eslint/naming-convention	json	yes	high	Plain JS falls back to core camelcase rule	MIT	8.71.1	2026-10-05	yes	strong
+RDB-002	RDB	Identifier naming follows language conventions	V0	P	python	delegated	ruff	kb	pypi:ruff	N (pep8-naming)	json	no	high	PEP 8 naming rules	MIT	0.16.10	2026-10-01	yes	strong
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::cognitive_complexity	json	yes	medium	nursery lint; regression gating added by CodeRipper					strong
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	typescript	delegated	eslint	kb	npm:eslint-plugin-sonarjs	sonarjs/cognitive-complexity	json	yes	high	No-regression gating needs a baseline CodeRipper keeps itself	LGPL-3.0-only	4.2.2	2026-09-28	yes	weak
+RDB-003	RDB	Cognitive complexity limits and no regression	V1	P	python	delegated	complexipy	agent	pypi:complexipy	-	json	no	medium	Cognitive complexity per function; regression gating is CodeRipper's	MIT	8.0.1	2026-09-07	yes	weak
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::too_many_arguments	json	yes	medium	plus fn_params_excessive_bools; nesting depth not covered by clippy					strong
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	typescript	delegated	eslint	agent	npm:eslint	max-depth,max-params	json	yes	medium	Core rules for depth and params; boolean flags via sonarjs plugin	MIT	10.12.0	2026-10-02	yes	strong
+RDB-004	RDB	Nesting, parameter and boolean-flag limits	V1	P	python	delegated	ruff	agent	pypi:ruff	PLR0913,FBT001,FBT002	json	no	medium	Argument count and boolean flag parameters; nesting depth not covered	MIT	0.16.10	2026-10-01	yes	strong
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	rust	delegated	jscpd	kb	npm:jscpd	-	json	no	medium	token clone detection; churn weighting added by CodeRipper	MIT	5.4.0	2026-09-30	yes	weak
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	typescript	delegated	jscpd	kb	npm:jscpd	-	json	no	high	Token clones across TS and JS; semantic clones need the LLM tier	MIT	5.4.0	2026-09-30	yes	weak
+RDB-005	RDB	Duplicated knowledge clone groups	V1,V4	P	python	delegated	jscpd	kb	npm:jscpd	-	json	no	medium	Token clone detection; semantic clones need V4	MIT	5.4.0	2026-09-30	yes	weak
+RDB-006	RDB	Unused code, imports and private items	V0	P	rust	delegated	rustc	kb	builtin:rustc	rustc:dead_code	json	yes	high	dead_code, unused_imports and unused_variables warnings					strong
+RDB-006	RDB	Unused code, imports and private items	V0	P	typescript	delegated	knip	kb	npm:knip	-	json	yes	high	Unused files, exports and dependencies; tsc noUnusedLocals covers locals	ISC	6.40.0	2026-10-06	yes	weak
+RDB-006	RDB	Unused code, imports and private items	V0	P	python	delegated	vulture	kb	pypi:vulture	-	text	no	medium	Finds unused functions, classes, imports; dynamic use gives false positives	MIT License	2.16	2026-03-25	yes	weak
+RDB-007	RDB	Unnamed magic literals	V1	P	rust	implemented-native	-	-	-	-	-	no	low	syn scan for repeated bare numeric and string literals; advisory					-
+RDB-007	RDB	Unnamed magic literals	V1	P	typescript	delegated	eslint	agent	npm:eslint	no-magic-numbers	json	yes	medium	Numbers only, not strings; noisy so advisory	MIT	10.12.0	2026-10-02	yes	strong
+RDB-007	RDB	Unnamed magic literals	V1	P	python	delegated	ruff	agent	pypi:ruff	PLR2004	json	no	low	Only flags magic values in comparisons	MIT	0.16.10	2026-10-01	yes	strong
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	neutral	implemented-native	-	-	-	-	json	no	medium	regex for TODO owner and expiry; commented-out code is a weaker heuristic					-
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; TODO owner regex and commented-out code heuristic					-
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	neutral	implemented-native	-	-	-	-	json	no	medium	glossary term lookup over identifiers by token split, no parser					-
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; glossary term search over identifiers					-
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+RDB-011	RDB	Terminology matches project glossary	V1,V4	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	low	name heuristics on pub signature parameters such as id, amount, secs					-
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Name heuristics on number and string params; branded types are the TS remedy					-
+TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Name heuristics on annotations; semantic classification needs V4					-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn: string literal comparisons and match on str with fixed arms					-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	AST: string equality against fixed literals where a union or enum fits					-
+TYP-002	TYP	String literal comparisons standing in for enums	V1	P	python	implemented-native	-	-	-	-	-	no	medium	AST comparisons against repeated string literal sets					-
+TYP-003	TYP	Invariant-bearing types have private fields and constructors	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn visibility check on tagged types					-
+TYP-003	TYP	Invariant-bearing types have private fields and constructors	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Same visibility check as MOD-010; plain JS limited to #fields					-
+TYP-003	TYP	Invariant-bearing types have private fields and constructors	V0,V1	P	python	implemented-native	-	-	-	-	-	no	low	No enforced privacy; check frozen dataclasses and constructor validation					-
+TYP-004	TYP	External data parsed into domain types first	V1	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs dataflow from deserializers to core; no confident tool					-
+TYP-004	TYP	External data parsed into domain types first	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	Flow from JSON.parse and request bodies to core; no-unsafe-assignment is partial					-
+TYP-004	TYP	External data parsed into domain types first	V1	P	python	implemented-native	-	-	-	-	-	no	low	Data flow from json and request sources into core calls					-
+TYP-005	TYP	No floating point for money	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn: f32 or f64 types in modules tagged as money domain					-
+TYP-005	TYP	No floating point for money	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	number is the only float type; flag it on money-named fields					-
+TYP-005	TYP	No floating point for money	V1	P	python	implemented-native	-	-	-	-	-	no	low	float annotations on money-named values in tagged modules					-
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	rust	delegated	clippy	kb	builtin:clippy	clippy::unwrap_used	json	yes	high	with expect_used; both are restriction lints					strong
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	typescript	delegated	eslint	agent	npm:typescript-eslint	@typescript-eslint/no-non-null-assertion	json	yes	high	Plain JS has no assertion operator; JSDoc casts differ	MIT	8.71.1	2026-10-05	yes	strong
+TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	python	delegated	pyright	agent	pypi:pyright	reportOptionalMemberAccess	json	no	medium	Unguarded Optional use is the null-assertion analogue	MIT	1.1.414	2026-09-10	yes	strong
+TYP-007	TYP	Boolean blindness in signatures	V1	P	rust	delegated	clippy	agent	builtin:clippy	clippy::fn_params_excessive_bools	json	yes	medium	covers multiple bool parameters only, not ambiguous bool returns					strong
+TYP-007	TYP	Boolean blindness in signatures	V1	P	typescript	delegated	eslint	agent	npm:eslint-plugin-sonarjs	sonarjs/no-selector-parameter	json	yes	low	Boolean selector parameters only; multiple-boolean and ambiguous returns not covered	LGPL-3.0-only	4.2.2	2026-09-28	yes	weak
+TYP-007	TYP	Boolean blindness in signatures	V1	P	python	delegated	ruff	agent	pypi:ruff	FBT001,FBT002,FBT003	json	no	high	flake8-boolean-trap port	MIT	0.16.10	2026-10-01	yes	strong
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	rust	implemented-native	-	-	-	-	-	no	low	presence of invariant docs versus assertions or checked constructors					-
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Doc-versus-enforcement presence check; LLM tier compares the two					-
+TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	python	implemented-native	-	-	-	-	-	no	low	Compare documented invariants with asserts and validators					-
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	rust	NOT-COVERED	-	-	-	-	-	no	low	transition legality needs models or tests; no tool known					-
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	typescript	implemented-native	-	-	-	-	-	no	low	Exhaustive switches over state unions; switch-exhaustiveness-check gives partial evidence					-
+TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	python	implemented-native	-	-	-	-	-	no	low	Detect enum-driven transitions lacking a guarded transition table					-
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn search for static mut, global Mutex, OnceLock outside allowlist					-
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Module-level let and mutable exported objects or Maps outside allowlist					-
+EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	python	implemented-native	-	-	-	-	-	no	medium	Module-level mutable bindings and global statements outside allowlist					-
+EFX-003	EFX	Environment reads confined to config module	V0	N	neutral	implemented-native	-	-	-	-	json	no	medium	regex for common environment read calls outside the config module					-
+EFX-003	EFX	Environment reads confined to config module	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; env::var reads outside the config module					-
+EFX-003	EFX	Environment reads confined to config module	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module; process.env and import.meta.env reads outside config module					-
+EFX-003	EFX	Environment reads confined to config module	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+EFX-005	EFX	Command-query mixing in object APIs	V1	P	rust	implemented-native	-	-	-	-	-	no	low	methods taking &mut self and returning non-unit values; advisory					-
+EFX-005	EFX	Command-query mixing in object APIs	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	Heuristic: methods that both mutate this and return data; advisory					-
+EFX-005	EFX	Command-query mixing in object APIs	V1	P	python	implemented-native	-	-	-	-	-	no	low	Heuristic on methods that both mutate and return					-
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs call-graph effect reachability; no known Rust tool					-
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Call-graph reach from claimed-pure functions to fs, net, time, random, env					-
+EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Call-graph reachability from pure-tagged functions to effect APIs					-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	medium	syn finds Cell, RefCell, Mutex fields; checks doc comment presence					-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Module-level caches and shared mutable closures lacking ownership comments; no Cell analogue					-
+EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Cache decorators and shared mutable objects need ownership docs					-
+ERR-001	ERR	Errors are not swallowed	V0	P	rust	delegated	clippy	kb	builtin:clippy	clippy::let_underscore_must_use	json	yes	high	with rustc unused_must_use					strong
+ERR-001	ERR	Errors are not swallowed	V0	P	typescript	delegated	eslint	agent	npm:eslint	no-empty,@typescript-eslint/no-floating-promises	json	yes	high	Floating-promise rule needs type info; plain JS gets only no-empty	MIT	10.12.0	2026-10-02	yes	strong
+ERR-001	ERR	Errors are not swallowed	V0	P	python	delegated	ruff	agent	pypi:ruff	S110,BLE001,E722	json	no	high	Bare except and except-pass patterns	MIT	0.16.10	2026-10-01	yes	strong
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	rust	implemented-native	-	-	-	-	-	no	low	catch_unwind and blanket Err(_) arms outside boundary functions					-
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	AST: catch-all handlers outside allowlisted boundary functions					-
+ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	python	delegated	ruff	agent	pypi:ruff	BLE001	json	no	medium	Blind except flagged; boundary allowlist applied by CodeRipper	MIT	0.16.10	2026-10-01	yes	strong
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::indexing_slicing	json	yes	medium	with panic and unwrap_used; no input reachability filter					strong
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	typescript	delegated	tsc	agent	builtin:tsc	noUncheckedIndexedAccess	text	no	low	Covers indexing only; throws on input paths need native reachability					strong
+ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	python	NOT-COVERED	-	-	-	-	-	no	low	Python raises exceptions rather than panics; input reachability analysis not worth building yet					-
+ERR-004	ERR	Public APIs return typed matchable errors	V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn: pub fn returning Box<dyn Error> or String errors					-
+ERR-004	ERR	Public APIs return typed matchable errors	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	TS cannot declare thrown types; check Result shapes and Error subclasses only					-
+ERR-004	ERR	Public APIs return typed matchable errors	V1	P	python	delegated	ruff	agent	pypi:ruff	TRY002	json	no	medium	Flags raising bare Exception; typed hierarchy checks are partial	MIT	0.16.10	2026-10-01	yes	strong
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	rust	NOT-COVERED	-	-	-	-	-	no	low	judging context and cause needs LLM review; no deterministic tool					-
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	typescript	delegated	eslint	agent	npm:eslint	preserve-caught-error	json	yes	low	Checks cause is passed when rethrowing; rule availability depends on ESLint version	MIT	10.12.0	2026-10-02	yes	strong
+ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	python	delegated	ruff	agent	pypi:ruff	B904	json	no	medium	Raise inside except must chain with from	MIT	0.16.10	2026-10-01	yes	strong
+ERR-007	ERR	Resources released on error paths	V1,V2	P	rust	not-applicable	-	-	-	-	-	no	medium	RAII Drop runs on every exit path including early returns					-
+ERR-007	ERR	Resources released on error paths	V1,V2	P	typescript	NOT-COVERED	-	-	-	-	-	no	medium	No mature analyzer for finally or Disposable cleanup on error paths					-
+ERR-007	ERR	Resources released on error paths	V1,V2	P	python	delegated	ruff	agent	pypi:ruff	SIM115	json	no	medium	Files opened without context manager; other resources not covered	MIT	0.16.10	2026-10-01	yes	strong
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs taint to log sinks or LLM; no confident Rust tool					-
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Taint to logger and Error message sinks, with name-based sensitivity heuristics					-
+ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Sensitive-name values reaching log and exception messages					-
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	rust	delegated	rustc	agent	builtin:rustc	rustc:unused_must_use	json	yes	high	parse APIs return Result or Option, both must_use					strong
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	low	parseInt, Number and JSON.parse results used without NaN or null check					-
+ERR-011	ERR	Non-throwing parse results are checked	V0,V1	P	python	delegated	pyright	agent	pypi:pyright	reportOptionalMemberAccess	json	no	medium	Catches unchecked re.match style None results	MIT	1.1.414	2026-09-10	yes	strong
+COR-001	COR	public API docs state errors, panics, safety	V0,V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::missing_errors_doc	json	yes	high	with missing_panics_doc and missing_safety_doc					strong
+COR-001	COR	public API docs state errors, panics, safety	V0,V1	P	typescript	delegated	eslint	agent	npm:eslint-plugin-jsdoc	jsdoc/require-throws	json	yes	medium	Throws documentation only; same plugin works for plain JS	BSD-3-Clause	65.2.0	2026-10-07	yes	strong
+COR-001	COR	public API docs state errors, panics, safety	V0,V1	P	python	delegated	ruff	agent	pypi:ruff	DOC501,DOC201	json	no	medium	Preview docstring-section rules for raises and returns	MIT	0.16.10	2026-10-01	yes	strong
+COR-002	COR	invariant types enforce invariants in code	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	low	constructor of tagged type contains checks or assertions					-
+COR-002	COR	invariant types enforce invariants in code	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Constructor checks and assertions present on invariant types; LLM compares docs					-
+COR-002	COR	invariant types enforce invariants in code	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Constructor validation presence against documented invariants					-
+COR-003	COR	codec pairs have round-trip property tests	V1,V2	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs codec pair detection plus proptest presence; not built yet					-
+COR-003	COR	codec pairs have round-trip property tests	V1,V2	P	typescript	implemented-native	-	-	-	-	-	no	low	Encode/decode pair detection by name plus fast-check or similar test presence					-
+COR-003	COR	codec pairs have round-trip property tests	V1,V2	P	python	implemented-native	-	-	-	-	-	no	low	Encode/decode pair detection plus hypothesis test presence					-
+COR-006	COR	unsafe confined, justified, and run under Miri	V0,V2	P	rust	delegated	miri	kb	github:rust-lang/miri	-	text	yes	medium	cargo miri test; plus forbid(unsafe_code) and SAFETY comment inventory	Apache-2.0			yes	weak
+COR-006	COR	unsafe confined, justified, and run under Miri	V0,V2	P	typescript	not-applicable	-	-	-	-	-	no	high	No unsafe construct in TS or JS; runtime is memory-safe					-
+COR-006	COR	unsafe confined, justified, and run under Miri	V0,V2	P	python	not-applicable	-	-	-	-	-	no	low	Python has no unsafe blocks; native extensions are covered by SEC-005					-
+COR-007	COR	no float equality; tolerances declared	V1	P	rust	delegated	clippy	kb	builtin:clippy	clippy::float_cmp	json	yes	high	tolerance declaration not checked					strong
+COR-007	COR	no float equality; tolerances declared	V1	P	typescript	implemented-native	-	-	-	-	-	no	low	No known ESLint float-equality rule; AST check on fractional literals and tagged types					-
+COR-007	COR	no float equality; tolerances declared	V1	P	python	implemented-native	-	-	-	-	-	no	medium	AST equality comparisons involving float-typed operands					-
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	rust	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	low	Rust taint support is limited; rule packs uncertain	LGPL-2.1-or-later	1.180.0	2026-10-07	yes	weak
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	typescript	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	medium	Community edition taint is intra-procedural; CodeQL licence limits closed-source use	LGPL-2.1-or-later	1.180.0	2026-10-07	yes	weak
+SEC-001	SEC	Untrusted input reaching dangerous sinks unsanitized	V1	P	python	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	medium	Taint-mode rules for Python frameworks; CodeQL is an alternative	LGPL-2.1-or-later	1.180.0	2026-10-07	yes	weak
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	neutral	delegated	gitleaks	kb	github:gitleaks/gitleaks	-	sarif	no	high	scans files and git history for secrets	MIT	v8.30.1	2026-03-21	yes	weak
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	rust	implemented-native	-	-	-	-	-	no	high	via the neutral module, which delegates to gitleaks					-
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	typescript	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to gitleaks					-
+SEC-002	SEC	Credentials committed in files or history	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to gitleaks					-
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs framework route inventory and authz mapping; LLM work					-
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Route inventory for Express, Nest, Fastify joined to auth middleware; framework specific					-
+SEC-003	SEC	Every entry point enforces access control	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Route inventory for Flask, Django, FastAPI joined to auth decorators					-
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	low	syn/Cargo scan for banned algorithms, hard-coded keys, disabled cert checks					-
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	typescript	delegated	semgrep	agent	pypi:semgrep	-	sarif	no	medium	Registry JS and TS rulesets cover weak hashes, Math.random, disabled TLS checks	LGPL-2.1-or-later	1.180.0	2026-10-07	yes	weak
+SEC-004	SEC	Weak or misused cryptography patterns	V0,V1	P	python	delegated	bandit	agent	pypi:bandit	-	json	no	high	Weak hashes, non-CSPRNG, disabled TLS verification, hard-coded secrets	Apache-2.0	1.9.4	2026-02-25	yes	weak
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	rust	delegated	cargo-geiger	kb	crates:cargo-geiger	-	json	no	medium	unsafe counts per crate; maintenance pace uncertain; forbid(unsafe_code) also checked	Apache-2.0 OR MIT	0.13.0	2025-08-31	yes	weak
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	typescript	implemented-native	-	-	-	-	-	no	low	Inventory native addons, eval and child_process use; runtime itself is memory-safe					-
+SEC-005	SEC	Inventory and limit unsafe or native code	V0	P	python	implemented-native	-	-	-	-	-	no	low	Inventory of ctypes, cffi and C extension usage					-
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	neutral	delegated	osv-scanner	agent	github:google/osv-scanner	-	json	no	high	reads many lockfile formats against the OSV database	Apache-2.0	v2.6.0	2026-09-14	yes	weak
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	rust	delegated	cargo-audit	agent	crates:cargo-audit	-	json	no	high	RustSec advisories against Cargo.lock	Apache-2.0 OR MIT	0.22.2	2026-06-05	yes	weak
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	typescript	implemented-native	-	-	-	-	-	no	high	via the neutral module, which delegates to osv-scanner					-
+SEC-006	SEC	Dependencies free of exploitable known vulnerabilities	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to osv-scanner					-
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	rust	NOT-COVERED	-	-	-	-	-	no	low	needs taint to log sinks or LLM; no confident Rust tool					-
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	low	Taint to console and logger sinks with field-name heuristics; LLM classifies					-
+SEC-008	SEC	Sensitive data kept out of logs and telemetry	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Sensitive-name values reaching logging calls					-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	neutral	delegated	checkov	kb	pypi:checkov	-	sarif	no	medium	scans Terraform, Kubernetes, Dockerfile and workflow definitions	Apache License 2.0	3.3.26	2026-10-07	yes	weak
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to checkov					-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to checkov					-
+SEC-009	SEC	Over-broad privileges in infrastructure definitions	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to checkov					-
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	neutral	implemented-native	-	-	-	-	json	no	medium	known lockfile names tracked in git; CI files grepped for strict install flags					-
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; Cargo.lock tracked and CI uses --locked					-
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module; lockfile present and CI uses npm ci or frozen-lockfile					-
+SUP-001	SUP	Lockfile committed and CI resolves strictly from it	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+SUP-002	SUP	Dependencies free of known advisories	V0	N	neutral	delegated	osv-scanner	kb	github:google/osv-scanner	-	json	no	high	multi-ecosystem advisory scan from lockfiles	Apache-2.0	v2.6.0	2026-09-14	yes	weak
+SUP-002	SUP	Dependencies free of known advisories	V0	N	rust	delegated	cargo-audit	kb	crates:cargo-audit	-	json	no	high	RustSec database; cargo-deny advisories is the alternative	Apache-2.0 OR MIT	0.22.2	2026-06-05	yes	weak
+SUP-002	SUP	Dependencies free of known advisories	V0	N	typescript	implemented-native	-	-	-	-	-	no	high	via the neutral module, which delegates to osv-scanner					-
+SUP-002	SUP	Dependencies free of known advisories	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to osv-scanner					-
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	neutral	NOT-COVERED	-	-	-	-	-	no	low	needs per-ecosystem manifest parsing; handled by language modules					-
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check licenses	json	no	high	policy comes from deny.toml	MIT OR Apache-2.0	0.20.2	2026-07-09	yes	weak
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	typescript	delegated	license-checker-rseidelsohn	agent	npm:license-checker-rseidelsohn	-	json	no	medium	Lists licences from node_modules; policy comparison done by CodeRipper	BSD-3-Clause	5.0.1	2026-05-27	yes	weak
+SUP-003	SUP	Dependency licences satisfy policy	V0	N	python	implemented-native	-	-	-	-	-	no	medium	ecosystem-specific manifest parsing in the language module					-
+SUP-004	SUP	Dependencies only from approved sources	V0	N	neutral	NOT-COVERED	-	-	-	-	-	no	low	source allowlists live in per-ecosystem manifests; handled by language modules					-
+SUP-004	SUP	Dependencies only from approved sources	V0	N	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check sources	json	no	high	flags unapproved registries and git dependencies	MIT OR Apache-2.0	0.20.2	2026-07-09	yes	weak
+SUP-004	SUP	Dependencies only from approved sources	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	Scan package.json and lockfile for git, file, http sources and registry URLs					-
+SUP-004	SUP	Dependencies only from approved sources	V0	N	python	implemented-native	-	-	-	-	-	no	medium	ecosystem-specific manifest parsing in the language module					-
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	neutral	NOT-COVERED	-	-	-	-	-	no	low	duplicate versions need lockfile parsing per ecosystem; language modules					-
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check bans	json	no	high	multiple-versions setting gives the duplicate budget	MIT OR Apache-2.0	0.20.2	2026-07-09	yes	weak
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	typescript	delegated	npm	agent	npm:npm	npm ls --all --json	json	no	medium	Duplicate versions from the tree; pnpm and yarn have their own commands	Artistic-2.0	12.2.0	2026-09-30	yes	strong
+SUP-005	SUP	Limit on multiple versions of one dependency	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	ecosystem-specific manifest parsing in the language module					-
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	rust	delegated	cargo-machete	kb	crates:cargo-machete	-	text	no	medium	fast heuristic scan; may false-flag renamed or macro-used crates	MIT	0.9.2	2026-04-15	yes	weak
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	typescript	delegated	knip	kb	npm:knip	-	json	yes	high	Unused dependencies and unlisted imports; depcheck is less actively maintained	ISC	6.40.0	2026-10-06	yes	weak
+SUP-006	SUP	Declared dependencies that are never used	V0,V1	P	python	delegated	deptry	kb	pypi:deptry	DEP002	json	no	high	Unused declared dependencies; also reports missing and misplaced ones	MIT	0.25.1	2026-03-18	yes	strong
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	neutral	delegated	zizmor	kb	pypi:zizmor	-	sarif	no	medium	GitHub Actions pinning and permissions audit; actionlint complements	MIT	1.30.1	2026-09-09	yes	weak
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to zizmor					-
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to zizmor					-
+SUP-008	SUP	CI workflows pinned and least-privileged	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to zizmor					-
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	neutral	implemented-native	-	-	-	-	json	no	low	looks for SBOM generation step or artifact in release workflows					-
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	rust	implemented-native	-	-	-	-	-	no	low	neutral module; checks release workflow produces SBOM artifact (cargo-cyclonedx generates)					-
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	typescript	delegated	cyclonedx-npm	agent	npm:@cyclonedx/cyclonedx-npm	-	json	no	medium	Generates the SBOM; whether release stores it is a CI check	Apache-2.0	6.0.1	2026-08-11	yes	weak
+SUP-009	SUP	Release produces and stores an SBOM	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	neutral	implemented-native	-	-	-	-	json	no	low	looks for provenance and signing steps in release workflows					-
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	rust	implemented-native	-	-	-	-	-	no	low	neutral module; presence of provenance and signing steps in release workflow					-
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+SUP-010	SUP	Signed artifacts with build provenance	V0,V5	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	neutral	implemented-native	-	-	-	-	json	no	medium	checks vendored directories appear in exclusion config of analysis					-
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; vendored directories excluded in analysis config					-
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module; exclude node_modules, dist, generated output					-
+SUP-011	SUP	Third-party code excluded from own analysis	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	neutral	implemented-native	-	-	-	-	api	no	low	registry existence and age lookups; deps.dev API spans ecosystems					-
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	rust	implemented-native	-	-	-	-	-	no	low	new crate names checked against crates.io existence, age, downloads					-
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	typescript	implemented-native	-	-	-	-	-	no	medium	npm registry lookup of age, downloads and name similarity for new packages					-
+SUP-012	SUP	New package names screened for squatting	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+API-001	API	Breaking public changes since last release	V0	P	rust	delegated	cargo-semver-checks	kb	crates:cargo-semver-checks	-	text	yes	high	rustdoc-based comparison with last release	Apache-2.0 OR MIT	0.51.0	2026-10-03	yes	weak
+API-001	API	Breaking public changes since last release	V0	P	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	medium	Report diff, not semver class; needs built declarations	MIT	7.59.4	2026-10-06	yes	weak
+API-001	API	Breaking public changes since last release	V0	P	python	delegated	griffe	kb	pypi:griffe	check	text	no	high	Compares public API against a previous git ref statically	ISC	2.3.2	2026-10-06	yes	weak
+API-002	API	Public surface snapshot reviewed when changed	V0	P	rust	delegated	cargo-public-api	kb	crates:cargo-public-api	-	text	yes	high	snapshot diff of public surface	MIT	0.52.0	2026-05-25	yes	weak
+API-002	API	Public surface snapshot reviewed when changed	V0	P	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	high	API report file committed and diffed on change	MIT	7.59.4	2026-10-06	yes	weak
+API-002	API	Public surface snapshot reviewed when changed	V0	P	python	delegated	griffe	agent	pypi:griffe	dump	json	no	medium	API snapshot via dump; review gating is CodeRipper's	ISC	2.3.2	2026-10-06	yes	weak
+API-003	API	Version number matches kind of change	V0	P	rust	delegated	cargo-semver-checks	kb	crates:cargo-semver-checks	-	text	yes	medium	required bump compared with Cargo.toml version change by CodeRipper	Apache-2.0 OR MIT	0.51.0	2026-10-03	yes	weak
+API-003	API	Version number matches kind of change	V0	P	typescript	implemented-native	-	-	-	-	-	no	low	No mature TS semver checker known; compare version bump with API-001 result					-
+API-003	API	Version number matches kind of change	V0	P	python	implemented-native	-	-	-	-	-	no	medium	Compare version bump with griffe breaking-change findings					-
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	rust	implemented-native	-	-	-	-	-	no	medium	syn: #[deprecated] has since and note; replacement text unverifiable					-
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	typescript	implemented-native	-	-	-	-	-	no	medium	Parse @deprecated JSDoc for since, replacement, removal; deprecation lint covers usage only					-
+API-004	API	Deprecation notices carry full lifecycle data	V0,V1	P	python	implemented-native	-	-	-	-	-	no	low	Check warnings.deprecated or decorator arguments for version and replacement					-
+API-006	API	Schema changes obey evolution rules	V0	N	neutral	delegated	buf	kb	github:bufbuild/buf	buf breaking	json	no	medium	protobuf schemas only; other formats need their own tools	Apache-2.0	v1.73.0	2026-09-11	yes	weak
+API-006	API	Schema changes obey evolution rules	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to buf					-
+API-006	API	Schema changes obey evolution rules	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to buf					-
+API-006	API	Schema changes obey evolution rules	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to buf					-
+API-007	API	Database migrations safe step by step	V1,V4	P	rust	delegated	squawk	kb	github:sbdchd/squawk	-	json	no	medium	Postgres migration linter; other databases not covered	Apache-2.0	v2.67.0	2026-10-04	yes	weak
+API-007	API	Database migrations safe step by step	V1,V4	P	typescript	delegated	squawk	kb	npm:squawk-cli	-	json	no	medium	Raw Postgres SQL migrations only; ORM-generated or code migrations not covered	(Apache-2.0 OR MIT)	2.67.0	2026-10-04	yes	weak
+API-007	API	Database migrations safe step by step	V1,V4	P	python	delegated	django-migration-linter	agent	pypi:django-migration-linter	-	text	yes	low	Django only, loads project; Alembic needs SQL export	Apache-2.0	6.0.0	2026-01-04	yes	weak
+API-008	API	Public API exposes no third-party types	V0	P	rust	implemented-native	-	-	-	-	-	no	medium	syn: pub signatures naming types from external crates					-
+API-008	API	Public API exposes no third-party types	V0	P	typescript	implemented-native	-	-	-	-	-	no	medium	Declaration files exporting types from node_modules packages; api-extractor partial					-
+API-008	API	Public API exposes no third-party types	V0	P	python	implemented-native	-	-	-	-	-	no	low	Third-party types in public annotations via resolved type facts					-
+API-009	API	Growth points marked on public enums and structs	V1	P	rust	delegated	clippy	agent	builtin:clippy	clippy::exhaustive_enums	json	yes	high	with exhaustive_structs; restriction lints					strong
+API-009	API	Growth points marked on public enums and structs	V1	P	typescript	not-applicable	-	-	-	-	-	no	medium	No non-exhaustive or sealed attribute exists in TS or JS					-
+API-009	API	Growth points marked on public enums and structs	V1	P	python	not-applicable	-	-	-	-	-	no	low	No non-exhaustive or sealed marker mechanism in Python					-
+DOC-001	DOC	public items have documentation	V0	P	rust	delegated	rustc	kb	builtin:rustc	rustc:missing_docs	json	yes	high	warns on undocumented public items					strong
+DOC-001	DOC	public items have documentation	V0	P	typescript	delegated	typedoc	kb	npm:typedoc	validation.notDocumented	text	no	medium	Plain JS needs JSDoc; eslint-plugin-jsdoc require-jsdoc is alternative	Apache-2.0	0.28.20	2026-07-05	yes	strong
+DOC-001	DOC	public items have documentation	V0	P	python	delegated	ruff	agent	pypi:ruff	D100-D107	json	no	high	Missing docstring rules; pydocstyle is the unmaintained original	MIT	0.16.10	2026-10-01	yes	strong
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	rust	implemented-native	-	-	-	-	-	no	low	cargo metadata edge diff triggers ADR-in-diff presence check					-
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-004	DOC	significant architectural changes accompanied by ADR	V1,V4	P	python	implemented-native	-	-	-	-	-	no	low	Import-graph diff triggers an ADR presence check					-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	neutral	implemented-native	-	-	-	-	json	no	medium	parses ADR front matter for status and supersession links					-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; ADR status and supersession link parser					-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-005	DOC	ADR status and supersession links consistent	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	neutral	implemented-native	-	-	-	-	json	no	medium	changelog touched when diff changes non-test source paths					-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; changelog touched when user-visible paths change					-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-008	DOC	user-visible changes get changelog entries	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	neutral	implemented-native	-	-	-	-	json	no	medium	glossary file presence and term consistency by text search					-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; glossary file presence and term search					-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+DOC-010	DOC	documentation links resolve	V0	N	neutral	delegated	lychee	agent	crates:lychee	-	json	no	high	link checker for markdown, HTML and plain text	Apache-2.0 OR MIT	0.24.2	2026-05-01	yes	weak
+DOC-010	DOC	documentation links resolve	V0	N	rust	implemented-native	-	-	-	-	-	no	high	via the neutral module, which delegates to lychee					-
+DOC-010	DOC	documentation links resolve	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to lychee					-
+DOC-010	DOC	documentation links resolve	V0	N	python	implemented-native	-	-	-	-	-	no	medium	via the neutral module, which delegates to lychee					-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	neutral	implemented-native	-	-	-	-	json	no	medium	registry file and CODEOWNERS presence per repository					-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	neutral module; registry or CODEOWNERS presence per repository					-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	neutral	NOT-COVERED	-	-	-	-	-	no	low	version skew needs manifest parsing per ecosystem; language modules					-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	rust	implemented-native	-	-	-	-	-	no	medium	Cargo.toml version comparison across repos against skew policy					-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	typescript	implemented-native	-	-	-	-	-	no	medium	ecosystem-specific manifest parsing in the language module					-
+WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	python	implemented-native	-	-	-	-	-	no	medium	ecosystem-specific manifest parsing in the language module					-
+WSP-006	WSP	duplicate implementations across repos	V1,V4	P	rust	delegated	jscpd	agent	npm:jscpd	-	json	no	low	clone detection across several checkouts; semantic clones not covered	MIT	5.4.0	2026-09-30	yes	weak
+WSP-006	WSP	duplicate implementations across repos	V1,V4	P	typescript	delegated	jscpd	agent	npm:jscpd	-	json	no	medium	Scan several repo checkouts together for TS and JS clones; LLM groups semantics	MIT	5.4.0	2026-09-30	yes	weak
+WSP-006	WSP	duplicate implementations across repos	V1,V4	P	python	delegated	jscpd	agent	npm:jscpd	-	json	no	low	Run across repo checkouts; semantic clones need V4	MIT	5.4.0	2026-09-30	yes	weak
+WSP-008	WSP	convention drift between repositories	V0,V1	N	neutral	implemented-native	-	-	-	-	json	no	low	compares generic config files such as editorconfig and CI templates across repos					-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	rust	implemented-native	-	-	-	-	-	no	medium	diff rustfmt.toml, clippy.toml, rust-version, CI templates across repos					-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	typescript	implemented-native	-	-	-	-	-	no	medium	neutral module					-
+WSP-008	WSP	convention drift between repositories	V0,V1	N	python	implemented-native	-	-	-	-	-	no	medium	neutral module					-

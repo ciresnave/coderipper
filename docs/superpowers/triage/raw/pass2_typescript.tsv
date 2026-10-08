@@ -1,0 +1,92 @@
+id	language	status	tool	tool_src	coordinate	tool_rule	output	executes_code	confidence	note
+MOD-001	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	medium	Needs built .d.ts; plain JS needs declaration emit; knip finds unused exports
+MOD-002	typescript	delegated	dependency-cruiser	kb	npm:dependency-cruiser	no-circular	json	no	high	Handles TS and JS imports; CodeRipper supplies its own config
+MOD-003	typescript	delegated	eslint	kb	npm:eslint-plugin-import	import/no-internal-modules	json	yes	medium	Works for plain JS too; allowed entry paths must be configured
+MOD-004	typescript	implemented-native	-	-	-	-	unknown	no	low	Members-by-field graph from TS AST; classes only, weak for function modules
+MOD-005	typescript	implemented-native	-	-	-	-	unknown	no	medium	Percentile outliers from CodeRipper's own size and fan-out facts
+MOD-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	AST pattern for single forwarded call with identical arguments; LLM confirms
+MOD-009	typescript	implemented-native	-	-	-	-	unknown	no	low	AST member-chain length excluding iterator and builder chains; advisory only
+MOD-010	typescript	implemented-native	-	-	-	-	unknown	no	medium	Private or readonly fields plus validated constructor; plain JS only has #fields
+ARC-004	typescript	implemented-native	-	-	-	-	unknown	no	medium	Type-resolved signatures via TS compiler API; plain JS has no signature types
+ARC-005	typescript	delegated	dependency-cruiser	agent	npm:dependency-cruiser	moreUnstable	json	no	medium	Instability metric and moreUnstable rule flag edges toward less stable modules
+ARC-008	typescript	implemented-native	-	-	-	-	unknown	no	low	Pass-through layers and single-implementation interfaces from AST and call graph
+ARC-012	typescript	implemented-native	-	-	-	-	unknown	no	medium	AST: adapter construction and container lookups outside declared root files
+EXT-001	typescript	delegated	eslint	agent	npm:typescript-eslint	@typescript-eslint/switch-exhaustiveness-check	json	yes	high	Needs type info; plain JS has no closed unions to check
+EXT-002	typescript	implemented-native	-	-	-	-	unknown	no	medium	Flag instanceof and casts on abstraction types in client code; TS only
+EXT-003	typescript	implemented-native	-	-	-	-	unknown	no	medium	Not-implemented throws and empty overrides in classes; no-empty-function covers part
+EXT-004	typescript	implemented-native	-	-	-	-	unknown	no	low	Per-client member usage of interfaces; TS interfaces are structural so clients vary
+EXT-005	typescript	implemented-native	-	-	-	-	unknown	no	medium	Extends-chain depth and protected mutable fields via TS compiler facts
+EXT-007	typescript	implemented-native	-	-	-	-	unknown	no	low	Unused type parameters, single-implementation interfaces; knip supplies unused-export facts
+RDB-001	typescript	delegated	prettier	kb	npm:prettier	-	text	no	high	Run in check mode; applies equally to plain JS
+RDB-002	typescript	delegated	eslint	kb	npm:typescript-eslint	@typescript-eslint/naming-convention	json	yes	high	Plain JS falls back to core camelcase rule
+RDB-003	typescript	delegated	eslint	kb	npm:eslint-plugin-sonarjs	sonarjs/cognitive-complexity	json	yes	high	No-regression gating needs a baseline CodeRipper keeps itself
+RDB-004	typescript	delegated	eslint	agent	npm:eslint	max-depth,max-params	json	yes	medium	Core rules for depth and params; boolean flags via sonarjs plugin
+RDB-005	typescript	delegated	jscpd	kb	npm:jscpd	-	json	no	high	Token clones across TS and JS; semantic clones need the LLM tier
+RDB-006	typescript	delegated	knip	kb	npm:knip	-	json	yes	high	Unused files, exports and dependencies; tsc noUnusedLocals covers locals
+RDB-007	typescript	delegated	eslint	agent	npm:eslint	no-magic-numbers	json	yes	medium	Numbers only, not strings; noisy so advisory
+RDB-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+RDB-011	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+TYP-001	typescript	implemented-native	-	-	-	-	unknown	no	low	Name heuristics on number and string params; branded types are the TS remedy
+TYP-002	typescript	implemented-native	-	-	-	-	unknown	no	medium	AST: string equality against fixed literals where a union or enum fits
+TYP-003	typescript	implemented-native	-	-	-	-	unknown	no	medium	Same visibility check as MOD-010; plain JS limited to #fields
+TYP-004	typescript	implemented-native	-	-	-	-	unknown	no	low	Flow from JSON.parse and request bodies to core; no-unsafe-assignment is partial
+TYP-005	typescript	implemented-native	-	-	-	-	unknown	no	low	number is the only float type; flag it on money-named fields
+TYP-006	typescript	delegated	eslint	agent	npm:typescript-eslint	@typescript-eslint/no-non-null-assertion	json	yes	high	Plain JS has no assertion operator; JSDoc casts differ
+TYP-007	typescript	delegated	eslint	agent	npm:eslint-plugin-sonarjs	sonarjs/no-selector-parameter	json	yes	low	Boolean selector parameters only; multiple-boolean and ambiguous returns not covered
+TYP-008	typescript	implemented-native	-	-	-	-	unknown	no	low	Doc-versus-enforcement presence check; LLM tier compares the two
+TYP-009	typescript	implemented-native	-	-	-	-	unknown	no	low	Exhaustive switches over state unions; switch-exhaustiveness-check gives partial evidence
+EFX-002	typescript	implemented-native	-	-	-	-	unknown	no	medium	Module-level let and mutable exported objects or Maps outside allowlist
+EFX-003	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module; process.env and import.meta.env reads outside config module
+EFX-005	typescript	implemented-native	-	-	-	-	unknown	no	low	Heuristic: methods that both mutate this and return data; advisory
+EFX-006	typescript	implemented-native	-	-	-	-	unknown	no	low	Call-graph reach from claimed-pure functions to fs, net, time, random, env
+EFX-007	typescript	implemented-native	-	-	-	-	unknown	no	low	Module-level caches and shared mutable closures lacking ownership comments; no Cell analogue
+ERR-001	typescript	delegated	eslint	agent	npm:eslint	no-empty,@typescript-eslint/no-floating-promises	json	yes	high	Floating-promise rule needs type info; plain JS gets only no-empty
+ERR-002	typescript	implemented-native	-	-	-	-	unknown	no	medium	AST: catch-all handlers outside allowlisted boundary functions
+ERR-003	typescript	delegated	tsc	agent	builtin:tsc	noUncheckedIndexedAccess	text	no	low	Covers indexing only; throws on input paths need native reachability
+ERR-004	typescript	implemented-native	-	-	-	-	unknown	no	low	TS cannot declare thrown types; check Result shapes and Error subclasses only
+ERR-005	typescript	delegated	eslint	agent	npm:eslint	preserve-caught-error	json	yes	low	Checks cause is passed when rethrowing; rule availability depends on ESLint version
+ERR-007	typescript	NOT-COVERED	-	-	-	-	unknown	no	medium	No mature analyzer for finally or Disposable cleanup on error paths
+ERR-009	typescript	implemented-native	-	-	-	-	unknown	no	low	Taint to logger and Error message sinks, with name-based sensitivity heuristics
+ERR-011	typescript	implemented-native	-	-	-	-	unknown	no	low	parseInt, Number and JSON.parse results used without NaN or null check
+COR-001	typescript	delegated	eslint	agent	npm:eslint-plugin-jsdoc	jsdoc/require-throws	json	yes	medium	Throws documentation only; same plugin works for plain JS
+COR-002	typescript	implemented-native	-	-	-	-	unknown	no	low	Constructor checks and assertions present on invariant types; LLM compares docs
+COR-003	typescript	implemented-native	-	-	-	-	unknown	no	low	Encode/decode pair detection by name plus fast-check or similar test presence
+COR-006	typescript	not-applicable	-	-	-	-	unknown	no	high	No unsafe construct in TS or JS; runtime is memory-safe
+COR-007	typescript	implemented-native	-	-	-	-	unknown	no	low	No known ESLint float-equality rule; AST check on fractional literals and tagged types
+SEC-001	typescript	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	medium	Community edition taint is intra-procedural; CodeQL licence limits closed-source use
+SEC-002	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SEC-003	typescript	implemented-native	-	-	-	-	unknown	no	low	Route inventory for Express, Nest, Fastify joined to auth middleware; framework specific
+SEC-004	typescript	delegated	semgrep	agent	pypi:semgrep	-	sarif	no	medium	Registry JS and TS rulesets cover weak hashes, Math.random, disabled TLS checks
+SEC-005	typescript	implemented-native	-	-	-	-	unknown	no	low	Inventory native addons, eval and child_process use; runtime itself is memory-safe
+SEC-006	typescript	delegated	osv-scanner	agent	github:google/osv-scanner	-	json	no	high	Reads npm, pnpm and yarn lockfiles; same evidence as SUP-002
+SEC-008	typescript	implemented-native	-	-	-	-	unknown	no	low	Taint to console and logger sinks with field-name heuristics; LLM classifies
+SEC-009	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-001	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module; lockfile present and CI uses npm ci or frozen-lockfile
+SUP-002	typescript	delegated	osv-scanner	kb	github:google/osv-scanner	-	json	no	high	npm audit is an alternative but needs registry access
+SUP-003	typescript	delegated	license-checker-rseidelsohn	agent	npm:license-checker-rseidelsohn	-	json	no	medium	Lists licences from node_modules; policy comparison done by CodeRipper
+SUP-004	typescript	implemented-native	-	-	-	-	unknown	no	medium	Scan package.json and lockfile for git, file, http sources and registry URLs
+SUP-005	typescript	delegated	npm	agent	npm:npm	npm ls --all --json	json	no	medium	Duplicate versions from the tree; pnpm and yarn have their own commands
+SUP-006	typescript	delegated	knip	kb	npm:knip	-	json	yes	high	Unused dependencies and unlisted imports; depcheck is less actively maintained
+SUP-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-009	typescript	delegated	cyclonedx-npm	agent	npm:@cyclonedx/cyclonedx-npm	-	json	no	medium	Generates the SBOM; whether release stores it is a CI check
+SUP-010	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+SUP-011	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module; exclude node_modules, dist, generated output
+SUP-012	typescript	implemented-native	-	-	-	-	unknown	no	medium	npm registry lookup of age, downloads and name similarity for new packages
+API-001	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	medium	Report diff, not semver class; needs built declarations
+API-002	typescript	delegated	api-extractor	kb	npm:@microsoft/api-extractor	-	json	yes	high	API report file committed and diffed on change
+API-003	typescript	implemented-native	-	-	-	-	unknown	no	low	No mature TS semver checker known; compare version bump with API-001 result
+API-004	typescript	implemented-native	-	-	-	-	unknown	no	medium	Parse @deprecated JSDoc for since, replacement, removal; deprecation lint covers usage only
+API-006	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+API-007	typescript	delegated	squawk	kb	npm:squawk-cli	-	json	no	medium	Raw Postgres SQL migrations only; ORM-generated or code migrations not covered
+API-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	Declaration files exporting types from node_modules packages; api-extractor partial
+API-009	typescript	not-applicable	-	-	-	-	unknown	no	medium	No non-exhaustive or sealed attribute exists in TS or JS
+DOC-001	typescript	delegated	typedoc	kb	npm:typedoc	validation.notDocumented	text	no	medium	Plain JS needs JSDoc; eslint-plugin-jsdoc require-jsdoc is alternative
+DOC-004	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-005	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-009	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+DOC-010	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-001	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-003	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module
+WSP-006	typescript	delegated	jscpd	agent	npm:jscpd	-	json	no	medium	Scan several repo checkouts together for TS and JS clones; LLM groups semantics
+WSP-008	typescript	implemented-native	-	-	-	-	unknown	no	medium	neutral module

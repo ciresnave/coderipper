@@ -1,0 +1,92 @@
+id	language	status	tool	tool_src	coordinate	tool_rule	output	executes_code	confidence	note
+MOD-001	rust	delegated	rustc	kb	builtin:rustc	rustc:unreachable_pub	json	yes	high	unreachable_pub plus missing_docs lints via cargo check JSON messages
+MOD-002	rust	delegated	cargo-modules	kb	crates:cargo-modules	-	text	yes	medium	module graph acyclicity check; crate cycles already impossible in Cargo
+MOD-003	rust	not-applicable	-	-	-	-	-	no	medium	compiler privacy rules reject paths into private modules; pub(crate) governs the rest
+MOD-004	rust	implemented-native	-	-	-	-	json	no	medium	syn-parsed fields-by-method usage graph, connected components
+MOD-005	rust	implemented-native	-	-	-	-	json	no	medium	percentile of LOC, members and fan-out over syn facts and cargo metadata
+MOD-008	rust	implemented-native	-	-	-	-	json	no	medium	syn pattern: method body is a single forwarded call with same arguments
+MOD-009	rust	implemented-native	-	-	-	-	json	no	low	syn method-call chain length, excluding iterator and builder chains
+MOD-010	rust	implemented-native	-	-	-	-	json	no	medium	syn visibility check on tagged types: private fields plus constructor
+ARC-004	rust	implemented-native	-	-	-	-	json	yes	medium	needs resolved types; rustdoc JSON of policy crates against forbidden crate list
+ARC-005	rust	implemented-native	-	-	-	-	json	no	high	instability from cargo metadata workspace graph
+ARC-008	rust	implemented-native	-	-	-	-	json	no	low	single-impl traits and forwarding layers from syn facts
+ARC-012	rust	implemented-native	-	-	-	-	json	no	low	syn search for adapter constructors outside declared composition roots
+EXT-001	rust	delegated	clippy	kb	builtin:clippy	clippy::wildcard_enum_match_arm	json	yes	high	restriction lint; build scripts run during cargo clippy
+EXT-002	rust	implemented-native	-	-	-	-	json	no	medium	syn search for downcast_ref, downcast and Any use in client code
+EXT-003	rust	delegated	clippy	agent	builtin:clippy	clippy::unimplemented	json	yes	medium	with clippy::todo; silent no-op impls are not detected
+EXT-004	rust	NOT-COVERED	-	-	-	-	-	no	low	needs per-client trait usage analysis; not worth building yet
+EXT-005	rust	not-applicable	-	-	-	-	-	no	high	Rust has no implementation inheritance or protected state
+EXT-007	rust	implemented-native	-	-	-	-	json	no	low	traits with one impl and no other use; unused type parameters
+RDB-001	rust	delegated	rustfmt	kb	builtin:rustfmt	cargo fmt --check	text	no	high	check mode fails when output differs from project formatting
+RDB-002	rust	delegated	rustc	kb	builtin:rustc	rustc:non_snake_case	json	yes	high	non_camel_case_types and non_upper_case_globals lints too
+RDB-003	rust	delegated	clippy	kb	builtin:clippy	clippy::cognitive_complexity	json	yes	medium	nursery lint; regression gating added by CodeRipper
+RDB-004	rust	delegated	clippy	kb	builtin:clippy	clippy::too_many_arguments	json	yes	medium	plus fn_params_excessive_bools; nesting depth not covered by clippy
+RDB-005	rust	delegated	jscpd	kb	npm:jscpd	-	json	no	medium	token clone detection; churn weighting added by CodeRipper
+RDB-006	rust	delegated	rustc	kb	builtin:rustc	rustc:dead_code	json	yes	high	dead_code, unused_imports and unused_variables warnings
+RDB-007	rust	implemented-native	-	-	-	-	json	no	low	syn scan for repeated bare numeric and string literals; advisory
+RDB-008	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; TODO owner regex and commented-out code heuristic
+RDB-011	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; glossary term search over identifiers
+TYP-001	rust	implemented-native	-	-	-	-	json	no	low	name heuristics on pub signature parameters such as id, amount, secs
+TYP-002	rust	implemented-native	-	-	-	-	json	no	medium	syn: string literal comparisons and match on str with fixed arms
+TYP-003	rust	implemented-native	-	-	-	-	json	no	medium	syn visibility check on tagged types
+TYP-004	rust	NOT-COVERED	-	-	-	-	-	no	low	needs dataflow from deserializers to core; no confident tool
+TYP-005	rust	implemented-native	-	-	-	-	json	no	medium	syn: f32 or f64 types in modules tagged as money domain
+TYP-006	rust	delegated	clippy	kb	builtin:clippy	clippy::unwrap_used	json	yes	high	with expect_used; both are restriction lints
+TYP-007	rust	delegated	clippy	agent	builtin:clippy	clippy::fn_params_excessive_bools	json	yes	medium	covers multiple bool parameters only, not ambiguous bool returns
+TYP-008	rust	implemented-native	-	-	-	-	json	no	low	presence of invariant docs versus assertions or checked constructors
+TYP-009	rust	NOT-COVERED	-	-	-	-	-	no	low	transition legality needs models or tests; no tool known
+EFX-002	rust	implemented-native	-	-	-	-	json	no	medium	syn search for static mut, global Mutex, OnceLock outside allowlist
+EFX-003	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; env::var reads outside the config module
+EFX-005	rust	implemented-native	-	-	-	-	json	no	low	methods taking &mut self and returning non-unit values; advisory
+EFX-006	rust	NOT-COVERED	-	-	-	-	-	no	low	needs call-graph effect reachability; no known Rust tool
+EFX-007	rust	implemented-native	-	-	-	-	json	no	medium	syn finds Cell, RefCell, Mutex fields; checks doc comment presence
+ERR-001	rust	delegated	clippy	kb	builtin:clippy	clippy::let_underscore_must_use	json	yes	high	with rustc unused_must_use
+ERR-002	rust	implemented-native	-	-	-	-	json	no	low	catch_unwind and blanket Err(_) arms outside boundary functions
+ERR-003	rust	delegated	clippy	kb	builtin:clippy	clippy::indexing_slicing	json	yes	medium	with panic and unwrap_used; no input reachability filter
+ERR-004	rust	implemented-native	-	-	-	-	json	no	medium	syn: pub fn returning Box<dyn Error> or String errors
+ERR-005	rust	NOT-COVERED	-	-	-	-	-	no	low	judging context and cause needs LLM review; no deterministic tool
+ERR-007	rust	not-applicable	-	-	-	-	-	no	medium	RAII Drop runs on every exit path including early returns
+ERR-009	rust	NOT-COVERED	-	-	-	-	-	no	low	needs taint to log sinks or LLM; no confident Rust tool
+ERR-011	rust	delegated	rustc	agent	builtin:rustc	rustc:unused_must_use	json	yes	high	parse APIs return Result or Option, both must_use
+COR-001	rust	delegated	clippy	kb	builtin:clippy	clippy::missing_errors_doc	json	yes	high	with missing_panics_doc and missing_safety_doc
+COR-002	rust	implemented-native	-	-	-	-	json	no	low	constructor of tagged type contains checks or assertions
+COR-003	rust	NOT-COVERED	-	-	-	-	-	no	low	needs codec pair detection plus proptest presence; not built yet
+COR-006	rust	delegated	miri	kb	github:rust-lang/miri	-	text	yes	medium	cargo miri test; plus forbid(unsafe_code) and SAFETY comment inventory
+COR-007	rust	delegated	clippy	kb	builtin:clippy	clippy::float_cmp	json	yes	high	tolerance declaration not checked
+SEC-001	rust	delegated	semgrep	kb	pypi:semgrep	-	sarif	no	low	Rust taint support is limited; rule packs uncertain
+SEC-002	rust	delegated	gitleaks	kb	github:gitleaks/gitleaks	-	sarif	no	high	scans files and history; language independent
+SEC-003	rust	NOT-COVERED	-	-	-	-	-	no	low	needs framework route inventory and authz mapping; LLM work
+SEC-004	rust	implemented-native	-	-	-	-	json	no	low	syn/Cargo scan for banned algorithms, hard-coded keys, disabled cert checks
+SEC-005	rust	delegated	cargo-geiger	kb	crates:cargo-geiger	-	json	no	medium	unsafe counts per crate; maintenance pace uncertain; forbid(unsafe_code) also checked
+SEC-006	rust	delegated	cargo-audit	agent	crates:cargo-audit	-	json	no	high	RustSec advisories against Cargo.lock
+SEC-008	rust	NOT-COVERED	-	-	-	-	-	no	low	needs taint to log sinks or LLM; no confident Rust tool
+SEC-009	rust	delegated	checkov	kb	pypi:checkov	-	sarif	no	medium	IaC scanner; language independent
+SUP-001	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; Cargo.lock tracked and CI uses --locked
+SUP-002	rust	delegated	cargo-audit	kb	crates:cargo-audit	-	json	no	high	RustSec database; cargo-deny advisories is the alternative
+SUP-003	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check licenses	json	no	high	policy comes from deny.toml
+SUP-004	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check sources	json	no	high	flags unapproved registries and git dependencies
+SUP-005	rust	delegated	cargo-deny	kb	crates:cargo-deny	cargo deny check bans	json	no	high	multiple-versions setting gives the duplicate budget
+SUP-006	rust	delegated	cargo-machete	kb	crates:cargo-machete	-	text	no	medium	fast heuristic scan; may false-flag renamed or macro-used crates
+SUP-008	rust	delegated	zizmor	kb	pypi:zizmor	-	sarif	no	medium	GitHub Actions audit; actionlint complements for syntax
+SUP-009	rust	implemented-native	-	-	-	-	json	no	low	neutral module; checks release workflow produces SBOM artifact (cargo-cyclonedx generates)
+SUP-010	rust	implemented-native	-	-	-	-	json	no	low	neutral module; presence of provenance and signing steps in release workflow
+SUP-011	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; vendored directories excluded in analysis config
+SUP-012	rust	implemented-native	-	-	-	-	api	no	low	new crate names checked against crates.io existence, age, downloads
+API-001	rust	delegated	cargo-semver-checks	kb	crates:cargo-semver-checks	-	text	yes	high	rustdoc-based comparison with last release
+API-002	rust	delegated	cargo-public-api	kb	crates:cargo-public-api	-	text	yes	high	snapshot diff of public surface
+API-003	rust	delegated	cargo-semver-checks	kb	crates:cargo-semver-checks	-	text	yes	medium	required bump compared with Cargo.toml version change by CodeRipper
+API-004	rust	implemented-native	-	-	-	-	json	no	medium	syn: #[deprecated] has since and note; replacement text unverifiable
+API-006	rust	delegated	buf	kb	github:bufbuild/buf	buf breaking	json	no	medium	protobuf only; other schema formats not covered
+API-007	rust	delegated	squawk	kb	github:sbdchd/squawk	-	json	no	medium	Postgres migration linter; other databases not covered
+API-008	rust	implemented-native	-	-	-	-	json	no	medium	syn: pub signatures naming types from external crates
+API-009	rust	delegated	clippy	agent	builtin:clippy	clippy::exhaustive_enums	json	yes	high	with exhaustive_structs; restriction lints
+DOC-001	rust	delegated	rustc	kb	builtin:rustc	rustc:missing_docs	json	yes	high	warns on undocumented public items
+DOC-004	rust	implemented-native	-	-	-	-	json	no	low	cargo metadata edge diff triggers ADR-in-diff presence check
+DOC-005	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; ADR status and supersession link parser
+DOC-008	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; changelog touched when user-visible paths change
+DOC-009	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; glossary file presence and term search
+DOC-010	rust	delegated	lychee	agent	crates:lychee	-	json	no	high	link checker over markdown and docs; language independent
+WSP-001	rust	implemented-native	-	-	-	-	json	no	medium	neutral module; registry or CODEOWNERS presence per repository
+WSP-003	rust	implemented-native	-	-	-	-	json	no	medium	Cargo.toml version comparison across repos against skew policy
+WSP-006	rust	delegated	jscpd	agent	npm:jscpd	-	json	no	low	clone detection across several checkouts; semantic clones not covered
+WSP-008	rust	implemented-native	-	-	-	-	json	no	medium	diff rustfmt.toml, clippy.toml, rust-version, CI templates across repos

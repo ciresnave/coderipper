@@ -1,0 +1,6 @@
+check_id	kb_refs	overlap	note
+reachability	RDB-006,MOD-001	partial	Finds unreferenced items including pub ones; RDB-006 asks for no dead code, MOD-001 for a minimal public surface. The pub-item case is ours.
+unused-parameters	RDB-006	partial	Unused function parameters; the KB row speaks of unused code, imports and private items.
+unused-return-values	ERR-001,ERR-011	partial	Return value every caller discards; ERR-001/011 are about swallowed or unchecked results. The all-callers-discard form is ours.
+version-consistency	WSP-003	partial	One version across a project; WSP-003 is version skew across repositories. Related, not the same claim.
+ci-protection-presence	-	none	No KB rule says the default branch must enforce required status checks (checked: the document mentions only CODEOWNERS, in WSP-001). Closest context: SUP-008 (CI hardening), GOV-008 (layered gates).

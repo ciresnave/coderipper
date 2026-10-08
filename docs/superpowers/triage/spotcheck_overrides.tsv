@@ -1,0 +1,2 @@
+id	language	status	note	reason
+MOD-003	rust	NOT-COVERED	compiler enforces privacy across crates; intra-crate pub(crate) reach-through is not checked	spot-check 2026-10-07: "not applicable" overstated what the compiler covers
