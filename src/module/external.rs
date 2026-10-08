@@ -194,11 +194,13 @@ fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) ->
         }
     };
 
-    if let Some(mut stdin) = child.stdin.take() {
-        if let Some(line) = stdin_line {
+    // Written from a thread: a module that does not read its stdin must not hold the host past the wall-clock limit (the
+    // request can be larger than a pipe buffer). When the process is killed the write fails and the thread ends.
+    if let (Some(mut stdin), Some(line)) = (child.stdin.take(), stdin_line.map(str::to_string)) {
+        std::thread::spawn(move || {
             // a module that exits before reading is judged by its exit status, not by this write
             let _ = writeln!(stdin, "{line}");
-        }
+        });
     }
 
     let (sender, receiver) = mpsc::channel();

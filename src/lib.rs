@@ -489,6 +489,9 @@ fn run_module_over(
 /// allowlist applied, and a rule that gave no verdict (the module crashed, hung, printed too much, printed garbage, or
 /// said nothing about it) is an entry in `errors`, never a silent absence of findings.
 ///
+/// A rule the module skips as not applicable is a coverage gap, not a failure: it adds neither a finding nor an error, and
+/// this result cannot yet say which rules were skipped (the coverage report, a later phase, will).
+///
 /// It asks for every rule the module's hello claims, at `tier`. Choosing rules by tier and unit needs the rule catalog,
 /// which is not built yet.
 pub fn run_module(
@@ -737,6 +740,22 @@ mod tests {
         assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
         assert!(
             r.findings.iter().all(|f| f.check_id != "allowlist"),
+            "{:?}",
+            r.findings
+        );
+    }
+
+    #[test]
+    fn a_finding_reported_under_another_id_still_reaches_the_report() {
+        // Library users' checks have always been free to report a finding under another id; the in-process module
+        // attributes a finding to the rule result that follows it, not to its check_id (external modules are matched by id).
+        let r = run_fake_with_an_unmatched_entry(Fake {
+            id: "other",
+            result: || Ok(vec![fake_finding("a plain finding", None)]),
+        });
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(
+            r.findings.iter().any(|f| f.check_id == "fake"),
             "{:?}",
             r.findings
         );

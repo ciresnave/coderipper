@@ -71,7 +71,8 @@ fn sleep_forever() -> ! {
 
 fn fake_module(sub: &str, args: &[String]) {
     let mode = flag(args, "--mode").unwrap_or("ok");
-    if mode == "sleep" {
+    if mode == "sleep" || mode == "deaf" {
+        // "deaf" never reads its stdin
         sleep_forever();
     }
     if sub == "describe" {
@@ -366,6 +367,25 @@ fn kill_pid(pid: u32) {
     }
 }
 
+fn a_module_that_never_reads_a_large_request_cannot_outlast_the_wall_clock() {
+    let rules: Vec<String> = (0..50_000).map(|i| format!("rule-number-{i}")).collect();
+    let dir = tempfile::tempdir().unwrap();
+    let request = Request::new(
+        &CheckContext::new(dir.path()),
+        None,
+        Tier::Fast,
+        rules,
+        short(1),
+    );
+    let started = std::time::Instant::now();
+    let output = module("deaf").check(&request);
+    assert!(
+        started.elapsed().as_secs() < 20,
+        "the host hung writing the request"
+    );
+    assert_eq!(output.failure.map(|f| f.kind), Some(ErrorKind::Timeout));
+}
+
 fn a_module_that_prints_no_summary_is_an_incomplete_run() {
     let result = run_default("no-summary");
     assert_error(&result, "without a coderipper-module-summary");
@@ -520,6 +540,10 @@ fn run_tests(args: &[String]) -> ExitCode {
         (
             "a_hang_kills_the_whole_process_tree_not_just_the_child",
             a_hang_kills_the_whole_process_tree_not_just_the_child,
+        ),
+        (
+            "a_module_that_never_reads_a_large_request_cannot_outlast_the_wall_clock",
+            a_module_that_never_reads_a_large_request_cannot_outlast_the_wall_clock,
         ),
         (
             "a_module_that_prints_no_summary_is_an_incomplete_run",
