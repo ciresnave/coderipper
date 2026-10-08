@@ -1,6 +1,6 @@
 # Multi-language programme — phased plan, estimates, open questions
 
-**Status: DRAFT for PM approval. Documentation only.** Companion to `docs/superpowers/specs/2026-10-07-multi-language-design.md`
+**Status: proposed, approval pending: board item 144. Nothing in it is approved, and no code is written against it.** Documentation only. Companion to `docs/superpowers/specs/2026-10-07-multi-language-design.md`
 (the design) and `docs/superpowers/triage/` (the rule classification). Written 2026-10-07 by the CodeRipper lane.
 
 Labels: **MEASURED** = checked in this session at the ref named; **ASSUMED** = reasoned, not checked; **ESTIMATE** = a forecast, with

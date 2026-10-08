@@ -1,6 +1,6 @@
 # CodeRipper — multi-language design (revision)
 
-**Status: DRAFT for PM approval. Documentation only; no code is written against this until it is approved.**
+**Status: proposed, approval pending: board item 144. Nothing in it is approved, and no code is written against it.** Documentation only.
 Written 2026-10-07 by the CodeRipper lane. Supersedes parts of `2026-09-30-audit-host-design.md` (table in §0).
 
 Evidence labels used throughout: **MEASURED** = read or run in this session, at the ref named. **ASSUMED** = reasoned or
