@@ -7,12 +7,13 @@ a file in its npm package on a CDN, a documentation page, or the output of the l
 looks for C in it. `confirmed` means C appears in that source; it does NOT mean the tool covers the rule well (that is the
 cell's `confidence`, a judgement). `NOT-FOUND` and `fetch-failed` are results too: they are never hidden.
 
-Usage: python verify_delegations.py OUT_TSV
+Usage: python verify_delegations.py OUT_TSV CELLS_TSV   (run from anywhere: the local lint listings are taken inside this repository)
 Standard library only. GitHub is read through `gh api` (read-only GET, the logged-in account); everything else by plain HTTP GET.
 """
 import base64
 import csv
 import json
+import os
 import subprocess
 import sys
 import urllib.request
@@ -21,8 +22,14 @@ UA = "coderipper-triage/0.1 (read-only; https://github.com/ciresnave/coderipper)
 _cache = {}
 
 
+REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
+
+
 def run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+    """Run a local command inside this repository (cargo needs a Cargo.toml). A failing command is an error, never an empty text."""
+    p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, cwd=REPO)
+    if p.returncode != 0:
+        raise RuntimeError(f"{' '.join(cmd)} exited {p.returncode}: {(p.stderr or '').strip()[:100]}")
     return (p.stdout or "") + (p.stderr or "")
 
 
@@ -110,13 +117,11 @@ CLAIMS = {
     ("typescript", "EXT-001"): [(G + "typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/switch-exhaustiveness-check.mdx", "exhaustive")],
     ("typescript", "RDB-001"): [(G + "prettier/prettier::README", "formatter")],
     ("typescript", "RDB-002"): [(G + "typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/naming-convention.mdx", "naming")],
-    ("typescript", "RDB-003"): [("https://cdn.jsdelivr.net/npm/eslint-plugin-sonarjs/README.md", "cognitive-complexity")],
     ("typescript", "RDB-004"): [(G + "eslint/eslint::docs/src/rules/max-depth.md", "max-depth"), (G + "eslint/eslint::docs/src/rules/max-params.md", "max-params")],
     ("typescript", "RDB-005"): [(G + "kucherenko/jscpd::README", "TypeScript")],
     ("typescript", "RDB-006"): [(G + "webpro-nl/knip::README", "unused")],
     ("typescript", "RDB-007"): [(G + "eslint/eslint::docs/src/rules/no-magic-numbers.md", "no-magic-numbers")],
     ("typescript", "TYP-006"): [(G + "typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/no-non-null-assertion.mdx", "non-null")],
-    ("typescript", "TYP-007"): [("https://cdn.jsdelivr.net/npm/eslint-plugin-sonarjs/README.md", "no-selector-parameter")],
     ("typescript", "ERR-001"): [(G + "eslint/eslint::docs/src/rules/no-empty.md", "no-empty"), (G + "typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/no-floating-promises.mdx", "floating")],
     ("typescript", "ERR-003"): [("https://raw.githubusercontent.com/microsoft/TypeScript-Website/v2/packages/tsconfig-reference/copy/en/options/noUncheckedIndexedAccess.md", "noUncheckedIndexedAccess")],
     ("typescript", "ERR-005"): [(G + "eslint/eslint::docs/src/rules/preserve-caught-error.md", "preserve-caught-error")],

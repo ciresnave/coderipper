@@ -22,13 +22,6 @@
    ]
   },
   {
-   "coordinate": "builtin:tsc",
-   "status": "not looked up (ships with the language toolchain)",
-   "tool_names_seen": [
-    "tsc"
-   ]
-  },
-  {
    "coordinate": "crates:cargo-audit",
    "latest_release": "2026-06-05T12:33:04.440539Z",
    "latest_version": "0.22.2",
@@ -230,7 +223,7 @@
    "release_status": 200,
    "repo_archived": false,
    "repo_licence": "Apache-2.0",
-   "repo_pushed_at": "2026-10-07T21:06:25Z",
+   "repo_pushed_at": "2026-10-08T00:37:10Z",
    "repo_slug": "google/osv-scanner",
    "repo_status": 200,
    "repo_url": "https://github.com/google/osv-scanner",
@@ -288,6 +281,8 @@
    "latest_release": "2026-08-11T14:38:29.963Z",
    "latest_version": "6.0.1",
    "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
    "repo_archived": false,
    "repo_licence": "Apache-2.0",
    "repo_pushed_at": "2026-10-03T16:03:26Z",
@@ -307,6 +302,8 @@
    "latest_release": "2026-10-06T01:54:09.474Z",
    "latest_version": "7.59.4",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "@microsoft/api-extractor",
    "repo_archived": false,
    "repo_licence": "NOASSERTION",
    "repo_pushed_at": "2026-10-07T21:11:49Z",
@@ -326,6 +323,8 @@
    "latest_release": "2026-09-30T19:18:29.691Z",
    "latest_version": "18.5.0",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "The MIT License (MIT)",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-10-01T20:08:37Z",
@@ -345,6 +344,8 @@
    "latest_release": "2026-10-02T20:08:19.213Z",
    "latest_version": "10.12.0",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright OpenJS Foundation and other contributors, <www.openjsf.org>",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-10-07T04:58:43Z",
@@ -364,6 +365,8 @@
    "latest_release": "2025-06-20T21:59:09.822Z",
    "latest_version": "2.32.0",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "The MIT License (MIT)",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-08-23T16:57:53Z",
@@ -383,6 +386,8 @@
    "latest_release": "2026-10-07T08:22:22.589Z",
    "latest_version": "65.2.0",
    "licence": "BSD-3-Clause",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright (c) 2018, Gajus Kuizinas (http://gajus.com/)",
    "repo_archived": false,
    "repo_licence": "NOASSERTION",
    "repo_pushed_at": "2026-10-07T08:15:00Z",
@@ -398,29 +403,12 @@
    ]
   },
   {
-   "coordinate": "npm:eslint-plugin-sonarjs",
-   "latest_release": "2026-09-28T12:33:50.253Z",
-   "latest_version": "4.2.2",
-   "licence": "LGPL-3.0-only",
-   "repo_archived": false,
-   "repo_licence": "NOASSERTION",
-   "repo_pushed_at": "2026-10-07T04:41:28Z",
-   "repo_slug": "SonarSource/SonarJS",
-   "repo_status": 200,
-   "repo_url": "git+https://github.com/SonarSource/SonarJS.git",
-   "status": 200,
-   "tool_names_seen": [
-    "eslint"
-   ],
-   "urls": [
-    "https://registry.npmjs.org/eslint-plugin-sonarjs"
-   ]
-  },
-  {
    "coordinate": "npm:jscpd",
    "latest_release": "2026-09-30T18:11:43.825Z",
    "latest_version": "5.4.0",
    "licence": "MIT",
+   "licence_file_flag": "no licence file found in the package",
+   "licence_file_head": "",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-10-07T19:41:33Z",
@@ -440,6 +428,8 @@
    "latest_release": "2026-10-06T16:07:13.970Z",
    "latest_version": "6.40.0",
    "licence": "ISC",
+   "licence_file_flag": "",
+   "licence_file_head": "ISC License (ISC)",
    "repo_archived": false,
    "repo_licence": "ISC",
    "repo_pushed_at": "2026-10-07T13:57:46Z",
@@ -459,6 +449,8 @@
    "latest_release": "2026-05-27T14:15:44.165Z",
    "latest_version": "5.0.1",
    "licence": "BSD-3-Clause",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright 2012 Yahoo Inc.",
    "repo_archived": false,
    "repo_licence": "BSD-3-Clause",
    "repo_pushed_at": "2026-10-07T15:00:07Z",
@@ -478,6 +470,8 @@
    "latest_release": "2026-09-30T16:46:11.700Z",
    "latest_version": "12.2.0",
    "licence": "Artistic-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "The npm application",
    "repo_archived": false,
    "repo_licence": "NOASSERTION",
    "repo_pushed_at": "2026-10-06T20:51:32Z",
@@ -497,6 +491,8 @@
    "latest_release": "2026-09-23T06:31:34.693Z",
    "latest_version": "3.9.9",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "Copyright \u00a9 James Long and contributors",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-10-06T14:19:24Z",
@@ -516,6 +512,8 @@
    "latest_release": "2026-10-04T15:35:10.603Z",
    "latest_version": "2.67.0",
    "licence": "(Apache-2.0 OR MIT)",
+   "licence_file_flag": "no licence file found in the package",
+   "licence_file_head": "",
    "repo_archived": false,
    "repo_licence": "Apache-2.0",
    "repo_pushed_at": "2026-10-05T23:01:27Z",
@@ -535,6 +533,8 @@
    "latest_release": "2026-07-05T22:54:07.305Z",
    "latest_version": "0.28.20",
    "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
    "repo_archived": false,
    "repo_licence": "Apache-2.0",
    "repo_pushed_at": "2026-07-13T01:33:41Z",
@@ -550,10 +550,33 @@
    ]
   },
   {
+   "coordinate": "npm:typescript",
+   "latest_release": "2026-07-08T15:55:18.431Z",
+   "latest_version": "7.0.2",
+   "licence": "Apache-2.0",
+   "licence_file_flag": "",
+   "licence_file_head": "Apache License",
+   "repo_archived": false,
+   "repo_licence": "Apache-2.0",
+   "repo_pushed_at": "2026-10-08T00:39:32Z",
+   "repo_slug": "microsoft/TypeScript",
+   "repo_status": 200,
+   "repo_url": "git+https://github.com/microsoft/TypeScript.git",
+   "status": 200,
+   "tool_names_seen": [
+    "tsc"
+   ],
+   "urls": [
+    "https://registry.npmjs.org/typescript"
+   ]
+  },
+  {
    "coordinate": "npm:typescript-eslint",
    "latest_release": "2026-10-05T17:08:41.691Z",
    "latest_version": "8.71.1",
    "licence": "MIT",
+   "licence_file_flag": "",
+   "licence_file_head": "MIT License",
    "repo_archived": false,
    "repo_licence": "MIT",
    "repo_pushed_at": "2026-10-07T23:44:38Z",
@@ -746,7 +769,7 @@
    "licence": "MIT",
    "repo_archived": false,
    "repo_licence": "MIT",
-   "repo_pushed_at": "2026-10-07T23:38:58Z",
+   "repo_pushed_at": "2026-10-08T00:40:02Z",
    "repo_slug": "astral-sh/ruff",
    "repo_status": 200,
    "repo_url": "https://github.com/astral-sh/ruff",
@@ -765,7 +788,7 @@
    "licence": "LGPL-2.1-or-later",
    "repo_archived": false,
    "repo_licence": "LGPL-2.1",
-   "repo_pushed_at": "2026-10-07T23:22:59Z",
+   "repo_pushed_at": "2026-10-08T00:01:40Z",
    "repo_slug": "semgrep/semgrep",
    "repo_status": 200,
    "repo_url": "https://github.com/semgrep/semgrep",
@@ -816,5 +839,5 @@
    ]
   }
  ],
- "retrieved": "2026-10-07T23:52Z"
+ "retrieved": "2026-10-08T00:45Z"
 }

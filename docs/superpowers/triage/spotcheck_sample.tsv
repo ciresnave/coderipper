@@ -1,0 +1,45 @@
+language	id	status_at_sampling	stratum	verdict
+rust	MOD-003	not-applicable	all not-applicable / NOT-COVERED	corrected (spotcheck_overrides.tsv)
+rust	EXT-004	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	EXT-005	not-applicable	all not-applicable / NOT-COVERED	stands
+rust	TYP-004	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	TYP-009	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	EFX-006	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+python	ERR-003	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	ERR-005	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	ERR-007	not-applicable	all not-applicable / NOT-COVERED	stands
+typescript	ERR-007	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	ERR-009	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	COR-003	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+typescript	COR-006	not-applicable	all not-applicable / NOT-COVERED	stands
+python	COR-006	not-applicable	all not-applicable / NOT-COVERED	stands
+rust	SEC-003	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+rust	SEC-008	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+neutral	SUP-003	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+neutral	SUP-004	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+neutral	SUP-005	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+typescript	API-009	not-applicable	all not-applicable / NOT-COVERED	stands
+python	API-009	not-applicable	all not-applicable / NOT-COVERED	stands
+neutral	WSP-003	NOT-COVERED	all not-applicable / NOT-COVERED	stands
+python	TYP-005	implemented-native	random implemented-native	stands
+typescript	COR-007	implemented-native	random implemented-native	stands
+rust	ARC-005	implemented-native	random implemented-native	stands
+python	EFX-006	implemented-native	random implemented-native	stands
+python	DOC-010	implemented-native	random implemented-native	stands
+rust	WSP-003	implemented-native	random implemented-native	stands
+rust	DOC-005	implemented-native	random implemented-native	stands
+typescript	ARC-012	implemented-native	random implemented-native	stands
+typescript	EFX-005	implemented-native	random implemented-native	stands
+typescript	EXT-004	implemented-native	random implemented-native	stands
+typescript	SUP-012	implemented-native	random implemented-native	stands
+typescript	DOC-004	implemented-native	random implemented-native	stands
+python	WSP-006	delegated	random delegated	stands
+rust	RDB-001	delegated	random delegated	stands
+typescript	SEC-004	delegated	random delegated	stands
+rust	MOD-001	delegated	random delegated	stands
+python	API-001	delegated	random delegated	stands
+python	RDB-004	delegated	random delegated	stands
+python	DOC-001	delegated	random delegated	stands
+python	RDB-001	delegated	random delegated	stands
+typescript	SUP-003	delegated	random delegated	stands
+python	RDB-003	delegated	random delegated	stands

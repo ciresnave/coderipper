@@ -47,6 +47,33 @@ def http_json(url, delay=0.0):
         return f"error: {type(e).__name__}: {e}", None
 
 
+def http_text(url):
+    """GET a URL as text, or None when it is not there."""
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        return None
+
+
+# Words that mark a licence that is not an ordinary open-source licence. Found in a SHIPPED licence file they override the
+# registry's licence field (a registry field is whatever the publisher typed; the file is what the code is licensed under).
+RESTRICTIVE = ("SOURCE-AVAILABLE", "BUSINESS SOURCE", "COMMONS CLAUSE", "ELASTIC LICENSE", "SSPL", "SERVER SIDE PUBLIC",
+               "FUNCTIONAL SOURCE", "POLYFORM", "COMPETING")
+
+
+def shipped_licence_probe(name, version):
+    """First line of the LICENSE file inside the npm package, and whether it carries a restrictive-licence marker."""
+    for fn in ("LICENSE", "LICENSE.md", "LICENSE.txt", "license", "LICENCE"):
+        text = http_text(f"https://cdn.jsdelivr.net/npm/{name}@{version}/{fn}")
+        if text:
+            head = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")[:80]
+            flag = "RESTRICTIVE-MARKER" if any(k in text.upper() for k in RESTRICTIVE) else ""
+            return head, flag
+    return "", "no licence file found in the package"
+
+
 def gh_json(path):
     """GET a GitHub REST path through the gh CLI. Returns (status, parsed JSON or None)."""
     try:
@@ -184,6 +211,18 @@ COPYLEFT = ("GPL", "AGPL", "LGPL", "EUPL", "SSPL", "BUSL", "CPAL", "OSL")
 PERMISSIVE = ("MIT", "APACHE", "BSD", "ISC", "UNLICENSE", "0BSD", "ZLIB", "CC0", "PYTHON", "MPL", "BLUEOAK", "BSL-1.0")
 
 
+FAMILIES = ("AGPL", "LGPL", "GPL", "MPL", "APACHE", "BSD", "MIT", "ISC", "ARTISTIC", "UNLICENSE", "ZLIB", "CC0", "EUPL", "BSL")
+
+
+def licence_families(lic):
+    """The licence families named in a licence string, whatever the spelling ('Apache License 2.0' and 'Apache-2.0' are both APACHE)."""
+    u = (lic or "").upper()
+    found = {f for f in FAMILIES if f in u}
+    if "LGPL" in found or "AGPL" in found:
+        found.discard("GPL")  # 'LGPL' contains 'GPL'
+    return found
+
+
 def licence_class(lic):
     if not lic:
         return "unknown"
@@ -204,6 +243,8 @@ def lookup(coord):
         return {"coordinate": coord, "status": f"unknown coordinate kind {kind!r}"}
     rec = look(name)
     rec["coordinate"] = coord
+    if kind == "npm" and rec.get("latest_version"):
+        rec["licence_file_head"], rec["licence_file_flag"] = shipped_licence_probe(name, rec["latest_version"])
     slug = name if kind == "github" else repo_slug(rec.get("repo_url"))
     if slug:
         rec["repo_slug"] = slug
@@ -230,6 +271,11 @@ def derive(rec):
         "repo_archived": "" if archived is None else str(archived).lower(),
         "repo_last_push": (rec.get("repo_pushed_at") or "")[:10],
         "maintained": ("yes" if (fresh and not archived) else "no") if ok else "",
+        "licence_file_head": rec.get("licence_file_head", ""),
+        "licence_file_flag": rec.get("licence_file_flag", "") or (
+            "registry and repository licence families differ"
+            if ok and rec.get("licence") and rec.get("repo_licence") and licence_families(rec["licence"]).isdisjoint(
+                licence_families(rec["repo_licence"])) and licence_families(rec["repo_licence"]) else ""),
     }
 
 
@@ -258,7 +304,7 @@ def main(argv):
         json.dump({"retrieved": stamp, "records": raw}, fh, indent=1, sort_keys=True)
         fh.write("\n")
     cols = ["coordinate", "found", "licence", "licence_class", "latest_version", "latest_release", "repo", "repo_archived",
-            "repo_last_push", "maintained"]
+            "repo_last_push", "maintained", "licence_file_head", "licence_file_flag"]
     with open(f"{out_dir}/tools.tsv", "w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=cols, delimiter="\t", lineterminator="\n")
         w.writeheader()

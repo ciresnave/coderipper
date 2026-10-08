@@ -25,12 +25,17 @@ owner's long-term target, relayed by the portfolio PM on 2026-10-07 and quoted h
 The criterion for building a check *into* CodeRipper is "any rule that may not be sufficiently checked through some software
 that comes with a language by default"; mature third-party tools are integrated, not rebuilt.
 
+We read the two halves together as: a rule is built natively only where the language's default tooling does not suffice **and** no
+mature third-party tool covers it; where a mature tool exists (one that does not ship with the language), it is integrated. Whether
+that reading is right is open question Q13.
+
 | Old section | Status after this revision |
 |---|---|
 | §1 two axes (Scope, Network) and the fast/sweep tiers | **Kept.** §10 below says how they apply to modules. |
 | §2 the `Finding` schema | **Extended, additively** (§10.3). Nothing is removed or renamed. |
 | §3 reachability and §5 the check sketches | **Kept as written.** They are Rust (or language-unspecified) checks; each becomes a rule record in the catalog (§4) behind the built-in Rust module (§11). |
 | §4 allowlist / suppression | **Kept.** Keyed as before; see §10.4 for delegated findings. |
+| §6 output and integration | **Extended, opt-in**: an optional coverage line (§6.4); a Rust-only run prints exactly what it prints today. |
 | §7 "Plugin loading: compiled-in checks for v1" | **Superseded** by modules (§5). Compiled-in stays as one kind of module. |
 | §7 "hosted mode needs its own trust-boundary pass" | **Started** in §9; the hosted infrastructure itself is still not designed. |
 
@@ -58,7 +63,7 @@ language (§12); the hosted infrastructure (§9 states only the posture).
 
 1. **A silent skip must never read as clean.** Every rule a run was supposed to judge ends the run as a verdict (ran) or an
    explicit, reasoned non-verdict (skipped with a reason, or an error). A rule with no outcome is synthesised into an error
-   by the host. This is the existing rule ("an unreadable thing is an error, never clean", README) generalised.
+   by the host. This generalises the existing rule that an unreadable input is an error, never a clean result (README, "CI and branch protection").
 2. **A covered claim is earned.** A module may claim a rule only with a seeded-defect fixture that the module must find and
    a clean fixture it must not (§6.2).
 3. **Orchestrate, do not rebuild.** If a mature, maintained, licence-compatible tool covers a rule, the module delegates and
@@ -89,8 +94,9 @@ language (§12); the hosted infrastructure (§9 states only the posture).
  findings ─► suppression/allowlist (host, unchanged) ─► report: findings + coverage + exit code
 ```
 
-The host knows no language. A module owns everything language-specific: how to build the facts, which tool covers which
-rule, how a tool's output maps to a rule ID and a `Finding`.
+The host knows no language's rules or tools. It carries one small table, which manifest file names mean which language (§10.2), so
+it can tell that a language is present in a repository even when no module for it is installed. A module owns everything
+language-specific: how to build the facts, which tool covers which rule, how a tool's output maps to a rule ID and a `Finding`.
 
 ## 4. The rule catalog
 
@@ -101,9 +107,9 @@ One YAML record per rule, adopting the knowledge base's rule-record shape (its s
 they cannot drift apart. Records live in `rules/<domain>.yaml` (one file per domain; a list of records).
 
 ```yaml
-- id: SUP-003                  # stable; KB IDs are adopted verbatim, legacy IDs (reachability, ...) are kept as they are
+- id: version-consistency      # stable; NEW rules use the KB's IDs verbatim (ARC-004 ...), the five legacy IDs are kept as they are
   title: ...                   # our own words
-  domain: SUP
+  domain: WSP
   statement: >                 # our own paraphrase of the claim; never the knowledge base's text
     ...
   rationale: >
@@ -119,11 +125,11 @@ they cannot drift apart. Records live in `rules/<domain>.yaml` (one file per dom
   default_severity: error
   confidence_class: high
   thresholds: { type: absolute, value: 0 }    # optional; defaults only (principle 7)
-  aliases: [version-consistency]              # NEW: legacy IDs this record also answers to
-  kb_refs: []                                 # NEW: knowledge-base IDs that overlap, for rules that are ours
+  aliases: []                                 # NEW: other IDs this record answers to (empty unless a legacy rule later gains a KB ID)
+  kb_refs: [WSP-003]                          # NEW: knowledge-base IDs that overlap, for rules that are ours (partial overlap here)
   remediation: >
     ...
-  related: [SUP-001]
+  related: [WSP-008]
   lifecycle: advisory          # experimental | advisory | blocking (KB governance)
 ```
 
@@ -139,8 +145,10 @@ published as the catalog's IDs is an open question (Q1, `2026-10-07-multi-langua
 
 The five existing checks keep their kebab-case IDs. Each becomes a catalog record (`id: reachability`, ...) whose
 `kb_refs` names the overlapping KB rules, found in the triage (`docs/superpowers/triage/`). Allowlist entries keyed by
-`reachability` etc. keep working unchanged. A rule is addressed by its `id` or any `alias`; `Finding.check_id` carries the
-`id`.
+`reachability` etc. keep working unchanged. A rule is addressed by its `id` or any `alias`; `Finding.check_id` always carries the
+canonical `id`. Alias addressing needs one change to suppression, made in P2: today an allowlist entry matches by exact string equality
+with `Finding.check_id` (MEASURED: `src/suppression.rs`), so the host resolves an entry's `check` through the catalog to the canonical
+`id` when it loads the allowlist. Until a legacy rule actually gains an alias nothing changes for anyone.
 
 ### 4.4 Profiles and thresholds
 
@@ -151,14 +159,18 @@ New, additive tables, all optional:
 [profile]
 name = "default"                       # which defaults to start from
 [rules.RDB-003]
-level = "error"                        # off | advisory | blocking (never silently on/off without a recorded reason)
+level = "blocking"                     # off | advisory | blocking (never silently on/off without a recorded reason)
 threshold = { warn = 15, error = 30 }
 reason = "table-driven parser"         # required whenever a default is overridden
 [languages]
 typescript = { enabled = true }
 ```
 
-An override without a `reason` is a configuration error (exit 2), the same discipline as an allowlist entry.
+An override without a `reason` is a configuration error, reported the way a malformed allowlist is today: as an error that stops
+the audit from being complete, exit 3 (MEASURED: `tests/exit_codes.rs`, `an_error_wins_over_a_finding`, which uses an allowlist entry with
+no reason and expects 3). These tables are additive for **new** readers only: `.coderipper.toml` is parsed with unknown fields
+denied (MEASURED: `src/allowlist.rs`), so an older binary rejects a file that uses them; a project that adopts them needs that minimum
+version.
 
 ## 5. The module protocol
 
@@ -174,16 +186,21 @@ daemon in v1: simpler to sandbox, time out and kill; a long-lived mode for IDEs 
 
 Why reuse the existing JSON lines: the CLI already prints `{"reason":"coderipper-finding", ...Finding fields}` and
 `{"reason":"coderipper-summary", ...}` (MEASURED: `src/cli.rs`, `tests/message_format.rs`, ref `75ca35a`). The module's
-finding line is **byte-compatible** with that finding line, so a module can be written in any language by printing the same
-shape, and the host forwards a module's finding lines almost verbatim. The CLI's own `--message-format json` output is
-unchanged (principle 4); the coverage report (§6.4) is a *new* line, never a field added to the summary (a golden test pins
-the summary's exact key set).
+finding line is a **superset** of that finding line: the same keys, plus the optional `rule`, `language` and `tool` (§10.3), which are
+omitted when absent. A module can be written in any language by printing that shape, and the host forwards a module's finding lines
+almost verbatim.
+
+The CLI's own `--message-format json` output is **unchanged by default**. The golden tests pin more than key sets: the exact keys of a
+finding line and of the summary line, and the number of lines (MEASURED: `tests/message_format.rs` asserts 2 lines for a run with one
+finding and 1 line for a clean run; `tests/golden/finding.json` pins a finding byte for byte). So the coverage line (§6.4) is printed
+only when asked for (`--coverage`) or when a module other than the built-in Rust module takes part in the run, and the built-in checks
+do not set `rule`, `language` or `tool` in P1: a Rust-only run prints exactly what it prints today.
 
 ### 5.2 Discovery and trust
 
 A module is arbitrary code, so it is not found by "whatever is on PATH". The host resolves a module name only from (a) the
-built-in set, (b) the tool cache's `modules/` directory (checksummed, §8), or (c) a path configured explicitly in the
-user's own configuration (not the analysed project's). A project's `.coderipper.toml` can *enable* a module; it can never
+built-in set, (b) the tool cache's `modules/` directory (a module is installed like a tool: a lock entry, a checksum, consent; §8), or (c) a path
+configured explicitly in the user's own configuration (§8; not the analysed project's). A project's `.coderipper.toml` can *enable* a module; it can never
 name an executable path. (Rationale: analysing a repository must not let that repository choose what to run.)
 
 ### 5.3 `describe` (the hello)
@@ -194,35 +211,44 @@ name an executable path. (Rationale: analysing a repository must not let that re
  "protocol":["1.0"],
  "languages":["typescript","javascript"],
  "detect":["package.json","tsconfig.json"],
- "capabilities":{"executes_project_code":true,"needs_network":false,"incremental":false},
+ "capabilities":{"executes_project_code":true,"needs_network":false,"needs_checkout":false,"emits_progress":false},
  "tools":[{"name":"eslint","version":"9.12.0","licence":"MIT","lock":"tools.lock#eslint"}],
  "rules":[
    {"id":"MOD-002","status":"delegated","tool":"dependency-cruiser","mapping":"mappings/dependency-cruiser.toml",
     "proof":"conformance/MOD-002"},
-   {"id":"MOD-001","status":"implemented","proof":"conformance/MOD-001"},
-   {"id":"EFX-004","status":"not_applicable","reason":"no equivalent in this language"}
+   {"id":"MOD-001","status":"implemented-native","proof":"conformance/MOD-001"},
+   {"id":"COR-006","status":"not-applicable","reason":"no unsafe construct in this language"}
  ]}
 ```
 
-`status` is one of `implemented` (the module's own code), `delegated` (a tool, with the mapping from the tool's findings to
-the rule), `not_applicable` (reason required). A rule the module does not list is **not covered** by it; the host derives
-that status (§6.1). `proof` points at the conformance fixture (§6.2).
+`status` uses the same four words as §6.1: `implemented-native` (the module's own code), `delegated` (a tool, with the mapping from
+the tool's findings to the rule), `not-applicable` (reason required). A rule the module does not list is **not covered** by it; the
+host derives that status (§6.1). `proof` points at the conformance fixture (§6.2). `needs_checkout` says whether the module needs a
+private writable checkout (§5.4); `emits_progress` says whether it sends `coderipper-progress` events (§5.7).
 
 ### 5.4 The request
 
 ```json
 {"reason":"coderipper-check-request","protocol":"1.0","run_id":"9f3c...",
- "unit":"package","project_root":"/abs/readonly/checkout","member":{"name":"web","dir":"/abs/readonly/checkout/web"},
+ "unit":"package","project_root":"/abs/the/users/project","checkout_root":"/abs/scratch/checkout-9f3c",
+ "member":{"name":"web","dir":"/abs/the/users/project/web"},
  "run_tier":"fast","rules":["MOD-001","MOD-002"],
  "rule_config":{"MOD-002":{"level":"blocking"}},
  "trust":"untrusted","network":false,"tools_dir":"/abs/cache/tools",
  "limits":{"wall_secs":600,"idle_secs":120,"max_findings":5000,"max_output_bytes":16777216}}
 ```
 
-The host chooses `rules` (profile, run tier, unit, scope); the module checks exactly those. `project_root` is a **throwaway
-checkout** the host made (today's session/worktree machinery, MEASURED: `src/worktree.rs`, `src/session.rs`), never the
-user's working tree. A module that must rewrite files to analyse (the Rust reachability trick) does so inside that
-checkout, as the built-in Rust module already does.
+The host chooses `rules` (profile, run tier, unit, scope); the module checks exactly those. There are **two roots**, because two
+different things happen today:
+
+- `project_root` is the user's own directory, **read-only** to the module. Repository-level checks and sibling reads use it, and it
+  shows uncommitted files: `version-consistency` resolves each `[[tracks]]` manifest as `project_root.join(manifest)`, for example
+  `../other/Cargo.toml` (MEASURED: `src/checks/version_consistency/mod.rs`, `tests/version_consistency.rs`), and its README says it reads
+  the working tree, not HEAD.
+- `checkout_root` is a throwaway checkout of HEAD made by the host (today's session/worktree machinery, MEASURED: `src/worktree.rs`,
+  `src/session.rs`), **private to this module invocation**, present only when the module's hello says `needs_checkout: true`. A module
+  that must rewrite files to analyse (the Rust reachability trick) does so there. Modules never share a writable checkout, so one
+  module's rewrite cannot corrupt another's scan.
 
 ### 5.5 Events from the module
 
@@ -235,12 +261,23 @@ All have a `reason`. Unknown reasons are ignored (forward compatibility).
 | `coderipper-progress` | optional | `{done, total, what}` for a long run; display only. |
 | `coderipper-module-summary` | exactly once, last | `{rules_requested, rules_ran, rules_skipped, rules_errored, findings, incomplete: bool}` |
 
-`skipped` is legal only with a `reason_code` from a closed set (`not_applicable`, `disabled_by_profile`, `out_of_scope`,
-`not_in_this_unit`) and is printed in the report. Everything else that stops a rule from giving a verdict is `error` with
-an `error_kind` from a closed set: `tool_missing`, `tool_failed`, `tool_output_unreadable`, `timeout`, `config_invalid`,
-`untrusted_refused`, `internal`. **The host never accepts a missing `coderipper-rule-result`**: a requested rule with none
-becomes `error: no verdict`; a missing `coderipper-module-summary`, a non-zero exit, or output past the limits makes every
-rule without a result `error` and the module run `incomplete`.
+The host decides what is in scope (profile, run tier, unit) *before* it asks, so a module is never asked for a rule that is out of
+scope. A module may therefore answer `skipped` only with `reason_code: not_applicable_here`, for a condition it can only find out at
+run time (no `tsconfig.json` in this project, say), with a `detail`; every skip is printed in the report with its detail.
+Everything else that stops a rule from giving a verdict is `error` with an `error_kind` from a closed set: `tool_missing`,
+`tool_unavailable_for_platform`, `runtime_missing`, `checksum_mismatch`, `consent_not_given`, `network_not_permitted`, `tool_failed`,
+`tool_output_unreadable`, `timeout`, `limit_exceeded`, `config_invalid`, `untrusted_refused`, `protocol_mismatch`, `module_crashed`,
+`no_verdict`, `internal`.
+
+The host enforces these rules, so a module cannot leave a hole:
+- **Exactly one `coderipper-rule-result` per requested rule.** A requested rule with none becomes `error: no_verdict`; a duplicate, or a
+  result or finding for a rule that was not requested, is dropped and the run records `protocol_mismatch`.
+- **A rule's findings come before its rule-result; the rule-result commits it.** `findings: n` is checked against the finding lines
+  received for that rule; a difference makes that rule an `error: protocol_mismatch`. A crash after a rule's result keeps that rule's
+  result, one before it loses the rule (`module_crashed`).
+- **A missing `coderipper-module-summary`, a non-zero exit, or output past the limits** makes every rule without a result an error
+  and the module run `incomplete`.
+- A rule the hello claims as covered and the run reports `skipped` appears in the report's skip list; it does not count as `clean`.
 
 ### 5.6 Versioning
 
@@ -252,11 +289,15 @@ changes only additively.
 
 ### 5.7 Timeouts, limits, determinism
 
-- The host enforces `wall_secs` and `idle_secs` (no output for that long) and `max_output_bytes`. On expiry it terminates the
-  process tree (a job object on Windows, a process group elsewhere), keeps the findings already received, and marks the run
-  `incomplete`; every rule without a result is an `error: timeout`. Partial findings are shown and flagged, never used to
-  claim a clean rule.
-- Module output order is not significant; the host sorts (the existing triage order).
+- The host enforces `wall_secs` and `max_output_bytes` always, and `idle_secs` (no output for that long) **only for a module whose
+  hello says `emits_progress: true`**: a silent `cargo build` or analyser can legitimately run for minutes, so silence alone is not a
+  failure. On expiry the host terminates the process tree (a job object on Windows; elsewhere a process group, which a child that calls
+  `setsid` escapes, so a cgroup or a subreaper is used where available and the limitation is documented where not), keeps the findings
+  already received, and marks the run `incomplete`; every rule without a result is an `error: timeout`. Partial findings are shown
+  and flagged, never used to claim a clean rule.
+- Ordering: the host does not sort findings today (MEASURED: there is no sort in `src/lib.rs`) and P1 adds none, so the built-in
+  module's output order is unchanged. Findings from an external module are appended in the order received, rule by rule. A
+  severity-ordered triage (the old design's §2) is a later change that would update the golden outputs on purpose.
 - Environment: the module is started with a scrubbed environment (an allowlist of variables), the checkout as its working
   directory, and no network unless the request grants it.
 
@@ -276,13 +317,19 @@ joined with each module's `describe`**, so the report cannot disagree with what 
 
 ### 6.2 Earned, not asserted
 
-A module may claim `implemented` or `delegated` for a rule only with a **conformance fixture** (the `proof` in §5.3): a
-small project containing a seeded defect annotated with the rule ID and line (`// expect: ARC-004` in a comment in the
-language's own comment syntax), and a clean twin that must produce nothing (the absence-claim discipline: a query that never
-finds anything proves nothing, so the clean twin is paired with a defective one).
-`coderipper conformance --module <name> [--rule <id>]` runs every fixture offline against the module and fails if a seeded
-defect is not reported at its line or a clean twin reports anything. A claim whose fixture is missing or failing is shown
-as `claimed-unproven` and **counted as a gap**, not as coverage.
+A module may claim `implemented-native` or `delegated` for a rule only with a **conformance fixture** (the `proof` in §5.3): a small
+project containing a seeded defect, and a clean twin that must produce nothing (the absence-claim discipline: a query that never finds
+anything proves nothing, so the clean twin is paired with a defective one). What a fixture expects is written in an `expect.toml`
+beside it (`rule`, `file`, and `line` when the defect has one), **not** in comments in the fixture, because many defects have no line
+or no comment syntax: a missing file (a lockfile, a glossary), a JSON file, a CI setting, a defect that lives in git history (a
+committed secret). A fixture may be built by a script (a git repository with a bad commit). The clean twin's `expect.toml` lists nothing.
+
+`coderipper conformance --module <name> [--rule <id>]` runs the fixtures and fails if a seeded defect is not reported where
+`expect.toml` says, or a clean twin reports anything. Rules that need the network (a link checker, a vulnerability database) declare
+`needs_network` in their fixture and run under `--network` in the module's own CI; they stay `claimed-unproven` until that run has
+passed. **Run time never re-runs conformance.** A module ships a `conformance.lock` (its build's checksum and the list of rules whose
+fixtures passed), written by its CI; the host trusts it only if the checksum equals the module executable's, otherwise every claim
+is `claimed-unproven`. A claim whose fixture is missing or failing is `claimed-unproven` and **counted as a gap**, not as coverage.
 
 ### 6.3 Run outcomes (this run, not the matrix)
 
@@ -295,20 +342,25 @@ is not a run outcome: it is listed in the gap list and does not fail a run on it
 Human form (stderr or stdout under a flag; exact layout decided in P2):
 
 ```
-coverage: rust        61 of 217 covered (28.1%), 40 gaps listed          this run: 58 clean, 3 findings, 0 could not run
-coverage: typescript  14 of 217 covered ( 6.5%), 203 gaps (use --coverage=full to list)   this run: ...
+coverage: rust        61 of 216 covered (28.2%), 155 not covered (use --coverage=full to list)   this run: 58 clean, 3 findings, 0 could not run
+coverage: typescript  14 of 216 covered ( 6.5%), 202 not covered (use --coverage=full to list)   this run: 12 clean, 2 findings, 0 could not run
 ```
 
-JSON form: one new line `{"reason":"coderipper-coverage","language":"rust","rules_total":217,"covered":61,"claimed_unproven":2,
-"not_applicable":9,"not_covered":145,"gaps":["RDB-004", ...],"run":{"clean":58,"findings":3,"skipped":0,"could_not_run":0}}`
-per language, emitted before the summary line. `--min-coverage <pct>` (a later, opt-in flag) can turn a coverage floor into
+JSON form: one new line per language,
+`{"reason":"coderipper-coverage","language":"rust","rules_total":216,"covered":61,"claimed_unproven":2,"not_applicable":9,"not_covered":144,
+"gaps":["RDB-004","TYP-004"],"gaps_truncated":true,"run":{"clean":58,"findings":3,"skipped":0,"could_not_run":0}}`,
+emitted before the summary line, only when coverage is asked for or a non-built-in module takes part (§5.1). `covered` counts
+only earned claims; `claimed_unproven` is reported separately and counted as a gap. `--min-coverage <pct>` (a later, opt-in flag) can turn a coverage floor into
 a failure; by default a known gap never fails a run.
 
 ## 7. Delegating to tools
 
 A `delegated` rule has a **mapping record** in the module: for each tool rule or code (`ruff F401`, `eslint no-unused-vars`,
 `clippy::...`), the catalog rule ID it evidences, the severity and confidence to report, and how to fill `location`,
-`subject` and `summary`. Tool output is read in its **machine-readable form** (SARIF where the tool offers it, else its JSON);
+`subject` and `summary`. The mapping also supplies the finding's own `summary` wording and, for any rule whose claim is an absence, a
+`positive_control`: the host validates module findings exactly as it validates built-in ones (§10.3), and its absence rule rejects any
+summary containing a whole word such as "missing" or "no" without a control, so a tool's message ("Missing docstring ...") cannot be
+passed through as the summary unless it either avoids those words or carries a control. Tool output is read in its **machine-readable form** (SARIF where the tool offers it, else its JSON);
 scraping human text is not allowed. A tool whose output cannot be parsed is `error: tool_output_unreadable`, not "no
 findings".
 
@@ -328,10 +380,18 @@ All of this is a **policy**, enforced by the host and the module SDK, not left t
   there. Nothing is written to a global PATH, a global npm prefix, `~/.cargo/bin`, or site-packages.
 - **Exact versions, checksums**: each module ships a lock file (`tools.lock`) with, per tool and platform, the version, the
   source (URL or registry coordinate), the **SHA-256** and the SPDX licence. A download whose checksum does not match is
-  deleted and is `error: tool_missing`. Installers allowed: a checksummed prebuilt binary; `cargo install --locked --root
+  deleted and is `error: checksum_mismatch` (never reported as the tool being merely absent). A lock with no entry for this platform
+  is `tool_unavailable_for_platform`. Modules themselves are installed the same way (a lock entry, a checksum, consent). Installers allowed: a checksummed prebuilt binary; `cargo install --locked --root
   <cache>`; `npm install --prefix <cache> --ignore-scripts` with the lockfile's integrity hashes; `pip` into a cache venv with
-  `--require-hashes`. Install-time scripts are disabled wherever the ecosystem allows it (ASSUMED per ecosystem; each module
-  states what it could not disable).
+  `--require-hashes` **and `--only-binary :all:`** (a source build runs arbitrary code; a tool with no wheel is
+  `tool_unavailable_for_platform`). Install-time scripts are disabled wherever the ecosystem allows it (ASSUMED per ecosystem; each
+  module states what it could not disable).
+- **Runtimes and toolchain components are prerequisites, not installs.** A tool that needs Node or Python, or a rustup component (Miri
+  is a nightly component), does not get that runtime installed by CodeRipper: the module checks it is present and recent enough and
+  otherwise reports `runtime_missing` with the instruction. The four installers above cover tools, not runtimes.
+- **"The user's own configuration"** means a user-level file, `<config dir>/coderipper/config.toml`, which does not exist today (the
+  code reads environment variables and flags only; MEASURED by search). It is added in P6, and until then only environment variables
+  and flags can name a module path or turn install consent on.
 - **Consent**: a tool is installed only when the user said so: `--install-tools`, or `[tools] install = "yes"` in the user's own
   configuration, or an interactive yes on a terminal. The default in CI (no terminal) is **never**: a missing tool is
   `could-not-run (tool_missing)` and the message prints the exact command that would install it.
@@ -346,7 +406,7 @@ All of this is a **policy**, enforced by the host and the module SDK, not left t
 
 Facts (MEASURED or by construction):
 - The Rust module already **builds the analysed project** in a throwaway worktree (reachability, unused-parameters,
-  unused-return-values run `cargo build`/`cargo check`, ref `75ca35a`). Cargo executes build scripts and procedural macros
+  unused-return-values run `cargo build --all-targets` or `--lib`, ref `75ca35a`; `cargo metadata` is the only other cargo call). Cargo executes build scripts and procedural macros
   while doing so, so these checks **execute code from the repository** (by construction of cargo, not separately tested here).
 - Many linters execute project-controlled files: ESLint loads JavaScript config and plugins; Python tools read and sometimes
   import project config; package managers run lifecycle scripts (ASSUMED per tool; each tool's entry in the triage records
@@ -356,10 +416,11 @@ Posture:
 - Every rule carries `executes_project_code` (§4.1) and every module declares the same capability (§5.3).
 - Two trust levels: `trusted` (the default for a local run on the user's own checkout; the code is theirs) and `untrusted`
   (hosted mode, or `--untrusted`). In `untrusted` mode a rule or module that executes project code **runs only if the host
-  attests a sandbox** (the runner image sets a marker the host verifies); otherwise it is `error: untrusted_refused`, never
+  attests a sandbox** (the runner image sets a marker the host reads; the marker is **self-asserted by the runner**, not something the host can prove, so hosted
+  mode relies on the runner being the only way modules are ever started); otherwise it is `error: untrusted_refused`, never
   silently skipped, never run unsandboxed.
 - **Hosted mode** runs modules and tools only from **prebuilt, sandboxed images**; it installs nothing on demand; the sandbox
-  has no network, a read-only code mount, a scratch directory, CPU/memory/process/wall-clock limits, no credentials in the
+  has no network, a read-only mount of the code (the module's own scratch checkout is separate), a scratch directory, CPU/memory/process/wall-clock limits, no credentials in the
   environment, and is destroyed after the scan. Findings are data derived from untrusted text: strings are escaped when
   rendered, size-capped, and never interpreted as instructions (relevant for any later LLM tier).
 - Designing the infrastructure (microVM, scheduler, queue, abuse limits) is out of scope here and stays the P7 design pass.
@@ -371,8 +432,9 @@ Posture:
 `Scope` (`Project`|`Portfolio`) and `Network` (`LocalOnly`|`NetworkRequired`) are rule attributes (§4.1). The run tier is
 still derived from Network: `fast` = every local rule, `sweep` = also network rules. `Unit` (`Package`|`Repository`) is a rule
 attribute: the host runs a `package` rule once per member of a language's project roots and a `repository` rule once. For
-`Portfolio` scope the host passes sibling project roots; today no built-in check reads them (the audit found
-`portfolio_root` unused), so this axis stays declared-but-unused until a cross-codebase rule needs it (§12, WSP rules).
+`Portfolio` scope the host passes sibling project roots; today no built-in check reads `portfolio_root` (MEASURED: zero uses under
+`src/checks`), so that field stays declared-but-unused until a cross-codebase rule needs it (§12, WSP rules). `version-consistency`'s
+`[[tracks]]` does read a sibling project's manifest, but relative to `project_root` (§5.4), not through `portfolio_root`.
 
 ### 10.2 Language detection and polyglot repositories
 
@@ -380,19 +442,24 @@ The host detects project roots by manifest (`Cargo.toml` -> rust; `package.json`
 `pyproject.toml`/`setup.cfg`/`requirements*.txt` -> python; ASSUMED list, finalised per module's `detect`), runs each
 language's module per root (a monorepo gets several), and always runs the neutral module once per repository. A language with
 no installed module is reported as `NOT-COVERED` for every rule ("no module for typescript") in the coverage report, not
-ignored: "I looked at a repository containing TypeScript and checked none of it" must be visible.
+ignored: "I looked at a repository containing TypeScript and checked none of it" must be visible. By default that is a known gap and
+does not fail the run; but uninstalling a module must not turn a CI job green unnoticed, so a project can require it
+(`[languages] typescript = { required = true }` in `.coderipper.toml`), and then a missing or failing module is a rule that could not
+run: exit 3.
 
 ### 10.3 The `Finding` shape
 
 Additive fields (the struct is `#[non_exhaustive]`, so adding fields is not a breaking change; MEASURED: `src/finding.rs`):
 `rule: Option<String>` (catalog ID; equals `check_id` for catalog rules, absent for none), `language: Option<String>`,
-`tool: Option<{name, version}>`. Existing fields, severity, confidence, `positive_control` and `Finding::validate` (absence
-claims need a control) apply to every module's findings unchanged; the host validates what modules send exactly as it
-validates what built-in checks return.
+`tool: Option<{name, version}>`, each **left out of the JSON when absent** (as `member` is today), and **not set by the built-in
+checks in P1**, so their findings serialize byte for byte as before and `tests/golden/finding.json` stays valid unedited. Existing fields,
+severity, confidence, `positive_control` and `Finding::validate` (whole-word absence claims need a control) apply to every module's
+findings unchanged; the host validates what modules send exactly as it validates what built-in checks return (see §7 for what that
+means for a mapping's wording).
 
 ### 10.4 Allowlist and suppression
 
-Unchanged in mechanism (MEASURED: `src/suppression.rs`; identity = `check` + `file` + `symbol`, a required `reason`, stale
+Unchanged in mechanism, except alias resolution when an allowlist is loaded (§4.3) (MEASURED: `src/suppression.rs`; identity = `check` + `file` + `symbol`, a required `reason`, stale
 entries reported as `Info` from check id `allowlist`). Two things to settle (Q9): (a) delegated findings often have no symbol;
 the module must supply a stable `subject` (enclosing item path) where it can, and where it cannot the entry is
 `check + file` plus an optional `line_range` rather than a fingerprint that churns; (b) stale-entry judgement needs "this rule
@@ -406,8 +473,7 @@ Unchanged: 0 clean, 1 a finding at or above `--deny`, 2 usage error, 3 the audit
 ### 10.6 Build cache and sessions
 
 The Rust module keeps the build cache and the `--workspace` session (MEASURED: `src/build_cache`, `src/session.rs`). They are
-Rust-module internals; other modules own their equivalents (a node_modules cache, a venv). The host's contract is only the
-read-only checkout and the limits.
+Rust-module internals; other modules own their equivalents (a node_modules cache, a venv). The host's contract is only the two roots (§5.4) and the limits.
 
 ## 11. The built-in Rust module (P1, no behaviour change)
 
@@ -415,7 +481,7 @@ P1 introduces a `Module` trait in the library mirroring §5 (`describe`, `check(
 adapter that speaks the protocol to a child process, and moves the five checks behind `RustModule`. The gate for P1 is
 mechanical: **every existing golden and CLI test passes unedited**, the JSON output for a fixed fixture is byte-identical
 before and after, and `coderipper conformance` passes for the five rules using fixtures extracted from the existing tests.
-The library's public API (`run_checks`, `run_checks_with`, `Check`) keeps working; `Check` becomes the way a Rust user writes a
+No sorting or other output change is added in P1 (§5.7). The library's public API (`run_checks`, `run_checks_with`, `Check`) keeps working; `Check` becomes the way a Rust user writes a
 native rule inside the Rust module.
 
 ## 12. Deliberately not designed here

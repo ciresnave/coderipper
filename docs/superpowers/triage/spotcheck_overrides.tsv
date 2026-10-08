@@ -1,2 +1,10 @@
-id	language	status	note	reason
-MOD-003	rust	NOT-COVERED	compiler enforces privacy across crates; intra-crate pub(crate) reach-through is not checked	spot-check 2026-10-07: "not applicable" overstated what the compiler covers
+id	language	status	note	reason	confidence
+MOD-003	rust	NOT-COVERED	compiler enforces privacy across crates; intra-crate pub(crate) reach-through is not checked	spot-check 2026-10-07: "not applicable" overstated what the compiler covers	
+ERR-007	rust	NOT-COVERED	Drop does not run on mem::forget, process::exit or Rc cycles; resource release on error paths is not checked	audit 2026-10-08: "Drop runs on every exit path" overstated	
+API-009	python	NOT-COVERED	typing.final marks a closed class but no tool checks that growth points are marked	audit 2026-10-08: not-applicable ignored typing.final	
+ERR-011	rust	delegated	rustc unused_must_use flags an ignored Result only; Option results are not must_use	audit 2026-10-08: the cell claimed Option too (tested locally: only Result warns)	low
+RDB-003	typescript	NOT-COVERED	the only candidate, eslint-plugin-sonarjs, ships the Sonar Source-Available License with a competing-use clause; ESLint core complexity is cyclomatic	audit 2026-10-08: shipped LICENSE differs from the registry licence field (verified)	
+TYP-007	typescript	NOT-COVERED	the only candidate, eslint-plugin-sonarjs, ships the Sonar Source-Available License with a competing-use clause	audit 2026-10-08: same licence finding	
+API-001	typescript	delegated	api-extractor reports API changes for human review; it does not classify them as breaking	audit 2026-10-08: capability overstated	low
+MOD-001	typescript	delegated	ae-undocumented covers the documentation half; a minimal public surface is not checked	audit 2026-10-08: capability overstated	low
+DOC-004	typescript	implemented-native	native check in the language module: diff of dependency edges; the neutral module has no cell for this rule	audit 2026-10-08: note wrongly said neutral module	

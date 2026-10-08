@@ -28,22 +28,22 @@ RDB-008	RDB	TODO ownership and commented-out code	V0,V1	N	P,M	no	-
 RDB-011	RDB	Terminology matches project glossary	V1,V4	N	P,L	no	-
 TYP-001	TYP	Domain primitives not bare in public signatures	V1,V4	P	L	no	-
 TYP-002	TYP	String literal comparisons standing in for enums	V1	P	-	no	-
-TYP-003	TYP	Invariant-bearing types have private fields and constructors	V0,V1	P	A	no	-
+TYP-003	TYP	Invariant-holding types are built only through validated paths	V0,V1	P	A	no	-
 TYP-004	TYP	External data parsed into domain types first	V1	P	A	no	-
-TYP-005	TYP	No floating point for money	V1	P	A	no	-
+TYP-005	TYP	Money and exact quantities avoid binary floating point	V1	P	A	no	-
 TYP-006	TYP	No unwrap or null assertions on production paths	V0	P	-	no	Clippy,Error-Prone
 TYP-007	TYP	Boolean blindness in signatures	V1	P	-	no	-
 TYP-008	TYP	Invariants documented and enforced	V1,V2,V4	P	L,X	no	-
 TYP-009	TYP	State machine transitions explicit and guarded	V0,V2	P	X	no	-
 EFX-002	EFX	No global mutable state outside allowlist	V0,V1	P	-	no	-
 EFX-003	EFX	Environment reads confined to config module	V0	N	P	no	-
-EFX-005	EFX	Command-query mixing in object APIs	V1	P	L	no	-
+EFX-005	EFX	Methods that both change state and answer queries	V1	P	L	no	-
 EFX-006	EFX	Claimed-pure functions reach no effects	V1,V4	P	L,A	no	-
 EFX-007	EFX	Interior mutability and caches document ownership	V1,V4	P	L	no	-
 ERR-001	ERR	Errors are not swallowed	V0	P	-	no	rustc,Clippy,Semgrep
 ERR-002	ERR	Catch-all handlers only at boundaries	V1	P	A	no	-
 ERR-003	ERR	No panics or unchecked indexing on input paths	V1	P	X	no	Clippy
-ERR-004	ERR	Public APIs return typed matchable errors	V1	P	-	no	-
+ERR-004	ERR	Library errors are typed so callers can match them	V1	P	-	no	-
 ERR-005	ERR	Cross-boundary errors keep context and cause	V1,V4	P	L	no	-
 ERR-007	ERR	Resources released on error paths	V1,V2	P	X	no	-
 ERR-009	ERR	No sensitive data in errors or logs	V1,V4	P	L	no	-
@@ -88,5 +88,5 @@ DOC-009	DOC	glossary exists, terminology consistent	V1,V4	N	L	no	-
 DOC-010	DOC	documentation links resolve	V0	N	-	no	-
 WSP-001	WSP	repository inventory with owner, tier, lifecycle	V0	N	-	no	-
 WSP-003	WSP	version skew within policy, retired libraries unused	V0	N	-	no	-
-WSP-006	WSP	duplicate implementations across repos	V1,V4	P	L	no	-
+WSP-006	WSP	Copied or near-duplicate code across repositories	V1,V4	P	L	no	-
 WSP-008	WSP	convention drift between repositories	V0,V1	N	-	no	-

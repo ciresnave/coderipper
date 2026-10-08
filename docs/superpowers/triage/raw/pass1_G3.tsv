@@ -20,10 +20,10 @@ TST-008	TST	test names agree with assertions	V4	L	P	project	local	no	-	-
 TST-009	TST	risky modules have fuzz or property targets	V1,V2	P	X,L	project	local	no	-	module classification via tags or LLM
 TST-010	TST	cross-component interfaces have two-sided contract tests	V2	X	A	portfolio	local	yes	Pact	spans repos
 TST-011	TST	tests order-independent and parallel-safe	V2	X	-	project	local	yes	cargo-nextest,pytest-xdist,JUnit-parallelism	-
-TST-012	TST	test runtime within budget; slow tests classified	V2	X	-	project	local	yes	-	CI timing
+TST-012	TST	Test duration budgets with size classes	V2	X	-	project	local	yes	-	CI timing
 TST-013	TST	expected values not derived from implementation	V4,V2	L	X	project	local	yes	-	see AIH-005
 CON-001	CON	data-race freedom by language or race detector	V0,V2	P	X	project	local	yes	Compiler,Go-race,ThreadSanitizer,Java-tools	-
-CON-002	CON	no guard held across await or blocking	V0,V1	P	-	project	local	yes	Clippy,await_holding_lock,await_holding_refcell_ref,analyzers	-
+CON-002	CON	Locks are not held across awaits or blocking calls	V0,V1	P	-	project	local	yes	Clippy,await_holding_lock,await_holding_refcell_ref,analyzers	-
 CON-003	CON	no blocking calls inside async code	V1,V2	P	X	project	local	yes	-	known-blocking API list; stall detection is runtime
 CON-004	CON	queues and spawns bounded with overflow policy	V1	P	A	project	local	no	-	policy lives in spec
 CON-005	CON	no detached tasks without retained handle	V1	P	-	project	local	no	AST	-
@@ -34,14 +34,14 @@ CON-009	CON	cancellation-safety documented for stateful async	V4	L	M,P	project	l
 CON-010	CON	weak atomic orderings justified in comments	V1,V4	P	L	project	local	no	-	comment presence deterministic; quality needs LLM
 CON-011	CON	shared-state items have declared owners	V1	A	P	project	local	no	-	see EFX-002
 REL-001	REL	outbound calls have timeouts or deadlines	V0,V1	P	N	project	local	no	Semgrep	client construction patterns plus config
-REL-002	REL	retry policy conformance	V1,V4	P	L	project	local	no	-	idempotency judgement needs LLM
+REL-002	REL	Retries follow the declared policy	V1,V4	P	L	project	local	no	-	idempotency judgement needs LLM
 REL-003	REL	channels bounded with overflow policy	V1	P	A	project	local	no	-	duplicate of CON-004
 REL-004	REL	message handlers idempotent with redelivery tests	V4,V2	L	X	project	local	yes	-	-
 REL-005	REL	deployment manifests define probes and limits	V0	N	-	project	local	no	OPA/Rego,Kyverno,Conftest,Checkov	YAML/IaC parsing only
 REL-006	REL	graceful shutdown with signal handling exists	V1,V2	P	X	project	local	yes	AST	shutdown test is the execution part
 REL-007	REL	failure model exists per external-dependency component	V4,V5	N	L,M	project	local	no	-	presence check deterministic; sign-off human
-REL-008	REL	declared failure modes have fault-injection tests	V2	X	-	project	local	yes	Toxiproxy	-
+REL-008	REL	Each declared failure mode has an injection test	V2	X	-	project	local	yes	Toxiproxy	-
 REL-009	REL	elapsed time uses monotonic clocks	V1	P	-	project	local	no	-	-
-REL-010	REL	persistent components pass crash-recovery tests	V2	X	-	project	local	yes	-	-
+REL-010	REL	Stateful components are exercised by crash-recovery tests	V2	X	-	project	local	yes	-	-
 REL-011	REL	declared breakers or bulkheads used where spec requires	V1	A	P	project	local	no	-	-
 REL-012	REL	SLO conformance as runtime fitness function	V2,V3	X	T	project	network	no	-	telemetry-driven gates

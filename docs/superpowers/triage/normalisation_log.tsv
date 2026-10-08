@@ -1,28 +1,75 @@
 id	language	change
+RDB-008	rust	R2b note: native via the neutral module's native check
+RDB-011	rust	R2b note: native via the neutral module's native check
+EFX-003	rust	R2b note: native via the neutral module's native check
 SEC-002	rust	R2 delegated:gitleaks -> implemented-native via neutral (gitleaks)
 SEC-006	rust	R4 kept: ecosystem-specific cargo-audit (neutral uses osv-scanner)
 SEC-009	rust	R2 delegated:checkov -> implemented-native via neutral (checkov)
+SUP-001	rust	R2b note: native via the neutral module's native check
 SUP-002	rust	R4 kept: ecosystem-specific cargo-audit (neutral uses osv-scanner)
 SUP-008	rust	R2 delegated:zizmor -> implemented-native via neutral (zizmor)
+SUP-009	rust	R2b note: native via the neutral module's native check
+SUP-010	rust	R2b note: native via the neutral module's native check
+SUP-011	rust	R2b note: native via the neutral module's native check
+SUP-012	rust	R2b note: native via the neutral module's native check
 API-006	rust	R2 delegated:buf -> implemented-native via neutral (buf)
+DOC-005	rust	R2b note: native via the neutral module's native check
+DOC-008	rust	R2b note: native via the neutral module's native check
+DOC-009	rust	R2b note: native via the neutral module's native check
 DOC-010	rust	R2 delegated:lychee -> implemented-native via neutral (lychee)
+WSP-001	rust	R2b note: native via the neutral module's native check
+WSP-008	rust	R2b note: native via the neutral module's native check
+RDB-008	typescript	R2b note: native via the neutral module's native check
+RDB-011	typescript	R2b note: native via the neutral module's native check
+EFX-003	typescript	R2b note: native via the neutral module's native check
 SEC-002	typescript	R2 implemented-native:- -> implemented-native via neutral (gitleaks)
 SEC-006	typescript	R2 delegated:osv-scanner -> implemented-native via neutral (osv-scanner)
 SEC-009	typescript	R2 implemented-native:- -> implemented-native via neutral (checkov)
+SUP-001	typescript	R2b note: native via the neutral module's native check
 SUP-002	typescript	R2 delegated:osv-scanner -> implemented-native via neutral (osv-scanner)
 SUP-008	typescript	R2 implemented-native:- -> implemented-native via neutral (zizmor)
+SUP-010	typescript	R2b note: native via the neutral module's native check
+SUP-011	typescript	R2b note: native via the neutral module's native check
+SUP-012	typescript	R2b note: native via the neutral module's native check
 API-006	typescript	R2 implemented-native:- -> implemented-native via neutral (buf)
+DOC-005	typescript	R2b note: native via the neutral module's native check
+DOC-008	typescript	R2b note: native via the neutral module's native check
+DOC-009	typescript	R2b note: native via the neutral module's native check
 DOC-010	typescript	R2 implemented-native:- -> implemented-native via neutral (lychee)
+WSP-001	typescript	R2b note: native via the neutral module's native check
 WSP-003	typescript	R3 note replaced: neutral cell is NOT-COVERED
+WSP-008	typescript	R2b note: native via the neutral module's native check
+RDB-008	python	R2b note: native via the neutral module's native check
+RDB-011	python	R2b note: native via the neutral module's native check
+EFX-003	python	R2b note: native via the neutral module's native check
 SEC-002	python	R2 implemented-native:- -> implemented-native via neutral (gitleaks)
 SEC-006	python	R2 implemented-native:- -> implemented-native via neutral (osv-scanner)
 SEC-009	python	R2 implemented-native:- -> implemented-native via neutral (checkov)
+SUP-001	python	R2b note: native via the neutral module's native check
 SUP-002	python	R2 implemented-native:- -> implemented-native via neutral (osv-scanner)
 SUP-003	python	R3 note replaced: neutral cell is NOT-COVERED
 SUP-004	python	R3 note replaced: neutral cell is NOT-COVERED
 SUP-005	python	R3 note replaced: neutral cell is NOT-COVERED
 SUP-008	python	R2 implemented-native:- -> implemented-native via neutral (zizmor)
+SUP-009	python	R2b note: native via the neutral module's native check
+SUP-010	python	R2b note: native via the neutral module's native check
+SUP-011	python	R2b note: native via the neutral module's native check
+SUP-012	python	R2b note: native via the neutral module's native check
 API-006	python	R2 implemented-native:- -> implemented-native via neutral (buf)
+DOC-005	python	R2b note: native via the neutral module's native check
+DOC-008	python	R2b note: native via the neutral module's native check
+DOC-009	python	R2b note: native via the neutral module's native check
 DOC-010	python	R2 implemented-native:- -> implemented-native via neutral (lychee)
+WSP-001	python	R2b note: native via the neutral module's native check
 WSP-003	python	R3 note replaced: neutral cell is NOT-COVERED
+WSP-008	python	R2b note: native via the neutral module's native check
 MOD-003	rust	"R5 not-applicable -> NOT-COVERED: spot-check 2026-10-07: ""not applicable"" overstated what the compiler covers"
+ERR-007	rust	"R5 not-applicable -> NOT-COVERED: audit 2026-10-08: ""Drop runs on every exit path"" overstated"
+API-009	python	R5 not-applicable -> NOT-COVERED: audit 2026-10-08: not-applicable ignored typing.final
+ERR-011	rust	R5 delegated -> delegated: audit 2026-10-08: the cell claimed Option too (tested locally: only Result warns)
+RDB-003	typescript	R5 delegated -> NOT-COVERED: audit 2026-10-08: shipped LICENSE differs from the registry licence field (verified)
+TYP-007	typescript	R5 delegated -> NOT-COVERED: audit 2026-10-08: same licence finding
+API-001	typescript	R5 delegated -> delegated: audit 2026-10-08: capability overstated
+MOD-001	typescript	R5 delegated -> delegated: audit 2026-10-08: capability overstated
+DOC-004	typescript	R5 implemented-native -> implemented-native: audit 2026-10-08: note wrongly said neutral module
+ERR-003	typescript	R6 coordinate builtin:tsc -> npm:typescript

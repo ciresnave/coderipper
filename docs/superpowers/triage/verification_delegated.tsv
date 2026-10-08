@@ -87,7 +87,6 @@ typescript	MOD-002	dependency-cruiser	no-circular	github:sverweij/dependency-cru
 typescript	MOD-003	eslint	import/no-internal-modules	github:import-js/eslint-plugin-import::docs/rules/no-internal-modules.md	no-internal-modules	2739	confirmed	strong (specific name in docs or source)
 typescript	RDB-001	prettier	-	github:prettier/prettier::README	formatter	3381	confirmed	weak (keyword in a README)
 typescript	RDB-002	eslint	@typescript-eslint/naming-convention	github:typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/naming-convention.mdx	naming	29246	confirmed	strong (specific name in docs or source)
-typescript	RDB-003	eslint	sonarjs/cognitive-complexity	https://cdn.jsdelivr.net/npm/eslint-plugin-sonarjs/README.md	cognitive-complexity	183240	confirmed	weak (keyword in a README)
 typescript	RDB-004	eslint	max-depth,max-params	github:eslint/eslint::docs/src/rules/max-depth.md	max-depth	2445	confirmed	strong (specific name in docs or source)
 typescript	RDB-004	eslint	max-depth,max-params	github:eslint/eslint::docs/src/rules/max-params.md	max-params	3022	confirmed	strong (specific name in docs or source)
 typescript	RDB-005	jscpd	-	github:kucherenko/jscpd::README	TypeScript	29718	confirmed	weak (keyword in a README)
@@ -101,5 +100,4 @@ typescript	SUP-005	npm	npm ls --all --json	github:npm/cli::workspaces/config/lib
 typescript	SUP-006	knip	-	github:webpro-nl/knip::README	dependencies	2742	confirmed	weak (keyword in a README)
 typescript	SUP-009	cyclonedx-npm	-	github:CycloneDX/cyclonedx-node-npm::README	SBOM	11272	confirmed	weak (keyword in a README)
 typescript	TYP-006	eslint	@typescript-eslint/no-non-null-assertion	github:typescript-eslint/typescript-eslint::packages/eslint-plugin/docs/rules/no-non-null-assertion.mdx	non-null	1492	confirmed	strong (specific name in docs or source)
-typescript	TYP-007	eslint	sonarjs/no-selector-parameter	https://cdn.jsdelivr.net/npm/eslint-plugin-sonarjs/README.md	no-selector-parameter	183240	confirmed	weak (keyword in a README)
 typescript	WSP-006	jscpd	-	github:kucherenko/jscpd::README	duplicat	29718	confirmed	weak (keyword in a README)

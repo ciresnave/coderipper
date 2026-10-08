@@ -4,7 +4,7 @@ GOV-002	GOV	Waiver records with owner and expiry	V0,V5	T	M	project	local	no	-	Wa
 GOV-003	GOV	Rule maturity stages driven by precision	V0	T	-	project	local	no	-	-
 GOV-004	GOV	Rule policy versioned and tested with fixtures	V0	T	X	project	local	no	-	Testing rules means running them against fixtures
 GOV-005	GOV	Code scope classification with per-scope rules	V0	T	N	project	local	no	-	-
-GOV-006	GOV	Findings carry severity confidence evidence remediation	V0	T	-	project	local	no	-	-
+GOV-006	GOV	Reports must carry severity, confidence, proof and remediation	V0	T	-	project	local	no	-	-
 GOV-007	GOV	Per-dimension reporting instead of composite score	V0	T	-	project	local	no	-	-
 GOV-008	GOV	Staged gates from editor to runtime	V0,V1,V2	T	X	project	local	no	-	Runtime SLO gates require telemetry
 GOV-009	GOV	Rules ship rationale and remediation guidance	V5	T	M	project	local	no	-	-
@@ -19,7 +19,7 @@ MOD-008	MOD	Pass-through wrapper methods	V1,V4	P	L	project	local	no	-	LLM confir
 MOD-009	MOD	Long reach-through call chains on domain objects	V1	P	-	project	local	no	-	Must exclude iterators and builders; low precision
 MOD-010	MOD	Invariant types have private fields and validated construction	V1	P	-	project	local	no	-	Depends on an invariant-bearing tag
 ARC-001	ARC	Dependency edges match declared component graph	V0	A	P	project	local	yes	ArchUnit,NetArchTest,ArchUnitNET,dependency-cruiser,import-linter,deptrac,go-arch-lint,depguard,cargo-metadata	cargo metadata may run build tooling
-ARC-002	ARC	No cycles between components	V0	A	P	project	local	no	Tarjan	-
+ARC-002	ARC	Component dependency graph is acyclic	V0	A	P	project	local	no	Tarjan	-
 ARC-003	ARC	Stable-policy components avoid volatile components	V0	A	P	project	local	no	-	Needs spec tags; feature-conditional edges count
 ARC-004	ARC	Infrastructure types absent from policy signatures	V0,V1	P	A	project	local	yes	-	Type-resolved facts; needs forbidden namespace list from spec
 ARC-005	ARC	Components depend only on more stable ones	V0,V1	P	A	project	local	no	-	Instability metric from coupling counts
