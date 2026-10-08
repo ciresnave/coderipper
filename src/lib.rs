@@ -67,6 +67,7 @@ pub mod checks;
 pub mod cli;
 pub mod finding;
 pub mod github;
+pub mod module;
 pub(crate) mod package;
 pub(crate) mod session;
 pub(crate) mod suppression;
@@ -384,6 +385,48 @@ fn run_checks_over(
             errors: vec![problem],
         };
     }
+    // The checks to run, decided here (the host chooses what is in scope), then asked of the Rust module as one request.
+    let selected: Vec<String> = checks
+        .iter()
+        .filter(|check| match units {
+            UnitFilter::Only(unit) => check.unit() == unit,
+            UnitFilter::Any => true,
+        })
+        .filter(|check| match only_check_id {
+            Some(id) => check.id() == id,
+            // Sweep mode runs everything; fast mode runs only fast-tier checks.
+            None => !(check.tier() != tier && tier == Tier::Fast),
+        })
+        .map(|check| check.id().to_string())
+        .collect();
+    let unit = match units {
+        UnitFilter::Only(unit) => Some(unit),
+        UnitFilter::Any => None,
+    };
+    let registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    run_module_over(
+        &module::RustModule::new(checks),
+        ctx,
+        tier,
+        unit,
+        selected,
+        &registered,
+        module::Limits::default(),
+    )
+}
+
+/// Asks `module` to check `rules` and turns what it says into a [`RunResult`]: the findings are validated and
+/// suppressed by the allowlist exactly as a built-in check's are, and a rule that gave no verdict is an entry in `errors`.
+/// `registered` is every rule id the allowlist may name (for the stale-entry judgement).
+fn run_module_over(
+    module: &dyn module::Module,
+    ctx: &CheckContext,
+    tier: Tier,
+    unit: Option<check::Unit>,
+    rules: Vec<String>,
+    registered: &[&str],
+    limits: module::Limits,
+) -> RunResult {
     let mut findings = Vec::new();
     let mut errors = Vec::new();
 
@@ -394,55 +437,100 @@ fn run_checks_over(
     });
     let mut suppression = Suppression::new(&allowlist);
 
-    let registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    let request = module::Request::new(ctx, unit, tier, rules, limits);
+    let reconciled = module::reconcile(&request, module.check(&request));
 
-    for check in checks {
-        if let UnitFilter::Only(unit) = units {
-            if check.unit() != unit {
-                continue;
-            }
-        }
-        if let Some(id) = only_check_id {
-            if check.id() != id {
-                continue;
-            }
-        } else if check.tier() != tier && tier == Tier::Fast {
-            // Sweep mode runs everything; fast mode runs only fast-tier checks.
-            continue;
-        }
-
-        match check.run(ctx) {
-            Ok(raw_findings) => {
-                let mut valid = Vec::new();
-                let mut all_valid = true;
-                for f in raw_findings {
-                    match f.validate() {
-                        Ok(f) => valid.push(f),
-                        Err(e) => {
-                            all_valid = false;
-                            errors.push(format!("{}: {e}", check.id()));
-                        }
+    for outcome in reconciled.rules {
+        let completed = match &outcome.status {
+            module::RuleStatus::Ran => true,
+            module::RuleStatus::Skipped { .. } => false,
+            module::RuleStatus::Error { kind, detail } => {
+                errors.push(match kind {
+                    module::ErrorKind::Internal => {
+                        format!("{} failed to run: {detail}", outcome.rule)
                     }
-                }
-                // A check that produced an invalid finding is not trusted to have completed, so
-                // its allowlist entries are not judged either.
-                if all_valid {
-                    suppression.mark_completed(check.id(), valid.len());
-                }
-                findings.extend(suppression.apply(valid));
+                    kind => format!("{} failed to run ({kind}): {detail}", outcome.rule),
+                });
+                false
             }
-            Err(e) => errors.push(format!("{} failed to run: {e}", check.id())),
+        };
+        let mut valid = Vec::new();
+        let mut all_valid = true;
+        for f in outcome.findings {
+            match f.validate() {
+                Ok(f) => valid.push(f),
+                Err(e) => {
+                    all_valid = false;
+                    errors.push(format!("{}: {e}", outcome.rule));
+                }
+            }
         }
+        // A check that produced an invalid finding, or did not complete, is not trusted to have completed, so its
+        // allowlist entries are not judged either.
+        if completed && all_valid {
+            suppression.mark_completed(&outcome.rule, valid.len());
+        }
+        findings.extend(suppression.apply(valid));
     }
+    errors.extend(reconciled.run_errors);
 
     let project = ctx
         .project_root
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
-    findings.extend(suppression.stale_findings(&registered, &project));
+    findings.extend(suppression.stale_findings(registered, &project));
 
     RunResult { findings, errors }
+}
+
+/// Runs a [`module::Module`] (an [`module::ExternalModule`] over a child process, or your own) over the project at
+/// `ctx.project_root`, the way [`run_checks`] runs the built-in checks: findings are validated and the project's
+/// allowlist applied, and a rule that gave no verdict (the module crashed, hung, printed too much, printed garbage, or
+/// said nothing about it) is an entry in `errors`, never a silent absence of findings.
+///
+/// A rule the module skips as not applicable is a coverage gap, not a failure: it adds neither a finding nor an error, and
+/// this result cannot yet say which rules were skipped (the coverage report, a later phase, will).
+///
+/// It asks for every rule the module's hello claims, at `tier`. Choosing rules by tier and unit needs the rule catalog,
+/// which is not built yet.
+pub fn run_module(
+    module: &dyn module::Module,
+    ctx: &CheckContext,
+    tier: Tier,
+    limits: module::Limits,
+) -> RunResult {
+    let hello = match module.describe() {
+        Ok(hello) => hello,
+        Err(e) => {
+            return RunResult {
+                findings: Vec::new(),
+                errors: vec![format!("the module's hello: {e}")],
+            }
+        }
+    };
+    if let Some(problem) = hello.problem() {
+        return RunResult {
+            findings: Vec::new(),
+            errors: vec![format!("the module's hello: {problem}")],
+        };
+    }
+    let claimed: Vec<&str> = hello
+        .rules
+        .iter()
+        .filter(|r| r.status != "not-applicable")
+        .map(|r| r.id.as_str())
+        .collect();
+    let registered: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
+    run_module_over(
+        module,
+        ctx,
+        tier,
+        None,
+        claimed.iter().map(|id| id.to_string()).collect(),
+        &registered,
+        limits,
+    )
 }
 
 #[cfg(test)]
@@ -652,6 +740,22 @@ mod tests {
         assert_eq!(r.errors.len(), 1, "{:?}", r.errors);
         assert!(
             r.findings.iter().all(|f| f.check_id != "allowlist"),
+            "{:?}",
+            r.findings
+        );
+    }
+
+    #[test]
+    fn a_finding_reported_under_another_id_still_reaches_the_report() {
+        // Library users' checks have always been free to report a finding under another id; the in-process module
+        // attributes a finding to the rule result that follows it, not to its check_id (external modules are matched by id).
+        let r = run_fake_with_an_unmatched_entry(Fake {
+            id: "other",
+            result: || Ok(vec![fake_finding("a plain finding", None)]),
+        });
+        assert!(r.errors.is_empty(), "{:?}", r.errors);
+        assert!(
+            r.findings.iter().any(|f| f.check_id == "fake"),
             "{:?}",
             r.findings
         );

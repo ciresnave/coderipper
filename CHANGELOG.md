@@ -4,6 +4,17 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.1 - 2026-10-08 (proposed; the PM allocates the number at gate time)
+
+### Added
+- **`coderipper::module`**: the module protocol of the multi-language design (P1). A `Module` answers `describe` and `check`; the five
+  built-in checks now run behind `RustModule`, and `ExternalModule` speaks the protocol to a child process (JSON lines, a scrubbed
+  environment, wall-clock and output limits, the whole process tree killed on a timeout). `reconcile` is what the host believes: a rule
+  that got no verdict (crash, hang, silence, a wrong count, a missing summary) is an error, never a clean run. `run_module` runs any
+  module through the same validation and allowlist as `run_checks`.
+- No behaviour change for the command or `run_checks`: every existing test passes unedited and the JSON output of a fixed fixture is
+  byte-identical before and after. Nothing selects an external module yet (discovery and the catalog are later phases).
+
 ## 0.3.0 - 2026-10-06
 
 CodeRipper becomes three things at once: a library, a command that is also a cargo subcommand, and (planned, not in this
