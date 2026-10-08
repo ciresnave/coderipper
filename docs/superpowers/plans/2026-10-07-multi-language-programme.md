@@ -39,7 +39,8 @@ which also covers this docs PR (the PM's ruling, 2026-10-07).
 
 ### P2 — the rule catalog and the coverage report
 
-- **Delivers:** the catalog loader and record format; catalog records for the five legacy rules and the first-batch rules;
+- **Delivers:** the `--profile` switch (`classic`, the default and exactly today's behaviour, and `extended`; design §4.4), the stderr
+  line for a language with no active module (design §10.2), the catalog loader and record format; catalog records for the five legacy rules and the first-batch rules;
   `coderipper conformance`; the coverage report (human and the `coderipper-coverage` JSON line); `claimed-unproven` counted as a
   gap.
 - **Proves:** coverage is computed from the catalog joined with each module's `describe`, not asserted; a module claiming a rule
@@ -50,7 +51,7 @@ which also covers this docs PR (the PM's ruling, 2026-10-07).
 
 - **Delivers:** the first batch named in `docs/superpowers/triage/README.md`: seven delegations through the neutral module (gitleaks,
   osv-scanner for two rules, lychee, zizmor, checkov, buf) and five small native checks (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001),
-  each with a seeded-defect fixture. The two checks that exist (`version-consistency`, `ci-protection-presence`) get catalog **records**
+  each with a seeded-defect fixture, all in the `extended` profile (the default `classic` profile still runs only the five existing checks). The two checks that exist (`version-consistency`, `ci-protection-presence`) get catalog **records**
   only: their implementation stays in the Rust module (they read Cargo manifests and GitHub through Rust code today), so the design's
   statement that all five checks live in the Rust module (design §3, §11) holds. The other neutral natives (8) wait in the native
   backlog (below).
@@ -58,9 +59,9 @@ which also covers this docs PR (the PM's ruling, 2026-10-07).
   tool is a reported error. **Dependency to flag (see Q5):** this phase needs a minimal tool cache (pinned version, checksum, an
   explicit `--install-tools`); recommending that slice be pulled forward from P6 into P3 rather than delegating to
   tools the developer installed by hand.
-- **Estimate (ESTIMATE):** 4-7 lane-days: seven tool mappings at about 0.1-0.3 lane-day each, five small natives at about 0.3-1 each,
-  and the catalog records for them. The basis for the 0.3-1 range is only indicative: the five existing checks were merged between
-  2026-09-30 and 2026-10-02 (MEASURED from the merge dates), about 34 hours in all, but that is elapsed time with the PM supervising and
+- **Estimate (ESTIMATE):** 3-9 lane-days: seven tool mappings at about 0.1-0.3 lane-day each (0.7-2.1), five small natives at about
+  0.3-1 each (1.5-5), and the catalog records and conformance fixtures for the twelve (1-2). The basis for the 0.3-1 range is only indicative: the five existing checks were merged between
+  2026-10-01 09:35 and 2026-10-02 18:53 (MEASURED from the merge times, UTC-7), about 33 hours in all, but that is elapsed time with the PM supervising and
   other work interleaved, not effort per check. Both figures (0.3-1 per small native, 0.1-0.3 per tool mapping) are guesses.
 
 ### P4 — the TypeScript module (first external module)
@@ -99,8 +100,8 @@ which also covers this docs PR (the PM's ruling, 2026-10-07).
 - **Estimate (ESTIMATE):** design 2-3 lane-days; the build is not estimated until the design says what it is. The owner has said
   the hosted service is planned; nothing in P1-P6 depends on it.
 
-**Total P1-P6 (ESTIMATE): 28-60 lane-days** for the delegation-first scope (P1 2-3, P2 2-3, P3 4-7, P4 9-22, P5 8-21, P6 3-4; lows 2+2+4+9+8+3
-= 28, highs 3+3+7+22+21+4 = 60), of
+**Total P1-P6 (ESTIMATE): 27-62 lane-days** for the delegation-first scope (P1 2-3, P2 2-3, P3 3-9, P4 9-22, P5 8-21, P6 3-4; lows 2+2+3+9+8+3
+= 27, highs 3+3+9+22+21+4 = 62), of
 which P4 and P5 are the least certain. This is a forecast to be revised after P1, the first phase with real code, and it assumes the
 owner's answers to the open questions below do not enlarge the scope.
 
@@ -113,9 +114,10 @@ neutral module" from free text, which miscounted two cells and mixed a 3-languag
 explicit `owner` column; the independent audit's own recount gave 124 by the old method and 59 distinct, and the new method gives
 121 and 59.) Another 95 cells only wrap a tool.
 
-Cost, with its arithmetic (ESTIMATE; same guesses as P3): of the 121, assume about 81 are simple (0.3-1 lane-day each: 24-81) and
-about 40 are parser-heavy (1-3 each: 40-120), so the whole backlog is roughly **65-200 lane-days**, on top of the 28-60 above. P3-P5
-schedule about 25 of the 121 (5 + 10 + 10), leaving about 96 unscheduled. **The coverage percentage a user sees will be decided by
+Cost, with its arithmetic (ESTIMATE; same guesses as P3). The whole backlog of 121: about 81 simple (0.3-1 lane-day each: 24-81) and
+about 40 parser-heavy (1-3 each: 40-120), so roughly **65-200 lane-days**. About 25 of the 121 (5 + 10 + 10) are already inside the
+27-62 above (P3-P5), so they are not counted twice: the other **96** (about 64 simple: 19-64, and 32 parser-heavy: 32-96) are
+unscheduled and cost roughly **51-160 lane-days on top of** the 27-62. **The coverage percentage a user sees will be decided by
 which natives get built**, which is the owner's priority call (Q12), not an engineering default.
 
 ## 2. What would make us stop and re-plan
@@ -134,8 +136,11 @@ which natives get built**, which is the owner's priority call (Q12), not an engi
 | Pass 2 per-language cells (3 Sonnet agents; the Rust agent also wrote the neutral column) | 256,719 | 83,841 (Rust + neutral) + 88,684 (TypeScript) + 84,194 (Python) |
 | Tool facts | 0 | two scripts against read-only registry and GitHub APIs (`tools/lookup_tools.py`, `tools/verify_delegations.py`) |
 | Independent audit #1 (Opus, read-only, 80 tool calls) | 187,488 | found 6 blockers and about 20 should-fix items, all addressed in this change set |
-| Running total of agent tokens | 716,928 | 529,440 + 187,488; the PM's hard stop is 900,000 |
-| Narrow re-audit of the rewritten sections (Opus, at most 90,000, approved by the PM) | (filled in before READY) | |
+| Narrow re-audit of the rewritten sections (Sonnet, read-only, 14 tool calls) | 74,628 | found 3 blockers and 13 smaller items in the rewrite, all addressed (the default `classic` profile, the stderr signal, the `unit` of the sample record, and the rest); not re-audited a third time, the fixes were self-verified by script |
+| **Running total of agent tokens** | **791,556** | 529,440 + 187,488 + 74,628; the PM's hard stop is 900,000 |
+
+One narrow re-audit was first launched on Opus and stopped within seconds when the model policy changed (the PM's notice of
+2026-10-08); it did no reported work and its tokens are not in the total because none were reported.
 
 The estimate for pass 1 was 150,000 and the actual was 272,721 (about 1.8x); for pass 2 the estimate was about 200,000 and the actual was
 256,719 (about 1.3x). Cost-model data: a Sonnet classifier that reads about 150 lines of a rule document and writes about 45 rows costs
@@ -185,3 +190,7 @@ The lane's own (Opus) tokens are not in this table because this session cannot m
   ("software that comes with a language by default" versus 95 delegations to tools that do not ship with any language). *Recommend* the
   reading in design §0: build natively only when neither default nor mature third-party tooling suffices; integrate mature
   third-party tools (as external processes) otherwise. Needs his confirmation.
+- **Q14 — When does the default profile move from `classic` to `extended`?** Today the default must stay `classic` (exactly the five
+  existing checks) or every current user's output changes (design §4.4). *Recommend* keeping `classic` the default until the extended
+  rules have run clean on the portfolio's own repositories for a while, then moving the default in a release that is declared
+  breaking (the pre-1.0 major, as with 0.3.0).

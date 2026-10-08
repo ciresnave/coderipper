@@ -35,7 +35,7 @@ that reading is right is open question Q13.
 | §2 the `Finding` schema | **Extended, additively** (§10.3). Nothing is removed or renamed. |
 | §3 reachability and §5 the check sketches | **Kept as written.** They are Rust (or language-unspecified) checks; each becomes a rule record in the catalog (§4) behind the built-in Rust module (§11). |
 | §4 allowlist / suppression | **Kept.** Keyed as before; see §10.4 for delegated findings. |
-| §6 output and integration | **Extended, opt-in**: an optional coverage line (§6.4); a Rust-only run prints exactly what it prints today. |
+| §6 output and integration | **Extended, opt-in**: an optional coverage line (§6.4). The default `classic` profile (the five existing checks) prints exactly what it prints today (§4.4). |
 | §7 "Plugin loading: compiled-in checks for v1" | **Superseded** by modules (§5). Compiled-in stays as one kind of module. |
 | §7 "hosted mode needs its own trust-boundary pass" | **Started** in §9; the hosted infrastructure itself is still not designed. |
 
@@ -119,7 +119,7 @@ they cannot drift apart. Records live in `rules/<domain>.yaml` (one file per dom
   contested: false
   scope: project               # project | portfolio             (existing axis, §1 of the old design)
   network: local               # local | network                 (existing axis; decides the run tier)
-  unit: package                # package | repository            (existing: Check::unit)
+  unit: repository             # package | repository            (existing: Check::unit; this check judges the whole workspace)
   executes_project_code: false # NEW: does checking it run build scripts, config, plugins, tests? (§9)
   applicability: { languages: [any], scopes: [first_party] }   # NEW use of the KB's field
   default_severity: error
@@ -157,18 +157,23 @@ New, additive tables, all optional:
 
 ```toml
 [profile]
-name = "default"                       # which defaults to start from
+name = "classic"                       # classic (the default) | extended: which set of rules runs, see below
 [rules.RDB-003]
 level = "blocking"                     # off | advisory | blocking (never silently on/off without a recorded reason)
 threshold = { warn = 15, error = 30 }
 reason = "table-driven parser"         # required whenever a default is overridden
 [languages]
-typescript = { enabled = true }
+typescript = { enabled = true, required = false }   # required = true: a missing or failing module is exit 3 (10.2)
 ```
 
+**Profiles.** `classic` is the default and is today's behaviour: only the five existing checks run, and nothing is printed that is not
+printed today (apart from the single stderr line of 10.2). `extended` adds the neutral module's rules and every installed module's
+rules, and prints the coverage line (6.4). The neutral module is built in, but its rules belong to `extended`: otherwise a run on a
+Rust-only project would suddenly report lockfile or documentation findings it never reported before, which breaks the promise of
+principle 4. Moving the default to `extended` is a later decision with a major version (Q14 in the plan).
+
 An override without a `reason` is a configuration error, reported the way a malformed allowlist is today: as an error that stops
-the audit from being complete, exit 3 (MEASURED: `tests/exit_codes.rs`, `an_error_wins_over_a_finding`, which uses an allowlist entry with
-no reason and expects 3). These tables are additive for **new** readers only: `.coderipper.toml` is parsed with unknown fields
+the audit from being complete, exit 3 (MEASURED: `tests/exit_codes.rs`, `an_error_wins_over_a_finding`, which uses a malformed allowlist entry (it names only `check`) and expects 3). These tables are additive for **new** readers only: `.coderipper.toml` is parsed with unknown fields
 denied (MEASURED: `src/allowlist.rs`), so an older binary rejects a file that uses them; a project that adopts them needs that minimum
 version.
 
@@ -193,8 +198,8 @@ almost verbatim.
 The CLI's own `--message-format json` output is **unchanged by default**. The golden tests pin more than key sets: the exact keys of a
 finding line and of the summary line, and the number of lines (MEASURED: `tests/message_format.rs` asserts 2 lines for a run with one
 finding and 1 line for a clean run; `tests/golden/finding.json` pins a finding byte for byte). So the coverage line (§6.4) is printed
-only when asked for (`--coverage`) or when a module other than the built-in Rust module takes part in the run, and the built-in checks
-do not set `rule`, `language` or `tool` in P1: a Rust-only run prints exactly what it prints today.
+only when asked for (`--coverage`) or when the run uses the `extended` profile (§4.4), and the built-in checks do not set `rule`,
+`language` or `tool` in P1: a run under the default `classic` profile prints exactly what it prints today.
 
 ### 5.2 Discovery and trust
 
@@ -230,7 +235,7 @@ private writable checkout (§5.4); `emits_progress` says whether it sends `coder
 
 ```json
 {"reason":"coderipper-check-request","protocol":"1.0","run_id":"9f3c...",
- "unit":"package","project_root":"/abs/the/users/project","checkout_root":"/abs/scratch/checkout-9f3c",
+ "unit":"package","project_root":"/abs/the/users/project",
  "member":{"name":"web","dir":"/abs/the/users/project/web"},
  "run_tier":"fast","rules":["MOD-001","MOD-002"],
  "rule_config":{"MOD-002":{"level":"blocking"}},
@@ -246,9 +251,12 @@ different things happen today:
   `../other/Cargo.toml` (MEASURED: `src/checks/version_consistency/mod.rs`, `tests/version_consistency.rs`), and its README says it reads
   the working tree, not HEAD.
 - `checkout_root` is a throwaway checkout of HEAD made by the host (today's session/worktree machinery, MEASURED: `src/worktree.rs`,
-  `src/session.rs`), **private to this module invocation**, present only when the module's hello says `needs_checkout: true`. A module
-  that must rewrite files to analyse (the Rust reachability trick) does so there. Modules never share a writable checkout, so one
-  module's rewrite cannot corrupt another's scan.
+  `src/session.rs`), **private to the module**, and present in the request **only when the module's hello says `needs_checkout: true`**
+  (the sample request above is for a module that says false, so it has none; a Rust-module request would add
+  `"checkout_root":"/abs/scratch/checkout-9f3c"`). A module that must rewrite files to analyse (the Rust reachability trick) does so
+  there. A module may keep its checkout across its invocations within one run: the Rust module's `--workspace` session is one checkout
+  shared by every member of the run (MEASURED: `src/session.rs`), and then `checkout_root` is the same path in each of those
+  requests. Modules never share a writable checkout with each other, so one module's rewrite cannot corrupt another's scan.
 
 ### 5.5 Events from the module
 
@@ -256,14 +264,15 @@ All have a `reason`. Unknown reasons are ignored (forward compatibility).
 
 | `reason` | Required | Meaning |
 |---|---|---|
-| `coderipper-finding` | per finding | The existing finding shape plus optional `rule`, `language`, `tool` (§10.3). |
+| `coderipper-finding` | per finding | The existing finding shape plus optional `rule`, `language`, `tool` (§10.3). Its `check_id` must be one of the requested rule ids; the host attributes findings by `check_id`, which is always present (`rule`, when present, repeats it). |
 | `coderipper-rule-result` | **exactly one per requested rule** | `{rule, status: "ran" \| "skipped" \| "error", findings: n, tool?: {name,version}, reason_code?, detail?}` |
 | `coderipper-progress` | optional | `{done, total, what}` for a long run; display only. |
 | `coderipper-module-summary` | exactly once, last | `{rules_requested, rules_ran, rules_skipped, rules_errored, findings, incomplete: bool}` |
 
 The host decides what is in scope (profile, run tier, unit) *before* it asks, so a module is never asked for a rule that is out of
 scope. A module may therefore answer `skipped` only with `reason_code: not_applicable_here`, for a condition it can only find out at
-run time (no `tsconfig.json` in this project, say), with a `detail`; every skip is printed in the report with its detail.
+run time (no `tsconfig.json` in this project, say), with a `detail`; every skip is printed in the report with its detail, is counted as
+a gap (never as `clean`) in the run's coverage figure, and a module that skips every requested rule is `error: no_verdict`.
 Everything else that stops a rule from giving a verdict is `error` with an `error_kind` from a closed set: `tool_missing`,
 `tool_unavailable_for_platform`, `runtime_missing`, `checksum_mismatch`, `consent_not_given`, `network_not_permitted`, `tool_failed`,
 `tool_output_unreadable`, `timeout`, `limit_exceeded`, `config_invalid`, `untrusted_refused`, `protocol_mismatch`, `module_crashed`,
@@ -273,7 +282,7 @@ The host enforces these rules, so a module cannot leave a hole:
 - **Exactly one `coderipper-rule-result` per requested rule.** A requested rule with none becomes `error: no_verdict`; a duplicate, or a
   result or finding for a rule that was not requested, is dropped and the run records `protocol_mismatch`.
 - **A rule's findings come before its rule-result; the rule-result commits it.** `findings: n` is checked against the finding lines
-  received for that rule; a difference makes that rule an `error: protocol_mismatch`. A crash after a rule's result keeps that rule's
+  received for that rule (matched by `check_id`); a difference makes that rule an `error: protocol_mismatch`. A crash after a rule's result keeps that rule's
   result, one before it loses the rule (`module_crashed`).
 - **A missing `coderipper-module-summary`, a non-zero exit, or output past the limits** makes every rule without a result an error
   and the module run `incomplete`.
@@ -298,8 +307,9 @@ changes only additively.
 - Ordering: the host does not sort findings today (MEASURED: there is no sort in `src/lib.rs`) and P1 adds none, so the built-in
   module's output order is unchanged. Findings from an external module are appended in the order received, rule by rule. A
   severity-ordered triage (the old design's §2) is a later change that would update the golden outputs on purpose.
-- Environment: the module is started with a scrubbed environment (an allowlist of variables), the checkout as its working
-  directory, and no network unless the request grants it.
+- Environment: the module is started with a scrubbed environment (an allowlist of variables), its working directory set to
+  `checkout_root` when it has one and to a scratch directory otherwise (it never writes inside `project_root`), and no network unless
+  the request grants it.
 
 ## 6. Coverage
 
@@ -331,11 +341,17 @@ passed. **Run time never re-runs conformance.** A module ships a `conformance.lo
 fixtures passed), written by its CI; the host trusts it only if the checksum equals the module executable's, otherwise every claim
 is `claimed-unproven`. A claim whose fixture is missing or failing is `claimed-unproven` and **counted as a gap**, not as coverage.
 
+The lock is written by the module's own CI, so it is only as trustworthy as the module: that is acceptable because a module is already
+trust-gated (5.2) and runs only if the user installed it. The built-in modules (Rust, neutral) have no separate executable and so no
+lock: their claims are proven by this repository's own CI running `coderipper conformance` on every pull request, and a release is built
+only from a tree where that passed.
+
 ### 6.3 Run outcomes (this run, not the matrix)
 
 For each in-scope rule: `clean`, `findings`, `skipped (reason)`, or `could-not-run (error_kind)`. A rule that is `NOT-COVERED`
 is not a run outcome: it is listed in the gap list and does not fail a run on its own. A covered rule that
-`could-not-run` fails the run with exit code 3, exactly as a check that cannot run does today (MEASURED: `tests/exit_codes.rs`).
+`could-not-run` fails the run with exit code 3, exactly as a check that cannot run does today (MEASURED: `tests/exit_codes.rs`). One
+exception is declared by the project, not assumed: a language marked `required = true` whose module is missing or fails (10.2).
 
 ### 6.4 The report
 
@@ -349,7 +365,7 @@ coverage: typescript  14 of 216 covered ( 6.5%), 202 not covered (use --coverage
 JSON form: one new line per language,
 `{"reason":"coderipper-coverage","language":"rust","rules_total":216,"covered":61,"claimed_unproven":2,"not_applicable":9,"not_covered":144,
 "gaps":["RDB-004","TYP-004"],"gaps_truncated":true,"run":{"clean":58,"findings":3,"skipped":0,"could_not_run":0}}`,
-emitted before the summary line, only when coverage is asked for or a non-built-in module takes part (§5.1). `covered` counts
+emitted before the summary line, only when coverage is asked for or the run uses the `extended` profile (§5.1, §4.4). `covered` counts
 only earned claims; `claimed_unproven` is reported separately and counted as a gap. `--min-coverage <pct>` (a later, opt-in flag) can turn a coverage floor into
 a failure; by default a known gap never fails a run.
 
@@ -375,7 +391,7 @@ machine-readable output.
 
 All of this is a **policy**, enforced by the host and the module SDK, not left to each module.
 
-- **Isolated tool cache**: `<cache root>/tools/<tool>/<version>/`, beside the existing build cache (MEASURED: `src/build_cache`,
+- **Isolated tool cache**: `<cache root>/tools/<tool>/<version>/` (modules: `<cache root>/modules/<name>/<version>/`), beside the existing build cache (MEASURED: `src/build_cache`,
   `CODERIPPER_CACHE_DIR`; the tools directory would add `CODERIPPER_TOOLS_DIR`). Tools are invoked by absolute path from
   there. Nothing is written to a global PATH, a global npm prefix, `~/.cargo/bin`, or site-packages.
 - **Exact versions, checksums**: each module ships a lock file (`tools.lock`) with, per tool and platform, the version, the
@@ -393,8 +409,9 @@ All of this is a **policy**, enforced by the host and the module SDK, not left t
   code reads environment variables and flags only; MEASURED by search). It is added in P6, and until then only environment variables
   and flags can name a module path or turn install consent on.
 - **Consent**: a tool is installed only when the user said so: `--install-tools`, or `[tools] install = "yes"` in the user's own
-  configuration, or an interactive yes on a terminal. The default in CI (no terminal) is **never**: a missing tool is
-  `could-not-run (tool_missing)` and the message prints the exact command that would install it.
+  configuration, or an interactive yes on a terminal. The default in CI (no terminal) is **never**: a tool that is not installed and may not be installed
+  without consent is `could-not-run (consent_not_given)` and the message prints the exact command that would install it;
+  `tool_missing` is for a tool that is absent and cannot be installed at all (no lock entry, or the install failed).
 - **No "best tool at run time"**: the tool and version a module uses are whatever its lock says. Updating a tool is a
   reviewed change to the lock (a module release), because "latest" drifts and breaks reproducibility. (This is also how the
   portfolio's rule of staying on current dependency versions is met: the lock is updated on a schedule, in a PR, not at run.)
@@ -433,19 +450,25 @@ Posture:
 still derived from Network: `fast` = every local rule, `sweep` = also network rules. `Unit` (`Package`|`Repository`) is a rule
 attribute: the host runs a `package` rule once per member of a language's project roots and a `repository` rule once. For
 `Portfolio` scope the host passes sibling project roots; today no built-in check reads `portfolio_root` (MEASURED: zero uses under
-`src/checks`), so that field stays declared-but-unused until a cross-codebase rule needs it (§12, WSP rules). `version-consistency`'s
+`src/checks`), so that field stays declared-but-unused until a cross-codebase rule needs it (the WSP rules in the triage). `version-consistency`'s
 `[[tracks]]` does read a sibling project's manifest, but relative to `project_root` (§5.4), not through `portfolio_root`.
 
 ### 10.2 Language detection and polyglot repositories
 
 The host detects project roots by manifest (`Cargo.toml` -> rust; `package.json`/`tsconfig.json` -> typescript;
 `pyproject.toml`/`setup.cfg`/`requirements*.txt` -> python; ASSUMED list, finalised per module's `detect`), runs each
-language's module per root (a monorepo gets several), and always runs the neutral module once per repository. A language with
+language's module per root (a monorepo gets several), and, under the `extended` profile, runs the neutral module once per repository. A language with
 no installed module is reported as `NOT-COVERED` for every rule ("no module for typescript") in the coverage report, not
 ignored: "I looked at a repository containing TypeScript and checked none of it" must be visible. By default that is a known gap and
 does not fail the run; but uninstalling a module must not turn a CI job green unnoticed, so a project can require it
 (`[languages] typescript = { required = true }` in `.coderipper.toml`), and then a missing or failing module is a rule that could not
 run: exit 3.
+
+The coverage report only exists under `extended` (or `--coverage`), so the default `classic` profile needs its own signal, or a
+TypeScript repository with no TypeScript module would look fully checked, which is the silent skip principle 1 forbids. When the host
+finds a manifest **and at least one source file** of a language that has no active module, it prints **one line on stderr**, for
+example `coderipper: typescript: 14 source files found, not checked (classic profile; see --profile extended)`. Stdout and the JSON are
+unchanged, so the frozen tests stay valid (their fixtures contain no such files).
 
 ### 10.3 The `Finding` shape
 
@@ -468,7 +491,7 @@ ran to completion", which is now exactly `coderipper-rule-result: ran`, a *stron
 ### 10.5 Exit codes and `--deny`
 
 Unchanged: 0 clean, 1 a finding at or above `--deny`, 2 usage error, 3 the audit could not be completed. A covered rule that
-`could-not-run` is a 3; a known gap is not.
+`could-not-run` is a 3; a known gap is not, except for a language the project marks `required = true` (10.2).
 
 ### 10.6 Build cache and sessions
 
