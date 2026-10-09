@@ -233,3 +233,47 @@ licence     = "MIT"
 archive     = "tar.gz"
 member      = "zizmor"
 file_sha256 = "ca04f59e9ccdc58eed3641abcd304a4cd37e7f416f1bfacf019da77b66d62dcb"
+
+# buf 1.73.0 (Apache-2.0): API-006. The releases are bare binaries; the hashes are the ones in the publisher's sha256.txt
+# (read 2026-10-09 from https://github.com/bufbuild/buf/releases/download/v1.73.0/sha256.txt) and were re-checked against the downloaded files. The release also has a windows_arm64
+# build, which is not pinned (CodeRipper does not run there yet), and BSD, armv7, ppc64le, riscv64 and s390x builds, which are not platforms CodeRipper supports.
+
+[[tool]]
+name     = "buf"
+version  = "1.73.0"
+platform = "x86_64-windows"
+source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Windows-x86_64.exe"
+sha256   = "13542f2892c4f774150ddb525266d6421d457b3e741297056b64427853526e36"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "buf"
+version  = "1.73.0"
+platform = "x86_64-linux"
+source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Linux-x86_64"
+sha256   = "8f2986298ad08f0cc1bf999b9797b7c383adf32d7edf0f73d6f1e1a701baeac1"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "buf"
+version  = "1.73.0"
+platform = "aarch64-linux"
+source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Linux-aarch64"
+sha256   = "902b75267db7f4391e99b7fa0756050e5354234cc0437ef50eee9c788950c7a3"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "buf"
+version  = "1.73.0"
+platform = "aarch64-macos"
+source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Darwin-arm64"
+sha256   = "6e6df0fef4522e4e43dfe7c341873c3f2c29ceb45a9dfa5e0bad5580b8b2022f"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "buf"
+version  = "1.73.0"
+platform = "x86_64-macos"
+source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Darwin-x86_64"
+sha256   = "ff78d0ebf34180ebfa81d370275851ec630fcb088bf33e213fd723d0fd7444a6"
+licence  = "Apache-2.0"

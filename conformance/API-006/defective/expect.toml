@@ -1,0 +1,7 @@
+# The seeded defect: a/v1/s.proto line 7 gives field 2 (`age`) the type string where the baseline (the commit before, in .baseline/) had int32,
+# so a reader of the old data misreads it. The project is compared with HEAD~1 by the `[buf] baseline` in .coderipper.toml.
+
+[[expect]]
+rule = "API-006"
+file = "a/v1/s.proto"
+line = 7

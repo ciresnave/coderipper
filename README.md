@@ -298,6 +298,36 @@ syntax error: it skips the file and still exits 0) makes a clean result **not ru
 repository cannot silence the rule: a committed `zizmor.yml` and `# zizmor: ignore` comments are not honoured (a finding that carries such a
 comment is reported and says so).
 
+### Rule run by a tool: `API-006`
+
+`API-006` (schema changes obey evolution rules) is run by [buf](https://github.com/bufbuild/buf) (Apache-2.0, an external process, never
+linked): `buf breaking` over the project's Protocol Buffers schemas, in buf's `FILE` category (retyping or renumbering a field, removing a
+field, message, enum value or file, moving a message to another package, ...). It compares the **working tree** with a **baseline**: the
+schema as a git commit has it. The baseline is the ref named by `[buf] baseline` in `.coderipper.toml` (normally the last release), else
+the merge-base of `HEAD` with `origin/HEAD`, the point the branch left the default branch at.
+
+```toml
+# .coderipper.toml
+[buf]
+baseline = "v1.4.0"      # a branch, tag or commit
+```
+
+```sh
+coderipper tools install buf --install-tools     # once; or pass --install-tools to the run itself
+coderipper check API-006 --profile extended
+```
+
+**When nothing could be compared the rule is not run, and never clean**: no `origin` and no named ref, a shallow clone without the
+merge-base, a run on the default branch with nothing changed (the baseline is then the tree's own commit, so buf would compare the schemas
+with themselves), a branch that changes no `.proto` file, changed `.proto` files that are not below a module with schema on both sides, a
+baseline that holds no `.proto` file (a schema that is new cannot break anyone), and a tree whose every schema was removed. A module
+that had schema in the baseline and has none now cannot be compared by buf: the result says so and a clean result is not run. A ref named in
+`.coderipper.toml` that does not exist is an **error**. A `.proto` file buf cannot compile (a missing import, a Buf Schema Registry
+dependency, a syntax error) stops buf from judging any file (it builds all of the schemas or none), so the rule is **not run**, naming the file. Where the schemas' roots are is read from
+the tracked `buf.yaml` and `buf.work.yaml` files (their directory, a v2 file's `modules:` `path:`s, a work file's `directories:`), else the
+project's directory. The repository cannot silence the rule: its `buf.yaml` (at the tree and at the baseline) is replaced by a configuration
+given on the command line. One finding per violation, at the file and line buf prints, with buf's rule id as the subject.
+
 ## Tools CodeRipper may install: `coderipper tools`
 
 Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
@@ -312,7 +342,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2 and zizmor 1.30.1 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2, zizmor 1.30.1 and buf 1.73.0 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

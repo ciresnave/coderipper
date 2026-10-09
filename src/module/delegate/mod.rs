@@ -16,6 +16,7 @@
 //!
 //! The module is in process (the tool is the child), so a rule's findings belong to the result that follows them.
 
+mod buf;
 mod gitleaks;
 mod lychee;
 mod osv;
@@ -204,6 +205,11 @@ const RULES: &[Rule] = &[
         id: zizmor::RULE,
         tool: zizmor::TOOL,
         run: zizmor::run,
+    },
+    Rule {
+        id: buf::RULE,
+        tool: buf::TOOL,
+        run: buf::run,
     },
 ];
 

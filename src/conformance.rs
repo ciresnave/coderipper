@@ -328,6 +328,11 @@ fn judge_one(
 ) -> anyhow::Result<(Vec<String>, Vec<String>, Option<String>)> {
     let name = format!("{rule}/{}", kind.dir());
     let project = tempfile::tempdir()?;
+    if copy_baseline(dir, project.path())? {
+        git_commit_all(project.path())
+            .with_context(|| format!("{name}: could not commit the fixture's baseline"))?;
+        clear_worktree(project.path())?;
+    }
     copy_fixture(dir, project.path())?;
     git_commit_all(project.path())
         .with_context(|| format!("{name}: could not make the fixture a git repository"))?;
@@ -472,38 +477,71 @@ fn place(file: &str, line: Option<u32>) -> String {
     }
 }
 
-/// Copies a fixture into `to`, leaving out its `expect.toml` (the module under test must not see its own answer key).
-fn copy_fixture(from: &Path, to: &Path) -> anyhow::Result<()> {
-    fn copy(from: &Path, to: &Path, top: bool) -> anyhow::Result<()> {
-        for entry in std::fs::read_dir(from)? {
-            let entry = entry?;
-            let name = entry.file_name();
-            if top && name == "expect.toml" {
-                continue;
-            }
-            let target = to.join(&name);
-            if name == ".git" {
-                bail!(
-                    "{}: a fixture must not carry a .git directory (the runner makes its own repository)",
-                    from.display()
-                );
-            }
-            if entry.file_type()?.is_symlink() {
-                bail!(
-                    "{}: a fixture must not contain a symbolic link",
-                    entry.path().display()
-                );
-            }
-            if entry.file_type()?.is_dir() {
-                std::fs::create_dir_all(&target)?;
-                copy(&entry.path(), &target, false)?;
-            } else {
-                std::fs::copy(entry.path(), &target)?;
-            }
+/// The directory of a fixture that holds the project as it was one commit earlier (see [`copy_baseline`]).
+const BASELINE_DIR: &str = ".baseline";
+
+fn copy_tree(from: &Path, to: &Path, top: bool) -> anyhow::Result<()> {
+    for entry in std::fs::read_dir(from)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if top && (name == "expect.toml" || name == BASELINE_DIR) {
+            continue;
         }
-        Ok(())
+        let target = to.join(&name);
+        if name == ".git" {
+            bail!(
+                "{}: a fixture must not carry a .git directory (the runner makes its own repository)",
+                from.display()
+            );
+        }
+        if entry.file_type()?.is_symlink() {
+            bail!(
+                "{}: a fixture must not contain a symbolic link",
+                entry.path().display()
+            );
+        }
+        if entry.file_type()?.is_dir() {
+            std::fs::create_dir_all(&target)?;
+            copy_tree(&entry.path(), &target, false)?;
+        } else {
+            std::fs::copy(entry.path(), &target)?;
+        }
     }
-    copy(from, to, true)
+    Ok(())
+}
+
+/// Copies a fixture into `to`, leaving out its `expect.toml` (the module under test must not see its own answer key) and its
+/// `.baseline` directory.
+fn copy_fixture(from: &Path, to: &Path) -> anyhow::Result<()> {
+    copy_tree(from, to, true)
+}
+
+/// A rule that compares the project with an earlier version of itself (API-006) needs a history. A fixture may carry a `.baseline`
+/// directory: the project as it was; it is committed first, and the fixture proper is committed on top of it, so `HEAD~1` is the
+/// baseline. Returns whether there was one.
+fn copy_baseline(from: &Path, to: &Path) -> anyhow::Result<bool> {
+    let baseline = from.join(BASELINE_DIR);
+    if !baseline.is_dir() {
+        return Ok(false);
+    }
+    copy_tree(&baseline, to, false)?;
+    Ok(true)
+}
+
+/// Removes everything in `dir` but its `.git`.
+fn clear_worktree(dir: &Path) -> anyhow::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_name() == ".git" {
+            continue;
+        }
+        if entry.file_type()?.is_dir() {
+            std::fs::remove_dir_all(entry.path())?;
+        } else {
+            std::fs::remove_file(entry.path())?;
+        }
+    }
+    Ok(())
 }
 
 /// `git` in `dir` with the variables that redirect a repository cleared: a caller inside a git hook has them set, and inherited
@@ -537,7 +575,10 @@ fn git_commit_all(dir: &Path) -> anyhow::Result<()> {
         }
         Ok(())
     };
-    git(&["init", "-q"])?;
+    // (a fixture with a baseline is committed twice: the second call finds the repository)
+    if !dir.join(".git").exists() {
+        git(&["init", "-q"])?;
+    }
     // `-f`: the fixture is committed as written, whatever the caller's own ignore rules say.
     git(&["add", "-A", "-f"])?;
     git(&[
