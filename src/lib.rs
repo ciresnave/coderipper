@@ -67,6 +67,7 @@ pub mod checks;
 #[doc(hidden)]
 pub mod cli;
 pub mod conformance;
+pub mod coverage;
 pub mod finding;
 pub mod github;
 pub mod module;
@@ -107,12 +108,19 @@ pub struct RunResult {
     /// What went wrong: a check that failed to run, a finding the host rejected as invalid, an unreadable allowlist.
     /// A non-empty list means the audit is incomplete, whatever `findings` says.
     pub errors: Vec<String>,
+    /// How each rule that was asked for fared: clean, findings, skipped (did not apply) or could not run. This is what the
+    /// coverage report's "this run" counts come from; it is empty for a result built with [`RunResult::new`].
+    pub outcomes: Vec<coverage::RuleRun>,
 }
 
 impl RunResult {
     /// A result with these findings and errors: for a wrapper or a test double that must return one.
     pub fn new(findings: Vec<Finding>, errors: Vec<String>) -> Self {
-        Self { findings, errors }
+        Self {
+            findings,
+            errors,
+            outcomes: Vec::new(),
+        }
     }
 }
 
@@ -161,10 +169,7 @@ fn run_workspace_over(
     on_member: &mut dyn FnMut(&str, usize, usize),
 ) -> WorkspaceRun {
     let failed = |message: String| WorkspaceRun {
-        result: RunResult {
-            findings: Vec::new(),
-            errors: vec![message],
-        },
+        result: RunResult::new(Vec::new(), vec![message]),
         members: 0,
         members_with_errors: 0,
     };
@@ -179,6 +184,7 @@ fn run_workspace_over(
 
     let mut findings = Vec::new();
     let mut errors = Vec::new();
+    let mut outcomes: Vec<coverage::RuleRun> = Vec::new();
     // The same allowlist file can be judged twice (a root package is both the repository's unit and a member): a stale
     // or unknown-check entry is reported once.
     let mut judged = std::collections::HashSet::new();
@@ -201,13 +207,14 @@ fn run_workspace_over(
         }
     }
     errors.extend(repository.errors);
+    coverage::merge_runs(&mut outcomes, repository.outcomes);
 
     let session = match session::Session::open(&root) {
         Ok(session) => session,
         Err(e) => {
             errors.push(format!("cannot open the workspace session: {e}"));
             return WorkspaceRun {
-                result: RunResult { findings, errors },
+                result: RunResult::new(findings, errors),
                 members: 0,
                 members_with_errors: 0,
             };
@@ -231,6 +238,7 @@ fn run_workspace_over(
                 UnitFilter::Only(check::Unit::Package),
             );
             analysed += 1;
+            coverage::merge_runs(&mut outcomes, run.outcomes);
             if !run.errors.is_empty() {
                 with_errors += 1;
             }
@@ -270,7 +278,11 @@ fn run_workspace_over(
     });
 
     WorkspaceRun {
-        result: RunResult { findings, errors },
+        result: RunResult {
+            findings,
+            errors,
+            outcomes,
+        },
         members: analysed,
         members_with_errors: with_errors,
     }
@@ -382,10 +394,7 @@ fn run_checks_over(
     units: UnitFilter,
 ) -> RunResult {
     if let Some(problem) = check_list_problem(checks, only_check_id) {
-        return RunResult {
-            findings: Vec::new(),
-            errors: vec![problem],
-        };
+        return RunResult::new(Vec::new(), vec![problem]);
     }
     // The checks to run, decided here (the host chooses what is in scope), then asked of the Rust module as one request.
     let selected: Vec<String> = checks
@@ -431,6 +440,7 @@ fn run_module_over(
 ) -> RunResult {
     let mut findings = Vec::new();
     let mut errors = Vec::new();
+    let mut outcomes = Vec::new();
 
     // A malformed allowlist must not swallow the findings: report it, and run unsuppressed.
     let allowlist = Allowlist::load(&ctx.project_root).unwrap_or_else(|e| {
@@ -443,6 +453,7 @@ fn run_module_over(
     let reconciled = module::reconcile(&request, module.check(&request));
 
     for outcome in reconciled.rules {
+        let skipped = matches!(outcome.status, module::RuleStatus::Skipped { .. });
         let completed = match &outcome.status {
             module::RuleStatus::Ran => true,
             module::RuleStatus::Skipped { .. } => false,
@@ -472,7 +483,20 @@ fn run_module_over(
         if completed && all_valid {
             suppression.mark_completed(&outcome.rule, valid.len());
         }
-        findings.extend(suppression.apply(valid));
+        let kept = suppression.apply(valid);
+        outcomes.push(coverage::RuleRun::new(
+            &outcome.rule,
+            if skipped {
+                coverage::RunOutcome::Skipped
+            } else if !(completed && all_valid) {
+                coverage::RunOutcome::CouldNotRun
+            } else if kept.is_empty() {
+                coverage::RunOutcome::Clean
+            } else {
+                coverage::RunOutcome::Findings(kept.len())
+            },
+        ));
+        findings.extend(kept);
     }
     errors.extend(reconciled.run_errors);
 
@@ -483,7 +507,11 @@ fn run_module_over(
         .unwrap_or_default();
     findings.extend(suppression.stale_findings(registered, &project));
 
-    RunResult { findings, errors }
+    RunResult {
+        findings,
+        errors,
+        outcomes,
+    }
 }
 
 /// Runs a [`module::Module`] (an [`module::ExternalModule`] over a child process, or your own) over the project at
@@ -504,18 +532,10 @@ pub fn run_module(
 ) -> RunResult {
     let hello = match module.describe() {
         Ok(hello) => hello,
-        Err(e) => {
-            return RunResult {
-                findings: Vec::new(),
-                errors: vec![format!("the module's hello: {e}")],
-            }
-        }
+        Err(e) => return RunResult::new(Vec::new(), vec![format!("the module's hello: {e}")]),
     };
     if let Some(problem) = hello.problem() {
-        return RunResult {
-            findings: Vec::new(),
-            errors: vec![format!("the module's hello: {problem}")],
-        };
+        return RunResult::new(Vec::new(), vec![format!("the module's hello: {problem}")]);
     }
     let claimed: Vec<&str> = hello
         .rules

@@ -482,7 +482,7 @@ fn copy_fixture(from: &Path, to: &Path) -> anyhow::Result<()> {
 
 /// `git` in `dir` with the variables that redirect a repository cleared: a caller inside a git hook has them set, and inherited
 /// they would aim the fixture's `init`, `add` and `commit` at the caller's own repository.
-fn git_command(dir: &Path) -> Command {
+pub(crate) fn git_command(dir: &Path) -> Command {
     let mut command = Command::new("git");
     command.current_dir(dir);
     for var in [

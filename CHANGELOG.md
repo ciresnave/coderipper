@@ -4,6 +4,23 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.5 - 2026-10-09 (proposed; the PM allocates the number at gate time)
+
+### Added
+- **The coverage report and `--profile`** (multi-language design sections 4.4, 6.4, 10.2). `coderipper::coverage` joins the rule
+  catalog with what a module claims and has *proven* (a claim with a conformance proof is covered; one without is counted as a
+  gap, not as coverage) and with this run's outcomes (clean, findings, skipped, could not run). `--profile classic|extended`
+  (default `classic`) and `--coverage[=full]` print it: one line per language, a "Not yet implemented" section, and one
+  `coderipper-coverage` JSON line per language before the summary line.
+- **A gap never fails a run** (the owner's ruling): coverage is information about CodeRipper's own incomplete implementation, worded
+  as such, and no exit code depends on it. Exit codes are exactly as before.
+- **One stderr line for a language with no module** under `classic`: `coderipper: typescript: 14 source files found, not
+  checked (classic profile; see --profile extended)`, for a manifest plus at least one source file among the files git tracks.
+  Stdout and JSON are unchanged, so nothing that reads them changes.
+- `RunResult::outcomes` (how each requested rule fared). The built-in Rust module marks the four claims its conformance fixtures
+  prove; a test fails if that list and the fixtures disagree.
+- No behaviour change under `classic` apart from the stderr line.
+
 ## 0.3.4 - 2026-10-08 (proposed; the PM allocates the number at gate time)
 
 ### Added

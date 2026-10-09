@@ -624,3 +624,27 @@ fn a_symlinked_expect_toml_or_fixture_root_is_an_error() {
     let err = run(&module, &Options::new(fixtures.path())).expect_err("symlinked expect.toml");
     assert!(format!("{err:#}").contains("symbolic link"), "{err:#}");
 }
+
+#[test]
+fn the_rust_modules_proof_claims_are_exactly_the_rules_the_fixtures_prove() {
+    // The host trusts a built-in module's `proof` because this repository's CI proved it. That trust is only as good as this
+    // test: a claim marked proven with no passing fixture, or a proven rule not marked, fails here.
+    let checks = coderipper::registered_checks();
+    let module = coderipper::module::RustModule::new(&checks);
+    let hello = coderipper::module::Module::describe(&module).unwrap();
+    let mut claimed_proven: Vec<String> = hello
+        .rules
+        .iter()
+        .filter(|r| r.proof.is_some())
+        .map(|r| r.id.clone())
+        .collect();
+    let mut proven: Vec<String> = rust_proofs()
+        .into_iter()
+        .filter(|(_, v)| *v == Verdict::Proven)
+        .map(|(r, _)| r)
+        .collect();
+    claimed_proven.sort();
+    proven.sort();
+    assert!(!proven.is_empty(), "positive control: some rule is proven");
+    assert_eq!(claimed_proven, proven);
+}
