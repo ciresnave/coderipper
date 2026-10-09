@@ -229,8 +229,23 @@ coderipper tools install gitleaks --install-tools
 ```
 
 This release ships the cache and the policy with an empty lock: no tool is pinned yet, so `tools list` says so. Each delegated
-rule adds its tool to the lock when it lands. This slice installs a checksummed single-file binary (or a `file://` copy, which is how
-an offline mirror works); a tool that ships only as an archive waits for the delegation that needs it.
+rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
+out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
+archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is
+a link, device or other special file, even when the member it wants is fine; only the member is ever written. `cargo install`, `npm`
+and `pip` installers are not built yet.
+
+A name that `tools install` is given and the lock does not have is a usage error (exit 2, `tool_missing`), and nothing is installed,
+even for the valid names beside it. A tool that exists in the lock but not for this platform is `tool_unavailable_for_platform`
+(exit 3).
+
+### Dependencies written in C or assembly
+
+The default build (the `cli` feature) downloads over HTTPS through `ureq` and `rustls`, and `rustls` takes its cryptography from
+[`ring`](https://crates.io/crates/ring), which contains C and assembly. That is the only such dependency; the archive readers
+(`flate2` with its Rust backend, `tar`, `zip`) are pure Rust. Building without the `cli` feature (`default-features = false`)
+leaves `ring` out. Replacing `ring` with a pure-Rust provider is wanted and not done yet.
 
 ## Suppressing a finding
 
