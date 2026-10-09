@@ -35,6 +35,8 @@ fn check(repo: &Path, envs: &[(&str, &str)]) -> Run {
         &[
             "check",
             "unused-parameters",
+            "--deny",
+            "none",
             "--project",
             repo.to_str().unwrap(),
         ],

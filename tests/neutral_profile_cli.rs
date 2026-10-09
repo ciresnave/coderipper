@@ -19,6 +19,10 @@ fn project() -> tempfile::TempDir {
 fn coderipper(project: &tempfile::TempDir, args: &[&str]) -> Command {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.args(args).arg("--project").arg(project.path());
+    // these tests are about what is printed, not the exit code: a finding must not fail the run
+    if args.iter().any(|a| ["fast", "sweep", "check"].contains(a)) && !args.contains(&"--deny") {
+        cmd.args(["--deny", "none"]);
+    }
     cmd.env("CODERIPPER_CACHE", "off");
     // no tools anywhere: what these tests say must not depend on what is installed on the machine running them
     cmd.env(
@@ -77,7 +81,7 @@ fn an_unknown_rule_is_still_a_usage_error_under_extended() {
 }
 
 #[test]
-fn the_allowlist_suppresses_a_neutral_finding_and_is_not_called_stale() {
+fn the_allowlist_waives_a_neutral_finding_shows_it_and_is_not_called_stale() {
     let allowlist = "[[allow]]\ncheck = \"WSP-001\"\nfile = \".github/CODEOWNERS\"\nsymbol = \"CODEOWNERS\"\nreason = \"owned by the portfolio\"\n";
     let repo = common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
@@ -87,9 +91,12 @@ fn the_allowlist_suppresses_a_neutral_finding_and_is_not_called_stale() {
     coderipper(&repo, &["fast", "--profile", "extended"])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("(WSP-001)").not())
+        .stdout(predicate::str::contains("[waived/Medium]"))
+        .stdout(predicate::str::contains(
+            "(WSP-001) -- reason: owned by the portfolio",
+        ))
         .stdout(predicate::str::contains("(SUP-001)"))
-        .stdout(predicate::str::contains("allowlist").not());
+        .stdout(predicate::str::contains("(allowlist)").not());
 }
 
 #[test]

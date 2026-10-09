@@ -118,6 +118,8 @@ fn run_json(project: &Path) -> (i32, String, String) {
         .args([
             "check",
             "API-006",
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",

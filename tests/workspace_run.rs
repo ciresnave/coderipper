@@ -20,6 +20,10 @@ struct Out {
 fn cli(args: &[&str], envs: &[(&str, &str)]) -> Out {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.args(args);
+    // these tests are about what is printed, not the exit code: a finding must not fail the run
+    if args.iter().any(|a| ["fast", "sweep", "check"].contains(a)) && !args.contains(&"--deny") {
+        cmd.args(["--deny", "none"]);
+    }
     for (k, v) in envs {
         cmd.env(k, v);
     }

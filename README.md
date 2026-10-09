@@ -14,7 +14,8 @@ It is one engine with three faces: **a library**, **a command** (`coderipper`) t
 cargo install coderipper
 
 cargo coderipper                     # every fast (local-only) check on the project in the current directory
-cargo coderipper --deny medium       # ... and exit 1 if anything is Medium or worse (what CI usually wants)
+cargo coderipper --deny medium       # ... exit 1 only for Medium or worse (any finding fails by default)
+cargo coderipper --deny none         # print findings, never fail on one (the behaviour before 0.5.0)
 cargo coderipper --workspace         # every member of the cargo workspace
 
 coderipper fast                      # the same, as a plain command
@@ -33,20 +34,24 @@ your working tree.
 
 | Code | Meaning |
 |---|---|
-| 0 | every check ran and nothing is at or above `--deny` (without `--deny`, any run that finished) |
-| 1 | a finding at or above `--deny` |
+| 0 | every check ran and no finding is at or above `--deny` (the default is `info`: no finding at all, other than a waived one) |
+| 1 | a finding at or above `--deny` that no `[[allow]]` entry waives |
 | 2 | usage error: an unknown flag or `--deny` level, an unknown check id, or a project path that cannot be read |
 | 3 | the audit could not be completed: a check could not run (this outranks 1), or the command itself failed (for example `cache status` with the cache off) |
 
-`--deny <info|low|medium|high|critical>` is off by default: like clippy's warnings, findings are printed but do not
-fail the run, so adding CodeRipper to a project does not break its CI. A CI job that should gate writes
-`cargo coderipper --deny medium`.
+`--deny <none|info|low|medium|high|critical>` is the severity at which a finding fails the run, and **since 0.5.0 it
+defaults to `info`: any finding fails the run.** `--deny medium` lets Low and Info findings through; `--deny none` prints
+findings and never fails on one (what every earlier version did). A finding is waived, not failed, when the project says so
+on purpose (see "Waiving a finding"). **A coverage gap never fails a run**: a rule CodeRipper has not implemented for a
+language, or whose tool is not installed, is reported as not run, and that is CodeRipper's incomplete coverage, not an issue
+with the code being checked. A check that could not run is exit 3, as before.
 
 ## Machine-readable output
 
 `--message-format json` prints one JSON object per line on stdout, each with a `"reason"`, the way cargo's own
-`--message-format json` does: a `coderipper-finding` line per finding (the `Finding` fields), then one
-`coderipper-summary` line with `findings`, `errors` and `exit_code`. In this mode stdout carries only JSON.
+`--message-format json` does: a `coderipper-finding` line per finding (the `Finding` fields), a `coderipper-waived` line per waived finding (the `Finding`
+fields plus `waiver_reason`, the entry's reason), then one `coderipper-summary` line with `findings`, `waived`, `errors` and
+`exit_code` (`waived` is new in 0.5.0; a reader that ignores unknown keys is unaffected). In this mode stdout carries only JSON.
 
 ```sh
 cargo coderipper --message-format json --deny medium
@@ -56,7 +61,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.4", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.5", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run
@@ -120,7 +125,7 @@ runs under `coderipper sweep` or by name, never in `fast`. It cannot silently pa
 API failure, or a reply without the `protection` object (hidden from a token without push access to a private
 repository) is an error; an archived repository and one with no commits yet each get an `Info` note. To accept a
 repository on purpose, use an `[[allow]]` entry with `check = "ci-protection-presence"`,
-`file = "github:branch-protection"` and `symbol = "owner/repo@branch"`.
+`file = "github:branch-protection"` and `symbol = "owner/repo@branch"` (the finding is then waived, with your reason shown).
 
 ## Workspaces
 
@@ -328,6 +333,13 @@ the tracked `buf.yaml` and `buf.work.yaml` files (their directory, a v2 file's `
 project's directory. The repository cannot silence the rule: its `buf.yaml` (at the tree and at the baseline) is replaced by a configuration
 given on the command line. One finding per violation, at the file and line buf prints, with buf's rule id as the subject.
 
+### Rules waiting on a tool
+
+`SEC-009` (infrastructure-as-code misconfiguration) is meant to be run by [checkov](https://github.com/bridgecrewio/checkov), which is
+a Python program with no standalone binary. **The decision (PM, 2026-10-09): CodeRipper will not require a Python installation and will
+not install checkov with `pip`.** The rule stays a reported coverage gap (`tool_unavailable_for_platform`, never a finding and never
+a failed run) until checkov ships a standalone binary or another route is justified. It is on the roadmap in that form.
+
 ## Tools CodeRipper may install: `coderipper tools`
 
 Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
@@ -360,19 +372,31 @@ The default build (the `cli` feature) downloads over HTTPS through `ureq` and `r
 (`flate2` with its Rust backend, `tar`, `zip`) are pure Rust. Building without the `cli` feature (`default-features = false`)
 leaves `ring` out. Replacing `ring` with a pure-Rust provider is wanted and not done yet.
 
-## Suppressing a finding
+## Waiving a finding
 
-Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).
-List them in `.coderipper.toml` at the project root. Every entry names the check, the file, and the
-symbol, and **must** say why:
+Since 0.5.0 a finding fails the run, so a deliberate one (public API built ahead of its consumer, a value discarded on
+purpose) is **waived** in `.coderipper.toml` at the project root. Every entry names the check and the file, and **must**
+say why:
 
 ```toml
 [[allow]]
 check = "reachability"
 file = "src/api.rs"
-symbol = "public_entry_point"
 reason = "published crate API, consumed outside this repo"
+
+[[allow]]
+check = "unused-return-values"
+file = "src/main.rs"
+symbol = "f"          # optional: only the finding about this symbol
+lines = "40-52"       # optional: only findings reported at these lines ("12" or "10-20", inclusive)
+reason = "the result is deliberately dropped; see issue 7"
 ```
+
+A waived finding does not fail the run, but it is **not hidden**: it is printed as `[waived/<severity>] ... -- reason: <reason>`
+(a `coderipper-waived` line in JSON), so a reader of the output sees what was waived and why. With neither `symbol` nor
+`lines` an entry waives every finding of that check in that file; a finding that names no line is never waived by an entry
+that has `lines`. A `lines` value that is not a line or an inclusive range (`"0"`, `"20-10"`, `"abc"`) is an error, never a wider
+waiver, and so is an unknown key (`line = 5`).
 
 `symbol` is the bare name, not `Type::name`: two same-named methods in one file share an entry, so
 one entry can hide a second finding with the same name (and that entry will not go stale while either
@@ -381,7 +405,8 @@ is not folded.
 
 An entry that suppressed nothing in a run is reported as an `Info` finding (check id `allowlist`), so a
 suppression whose cause has been fixed does not linger. An entry naming a check that does not exist is
-reported the same way. An entry for a check that failed or did not run in that run is not judged.
+reported the same way. An entry for a check that failed or did not run in that run is not judged. Both are findings, so
+under the default they fail the run: fix or delete the entry.
 
 ## Why
 

@@ -134,7 +134,14 @@ fn unknown_check_id_produces_no_findings_without_running_any_check() {
     // is filtered out before any check's `run` is invoked, so a nonexistent path is safe here and
     // also proves the short-circuit: if `run` WERE called, it would fail loudly on this path.
     coderipper()
-        .args(["check", "does-not-exist", "--project", "/does/not/exist"])
+        .args([
+            "check",
+            "does-not-exist",
+            "--deny",
+            "none",
+            "--project",
+            "/does/not/exist",
+        ])
         .assert()
         .failure(); // fails at path canonicalization, never reaches a check
 }
@@ -177,7 +184,13 @@ fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
         tmp
     };
     coderipper()
-        .args(["check", "unused-return-values", "--project"])
+        .args([
+            "check",
+            "unused-return-values",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .success()
@@ -186,7 +199,7 @@ fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
 }
 
 #[test]
-fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_does_not_fail_the_run() {
+fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_fails_the_run_by_default() {
     let tmp = tempfile::tempdir().unwrap();
     std::fs::write(
         tmp.path().join("Cargo.toml"),
@@ -225,9 +238,22 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_does_not_f
         .args(["check", "unused-return-values", "--project"])
         .arg(tmp.path())
         .assert()
-        .success()
+        .code(1)
         .stdout(predicate::str::contains("[Info/High]"))
         .stdout(predicate::str::contains("`long_gone`"))
+        .stdout(predicate::str::contains("(allowlist)"));
+    // `--deny none` restores the old behaviour: the same finding is printed and the run passes
+    coderipper()
+        .args([
+            "check",
+            "unused-return-values",
+            "--deny",
+            "none",
+            "--project",
+        ])
+        .arg(tmp.path())
+        .assert()
+        .success()
         .stdout(predicate::str::contains("(allowlist)"));
 }
 
@@ -269,7 +295,13 @@ fn a_malformed_allowlist_fails_the_run_with_an_honest_message() {
     }
 
     coderipper()
-        .args(["check", "unused-return-values", "--project"])
+        .args([
+            "check",
+            "unused-return-values",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(tmp.path())
         .assert()
         .failure()
@@ -312,7 +344,7 @@ fn the_unused_parameters_check_runs_by_id_and_reports_a_parameter() {
             .unwrap();
     }
     coderipper()
-        .args(["check", "unused-parameters", "--project"])
+        .args(["check", "unused-parameters", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .success()
@@ -372,7 +404,7 @@ fn workspace_fixture() -> tempfile::TempDir {
 fn a_workspace_member_can_be_the_project() {
     let ws = workspace_fixture();
     coderipper()
-        .args(["check", "unused-parameters", "--project"])
+        .args(["check", "unused-parameters", "--deny", "none", "--project"])
         .arg(ws.path().join("two"))
         .assert()
         .success()
@@ -386,7 +418,7 @@ fn a_workspace_member_can_be_the_project() {
 fn a_virtual_workspace_root_asks_for_a_member() {
     let ws = workspace_fixture();
     coderipper()
-        .args(["check", "unused-parameters", "--project"])
+        .args(["check", "unused-parameters", "--deny", "none", "--project"])
         .arg(ws.path())
         .assert()
         .failure()
@@ -413,7 +445,13 @@ fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
         std::fs::write(dir.join("src/lib.rs"), "").unwrap();
     }
     coderipper()
-        .args(["check", "version-consistency", "--project"])
+        .args([
+            "check",
+            "version-consistency",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(tmp.path())
         .assert()
         .success()
@@ -443,7 +481,13 @@ fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_t
             .unwrap();
     }
     coderipper()
-        .args(["check", "ci-protection-presence", "--project"])
+        .args([
+            "check",
+            "ci-protection-presence",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(tmp.path())
         .assert()
         .failure()

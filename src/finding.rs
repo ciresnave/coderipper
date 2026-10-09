@@ -137,6 +137,17 @@ pub struct Finding {
     pub positive_control: Option<String>,
 }
 
+/// A finding that an `[[allow]]` entry in `.coderipper.toml` waived: it does not fail the run, but it is still reported, with the
+/// reason the project gave.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct Waived {
+    /// The finding the entry named.
+    pub finding: Finding,
+    /// The entry's `reason`, verbatim.
+    pub reason: String,
+}
+
 /// Why a finding was refused. `#[non_exhaustive]`, and so is each variant: match with `..`.
 ///
 /// ```compile_fail,E0638

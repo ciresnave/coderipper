@@ -112,6 +112,8 @@ fn run_json(project: &Path) -> (i32, String, String) {
         .args([
             "check",
             "SUP-008",
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",

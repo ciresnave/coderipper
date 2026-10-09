@@ -126,6 +126,8 @@ fn a_committed_secret_is_a_sec_002_finding_and_the_value_is_never_printed() {
         .args([
             "check",
             "SEC-002",
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",
@@ -255,7 +257,7 @@ fn the_tool_is_part_of_extended_only() {
     let empty = tempfile::tempdir().unwrap();
     let repo = repo_of("defective");
     coderipper(empty.path())
-        .args(["check", "SEC-002", "--project"])
+        .args(["check", "SEC-002", "--deny", "none", "--project"])
         .arg(repo.path())
         .assert()
         .code(2)
@@ -347,6 +349,8 @@ fn run_json(project: &Path) -> (i32, String, String) {
         .args([
             "check",
             "SEC-002",
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",
