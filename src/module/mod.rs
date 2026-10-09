@@ -105,17 +105,17 @@ pub enum RuleStatus {
         /// The module's explanation.
         detail: String,
     },
-    /// The rule was not run because the tool it delegates to is not available (see [`TOOL_UNAVAILABLE`]). A coverage gap: it
-    /// fails nothing, and it is never `clean`.
-    Unavailable {
-        /// What is missing and what to do about it.
-        detail: String,
-    },
     /// The rule gave no verdict. The audit is incomplete.
     Error {
         /// Why.
         kind: ErrorKind,
         /// The details.
+        detail: String,
+    },
+    /// (Declared last: a variant added before `Error` would change its discriminant.) The rule was not run because the tool it delegates to is not available (see [`TOOL_UNAVAILABLE`]). A coverage gap: it
+    /// fails nothing, and it is never `clean`.
+    Unavailable {
+        /// What is missing and what to do about it.
         detail: String,
     },
 }
