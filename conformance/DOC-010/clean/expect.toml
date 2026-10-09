@@ -1,0 +1,4 @@
+# A clean twin expects nothing. Every link here is to a file in this fixture, so the check needs no web site and does not change with
+# the day. (A web page that is gone today is checked by `tests/delegated_lychee.rs` in the scheduled run instead.) The rule is a network
+# rule, so the run is given the network; lychee requests nothing.
+needs_network = true

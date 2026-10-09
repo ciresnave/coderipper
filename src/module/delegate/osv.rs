@@ -187,7 +187,7 @@ fn applies(rule: &str, hit: &Hit) -> bool {
 }
 
 /// Advisory text is third-party text that reaches a terminal: control characters become spaces and one line is cut short.
-fn clean(text: &str, max: usize) -> String {
+pub(super) fn clean(text: &str, max: usize) -> String {
     let flat: String = text
         .chars()
         .map(|c| if c.is_control() { ' ' } else { c })
@@ -289,7 +289,7 @@ fn to_finding(hit: &Hit, project: &str, rule: &str) -> Finding {
 
 /// `path` as the project names it: relative to one of `roots`, with `/` separators. A path outside every root is kept as printed.
 /// (Windows prints drive letters and cases that differ from the path the tool was given, so the comparison ignores ASCII case.)
-fn relative(path: &str, roots: &[String]) -> String {
+pub(super) fn relative(path: &str, roots: &[String]) -> String {
     let path = path.replace('\\', "/");
     for root in roots {
         let root = root.replace('\\', "/");
@@ -404,7 +404,7 @@ fn judge(code: Option<i32>, stderr: &str, report: Result<Vec<Hit>, String>) -> S
 }
 
 /// The names `root` can be printed as: as given, and with symbolic links resolved (minus Windows' `\\?\` prefix).
-fn roots_of(root: &Path) -> Vec<String> {
+pub(super) fn roots_of(root: &Path) -> Vec<String> {
     let mut roots = vec![root.display().to_string()];
     if let Ok(real) = root.canonicalize() {
         let real = real.display().to_string();

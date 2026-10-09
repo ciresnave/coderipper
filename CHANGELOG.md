@@ -4,6 +4,54 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.3 - 2026-10-09 (proposed)
+
+### Added
+- **DOC-010 (documentation links resolve), run by [lychee](https://github.com/lycheeverse/lychee)** (Apache-2.0 OR MIT; multi-language
+  P3, PR 5) under `--profile extended`. lychee is given the project's *tracked* Markdown, HTML and text documents (`git ls-files`, so hidden directories such as
+  `.github/` are included and a virtualenv, a build directory or another worktree is not; a tracked file below `node_modules`, `vendor`,
+  `third_party` or `target` is left out), extracts their links and checks each: a link to a file or directory must exist (a root-relative `/docs/a.md` is resolved against the project root) and a web page
+  must not answer `404 Not Found` or `410 Gone`. **The rule is sweep-tier** (it requests web pages): `coderipper sweep --profile extended`
+  runs it, `coderipper check DOC-010 --profile extended` runs it with the network permitted, `fast` leaves it alone.
+- **One finding per dead link**, at the document and the line it is on, subject the target (project-relative for a local one),
+  severity `Low`, confidence `High` for a local target that does not exist and `Medium` for a web page that answered 404 or 410 (a
+  site can answer a bot differently from a reader). Link text is third-party text: control characters are removed and the length is cut.
+- **A link that could not be settled is not a good link.** A timeout, a failed connection, a rate limit (`429`), a `403` from a site that turns
+  bots away and a `5xx` are *not judged*: not findings, and not evidence the link works. A run where no link is dead but some were not
+  judged, a project with no links, and a run where lychee skipped a document it could not read (it exits 0 and says so only on stderr:
+  measured with a file that is not UTF-8) are each a **coverage gap** (`DOC-010 not run: ...`), never a clean rule. When dead links are found beside
+  links that were not judged, every finding says how many.
+- **The analysed repository cannot silence the rule** (design 5.2). Measured against the real tool: a committed `lychee.toml` with
+  `exclude = [".*"]` makes lychee exit 0 having excluded every link, and a `.lycheeignore` or `.gitignore` entry hides links or whole documents.
+  `lychee.toml` and `.lycheeignore` are only read from the working directory, and lychee is run from an empty scratch directory (with `--config`
+  naming an empty file as a second guard and `--no-ignore`), so none is read; the project's way to suppress a finding is the `.coderipper.toml` allowlist.
+- **lychee 0.24.2 is pinned** for `x86_64-windows`, `x86_64-linux` (gnu), `aarch64-linux` (gnu), `aarch64-macos` and `x86_64-macos`, as
+  the publisher's archives (`.zip` on Windows, `.tar.gz` elsewhere); the archive hashes are the ones in the `.sha256` file the publisher
+  ships beside each asset, re-checked against the download, and the lock pins the extracted executable's hash too. (The musl, arm, i686
+  and windows-arm builds are not pinned.)
+- **Conformance and tests.** `conformance/DOC-010/` (a README linking a guide that is not there, and a clean twin whose every link is to a
+  file in the fixture) is `needs_network = true` (unproven without `--network` or the tool, not failed) but requests nothing from the
+  web. `tests/delegated_lychee.rs` installs the pinned lychee and runs the fixtures and the CLI against it, including the cases above; its
+  only link to a closed port is `127.0.0.1:9` ("connection refused", the same every day). **Pull-request CI does not depend on any web site** (no link check requests one; the tests download the pinned lychee from its GitHub release once);
+  the one test that does (a gone page on github.com, a live one on example.com) is `#[ignore]` and runs only in the scheduled, non-required
+  `.github/workflows/live-tools.yml`.
+
+### Known limits
+- Only a `404`/`410` or a missing local target is *dead*. A domain that no longer resolves is reported by lychee as a failed connection, which
+  cannot be told from a machine that is offline, so it is *not judged* (it makes the result a gap rather than a finding).
+- `#fragment` links are not checked (the anchors a renderer generates differ from lychee's), nor are mail addresses, other URL schemes,
+  or links inside code blocks. The rule is sweep-tier even for a project whose links are all local: a run without the network permission
+  reports it as a gap and does not run lychee `--offline`.
+- Links to `localhost` or `127.0.0.1` (a development server) cannot be reached from a checker and so are *not judged*: a README that
+  mentions one keeps the rule a gap on every run, unless a dead link is found beside it.
+- A root-relative link (`/docs/a.md`) is resolved against the project root, the way GitHub reads it. A site served from a subdirectory
+  (`static/`, `public/`) reads `/css/x.css` differently, and such a link is reported as a missing file.
+- Only tracked documents are read (an untracked or ignored file is not), a file system that ignores case can say a link exists that
+  does not on Linux, and the file named in a finding is the repository's own text (control characters in it are removed in the detail).
+- A busy project's links to rate-limited hosts (GitHub, say) may keep the rule a gap on some days. CodeRipper does not pass lychee a
+  `GITHUB_TOKEN` (the tool runs with a scrubbed environment).
+- Only gitleaks, osv-scanner and lychee are pinned. zizmor and buf follow, one per release; checkov (PyPI only) needs a Python-prerequisite decision.
+
 ## 0.4.2 - 2026-10-09 (proposed)
 
 ### Added
