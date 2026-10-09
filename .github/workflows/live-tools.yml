@@ -1,0 +1,25 @@
+name: Live tools
+
+# Runs the delegated rules against the real tools and the live advisory database. Not a required check: a failure here is a
+# signal (a new advisory against the canary package, or osv.dev / a tool changed), not a merge block. Pull requests run the same
+# tests without the canary, whose answer depends on the day.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  live:
+    name: Delegated rules against the real tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run the delegated-rule tests, including the live-database canary
+        run: cargo test --test delegated_osv --test delegated_gitleaks -- --include-ignored

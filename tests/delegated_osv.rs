@@ -502,3 +502,22 @@ fn a_fast_run_leaves_the_network_rules_alone_and_a_sweep_reports_them_as_a_gap()
         .stderr(predicate::str::contains("SEC-006 not run"));
     assert_eq!(std::fs::read_dir(empty.path()).unwrap().count(), 0);
 }
+
+/// The scheduled run's canary (`.github/workflows/live-tools.yml`): a real, popular package version that has no advisory today is
+/// clean. It depends on the day's database, so it is not part of a pull request's checks: a failure here is a signal that a new
+/// advisory was published (replace the package) or that osv.dev or osv-scanner changed, never a reason to block a merge.
+#[test]
+#[ignore = "reads the live advisory database; run by the scheduled workflow with --include-ignored"]
+fn a_real_package_with_no_advisory_today_is_clean() {
+    let repo = tempfile::tempdir().unwrap();
+    std::fs::write(
+        repo.path().join("package-lock.json"),
+        r#"{"name":"d","version":"1.0.0","lockfileVersion":3,"requires":true,"packages":{"":{"name":"d","version":"1.0.0","dependencies":{"is-odd":"3.0.1"}},"node_modules/is-number":{"version":"6.0.0"},"node_modules/is-odd":{"version":"3.0.1"}}}"#,
+    )
+    .unwrap();
+    commit(repo.path());
+    let (code, out, err) = run_json("SUP-002", repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    assert!(findings(&out).is_empty(), "{out}");
+    assert!(!err.contains("not run"), "{err}");
+}

@@ -248,18 +248,24 @@ fn to_finding(hit: &Hit, project: &str, rule: &str) -> Finding {
     }
     if rule == SEC {
         detail.push_str(
-            " Reachability is not analysed: this says a serious advisory covers the pinned version, not that the flawed code is called.",
+            " Reachability is not analysed: this says an advisory of high or unknown severity covers the pinned version, not that the flawed code is called.",
         );
     }
     let first = hit.ids.first().map_or("an advisory", String::as_str);
     let extra = hit.ids.len().saturating_sub(1);
+    // SEC-006 names what is known, never "exploitable": a serious advisory covers the version, and nothing says it is reachable
+    let kind = match (rule, hit.score) {
+        (SEC, Some(_)) => "known high-severity advisory",
+        (SEC, None) => "known advisory with no severity score",
+        _ => "known advisory",
+    };
     let finding = Finding::new(
         rule,
         severity_of(hit.score),
         confidence,
         project,
         format!(
-            "{package} has a known advisory ({}{})",
+            "{package} has a {kind} ({}{})",
             clean(first, 40),
             if extra > 0 {
                 format!(" and {extra} more")
@@ -801,6 +807,56 @@ mod tests {
             f.detail
         );
         assert!(f.validate().is_ok());
+    }
+
+    #[test]
+    fn no_message_calls_a_finding_exploitable_and_sec_006_says_what_it_knows() {
+        for hit in parse_report(REPORT).unwrap() {
+            for rule in [SUP, SEC] {
+                let f = to_finding(&hit, "demo", rule);
+                let text = format!("{} {}", f.summary, f.detail).to_lowercase();
+                assert!(!text.contains("exploitable"), "{text}");
+            }
+        }
+        let hits = parse_report(REPORT).unwrap();
+        let scored = to_finding(&hits[1], "demo", SEC);
+        assert!(
+            scored.summary.contains("known high-severity advisory"),
+            "{}",
+            scored.summary
+        );
+        assert!(
+            scored.detail.contains("Reachability is not analysed"),
+            "{}",
+            scored.detail
+        );
+        let unscored = to_finding(&hits[2], "demo", SEC);
+        assert!(
+            unscored.summary.contains("no severity score"),
+            "{}",
+            unscored.summary
+        );
+        assert!(
+            !unscored.summary.contains("high-severity"),
+            "{}",
+            unscored.summary
+        );
+    }
+
+    #[test]
+    fn the_records_say_what_is_checked_today_and_sec_006_states_its_narrowing() {
+        let catalog = crate::catalog::Catalog::builtin();
+        for rule in [SUP, SEC] {
+            let text = catalog
+                .get(rule)
+                .unwrap()
+                .checked_today()
+                .unwrap_or_else(|| panic!("{rule}: the record does not say what is checked today"));
+            assert!(text.contains("OSV"), "{rule}: {text}");
+        }
+        let sec = catalog.get(SEC).unwrap().checked_today().unwrap();
+        assert!(sec.contains("7.0") && sec.contains("reachab"), "{sec}");
+        assert!(!sec.to_lowercase().contains("is exploitable"), "{sec}");
     }
 
     #[test]

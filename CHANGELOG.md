@@ -17,9 +17,10 @@ versions has been published to crates.io or tagged on GitHub yet: they are the v
   score (9.0 and up `Critical`, 7.0 `High`, 4.0 `Medium`, below `Low`); an advisory with no score is `High`, not hidden. Confidence is
   `Medium` for SUP-002 and `Low` for SEC-006. Advisory text is third-party text: control characters are removed and each summary is cut short.
 - **SEC-006 is narrower than SUP-002, and it does not know whether the flaw is reachable.** It reports the groups scored 7.0 or higher
-  (or unscored), and every SEC-006 finding says so. Reachability is call analysis, which osv-scanner offers only for Go and Rust and does
+  (or unscored) as a "known high-severity advisory" (or "known advisory with no severity score"), never as "exploitable", and every
+  SEC-006 finding says reachability is not analysed. The rule's record says the same in `checked_today`; the rule keeps its id. Reachability is call analysis, which osv-scanner offers only for Go and Rust and does
   by building the project's code (a Rust build script runs), so it is not run. A SEC-006 finding means a serious advisory covers the pinned
-  version, not that the project is exploitable.
+  version, not that the project can be attacked through it.
 - **The analysed repository cannot silence these rules** (design 5.2): osv-scanner reads an `osv-scanner.toml` in every directory it
   scans (its `IgnoredVulns` drop advisories) and honours `.gitignore`; CodeRipper runs it with `--config` naming an empty file and
   `--no-ignore`, so neither a committed `osv-scanner.toml` nor a `.gitignore` entry hides a lockfile or an advisory. Both were measured
@@ -36,8 +37,10 @@ versions has been published to crates.io or tagged on GitHub yet: they are the v
   and a finding elsewhere is still unexplained. `conformance/SUP-002/` and `conformance/SEC-006/` (a lockfile pinning lodash 4.17.15, and a
   clean twin) use it and `needs_network = true`: they are `unproven` without `--network` (and without the tool), not failed.
   `tests/delegated_osv.rs` installs the pinned osv-scanner and runs the fixtures and the CLI against it; it needs the network
-  (`CODERIPPER_SKIP_NETWORK_TESTS=1` skips it). **The clean twin depends on today's database**: a new advisory against its two packages
-  fails that test by design, and the fix is to choose another package.
+  (`CODERIPPER_SKIP_NETWORK_TESTS=1` skips it). **Pull-request CI does not depend on the day's database for a clean answer**: the clean
+  twin's one package is a name in the fixtures' own scope that no registry holds (so no advisory can ever list it), and the defective
+  twin pins lodash 4.17.15 (advisories for years; `many = true` absorbs new ones). A real package with no advisory today is checked by
+  a canary test (`#[ignore]`) that only the new scheduled, non-required workflow `.github/workflows/live-tools.yml` runs; its failure is a signal.
 - Library: `DelegatedModule` now declares `needs_network` (its osv-scanner rules do).
 
 ### Changed
