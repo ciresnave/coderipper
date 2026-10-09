@@ -70,7 +70,7 @@ checks are implemented in CodeRipper at present, and none of them covers securit
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | SEC-001 | No unsanitised taint flow to dangerous sinks | P | no check yet; planned: Semgrep taint mode for Rust, TypeScript and Python (taint support is limited) |
-| SEC-002 | No committed secrets | N | no check yet; planned: gitleaks through a language-neutral module (history scan needs VCS access) |
+| SEC-002 | No committed secrets | N | delegated to gitleaks (`--profile extended`; scans the whole git history; needs the tool installed, else a reported gap) |
 | SEC-003 | Authorization on every entry point | P | no check yet; planned: route inventory joined to auth middleware for TypeScript and Python; Rust needs framework mapping and a model |
 | SEC-004 | No cryptography misuse | P | no check yet; planned: a native source scan for Rust, Semgrep for TypeScript, Bandit for Python |
 | SEC-005 | Unsafe and native code inventory | P | no check yet; planned: cargo-geiger for Rust, native inventories for TypeScript and Python |

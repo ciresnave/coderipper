@@ -380,7 +380,7 @@ impl LanguageCoverage {
         }
         if let Some(run) = self.run {
             line.push_str(&format!(
-                "   this run: {} clean, {} with findings, {} not applicable here, {} could not run",
+                "   this run: {} clean, {} with findings, {} not run here, {} could not run",
                 run.clean, run.findings, run.skipped, run.could_not_run
             ));
         }

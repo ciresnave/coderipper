@@ -244,21 +244,31 @@ fn judge(module: &dyn Module, options: &Options, rule: &str) -> anyhow::Result<V
         ));
     }
     let (mut reasons, mut errors) = (Vec::new(), Vec::new());
+    let mut unavailable: Option<String> = None;
     for (dir, expect, kind) in [
         (&defective, &defective_expect, Kind::Defective),
         (&clean, &clean_expect, Kind::Clean),
     ] {
-        let (contradictions, problems) = judge_one(module, options, rule, dir, expect, kind)?;
+        let (contradictions, problems, tool_gap) =
+            judge_one(module, options, rule, dir, expect, kind)?;
         reasons.extend(contradictions);
         errors.extend(problems);
+        unavailable = unavailable.or(tool_gap);
     }
-    Ok(if !errors.is_empty() {
-        Verdict::Errored(errors)
-    } else if reasons.is_empty() {
-        Verdict::Proven
-    } else {
-        Verdict::Failed(reasons)
-    })
+    Ok(
+        if let (true, true, Some(why)) = (errors.is_empty(), reasons.is_empty(), &unavailable) {
+            // A delegated rule whose tool is not here cannot be judged on this machine: unproven, like a fixture that needs the network.
+            Verdict::Unproven(format!(
+                "its tool is not available, so the fixtures were not run: {why}"
+            ))
+        } else if !errors.is_empty() {
+            Verdict::Errored(errors)
+        } else if reasons.is_empty() {
+            Verdict::Proven
+        } else {
+            Verdict::Failed(reasons)
+        },
+    )
 }
 
 /// A fixture is read from inside its own directory only: a link could lead anywhere (or to a device that never ends).
@@ -307,7 +317,7 @@ fn judge_one(
     dir: &Path,
     expect: &ExpectFile,
     kind: Kind,
-) -> anyhow::Result<(Vec<String>, Vec<String>)> {
+) -> anyhow::Result<(Vec<String>, Vec<String>, Option<String>)> {
     let name = format!("{rule}/{}", kind.dir());
     let project = tempfile::tempdir()?;
     copy_fixture(dir, project.path())?;
@@ -330,19 +340,23 @@ fn judge_one(
         .collect();
     let Some(outcome) = reconciled.rules.into_iter().find(|o| o.rule == rule) else {
         errors.push(format!("{name}: the module gave no verdict for the rule"));
-        return Ok((reasons, errors));
+        return Ok((reasons, errors, None));
     };
     match outcome.status {
         RuleStatus::Ran => {}
         RuleStatus::Skipped { detail } => {
             errors.push(format!("{name}: the rule was skipped, not run: {detail}"));
-            return Ok((reasons, errors));
+            return Ok((reasons, errors, None));
+        }
+        RuleStatus::Unavailable { detail } => {
+            // not a contradiction of the claim and not a failure of the rule: the claim cannot be judged on this machine
+            return Ok((reasons, errors, Some(format!("{name}: {detail}"))));
         }
         RuleStatus::Error { kind: why, detail } => {
             errors.push(format!(
                 "{name}: the rule could not run ({why:?}): {detail}"
             ));
-            return Ok((reasons, errors));
+            return Ok((reasons, errors, None));
         }
     }
     let mut found: Vec<(String, Option<u32>)> = Vec::new();
@@ -391,7 +405,7 @@ fn judge_one(
             }
         }
     }
-    Ok((reasons, errors))
+    Ok((reasons, errors, None))
 }
 
 /// Pairs each expectation with a distinct finding that satisfies it, maximising the pairs (augmenting paths), so a broad

@@ -197,7 +197,8 @@ least one source file among the files git tracks; a project outside git is not s
 
 ## Language-neutral rules: `--profile extended`
 
-Under `--profile extended` five rules that read a repository's files, not its source, run next to the original checks, in the same
+Under `--profile extended` five rules that read a repository's files, not its source (and one that hands the repository to a tool,
+see below) run next to the original checks, in the same
 run and under the same `.coderipper.toml` allowlist. Their ids are catalog ids; each is a narrow, deterministic reading of a broader
 rule, and each is proven by a conformance fixture (`coderipper conformance --module neutral`). The default `classic` profile does
 not run them. `coderipper check SUP-001 --profile extended` runs one.
@@ -214,9 +215,32 @@ Each rule's reading, and what it cannot see, is in the documentation of its modu
 apply to a repository (no decision records, no manifest it knows) is reported as not applicable here, never as clean. Files are read
 from `HEAD`, so the repository must be a git repository with a commit.
 
+### Rules run by a tool: `SEC-002`
+
+`SEC-002` (no committed secrets) is run by [gitleaks](https://github.com/gitleaks/gitleaks) (MIT, an external process, never linked).
+It scans the repository's **whole history**, so a secret that was committed and later deleted is still reported: it stays readable to
+anyone with a clone. Secrets are redacted by gitleaks itself, so CodeRipper never reads a secret's value and cannot print it. It sees
+gitleaks' own patterns at the pinned version and nothing outside git.
+
+```sh
+coderipper tools install gitleaks --install-tools     # once; or pass --install-tools to the run itself
+coderipper check SEC-002 --profile extended --deny high
+```
+
+The repository cannot silence the rule: a committed `.gitleaksignore`, `.gitleaks.toml` or `gitleaks:allow` comment is not honoured (the
+project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project in a subdirectory gets the leaks under it, with
+paths relative to it; a path that is not a git repository with a commit is an error, not a clean run.
+
+A shallow clone (CI's default checkout) holds only the commits it fetched, so a scan that finds nothing there is reported as not run
+(`git fetch --unshallow`), not as clean; what it does find is reported.
+
+A tool that is not there is a **coverage gap, never a failure**: without it the run says `coderipper: note: SEC-002 not run: ...` with the
+install command, the rule counts as skipped in the coverage line, and the exit code is not affected. (A tool that was asked for and
+could not be had or trusted, a checksum mismatch say, is an error.) Nothing is downloaded unless you pass `--install-tools`.
+
 ## Tools CodeRipper may install: `coderipper tools`
 
-Some rules will hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
+Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
 installed behind your back. They live in an isolated cache, `tools` beside the build cache (or `CODERIPPER_TOOLS_DIR`), at
 `<tool>/<version>/<file>`, and nothing is written to your `PATH` or any system location. A `tools.lock` pins, per tool and
 platform, one version, its source, its SHA-256 and its SPDX licence; there is no "latest". A download that does not match its
@@ -228,8 +252,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-This release ships the cache and the policy with an empty lock: no tool is pinned yet, so `tools list` says so. Each delegated
-rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1 for now (`tools list` shows it); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

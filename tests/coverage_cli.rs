@@ -53,6 +53,11 @@ fn project_with_a_medium_finding() -> tempfile::TempDir {
 fn fast(project: &tempfile::TempDir) -> Command {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.arg("fast").arg("--project").arg(project.path());
+    // no tools anywhere: what these tests say must not depend on what is installed on the machine running them
+    cmd.env(
+        "CODERIPPER_TOOLS_DIR",
+        std::env::temp_dir().join("coderipper-test-no-tools-here"),
+    );
     cmd
 }
 
@@ -198,12 +203,14 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks and the five proven language-neutral rules
     assert_eq!(rust["covered"], 9);
-    assert_eq!(rust["claimed_unproven"], 1);
+    // reachability's claim and SEC-002's (its tool is not installed in the empty tools directory this run uses)
+    assert_eq!(rust["claimed_unproven"], 2);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the five language-neutral rules apply to it
+    // no TypeScript module, but the five language-neutral rules apply to it (SEC-002 is a gap while gitleaks is not installed)
     assert_eq!(ts["covered"], 5);
+    assert_eq!(ts["claimed_unproven"], 1);
     assert_eq!(
         ts["note"],
         "no module for typescript, only the language-neutral rules"

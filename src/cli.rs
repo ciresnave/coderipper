@@ -130,6 +130,14 @@ struct RunOpts {
         default_missing_value = "summary"
     )]
     coverage: Option<CoverageMode>,
+    /// Say that the tools the delegated rules need (`--profile extended`: gitleaks for SEC-002) may be downloaded into the tool
+    /// cache when they are not there. Without it nothing is downloaded or written, in CI or anywhere else, and a rule whose tool is
+    /// missing is reported as not run (a gap; it never fails the run).
+    #[arg(long)]
+    install_tools: bool,
+    /// A tools lock to use instead of the one built into this binary.
+    #[arg(long)]
+    tools_lock: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -157,7 +165,8 @@ enum Command {
     /// twin. Exits 1 when a fixture contradicts a claim, 3 when a rule could not run. Meant for a module's own CI.
     /// Fixtures are code that runs (the checks build them): use only fixtures you trust.
     Conformance {
-        /// The module to judge: the built-in `rust` module (the default) or `neutral` (the language-neutral rules).
+        /// The module to judge: the built-in `rust` module (the default), `neutral` (the language-neutral rules) or `delegated`
+        /// (the rules run by installed tools).
         #[arg(long, default_value = "rust")]
         module: String,
         /// Judge only this rule.
@@ -170,6 +179,12 @@ enum Command {
         /// Allow fixtures that need the network to run.
         #[arg(long)]
         network: bool,
+        /// Say that the tool a delegated rule runs may be downloaded when it is not installed (without it that rule is unproven).
+        #[arg(long)]
+        install_tools: bool,
+        /// A tools lock to use instead of the one built into this binary.
+        #[arg(long)]
+        tools_lock: Option<PathBuf>,
         /// Exit 1 unless every judged rule is proven (a claim with no fixture, or one that needs the network without
         /// `--network`, is then a failure instead of a note).
         #[arg(long)]
@@ -390,26 +405,51 @@ fn cache_command(
     Ok(EXIT_CLEAN)
 }
 
+/// The tools the delegated rules may use: the lock (the built-in one, or `--tools-lock`), the environment's tools directory, and
+/// consent to install only when `--install-tools` was passed.
+fn tool_env(
+    install_tools: bool,
+    lock_path: Option<&Path>,
+) -> anyhow::Result<crate::tools::ToolEnv> {
+    use crate::tools::{Consent, ToolEnv, ToolsLock};
+    let mut env = ToolEnv::from_environment().consent(if install_tools {
+        Consent::Granted
+    } else {
+        Consent::NotGiven
+    });
+    if let Some(path) = lock_path {
+        let text = std::fs::read_to_string(path).map_err(|e| {
+            UsageError(format!(
+                "tools_lock_invalid: cannot read {}: {e}",
+                path.display()
+            ))
+        })?;
+        env = env.lock(ToolsLock::parse(&text)?);
+    }
+    Ok(env)
+}
+
 fn conformance_command(
     module: &str,
     rule: Option<String>,
     fixtures: PathBuf,
     network: bool,
+    tools: crate::tools::ToolEnv,
     require_proven: bool,
     message_format: MessageFormat,
 ) -> anyhow::Result<u8> {
     use crate::conformance::{run, Options, Verdict};
-    if !matches!(module, "rust" | "neutral") {
+    if !matches!(module, "rust" | "neutral" | "delegated") {
         return Err(UsageError(format!(
-            "no module named \"{module}\"; the built-in modules are \"rust\" and \"neutral\""
+            "no module named \"{module}\"; the built-in modules are \"rust\", \"neutral\" and \"delegated\""
         ))
         .into());
     }
     let checks = crate::registered_checks();
-    let known: Vec<&str> = if module == "neutral" {
-        crate::module::neutral_rule_ids()
-    } else {
-        checks.iter().map(|c| c.id()).collect()
+    let known: Vec<&str> = match module {
+        "neutral" => crate::module::neutral_rule_ids(),
+        "delegated" => crate::module::delegated_rule_ids(),
+        _ => checks.iter().map(|c| c.id()).collect(),
     };
     if let Some(wanted) = &rule {
         if !known.contains(&wanted.as_str()) {
@@ -429,7 +469,12 @@ fn conformance_command(
     }
     let rust = crate::module::RustModule::new(&checks);
     let neutral = crate::module::NeutralModule::new();
-    let module: &dyn crate::module::Module = if module == "neutral" { &neutral } else { &rust };
+    let delegated = crate::module::DelegatedModule::new(tools);
+    let module: &dyn crate::module::Module = match module {
+        "neutral" => &neutral,
+        "delegated" => &delegated,
+        _ => &rust,
+    };
     let mut options = Options::new(fixtures).network(network);
     if let Some(rule) = rule {
         options = options.rule(rule);
@@ -511,6 +556,8 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             rule,
             fixtures,
             network,
+            install_tools,
+            tools_lock,
             require_proven,
             message_format,
         } => conformance_command(
@@ -518,6 +565,7 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             rule,
             fixtures,
             network,
+            tool_env(install_tools, tools_lock.as_deref())?,
             require_proven,
             message_format,
         ),
@@ -540,14 +588,18 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 message_format,
                 profile,
                 coverage,
+                install_tools,
+                tools_lock,
             },
         tier,
         only_check_id,
     } = args;
+    let tools = tool_env(install_tools, tools_lock.as_deref())?;
     if let Some(id) = &only_check_id {
         let checks = crate::registered_checks();
         let mut known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
-        let neutral = crate::module::neutral_rule_ids();
+        let mut neutral = crate::module::neutral_rule_ids();
+        neutral.extend(crate::module::delegated_rule_ids());
         if profile == Profile::Extended {
             known.extend(&neutral);
         }
@@ -581,8 +633,9 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     let ctx = CheckContext::new(project_root).portfolio_root(portfolio_root);
 
     let result = if workspace {
-        let run = crate::run_workspace_in(
+        let run = crate::run_workspace_in_with_tools(
             profile.lib(),
+            &tools,
             &ctx,
             tier,
             only_check_id.as_deref(),
@@ -594,7 +647,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         );
         run.result
     } else {
-        crate::run_checks_in(profile.lib(), &ctx, tier, only_check_id.as_deref())
+        crate::run_checks_in_with_tools(profile.lib(), &tools, &ctx, tier, only_check_id.as_deref())
     };
 
     // A check error outranks a finding: a run that could not judge everything must not look like a complete one
@@ -612,15 +665,22 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     // outcomes. A gap in it never touches `code` above.
     let unchecked = crate::coverage::unchecked_languages(&ctx.project_root);
     let show_coverage = profile == Profile::Extended || coverage.is_some();
-    let reports =
-        show_coverage.then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended));
+    let reports = show_coverage
+        .then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended, &tools));
 
     match message_format {
         MessageFormat::Human => {
             // Review finding: this used to print "no checks registered yet" whenever BOTH findings and
             // errors were empty -- which is what a genuinely clean run also looks like. Distinguish the real cases.
             if result.findings.is_empty() && result.errors.is_empty() {
-                println!("coderipper: no issues found");
+                if result.notes.is_empty() {
+                    println!("coderipper: no issues found");
+                } else {
+                    println!(
+                        "coderipper: no issues found by the rules that ran ({} not run: see the notes on stderr)",
+                        result.notes.len()
+                    );
+                }
             }
             for f in &result.findings {
                 println!(
@@ -654,19 +714,25 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 };
                 println!("{}", report.to_json_with_gap_limit(limit));
             }
-            println!(
-                "{}",
-                serde_json::json!({
-                    "reason": "coderipper-summary",
-                    "findings": result.findings.len(),
-                    "errors": result.errors,
-                    "exit_code": code,
-                })
-            );
+            let mut summary = serde_json::json!({
+                "reason": "coderipper-summary",
+                "findings": result.findings.len(),
+                "errors": result.errors,
+                "exit_code": code,
+            });
+            // Only when a rule did not run for want of its tool: the summary of every other run keeps exactly its keys.
+            if !result.notes.is_empty() {
+                summary["notes"] = serde_json::json!(result.notes);
+            }
+            println!("{summary}");
         }
     }
     for e in &result.errors {
         eprintln!("coderipper: check error: {e}");
+    }
+    // A rule that did not run because its tool is not available: a gap, said once, with what to do. It never changes `code`.
+    for note in &result.notes {
+        eprintln!("coderipper: note: {note}");
     }
     // Under `classic` nothing else says that part of the repository was not looked at, so one stderr line does (design 10.2).
     if reports.is_none() {
@@ -692,22 +758,29 @@ fn coverage_reports(
     result: &crate::RunResult,
     unchecked: &[crate::coverage::UncheckedLanguage],
     with_neutral: bool,
+    tools: &crate::tools::ToolEnv,
 ) -> Vec<crate::coverage::LanguageCoverage> {
     use crate::coverage::{for_missing_module_with, for_module};
-    use crate::module::{Composite, Module, NeutralModule, RustModule};
+    use crate::module::{Composite, DelegatedModule, Module, NeutralModule, RustModule};
     let catalog = crate::catalog::Catalog::builtin();
     let checks = crate::registered_checks();
     let rust = RustModule::new(&checks);
     let neutral = NeutralModule::new();
     // Under `extended` the language-neutral rules are part of what runs, so they count for every language.
-    let composite = Composite::new(vec![&rust, &neutral]);
+    // ... and so do the delegated rules, for the tools that are installed here (a claim without its tool is a gap, not coverage).
+    let delegated = DelegatedModule::new(tools.clone());
+    let composite = Composite::new(vec![&rust, &neutral, &delegated]);
     let serving: &dyn Module = if with_neutral { &composite } else { &rust };
     let mut reports = Vec::new();
     if let Ok(hello) = serving.describe() {
         reports.push(for_module(catalog, &hello, "rust", Some(&result.outcomes)));
     }
     let others: Vec<_> = if with_neutral {
-        neutral.describe().into_iter().collect()
+        neutral
+            .describe()
+            .into_iter()
+            .chain(delegated.describe())
+            .collect()
     } else {
         Vec::new()
     };
