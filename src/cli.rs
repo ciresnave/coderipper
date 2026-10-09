@@ -183,6 +183,11 @@ enum Command {
         #[command(subcommand)]
         action: CacheAction,
     },
+    /// The external tools CodeRipper may install for delegated rules: what is pinned, and installing it (only with your say-so).
+    Tools {
+        #[command(subcommand)]
+        action: ToolsAction,
+    },
     /// Run as an HTTP server (not implemented; planned for a hosted instance). Hidden from `--help`.
     #[command(hide = true)]
     Serve {
@@ -200,6 +205,27 @@ enum CacheAction {
         /// Cap in GB for this run, instead of `CODERIPPER_CACHE_MAX_GB` (20).
         #[arg(long)]
         max_gb: Option<f64>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ToolsAction {
+    /// The ledger: every pinned tool with its version, licence, source and whether it is installed. Installs nothing.
+    List {
+        /// A tools lock to use instead of the one built into this binary.
+        #[arg(long)]
+        tools_lock: Option<PathBuf>,
+    },
+    /// Install pinned tools into the isolated tool cache. Needs `--install-tools`: CodeRipper installs nothing without it.
+    Install {
+        /// The tools to install; none means every tool the lock has for this platform.
+        names: Vec<String>,
+        /// Say that installing is allowed. Without it nothing is downloaded or written, in CI or anywhere else.
+        #[arg(long)]
+        install_tools: bool,
+        /// A tools lock to use instead of the one built into this binary.
+        #[arg(long)]
+        tools_lock: Option<PathBuf>,
     },
 }
 
@@ -238,6 +264,87 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
             }
         }
     })
+}
+
+fn tools_command(action: ToolsAction) -> anyhow::Result<u8> {
+    use crate::tools::{
+        current_platform, tools_dir_from_env, Consent, DefaultFetcher, ToolCache, ToolError,
+        ToolStatus, ToolsLock,
+    };
+    let (lock_path, names, install) = match action {
+        ToolsAction::List { tools_lock } => (tools_lock, Vec::new(), None),
+        ToolsAction::Install {
+            names,
+            install_tools,
+            tools_lock,
+        } => (tools_lock, names, Some(install_tools)),
+    };
+    let lock = match &lock_path {
+        Some(path) => ToolsLock::parse(&std::fs::read_to_string(path).map_err(|e| {
+            anyhow::anyhow!("tools_lock_invalid: cannot read {}: {e}", path.display())
+        })?)?,
+        None => ToolsLock::embedded(),
+    };
+    let root = tools_dir_from_env(&|k| std::env::var(k).ok()).ok_or_else(|| {
+        anyhow::anyhow!("no tools directory could be derived; set CODERIPPER_TOOLS_DIR")
+    })?;
+    let cache = ToolCache::new(root);
+    let platform = current_platform();
+    let Some(install_tools) = install else {
+        println!("tool cache: {}", cache.root().display());
+        if lock.entries().is_empty() {
+            println!("no tools are pinned yet (the delegated rules add theirs as they land)");
+        }
+        for entry in lock.entries() {
+            let status = if entry.platform != platform {
+                "other platform"
+            } else {
+                match cache.status(entry) {
+                    ToolStatus::Installed => "installed",
+                    ToolStatus::NotInstalled => "not installed",
+                    ToolStatus::Corrupt => "corrupt (checksum differs from the lock)",
+                }
+            };
+            println!(
+                "{} {}  {}  {}  {}  {}",
+                entry.name, entry.version, entry.platform, entry.licence, status, entry.source
+            );
+        }
+        return Ok(EXIT_CLEAN);
+    };
+    let names: Vec<String> = if names.is_empty() {
+        lock.entries()
+            .iter()
+            .filter(|e| e.platform == platform)
+            .map(|e| e.name.clone())
+            .collect()
+    } else {
+        names
+    };
+    if names.is_empty() {
+        println!("nothing to install: the lock has no tools for {platform}");
+    }
+    let consent = if install_tools {
+        Consent::Granted
+    } else {
+        Consent::NotGiven
+    };
+    for name in names {
+        let path = cache
+            .ensure(&lock, &name, &platform, consent, &DefaultFetcher)
+            .map_err(|e| match (&lock_path, &e) {
+                // The printed command must work: it has to name the same lock.
+                (Some(lock), ToolError::ConsentNotGiven { .. }) => {
+                    anyhow::anyhow!("{e} --tools-lock {}", lock.display())
+                }
+                _ => anyhow::Error::from(e),
+            })?;
+        let version = lock
+            .for_platform(&name, &platform)
+            .map_or("", |e| e.version.as_str());
+        println!("{name} {version} at {}", path.display());
+    }
+    Ok(EXIT_CLEAN)
 }
 
 fn cache_command(
@@ -408,6 +515,7 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             message_format,
         ),
         Command::Cache { action } => cache_command(action, cache_config),
+        Command::Tools { action } => tools_command(action),
         Command::Serve { port } => {
             anyhow::bail!("server mode is not implemented yet (port {port} requested)")
         }

@@ -214,6 +214,24 @@ Each rule's reading, and what it cannot see, is in the documentation of its modu
 apply to a repository (no decision records, no manifest it knows) is reported as not applicable here, never as clean. Files are read
 from `HEAD`, so the repository must be a git repository with a commit.
 
+## Tools CodeRipper may install: `coderipper tools`
+
+Some rules will hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
+installed behind your back. They live in an isolated cache, `tools` beside the build cache (or `CODERIPPER_TOOLS_DIR`), at
+`<tool>/<version>/<file>`, and nothing is written to your `PATH` or any system location. A `tools.lock` pins, per tool and
+platform, one version, its source, its SHA-256 and its SPDX licence; there is no "latest". A download that does not match its
+checksum is discarded and reported as `checksum_mismatch`. Without `--install-tools` nothing is downloaded, written or deleted, in CI or anywhere else:
+the error is `consent_not_given` and it prints the command that would install the tool.
+
+```sh
+coderipper tools list                          # the ledger: version, licence, source, installed or not; installs nothing
+coderipper tools install gitleaks --install-tools
+```
+
+This release ships the cache and the policy with an empty lock: no tool is pinned yet, so `tools list` says so. Each delegated
+rule adds its tool to the lock when it lands. This slice installs a checksummed single-file binary (or a `file://` copy, which is how
+an offline mirror works); a tool that ships only as an archive waits for the delegation that needs it.
+
 ## Suppressing a finding
 
 Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).

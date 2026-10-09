@@ -74,6 +74,7 @@ pub mod module;
 pub(crate) mod package;
 pub(crate) mod session;
 pub(crate) mod suppression;
+pub mod tools;
 pub(crate) mod worktree;
 
 use allowlist::Allowlist;
