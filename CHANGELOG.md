@@ -4,6 +4,57 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.2 - 2026-10-09 (proposed)
+
+### Added
+- **SUP-002 (dependencies free of known advisories) and SEC-006 (no known exploitable dependency vulnerabilities), run by
+  [osv-scanner](https://github.com/google/osv-scanner)** (Apache-2.0; multi-language P3, PR 4) under `--profile extended`. osv-scanner reads
+  the lockfiles, manifests and SBOMs it knows anywhere under the project (but not inside a `node_modules` directory, even with `--no-ignore`), resolves each package to an exact version and asks osv.dev
+  which advisories cover it. **Both rules are sweep-tier (they use the network):** `coderipper sweep --profile extended` runs them,
+  `coderipper check SUP-002 --profile extended` runs one with the network permitted, and `fast` leaves them alone.
+- **One finding per advisory group** (advisories that osv-scanner treats as the same flaw) of one package in one lockfile, at the lockfile
+  (no line), subject `ecosystem:name@version`, so the allowlist can name `check` + `file`. Severity follows the group's highest CVSS
+  score (9.0 and up `Critical`, 7.0 `High`, 4.0 `Medium`, below `Low`); an advisory with no score is `High`, not hidden. Confidence is
+  `Medium` for SUP-002 and `Low` for SEC-006. Advisory text is third-party text: control characters are removed and each summary is cut short.
+- **SEC-006 is narrower than SUP-002, and it does not know whether the flaw is reachable.** It reports the groups scored 7.0 or higher
+  (or unscored) as a "known high-severity advisory" (or "known advisory with no severity score"), never as "exploitable", and every
+  SEC-006 finding says reachability is not analysed. The rule's record says the same in `checked_today`; the rule keeps its id. Reachability is call analysis, which osv-scanner offers only for Go and Rust and does
+  by building the project's code (a Rust build script runs), so it is not run. A SEC-006 finding means a serious advisory covers the pinned
+  version, not that the project can be attacked through it.
+- **The analysed repository cannot silence these rules** (design 5.2): osv-scanner reads an `osv-scanner.toml` in every directory it
+  scans (its `IgnoredVulns` drop advisories) and honours `.gitignore`; CodeRipper runs it with `--config` naming an empty file and
+  `--no-ignore`, so neither a committed `osv-scanner.toml` nor a `.gitignore` entry hides a lockfile or an advisory. Both were measured
+  against the real tool (an ignored advisory vanishes from a plain osv-scanner report and stays in CodeRipper's).
+- **A partial read is not a clean result.** osv-scanner names a lockfile it could not read only on stderr (measured: exit 127 when nothing
+  else was found, exit 1 beside advisories); that is `tool_failed` (exit 3) naming the file, and so is an empty report with anything on
+  stderr. Findings that were read beside an unreadable lockfile are still reported, each with a note that part of the project was not judged. Exit `128` (no package sources found) is a **coverage gap**, not a clean rule: nothing was judged. Exit `1` with no findings in
+  the report, an unreadable report, or any other exit code is a failure.
+- A run that asks for both rules runs osv-scanner once (the two rules share the report).
+- **osv-scanner 2.6.0 is pinned** for `x86_64-windows`, `x86_64-linux`, `aarch64-linux`, `aarch64-macos` and `x86_64-macos`, as the
+  publisher's bare binaries; the hashes are those in its `osv-scanner_SHA256SUMS`. (The windows-arm64 build is not pinned yet.)
+- **Conformance: `many = true` in `expect.toml`.** An expectation is met by exactly one finding; a rule that reports what an outside
+  database holds today reports a number a fixture cannot fix, so an expectation may say "one or more at this file". None is still a miss
+  and a finding elsewhere is still unexplained. `conformance/SUP-002/` and `conformance/SEC-006/` (a lockfile pinning lodash 4.17.15, and a
+  clean twin) use it and `needs_network = true`: they are `unproven` without `--network` (and without the tool), not failed.
+  `tests/delegated_osv.rs` installs the pinned osv-scanner and runs the fixtures and the CLI against it; it needs the network
+  (`CODERIPPER_SKIP_NETWORK_TESTS=1` skips it). **Pull-request CI does not depend on the day's database for a clean answer**: the clean
+  twin's one package is a name in the fixtures' own scope that no registry holds (so no advisory can ever list it), and the defective
+  twin pins lodash 4.17.15 (advisories for years; `many = true` absorbs new ones). A real package with no advisory today is checked by
+  a canary test (`#[ignore]`) that only the new scheduled, non-required workflow `.github/workflows/live-tools.yml` runs; its failure is a signal.
+- Library: `DelegatedModule` now declares `needs_network` (its osv-scanner rules do).
+
+### Changed
+- **A rule that needs the network no longer runs in a `fast` run under `--profile extended`**; before, no rule delegated to a tool needed
+  one. `check <id>` naming such a rule gives it the network, as naming a network check always has.
+
+### Known limits
+- Only gitleaks and osv-scanner are pinned. lychee, zizmor and buf follow, one per release; checkov (PyPI only) needs a Python-prerequisite decision.
+- The advisory database is queried live, so a result is true of the day it was read; a lockfile's packages are judged by exact version
+  and osv-scanner's extractors (Cargo.lock, package-lock.json, yarn/pnpm, poetry/pip, go.mod, Gemfile.lock, and the rest it supports).
+  A manifest without a lockfile may be resolved through deps.dev (osv-scanner's default), which is not deterministic.
+- CodeRipper runs osv-scanner with a scrubbed environment, which has no proxy variables (not measured): a machine that reaches osv.dev
+  only through `HTTPS_PROXY` should get `tool_failed`, never a clean rule.
+
 ## 0.4.1 - 2026-10-09 (proposed)
 
 ### Added

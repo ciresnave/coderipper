@@ -217,6 +217,7 @@ pub(super) fn scan_with(
             args(&git_dir, scratch)
         },
         &request.limits,
+        &[],
     ) {
         Ok(run) => run,
         Err((kind, detail)) => return Verdict::Failed(kind, format!("{TOOL}: {detail}")),

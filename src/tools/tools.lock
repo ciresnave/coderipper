@@ -70,3 +70,47 @@ licence     = "MIT"
 archive     = "tar.gz"
 member      = "gitleaks"
 file_sha256 = "cee01fea7173f1b779dff188e1c26ecbcb4027d394acc573b23aaf0be260e291"
+
+# osv-scanner 2.6.0 (Apache-2.0): SUP-002 and SEC-006. The releases are bare binaries; the hashes are the ones in the publisher's
+# osv-scanner_SHA256SUMS (read 2026-10-09 from https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_SHA256SUMS).
+# The release also has a windows_arm64 build, which is not pinned (CodeRipper does not run there yet).
+
+[[tool]]
+name     = "osv-scanner"
+version  = "2.6.0"
+platform = "x86_64-windows"
+source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_windows_amd64.exe"
+sha256   = "e0ed7644118b717b028c249ee9d3515024e55e8510747ca08906eb96765354d6"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "osv-scanner"
+version  = "2.6.0"
+platform = "x86_64-linux"
+source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64"
+sha256   = "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "osv-scanner"
+version  = "2.6.0"
+platform = "aarch64-linux"
+source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_arm64"
+sha256   = "2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "osv-scanner"
+version  = "2.6.0"
+platform = "aarch64-macos"
+source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_arm64"
+sha256   = "98c460dcd37de25819babd757d04542045b6243113e209edcd4d89fedb0256b4"
+licence  = "Apache-2.0"
+
+[[tool]]
+name     = "osv-scanner"
+version  = "2.6.0"
+platform = "x86_64-macos"
+source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_amd64"
+sha256   = "60c5296637e977b28eeda5c7f13573e447659a632922737f94d11fa7e30ad6ca"
+licence  = "Apache-2.0"

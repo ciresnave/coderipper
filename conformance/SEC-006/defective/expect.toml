@@ -1,0 +1,8 @@
+# The seeded defect: a lockfile pinning lodash 4.17.15, which has had published advisories for years. How many advisories the
+# database holds changes, so the expectation is "one or more" at the lockfile.
+needs_network = true
+
+[[expect]]
+rule = "SEC-006"
+file = "package-lock.json"
+many = true

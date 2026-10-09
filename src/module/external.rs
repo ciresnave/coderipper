@@ -176,6 +176,8 @@ pub(super) struct ChildRun {
     pub(super) failure: Option<ModuleFailure>,
     /// The tail of the child's stderr, kept when it exited normally (a tool's log can say what its exit code does not).
     pub(super) stderr: String,
+    /// The exit code, when the child exited by itself (not killed, not failed to start).
+    pub(super) exit_code: Option<i32>,
 }
 
 /// What a child process is: a module (speaks the protocol) or a delegated tool (a program whose output the host reads). Only
@@ -211,10 +213,22 @@ enum Piece {
 /// Runs a prepared command: writes `stdin_line` to its stdin, reads its stdout as lines against `limits`, keeps the tail
 /// of its stderr, and kills the process tree on a timeout or a limit.
 pub(super) fn run_child(
+    command: Command,
+    stdin_line: Option<&str>,
+    limits: &Limits,
+    who: Who,
+) -> ChildRun {
+    run_child_accepting(command, stdin_line, limits, who, &[])
+}
+
+/// [`run_child`] for a tool whose exit code is part of its answer: these codes (beside 0) are not a failure, and the code is
+/// in the result.
+pub(super) fn run_child_accepting(
     mut command: Command,
     stdin_line: Option<&str>,
     limits: &Limits,
     who: Who,
+    ok_codes: &[i32],
 ) -> ChildRun {
     let started = Instant::now();
     let deadline = started + Duration::from_secs(limits.wall_secs);
@@ -228,6 +242,7 @@ pub(super) fn run_child(
                     format!("cannot start the {}: {e}", who.noun()),
                 )),
                 stderr: String::new(),
+                exit_code: None,
             }
         }
     };
@@ -308,6 +323,7 @@ pub(super) fn run_child(
 
     let mut lines = Vec::new();
     let mut failure = None;
+    let mut exit_code = None;
     loop {
         let wait = deadline.saturating_duration_since(Instant::now());
         match receiver.recv_timeout(wait) {
@@ -339,6 +355,7 @@ pub(super) fn run_child(
             lines,
             failure,
             stderr: String::new(),
+            exit_code: None,
         };
     }
 
@@ -346,7 +363,8 @@ pub(super) fn run_child(
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
-                if !status.success() {
+                exit_code = status.code();
+                if !status.success() && !exit_code.is_some_and(|c| ok_codes.contains(&c)) {
                     failure = Some(ModuleFailure::new(
                         who.crashed(),
                         with_stderr(
@@ -387,6 +405,7 @@ pub(super) fn run_child(
         lines,
         failure,
         stderr,
+        exit_code,
     }
 }
 

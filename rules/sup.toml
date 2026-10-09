@@ -44,6 +44,7 @@ kb_refs = []
 remediation = "Upgrade or replace the affected dependency; where that is impossible, record a time-limited waiver naming the advisory and the reason."
 related = ["SUP-013"]
 lifecycle = "experimental"
+checked_today = "Each package version that osv-scanner resolves from a lockfile, manifest or SBOM it reads (not inside node_modules) is looked up in the OSV database on the day of the run; every advisory group found is reported. Not judged: ecosystems osv-scanner has no extractor for, a project with no lockfile or manifest (reported as not run), and whether the flaw is reachable or waived."
 
 [rule.applicability]
 languages = ["any"]

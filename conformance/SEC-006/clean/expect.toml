@@ -1,0 +1,4 @@
+# A clean twin expects nothing. Its one package is a name no registry holds (the fixtures' own scope), so no advisory database can ever
+# list it: this fixture does not change with the day's data. (A real package with no advisory today would start failing CI when one
+# is published; `tests/delegated_osv.rs` checks one such package in a scheduled run instead.)
+needs_network = true

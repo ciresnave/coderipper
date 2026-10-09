@@ -139,6 +139,7 @@ kb_refs = []
 remediation = "Match the lockfile against an advisory database, upgrade or replace the affected dependency, and record a dated waiver with a reason for anything you must keep."
 related = ["SUP-002"]
 lifecycle = "experimental"
+checked_today = "The advisory groups that SUP-002 finds, narrowed to those with a CVSS score of 7.0 or higher or no score: a known advisory of high or unknown severity covers a resolved dependency version in the OSV database. Not judged: whether the vulnerable code is reachable or exploitable (call analysis is not run, so no finding claims the project can be attacked through it), and waivers."
 
 [rule.applicability]
 languages = ["any"]

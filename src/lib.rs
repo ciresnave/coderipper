@@ -563,15 +563,30 @@ fn run_checks_over_in(
         UnitFilter::Only(unit) => Some(unit),
         UnitFilter::Any => None,
     };
+    // A rule that asks a service over the network (the advisory database) is a sweep-tier rule, like a network check: a fast run
+    // does not take it, and one that names it is asking for it, so it is given the network.
+    let needs_network = |id: &str| {
+        catalog::Catalog::builtin()
+            .get(id)
+            .is_some_and(|rule| rule.network() == check::Network::NetworkRequired)
+    };
     // The neutral rules judge the whole repository, so they run in the repository pass (and in a plain run), once.
     if !matches!(units, UnitFilter::Only(check::Unit::Package)) {
         selected.extend(
             extra
                 .iter()
-                .filter(|id| only_check_id.is_none_or(|only| only == **id))
+                .filter(|id| match only_check_id {
+                    Some(only) => only == **id,
+                    None => tier == Tier::Sweep || !needs_network(id),
+                })
                 .map(|id| (*id).to_string()),
         );
     }
+    let tier = if only_check_id.is_some_and(|id| extra.contains(&id) && needs_network(id)) {
+        Tier::Sweep
+    } else {
+        tier
+    };
     let mut registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
     registered.extend(&extra);
     let rust = module::RustModule::new(checks);

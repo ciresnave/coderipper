@@ -648,3 +648,51 @@ fn the_rust_modules_proof_claims_are_exactly_the_rules_the_fixtures_prove() {
     assert!(!proven.is_empty(), "positive control: some rule is proven");
     assert_eq!(claimed_proven, proven);
 }
+
+#[test]
+fn an_expectation_marked_many_accepts_one_or_more_findings_in_its_place_and_no_others() {
+    // a rule over an outside database (an advisory feed) reports as many findings as the feed holds today, so the fixture cannot
+    // count them: it names the place and says "one or more"
+    let fixtures = fixtures_with_pair();
+    write(
+        fixtures.path(),
+        &[(
+            "r1/defective/expect.toml",
+            "[[expect]]\nrule = \"r1\"\nfile = \"bad.txt\"\nmany = true\n",
+        )],
+    );
+    let reports = |places: Vec<(&'static str, u32)>| {
+        Scripted::new(
+            &["r1"],
+            Box::new(move |_, root| {
+                Ok(if root.join("bad.txt").exists() {
+                    places
+                        .iter()
+                        .map(|(f, l)| (f.to_string(), Some(*l)))
+                        .collect()
+                } else {
+                    vec![]
+                })
+            }),
+        )
+    };
+    for places in [
+        vec![("bad.txt", 1)],
+        vec![("bad.txt", 1), ("bad.txt", 1), ("bad.txt", 9)],
+    ] {
+        assert_eq!(
+            verdict_of(&reports(places.clone()), fixtures.path(), "r1"),
+            Verdict::Proven,
+            "{places:?}"
+        );
+    }
+    // none is still a miss, and a finding in another file is still unexplained
+    assert!(matches!(
+        verdict_of(&reports(vec![]), fixtures.path(), "r1"),
+        Verdict::Failed(_)
+    ));
+    assert!(matches!(
+        verdict_of(&reports(vec![("bad.txt", 1), ("other.txt", 1)]), fixtures.path(), "r1"),
+        Verdict::Failed(reasons) if reasons.iter().any(|r| r.contains("other.txt"))
+    ));
+}
