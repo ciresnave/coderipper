@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2021"
 description = "Audits a Rust project for what clippy does not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
@@ -17,8 +17,9 @@ exclude = ["docs/", ".github/", "codecov.yml", "tests/", "conformance/"]
 
 [features]
 default = ["cli"]
-# The command-line program. A library user turns it off (`default-features = false`) and does not compile clap.
-cli = ["dep:clap"]
+# The command-line program. A library user turns it off (`default-features = false`) and does not compile clap or the
+# HTTP client the tool installer downloads with.
+cli = ["dep:clap", "dep:ureq"]
 
 [[bin]]
 name = "coderipper"
@@ -46,6 +47,8 @@ toml = "1"
 tempfile = "3"
 syn = { version = "3.0.6", features = ["full", "visit"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
+sha2 = "0.11.0"
+ureq = { version = "3.4.2", default-features = false, features = ["rustls"], optional = true }
 
 [dev-dependencies]
 assert_cmd = "2"

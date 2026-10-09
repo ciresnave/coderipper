@@ -1,0 +1,13 @@
+# The tools CodeRipper may install, pinned (design section 8). One [[tool]] per tool and platform:
+#
+#   [[tool]]
+#   name     = "gitleaks"                       # also the default file name inside the version directory
+#   version  = "8.0.0"                          # exactly one version per tool and platform; there is no "latest"
+#   platform = "x86_64-windows"                 # <arch>-<os>: x86_64|aarch64 - windows|linux|macos
+#   source   = "https://example.com/gitleaks"   # https, http on this machine, or file://
+#   sha256   = "<64 hex digits of that file>"
+#   licence  = "MIT"                            # SPDX expression, shown by `coderipper tools list`
+#   file     = "gitleaks"                       # optional; a .exe suffix is added on Windows
+#
+# Changing a line here is a reviewed change (a release of CodeRipper), never a run-time decision. The delegations that
+# need tools (gitleaks, osv-scanner, lychee, zizmor, checkov, buf) add their entries with their PRs; none is pinned yet.

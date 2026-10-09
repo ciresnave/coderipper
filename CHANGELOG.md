@@ -4,6 +4,32 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.7 - 2026-10-09 (proposed)
+
+### Added
+- **The tool cache** (multi-language P3, PR 2): the isolated place, and the policy, for the external tools delegated rules will use.
+  `coderipper::tools` (`ToolsLock`, `ToolCache`, `Consent`, `Fetcher`, `DefaultFetcher`, `ToolError`) and `coderipper tools list` /
+  `coderipper tools install [NAME...] --install-tools [--tools-lock FILE]`.
+  - Tools live at `<tools dir>/<tool>/<version>/<file>` (an absolute path); the tools directory is `CODERIPPER_TOOLS_DIR`, else
+    `tools` beside the build cache. Nothing is written to a `PATH` or any system location.
+  - `tools.lock` pins, per tool and platform, version, source, SHA-256 and SPDX licence. Names that become path components are
+    validated (no separators, no `..`, no Windows reserved names, unique ignoring case); a source is `https://`, `http://` on this
+    machine (userinfo and backslashes refused), or an absolute `file://` path (no percent-decoding). An `https://` download may
+    redirect but never down to `http://`.
+  - Nothing is fetched, written or deleted without `--install-tools`; otherwise the error is `consent_not_given` with the exact
+    command (naming the same `--tools-lock` when one was given). A download is hashed before anything is written, so a mismatch is
+    `checksum_mismatch` and leaves no file. An installed file that no longer matches its lock entry is reported and left alone
+    without consent, and replaced with it. Other codes: `tool_missing`, `tool_unavailable_for_platform`,
+    `download_failed`, `tool_install_failed`, `tools_lock_invalid`.
+  - New dependencies: `sha2`, and `ureq` (rustls) behind the `cli` feature for the download.
+
+### Known limits (deliberate for this PR)
+- The shipped lock is empty: no tool is pinned until the delegation PR that needs it. The installer handles a single-file binary
+  only; archives, `cargo install`, `npm` and `pip` installers come with the first tool that needs them.
+- There is no interactive prompt and no user configuration file yet; `--install-tools` is the only consent. `tools bundle` and
+  `tools install --from` (offline sets) are not built; a `file://` source covers a mirror for now.
+- `--install-tools` is accepted by `coderipper tools install` only; the run commands do not take it until a delegated rule uses a tool.
+
 ## 0.3.6 - 2026-10-09 (allocated by the PM)
 
 ### Added
