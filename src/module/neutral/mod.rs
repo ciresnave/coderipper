@@ -212,6 +212,11 @@ impl NeutralModule {
 
 /// The rules whose claim is earned: each has a seeded-defect fixture and a clean twin under `conformance/`
 /// (`tests/neutral_module.rs` fails if this list and the fixtures disagree).
+/// Rules whose check reads the files of some languages only (the coverage report shows the others as gaps). `SUP-001` reads
+/// Cargo manifests and lockfiles (`rust`) and npm-family manifests and lockfiles (`typescript`, which stands for the
+/// JavaScript family); Python, Go and the rest are not read.
+const READS_ONLY: &[(&str, &[&str])] = &[("SUP-001", &["rust", "typescript"])];
+
 const PROVEN: &[&str] = &["SUP-001", "SUP-011", "DOC-005", "DOC-009", "WSP-001"];
 
 impl Module for NeutralModule {
@@ -227,6 +232,9 @@ impl Module for NeutralModule {
                 .iter()
                 .map(|r| {
                     let mut claim = RuleClaim::native(r.id);
+                    if let Some((_, languages)) = READS_ONLY.iter().find(|(id, _)| *id == r.id) {
+                        claim = claim.only_languages(languages);
+                    }
                     if PROVEN.contains(&r.id) {
                         claim.proof = Some(format!("conformance/{}", r.id));
                     }

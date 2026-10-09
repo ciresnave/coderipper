@@ -166,9 +166,17 @@ pub struct Rule {
     #[serde(default)]
     related: Vec<String>,
     lifecycle: Lifecycle,
+    #[serde(default)]
+    checked_today: Option<String>,
 }
 
 impl Rule {
+    /// What CodeRipper's check for this rule judges today, and what it does not, when that is narrower than the statement.
+    /// `None` when no check exists or the check judges the whole statement.
+    pub fn checked_today(&self) -> Option<&str> {
+        self.checked_today.as_deref()
+    }
+
     /// The stable ID: a kebab-case name for the five original checks, the knowledge base's `XXX-nnn` for new rules.
     pub fn id(&self) -> &str {
         &self.id

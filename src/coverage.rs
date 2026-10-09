@@ -190,6 +190,10 @@ pub fn for_module(
             .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
         match claim {
             Some(c) if c.status == "not-applicable" => coverage.not_applicable += 1,
+            Some(c) if !c.covers_language(language) => {
+                coverage.not_covered += 1;
+                coverage.gaps.push(rule.id().to_string());
+            }
             Some(c) if c.proof.is_some() => coverage.covered += 1,
             Some(_) => {
                 coverage.claimed_unproven += 1;
@@ -255,6 +259,11 @@ pub fn for_missing_module_with(
             .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
         match claim {
             Some(c) if c.status == "not-applicable" => coverage.not_applicable += 1,
+            // the module's check does not read this language's files: not yet implemented for it
+            Some(c) if !c.covers_language(language) => {
+                coverage.not_covered += 1;
+                coverage.gaps.push(rule.id().to_string());
+            }
             Some(c) if c.proof.is_some() => coverage.covered += 1,
             Some(_) => {
                 coverage.claimed_unproven += 1;

@@ -236,3 +236,38 @@ fn a_project_below_the_repository_root_reads_its_own_files_even_with_a_byte_orde
     assert_eq!(root.findings.len(), 1, "{:?}", root.findings);
     assert_eq!(root.findings[0].check_id, "WSP-001");
 }
+
+#[test]
+fn every_rule_the_module_claims_says_in_its_record_what_the_check_judges_today() {
+    let catalog = coderipper::catalog::Catalog::builtin();
+    for rule in RULES {
+        let record = catalog.get(rule).unwrap_or_else(|| panic!("{rule}"));
+        let text = record
+            .checked_today()
+            .unwrap_or_else(|| panic!("{rule}: the record does not say what is checked today"));
+        assert!(text.len() > 40, "{rule}: {text}");
+    }
+    // the narrowings are stated where a reader of the record will see them
+    let says = |rule: &str, needle: &str| {
+        catalog
+            .get(rule)
+            .unwrap()
+            .checked_today()
+            .unwrap()
+            .contains(needle)
+    };
+    assert!(says("WSP-001", "importance level and stage of life"));
+    assert!(says("DOC-009", "Not judged"));
+    assert!(says("DOC-005", "rules that enforce them"));
+    assert!(says("SUP-001", "Go, Python"));
+}
+
+#[test]
+fn the_lockfile_rule_claims_only_the_languages_it_reads() {
+    let hello = NeutralModule::new().describe().unwrap();
+    let claim = |id: &str| hello.rules.iter().find(|r| r.id == id).unwrap();
+    assert!(claim("SUP-001").covers_language("rust"));
+    assert!(claim("SUP-001").covers_language("typescript"));
+    assert!(!claim("SUP-001").covers_language("python"));
+    assert!(claim("WSP-001").covers_language("python"));
+}
