@@ -83,7 +83,7 @@ guidance are available but no finding is produced.
 ## Further reading
 
 - *Java Concurrency in Practice* by Brian Goetz and others
-- "Communicating Sequential Processes" by C. A. R. Hoare
+- "Communicating Sequential Processes" by C. A. R. Hoare (the 1978 paper; the 1985 book has the same title)
 - Nathaniel J. Smith, "Notes on structured concurrency, or: Go statement considered harmful" (2018)
 - Martin Sustrik, "Structured Concurrency" (2016)
 - Documentation of loom, shuttle, Miri and ThreadSanitizer

@@ -87,7 +87,7 @@ Classes: P parser-level facts, X needs executing tests, H needs history, L needs
 
 - Bertrand Meyer, *Object-Oriented Software Construction*
 - Robert C. Martin, writings on the open-closed and interface segregation principles
-- Barbara Liskov, "Data Abstraction and Hierarchy"; Liskov and Wing, "A Behavioral Notion of Subtyping"
+- Barbara Liskov, "Data Abstraction and Hierarchy" (OOPSLA 1987 keynote); Liskov and Wing, "A Behavioral Notion of Subtyping"
 - Gamma, Helm, Johnson and Vlissides, *Design Patterns*
 - Joshua Bloch, *Effective Java*
 - Philip Wadler, the "expression problem" note

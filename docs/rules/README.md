@@ -2,6 +2,8 @@
 
 Informed by the owner's knowledge base v2 and written in CodeRipper's own words; rule IDs and ideas carry over, its text does not.
 
+**CodeRipper's judgment.** The knowledge base tags evidence strength per domain and gives no per-rule severity. The per-rule `evidence_strength`, `contested`, `default_severity` and `confidence_class` in the catalog records are CodeRipper's own judgment, made when the records were written; `contested` follows the knowledge base's register of disputed guidance wherever that register names a rule. They are defaults a project can override, and they are open to correction.
+
 ## Domains
 
 | Code | Guide | Summary | Claim in brief | Outlook for automation | Tiers |

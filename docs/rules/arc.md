@@ -7,8 +7,9 @@ Informed by the owner's knowledge base v2 (October 2026); paraphrased, not quote
 If nothing limits who may depend on whom, everything ends up depending on everything. The parts
 that change most, such as frameworks, databases, transports and vendor SDKs, creep into the code
 that holds the business rules, and the price of each change grows faster than the system itself.
-Empirical work (MacCormack, Rusnak and Baldwin, 2006) supports the claim that dependency
-structure predicts how far a change propagates. Claims about particular architectural styles rest
+Empirical work (MacCormack, Rusnak and Baldwin, 2006) shows that dependency structure can be
+measured and differs systematically between designs; the knowledge base holds that this structure
+predicts how far a change propagates. Claims about particular architectural styles rest
 on practitioner consensus rather than measurement. The opposite error also exists: building
 structure too early, so that extra layers and translation steps add cost and no benefit.
 
@@ -104,4 +105,4 @@ language model.
 - James Lewis and Martin Fowler, "Microservices"
 - Melvin Conway, "How Do Committees Invent?"
 - Neal Ford, Rebecca Parsons and Patrick Kua, *Building Evolutionary Architectures*
-- MacCormack, Rusnak and Baldwin, their 2006 study of design structure and change propagation
+- MacCormack, Rusnak and Baldwin, their 2006 study of the dependency structure of open source and proprietary designs

@@ -73,7 +73,7 @@ No rule in this domain is run by the current release; every row below is a catal
 ## Further reading
 
 - Your Code as a Crime Scene, Adam Tornhill
-- The Influence of Organizational Structure on Software Quality, Nagappan, Murphy and Basili
+- The Influence of Organizational Structure on Software Quality: An Empirical Case Study, Nagappan, Murphy and Basili (ICSE 2008)
 - Mining Version Histories to Guide Software Changes, Zimmermann et al.
 - Don't Touch My Code! Examining the Effects of Ownership on Software Quality, Bird et al.
 - Use of Relative Code Churn Measures to Predict System Defect Density, Nagappan and Ball

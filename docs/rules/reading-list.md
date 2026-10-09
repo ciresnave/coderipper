@@ -79,7 +79,7 @@ Check details against the original before citing formally.
 - OWASP ASVS, Top 10 and SAMM: verification requirements, common weaknesses and a maturity model.
 - NIST SP 800-218 (SSDF): a secure development framework.
 - SLSA, Sigstore, SPDX, CycloneDX and OpenSSF Scorecard: build provenance, signing, bills of materials and project health signals.
-- Pearce et al. (2022), *Asleep at the Keyboard?*: security of code written by an assistant.
+- Pearce et al. (2021-22), *Asleep at the Keyboard?*: security of code written by an assistant.
 
 ## History and evolution
 

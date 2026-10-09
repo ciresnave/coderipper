@@ -80,5 +80,5 @@ whether generated tests would notice a fault. No fixed threshold is set here.
 ## Further reading
 
 - "Asleep at the Keyboard? Assessing the Security of GitHub Copilot's Code Contributions",
-  Hammond Pearce and co-authors (2021).
+  Hammond Pearce and co-authors (arXiv 2021; IEEE Symposium on Security and Privacy 2022).
 - Mutation testing literature and tools, for judging test strength.
