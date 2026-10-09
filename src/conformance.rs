@@ -23,6 +23,11 @@
 //! may be reported in the clean one. A rule that passes is [`Verdict::Proven`]. A rule that was claimed but has no complete pair
 //! is [`Verdict::NoFixture`], and one that needs the network when the run does not allow it is [`Verdict::Unproven`]: neither is
 //! coverage. A defect with no clean twin proves nothing, because a check that always reports would pass it.
+//!
+//! **Fixtures are code that runs.** The built-in checks build the project they are given, so a fixture's build script or
+//! procedural macro executes with the caller's privileges and network. Run conformance only over fixtures you wrote or trust (a
+//! module's own CI over its own repository); there is no sandbox here. The runner does refuse a fixture that carries its own `.git`
+//! directory or a symbolic link, and it clears the git environment variables that would point its repository at the caller's.
 
 use crate::check::{CheckContext, Tier};
 use crate::module::{reconcile, Limits, Module, Request, RuleStatus};
@@ -39,6 +44,9 @@ pub enum Verdict {
     Proven,
     /// A fixture contradicted the claim; each reason names the fixture and what was wrong.
     Failed(Vec<String>),
+    /// The rule could not run on a fixture (the module errored, skipped it, or sent no verdict). That is not a contradiction of the
+    /// claim, and nothing was proven either: the run is incomplete, like a check that cannot run.
+    Errored(Vec<String>),
     /// Not judged, for the reason given (the fixture needs the network and the run did not allow it).
     Unproven(String),
     /// There is no complete pair (a defective project and a clean twin) for the rule.
@@ -71,6 +79,13 @@ impl Conformance {
             .filter(|r| r.verdict == Verdict::Proven)
             .map(|r| r.rule.as_str())
             .collect()
+    }
+
+    /// Whether any rule could not be run on its fixtures.
+    pub fn any_errored(&self) -> bool {
+        self.rules
+            .iter()
+            .any(|r| matches!(r.verdict, Verdict::Errored(_)))
     }
 
     /// Whether any fixture contradicted a claim.
@@ -171,6 +186,18 @@ pub fn run(module: &dyn Module, options: &Options) -> anyhow::Result<Conformance
     if let Some(problem) = hello.problem() {
         bail!("the module's hello: {problem}");
     }
+    if let Some(bad) = hello.rules.iter().find(|r| {
+        !matches!(
+            r.status.as_str(),
+            "implemented-native" | "delegated" | "not-applicable"
+        )
+    }) {
+        bail!(
+            "the module claims the rule \"{}\" with the status \"{}\", which the protocol does not define",
+            bad.id,
+            bad.status
+        );
+    }
     let claimed: Vec<&str> = hello
         .rules
         .iter()
@@ -203,6 +230,9 @@ fn judge(module: &dyn Module, options: &Options, rule: &str) -> anyhow::Result<V
     let base = options.fixtures.join(rule);
     let defective = base.join(Kind::Defective.dir());
     let clean = base.join(Kind::Clean.dir());
+    for dir in [&defective, &clean] {
+        reject_symlink(dir)?;
+    }
     if !defective.is_dir() || !clean.is_dir() {
         return Ok(Verdict::NoFixture);
     }
@@ -213,22 +243,38 @@ fn judge(module: &dyn Module, options: &Options, rule: &str) -> anyhow::Result<V
             "its fixture needs the network, and this run does not allow it".into(),
         ));
     }
-    let mut reasons = Vec::new();
+    let (mut reasons, mut errors) = (Vec::new(), Vec::new());
     for (dir, expect, kind) in [
         (&defective, &defective_expect, Kind::Defective),
         (&clean, &clean_expect, Kind::Clean),
     ] {
-        reasons.extend(judge_one(module, options, rule, dir, expect, kind)?);
+        let (contradictions, problems) = judge_one(module, options, rule, dir, expect, kind)?;
+        reasons.extend(contradictions);
+        errors.extend(problems);
     }
-    Ok(if reasons.is_empty() {
+    Ok(if !errors.is_empty() {
+        Verdict::Errored(errors)
+    } else if reasons.is_empty() {
         Verdict::Proven
     } else {
         Verdict::Failed(reasons)
     })
 }
 
+/// A fixture is read from inside its own directory only: a link could lead anywhere (or to a device that never ends).
+fn reject_symlink(path: &Path) -> anyhow::Result<()> {
+    if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        bail!(
+            "{}: a fixture must not be, or contain, a symbolic link",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
 fn read_expect(dir: &Path, rule: &str, kind: Kind) -> anyhow::Result<ExpectFile> {
     let path = dir.join("expect.toml");
+    reject_symlink(&path)?;
     let text = std::fs::read_to_string(&path)
         .with_context(|| format!("{}: cannot read the fixture's expectations", path.display()))?;
     let parsed: ExpectFile =
@@ -261,7 +307,7 @@ fn judge_one(
     dir: &Path,
     expect: &ExpectFile,
     kind: Kind,
-) -> anyhow::Result<Vec<String>> {
+) -> anyhow::Result<(Vec<String>, Vec<String>)> {
     let name = format!("{rule}/{}", kind.dir());
     let project = tempfile::tempdir()?;
     copy_fixture(dir, project.path())?;
@@ -276,26 +322,27 @@ fn judge_one(
         Limits::new(1800, 64 << 20),
     );
     let reconciled = reconcile(&request, module.check(&request));
-    let mut reasons: Vec<String> = reconciled
+    let mut reasons: Vec<String> = Vec::new();
+    let mut errors: Vec<String> = reconciled
         .run_errors
         .iter()
         .map(|e| format!("{name}: the run had a problem: {e}"))
         .collect();
     let Some(outcome) = reconciled.rules.into_iter().find(|o| o.rule == rule) else {
-        reasons.push(format!("{name}: the module gave no verdict for the rule"));
-        return Ok(reasons);
+        errors.push(format!("{name}: the module gave no verdict for the rule"));
+        return Ok((reasons, errors));
     };
     match outcome.status {
         RuleStatus::Ran => {}
         RuleStatus::Skipped { detail } => {
-            reasons.push(format!("{name}: the rule was skipped, not run: {detail}"));
-            return Ok(reasons);
+            errors.push(format!("{name}: the rule was skipped, not run: {detail}"));
+            return Ok((reasons, errors));
         }
         RuleStatus::Error { kind: why, detail } => {
-            reasons.push(format!(
+            errors.push(format!(
                 "{name}: the rule could not run ({why:?}): {detail}"
             ));
-            return Ok(reasons);
+            return Ok((reasons, errors));
         }
     }
     let mut found: Vec<(String, Option<u32>)> = Vec::new();
@@ -325,22 +372,17 @@ fn judge_one(
         Kind::Defective => {
             // Each expectation is met by exactly one finding, and every finding must meet one: a duplicate, or a second
             // finding in the same file, is not explained by a single expectation.
-            let mut used = vec![false; found.len()];
-            for wanted in &expect.expect {
-                let hit = found
-                    .iter()
-                    .enumerate()
-                    .find(|(i, (file, line))| !used[*i] && matches(wanted, file, *line));
-                match hit {
-                    Some((i, _)) => used[i] = true,
-                    None => reasons.push(format!(
+            let assigned = assign(&expect.expect, &found);
+            for (wanted, hit) in expect.expect.iter().zip(&assigned) {
+                if hit.is_none() {
+                    reasons.push(format!(
                         "{name}: the seeded defect was not reported at {}",
                         place(&wanted.file, wanted.line)
-                    )),
+                    ));
                 }
             }
             for (i, (file, line)) in found.iter().enumerate() {
-                if !used[i] {
+                if !assigned.contains(&Some(i)) {
                     reasons.push(format!(
                         "{name}: a finding at {} is not in expect.toml",
                         place(file, *line)
@@ -349,7 +391,47 @@ fn judge_one(
             }
         }
     }
-    Ok(reasons)
+    Ok((reasons, errors))
+}
+
+/// Pairs each expectation with a distinct finding that satisfies it, maximising the pairs (augmenting paths), so a broad
+/// expectation listed first cannot take the finding a narrower one needs. `result[i]` is the finding index for expectation `i`.
+fn assign(expect: &[Expect], found: &[(String, Option<u32>)]) -> Vec<Option<usize>> {
+    fn augment(
+        e: usize,
+        expect: &[Expect],
+        found: &[(String, Option<u32>)],
+        owner: &mut [Option<usize>],
+        seen: &mut [bool],
+    ) -> bool {
+        for (f, (file, line)) in found.iter().enumerate() {
+            if seen[f] || !matches(&expect[e], file, *line) {
+                continue;
+            }
+            seen[f] = true;
+            let free = match owner[f] {
+                None => true,
+                Some(other) => augment(other, expect, found, owner, seen),
+            };
+            if free {
+                owner[f] = Some(e);
+                return true;
+            }
+        }
+        false
+    }
+    let mut owner: Vec<Option<usize>> = vec![None; found.len()];
+    for e in 0..expect.len() {
+        let mut seen = vec![false; found.len()];
+        augment(e, expect, found, &mut owner, &mut seen);
+    }
+    let mut result = vec![None; expect.len()];
+    for (f, e) in owner.iter().enumerate() {
+        if let Some(e) = e {
+            result[*e] = Some(f);
+        }
+    }
+    result
 }
 
 fn matches(wanted: &Expect, file: &str, line: Option<u32>) -> bool {
@@ -398,9 +480,28 @@ fn copy_fixture(from: &Path, to: &Path) -> anyhow::Result<()> {
     copy(from, to, true)
 }
 
+/// `git` in `dir` with the variables that redirect a repository cleared: a caller inside a git hook has them set, and inherited
+/// they would aim the fixture's `init`, `add` and `commit` at the caller's own repository.
+fn git_command(dir: &Path) -> Command {
+    let mut command = Command::new("git");
+    command.current_dir(dir);
+    for var in [
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    ] {
+        command.env_remove(var);
+    }
+    command
+}
+
 fn git_commit_all(dir: &Path) -> anyhow::Result<()> {
     let git = |args: &[&str]| -> anyhow::Result<()> {
-        let output = Command::new("git").args(args).current_dir(dir).output()?;
+        let output = git_command(dir).args(args).output()?;
         if !output.status.success() {
             bail!(
                 "git {} failed: {}",
@@ -411,7 +512,8 @@ fn git_commit_all(dir: &Path) -> anyhow::Result<()> {
         Ok(())
     };
     git(&["init", "-q"])?;
-    git(&["add", "-A"])?;
+    // `-f`: the fixture is committed as written, whatever the caller's own ignore rules say.
+    git(&["add", "-A", "-f"])?;
     git(&[
         "-c",
         "user.email=conformance@coderipper.invalid",
@@ -424,4 +526,34 @@ fn git_commit_all(dir: &Path) -> anyhow::Result<()> {
         "-m",
         "fixture",
     ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::git_command;
+    use std::collections::HashSet;
+
+    #[test]
+    fn git_runs_with_no_inherited_repository_redirection() {
+        // A caller inside a git hook has GIT_DIR and friends set; inherited, they would point the fixture's `git init`, `add` and
+        // `commit` at the caller's own repository.
+        let command = git_command(std::path::Path::new("."));
+        let cleared: HashSet<String> = command
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(key, _)| key.to_string_lossy().into_owned())
+            .collect();
+        for var in [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_COMMON_DIR",
+        ] {
+            assert!(
+                cleared.contains(var),
+                "{var} must be cleared, cleared: {cleared:?}"
+            );
+        }
+    }
 }

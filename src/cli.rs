@@ -273,10 +273,12 @@ fn conformance_command(
     }
     let result = run(&module, &options)?;
     let mut failed = result.any_failed();
+    let errored = result.any_errored();
     for proof in &result.rules {
         let (word, notes): (&str, Vec<String>) = match &proof.verdict {
             Verdict::Proven => ("proven", Vec::new()),
             Verdict::Failed(reasons) => ("FAILED", reasons.clone()),
+            Verdict::Errored(problems) => ("ERROR", problems.clone()),
             Verdict::Unproven(why) => ("unproven", vec![why.clone()]),
             Verdict::NoFixture => ("no fixture", Vec::new()),
         };
@@ -298,6 +300,7 @@ fn conformance_command(
                     "verdict": match &proof.verdict {
                         Verdict::Proven => "proven",
                         Verdict::Failed(_) => "failed",
+                        Verdict::Errored(_) => "error",
                         Verdict::Unproven(_) => "unproven",
                         Verdict::NoFixture => "no-fixture",
                     },
@@ -306,7 +309,14 @@ fn conformance_command(
             ),
         }
     }
-    Ok(if failed { EXIT_FINDINGS } else { EXIT_CLEAN })
+    // A rule that could not run outranks a contradiction, as an error outranks a finding in a normal run.
+    Ok(if errored {
+        EXIT_COULD_NOT_RUN
+    } else if failed {
+        EXIT_FINDINGS
+    } else {
+        EXIT_CLEAN
+    })
 }
 
 /// A run: what `fast`, `sweep` and `check` each add to the shared options.

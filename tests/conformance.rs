@@ -236,11 +236,11 @@ fn a_finding_the_expectations_do_not_explain_fails() {
 }
 
 #[test]
-fn a_rule_that_cannot_run_on_its_fixture_fails_and_says_why() {
+fn a_rule_that_cannot_run_on_its_fixture_is_an_error_not_a_failed_claim() {
     let fixtures = fixtures_with_pair();
     let module = Scripted::new(&["r1"], Box::new(|_, _| Err("tool missing".into())));
     match verdict_of(&module, fixtures.path(), "r1") {
-        Verdict::Failed(reasons) => assert!(
+        Verdict::Errored(reasons) => assert!(
             reasons.iter().any(|r| r.contains("tool missing")),
             "{reasons:?}"
         ),
@@ -556,4 +556,71 @@ fn a_fixture_that_carries_its_own_git_directory_is_an_error() {
     let module = Scripted::new(&["r1"], reports_bad_txt());
     let err = run(&module, &Options::new(fixtures.path())).expect_err(".git in a fixture");
     assert!(format!("{err:#}").contains(".git"), "{err:#}");
+}
+
+#[test]
+fn expectations_are_assigned_one_to_one_whatever_their_order() {
+    // A file-wide expectation listed first must not consume the finding the line-specific one needs.
+    let fixtures = fixtures_with_pair();
+    write(
+        fixtures.path(),
+        &[(
+            "r1/defective/expect.toml",
+            "[[expect]]
+rule = \"r1\"
+file = \"bad.txt\"
+
+[[expect]]
+rule = \"r1\"
+file = \"bad.txt\"
+line = 1
+",
+        )],
+    );
+    let module = Scripted::new(
+        &["r1"],
+        Box::new(|_, root| {
+            Ok(if root.join("bad.txt").exists() {
+                vec![("bad.txt".into(), Some(1)), ("bad.txt".into(), Some(5))]
+            } else {
+                vec![]
+            })
+        }),
+    );
+    assert_eq!(verdict_of(&module, fixtures.path(), "r1"), Verdict::Proven);
+}
+
+#[test]
+fn a_claim_with_a_status_outside_the_protocol_is_an_error() {
+    let fixtures = fixtures_with_pair();
+    let mut module = Scripted::new(&["r1"], reports_bad_txt());
+    module.claims[0].status = "bogus".into();
+    let err = run(&module, &Options::new(fixtures.path())).expect_err("bad status");
+    assert!(err.to_string().contains("bogus"), "{err}");
+}
+
+#[test]
+fn a_symlinked_expect_toml_or_fixture_root_is_an_error() {
+    #[cfg(unix)]
+    fn link(from: &Path, to: &Path) -> std::io::Result<()> {
+        std::os::unix::fs::symlink(from, to)
+    }
+    #[cfg(windows)]
+    fn link(from: &Path, to: &Path) -> std::io::Result<()> {
+        if from.is_dir() {
+            std::os::windows::fs::symlink_dir(from, to)
+        } else {
+            std::os::windows::fs::symlink_file(from, to)
+        }
+    }
+    let fixtures = fixtures_with_pair();
+    let real = fixtures.path().join("r1/clean/expect.toml");
+    let moved = fixtures.path().join("elsewhere.toml");
+    std::fs::rename(&real, &moved).unwrap();
+    if link(&moved, &real).is_err() {
+        return; // this machine cannot make symbolic links (an unprivileged Windows account): nothing to test here
+    }
+    let module = Scripted::new(&["r1"], reports_bad_txt());
+    let err = run(&module, &Options::new(fixtures.path())).expect_err("symlinked expect.toml");
+    assert!(format!("{err:#}").contains("symbolic link"), "{err:#}");
 }
