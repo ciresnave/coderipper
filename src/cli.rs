@@ -112,7 +112,8 @@ enum Command {
         opts: RunOpts,
     },
     /// Run a module's conformance fixtures: which of its claims to cover a rule are earned by a seeded defect and a clean
-    /// twin. Exits 1 when a fixture contradicts a claim. Meant for a module's own CI.
+    /// twin. Exits 1 when a fixture contradicts a claim, 3 when a rule could not run. Meant for a module's own CI.
+    /// Fixtures are code that runs (the checks build them): use only fixtures you trust.
     Conformance {
         /// The module to judge. Only the built-in `rust` module exists so far.
         #[arg(long, default_value = "rust")]
