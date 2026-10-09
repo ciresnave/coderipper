@@ -186,6 +186,15 @@ nothing). `coderipper conformance [--rule ID] [--fixtures DIR]` runs them and pr
 could not run on its fixture; add `--require-proven` to fail on anything short of proven. Fixtures are code that runs (the checks build
 them), so use only fixtures you trust. This is for the people who write checks and modules, not for a normal run.
 
+## Coverage: what CodeRipper does and does not check yet
+
+`--profile extended` (or `--coverage`, or `--coverage=full` to list the ids) prints, per language, how many of the catalogued rules
+CodeRipper really covers (a claim counts only when a conformance fixture proves it), how many it does not cover yet, and how this
+run went. A rule CodeRipper has not built is **not yet implemented**: that is CodeRipper's own gap, not a finding about your code,
+and it never changes the exit code. A language in your repository that has no module is listed the same way. The default `classic`
+profile prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
+least one source file among the files git tracks; a project outside git is not scanned).
+
 ## Suppressing a finding
 
 Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).

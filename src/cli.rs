@@ -35,6 +35,24 @@ enum MessageFormat {
     Json,
 }
 
+/// `--profile`'s values: which rules run and what is reported.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum Profile {
+    /// The five original checks and exactly the output they have always had (the default).
+    Classic,
+    /// `classic`, plus the coverage report; the rules of the language-neutral and language modules join it as they arrive.
+    Extended,
+}
+
+/// `--coverage`'s values: how much of the gap list to print.
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum CoverageMode {
+    /// Counts only (the default for `--coverage` alone).
+    Summary,
+    /// Counts and the ids of every rule not yet covered.
+    Full,
+}
+
 /// `--deny`'s values: the severity at which a finding fails the run.
 #[derive(Clone, Copy, ValueEnum)]
 enum Deny {
@@ -88,6 +106,20 @@ struct RunOpts {
     /// `--message-format json`).
     #[arg(long, value_enum, default_value = "human")]
     message_format: MessageFormat,
+    /// Which rules run and what is reported: `classic` (default: the five original checks, output unchanged) or `extended` (adds
+    /// the coverage report). A rule CodeRipper has not built yet is "not yet implemented": it is reported, never a finding, and
+    /// it never fails a run.
+    #[arg(long, value_enum, default_value = "classic")]
+    profile: Profile,
+    /// Print the coverage report even under the `classic` profile. `--coverage=full` also lists every rule not yet covered.
+    #[arg(
+        long,
+        value_enum,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "summary"
+    )]
+    coverage: Option<CoverageMode>,
 }
 
 #[derive(Subcommand)]
@@ -375,6 +407,8 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 portfolio_root,
                 deny,
                 message_format,
+                profile,
+                coverage,
             },
         tier,
         only_check_id,
@@ -432,6 +466,12 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         EXIT_CLEAN
     };
 
+    // The coverage report: computed from the catalog joined with what the Rust module claims and has proven, and with this run's
+    // outcomes. A gap in it never touches `code` above.
+    let unchecked = crate::coverage::unchecked_languages(&ctx.project_root);
+    let show_coverage = profile == Profile::Extended || coverage.is_some();
+    let reports = show_coverage.then(|| coverage_reports(&result, &unchecked));
+
     match message_format {
         MessageFormat::Human => {
             // Review finding: this used to print "no checks registered yet" whenever BOTH findings and
@@ -450,6 +490,9 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                     f.check_id
                 );
             }
+            if let Some(reports) = &reports {
+                print_coverage_human(reports, coverage == Some(CoverageMode::Full));
+            }
         }
         MessageFormat::Json => {
             for f in &result.findings {
@@ -459,6 +502,14 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                     .expect("a Finding serializes to an object");
                 object.insert("reason".into(), "coderipper-finding".into());
                 println!("{line}");
+            }
+            for report in reports.iter().flatten() {
+                let limit = if coverage == Some(CoverageMode::Full) {
+                    usize::MAX
+                } else {
+                    crate::coverage::GAP_LIST_LIMIT
+                };
+                println!("{}", report.to_json_with_gap_limit(limit));
             }
             println!(
                 "{}",
@@ -474,6 +525,16 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     for e in &result.errors {
         eprintln!("coderipper: check error: {e}");
     }
+    // Under `classic` nothing else says that part of the repository was not looked at, so one stderr line does (design 10.2).
+    if reports.is_none() {
+        for u in &unchecked {
+            let s = if u.source_files == 1 { "" } else { "s" };
+            eprintln!(
+                "coderipper: {}: {} source file{s} found, not checked (classic profile; see --profile extended)",
+                u.language, u.source_files
+            );
+        }
+    }
     if !result.errors.is_empty() {
         eprintln!(
             "coderipper: {} error(s) during the run (see above)",
@@ -481,6 +542,45 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         );
     }
     Ok(code)
+}
+
+/// The coverage of the Rust module for this run, then one entry per language found that no module checks.
+fn coverage_reports(
+    result: &crate::RunResult,
+    unchecked: &[crate::coverage::UncheckedLanguage],
+) -> Vec<crate::coverage::LanguageCoverage> {
+    use crate::coverage::{for_missing_module, for_module};
+    use crate::module::Module;
+    let catalog = crate::catalog::Catalog::builtin();
+    let checks = crate::registered_checks();
+    let mut reports = Vec::new();
+    if let Ok(hello) = crate::module::RustModule::new(&checks).describe() {
+        reports.push(for_module(catalog, &hello, "rust", Some(&result.outcomes)));
+    }
+    for u in unchecked {
+        reports.push(for_missing_module(catalog, &u.language, u.source_files));
+    }
+    reports
+}
+
+/// The coverage lines, then (when anything is not covered) the "not yet implemented" section. The wording is deliberate: a gap is
+/// CodeRipper's own incomplete coverage, not a finding about the code that was checked, and it never fails a run.
+fn print_coverage_human(reports: &[crate::coverage::LanguageCoverage], full: bool) {
+    for report in reports {
+        println!("{}", report.human_line());
+    }
+    if reports.iter().any(|r| !r.gaps.is_empty()) {
+        println!(
+            "Not yet implemented: CodeRipper has not built these checks yet. This says nothing about your code and never fails a run."
+        );
+        if full {
+            for report in reports.iter().filter(|r| !r.gaps.is_empty()) {
+                println!("  {}: {}", report.language, report.gaps.join(", "));
+            }
+        } else {
+            println!("  (use --coverage=full to list them)");
+        }
+    }
 }
 
 /// Runs the CLI as the cargo subcommand `cargo coderipper`. Cargo runs `cargo-coderipper coderipper <args>` (it passes
