@@ -165,23 +165,62 @@ fn a_wrong_checksum_is_reported_as_such_and_leaves_no_file() {
 }
 
 #[test]
-fn an_unknown_tool_is_tool_missing() {
-    let base = serve(b"x");
+fn a_tool_name_the_lock_does_not_have_is_a_usage_error_and_installs_nothing() {
+    let base = serve(b"fake tool bytes");
     let work = tempfile::tempdir().unwrap();
     let tools = tempfile::tempdir().unwrap();
-    let lock = write_lock(work.path(), &format!("{base}/x"), &sha(b"x"));
+    let lock = write_lock(
+        work.path(),
+        &format!("{base}/faketool"),
+        &sha(b"fake tool bytes"),
+    );
+    // a typo is exit 2 (usage), and it is still named `tool_missing`; a valid name beside it is not installed either
+    for names in [&["nosuch"][..], &["faketool", "nosuch"][..]] {
+        coderipper(tools.path())
+            .args(["tools", "install"])
+            .args(names)
+            .args(["--install-tools", "--tools-lock"])
+            .arg(&lock)
+            .assert()
+            .code(2)
+            .stderr(predicate::str::contains("tool_missing"))
+            .stderr(predicate::str::contains("nosuch"));
+        assert_eq!(std::fs::read_dir(tools.path()).unwrap().count(), 0);
+    }
+}
+
+#[test]
+fn a_tool_the_lock_has_only_for_another_platform_is_could_not_run_not_usage() {
+    let work = tempfile::tempdir().unwrap();
+    let tools = tempfile::tempdir().unwrap();
+    let lock = work.path().join("tools.lock");
+    std::fs::write(
+        &lock,
+        format!(
+            "[[tool]]
+name = \"faketool\"
+version = \"1.2.3\"
+platform = \"other-platform\"
+source = \"https://example.com/x\"
+sha256 = \"{}\"
+licence = \"MIT\"
+",
+            sha(b"x")
+        ),
+    )
+    .unwrap();
     coderipper(tools.path())
         .args([
             "tools",
             "install",
-            "nosuch",
+            "faketool",
             "--install-tools",
             "--tools-lock",
         ])
         .arg(&lock)
         .assert()
         .code(3)
-        .stderr(predicate::str::contains("tool_missing"));
+        .stderr(predicate::str::contains("tool_unavailable_for_platform"));
 }
 
 #[test]
@@ -223,4 +262,69 @@ fn a_file_source_installs_from_disk() {
         .assert()
         .code(0)
         .stdout(predicate::str::contains("faketool 1.2.3"));
+}
+
+/// A `.tar.gz` holding `name` with `bytes`, built in memory.
+fn tar_gz_of(name: &str, bytes: &[u8]) -> Vec<u8> {
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut header = tar::Header::new_gnu();
+    header.set_size(bytes.len() as u64);
+    header.set_mode(0o755);
+    builder.append_data(&mut header, name, bytes).unwrap();
+    let raw = builder.into_inner().unwrap();
+    let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    gz.write_all(&raw).unwrap();
+    gz.finish().unwrap()
+}
+
+#[test]
+fn a_tool_shipped_as_an_archive_installs_its_member_only() {
+    let archive: &'static [u8] =
+        Box::leak(tar_gz_of("pkg/faketool", b"fake tool bytes").into_boxed_slice());
+    let base = serve(archive);
+    let work = tempfile::tempdir().unwrap();
+    let tools = tempfile::tempdir().unwrap();
+    let lock = work.path().join("tools.lock");
+    std::fs::write(
+        &lock,
+        format!(
+            "[[tool]]\nname = \"faketool\"\nversion = \"1.2.3\"\nplatform = \"{}\"\nsource = \"{base}/faketool.tar.gz\"\nsha256 = \"{}\"\n\
+             licence = \"MIT\"\narchive = \"tar.gz\"\nmember = \"pkg/faketool\"\nfile_sha256 = \"{}\"\n",
+            platform(),
+            sha(archive),
+            sha(b"fake tool bytes")
+        ),
+    )
+    .unwrap();
+    coderipper(tools.path())
+        .args([
+            "tools",
+            "install",
+            "faketool",
+            "--install-tools",
+            "--tools-lock",
+        ])
+        .arg(&lock)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("faketool 1.2.3"));
+    let exe = if cfg!(windows) {
+        "faketool.exe"
+    } else {
+        "faketool"
+    };
+    let dir = tools.path().join("faketool").join("1.2.3");
+    assert_eq!(std::fs::read(dir.join(exe)).unwrap(), b"fake tool bytes");
+    assert_eq!(
+        std::fs::read_dir(&dir).unwrap().count(),
+        1,
+        "only the member"
+    );
+    coderipper(tools.path())
+        .args(["tools", "list", "--tools-lock"])
+        .arg(&lock)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("installed"))
+        .stdout(predicate::str::contains("not installed").not());
 }

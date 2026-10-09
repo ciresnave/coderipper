@@ -13,18 +13,25 @@
 //!   Without it a missing tool is `consent_not_given`, and the message prints the exact command that would install it. There is
 //!   no environment or CI shortcut to consent: the only inputs are the flag and, later, the user's own configuration file.
 //!
-//! Each tool is one file: this slice installs a checksummed prebuilt binary (or a file already on disk through a `file://`
-//! source, which is also how an offline mirror works). It does not unpack archives or run `cargo install`, `npm` or `pip`: a
-//! lock entry must point at the executable itself, and those installers land with the first delegation that needs them.
+//! Each tool ends up as one executable file. The lock entry either points at that file (a checksummed prebuilt binary, or a file
+//! already on disk through a `file://` source, which is also how an offline mirror works), or at a `.tar.gz` or `.zip` that holds
+//! it: then the entry names the one `member` to take out and carries two hashes, the archive's (what the publisher's checksum
+//! file lists) and the member's (`file_sha256`, what is re-checked every time the tool is resolved). Archives are unpacked by
+//! CodeRipper itself, in memory, and refused whole if any entry could leave the directory or is a link.
+//! It does not run `cargo install`, `npm` or `pip`: those installers land with the first delegation that needs them.
 //! Downloads follow redirects (release hosts redirect); the checksum, not the route, is what makes the bytes trustworthy.
 
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
+mod archive;
+pub use archive::ArchiveKind;
+
 /// One line of the lock: a tool, at one version, for one platform.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct ToolEntry {
     /// The tool's name; also the default file name.
     pub name: String,
@@ -34,13 +41,29 @@ pub struct ToolEntry {
     pub platform: String,
     /// Where the file comes from: an `https://` URL, an `http://` URL on this machine, or a `file://` path.
     pub source: String,
-    /// The SHA-256 of that file, 64 hex digits.
+    /// The SHA-256 of what `source` serves (the archive, when there is one), 64 hex digits.
     pub sha256: String,
     /// The tool's SPDX licence expression, for the ledger (`coderipper tools list`).
     pub licence: String,
     /// The file name inside the version directory, when it is not the tool's name (a `.exe` suffix is added on Windows).
     #[serde(default)]
     pub file: Option<String>,
+    /// How `source` is packed, when it is an archive rather than the executable itself. Needs `member` and `file_sha256`.
+    #[serde(default)]
+    pub archive: Option<ArchiveKind>,
+    /// The path of the executable inside the archive, `/`-separated.
+    #[serde(default)]
+    pub member: Option<String>,
+    /// The SHA-256 of the extracted member: the installed file is checked against this, not against `sha256`.
+    #[serde(default)]
+    pub file_sha256: Option<String>,
+}
+
+impl ToolEntry {
+    /// The hash the installed file must have: the member's for an archive, else the download's.
+    fn installed_sha256(&self) -> &str {
+        self.file_sha256.as_deref().unwrap_or(&self.sha256)
+    }
 }
 
 #[derive(Deserialize)]
@@ -52,6 +75,7 @@ struct RawLock {
 
 /// What can go wrong with a tool. [`ToolError::code`] is the stable word a script can match on.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ToolError {
     /// The lock file itself is wrong.
     #[error("tools_lock_invalid: {0}")]
@@ -106,6 +130,16 @@ pub enum ToolError {
         /// Why.
         reason: String,
     },
+    /// The archive has an entry CodeRipper will not unpack (a path that leaves the directory, a link). Nothing was written.
+    #[error("archive_refused: {tool} {version}: {reason}")]
+    ArchiveRefused {
+        /// The tool.
+        tool: String,
+        /// Its pinned version.
+        version: String,
+        /// What was found.
+        reason: String,
+    },
     /// Writing into the cache failed.
     #[error("tool_install_failed: {tool} {version}: {reason}")]
     InstallFailed {
@@ -128,6 +162,7 @@ impl ToolError {
             ToolError::ConsentNotGiven { .. } => "consent_not_given",
             ToolError::ChecksumMismatch { .. } => "checksum_mismatch",
             ToolError::DownloadFailed { .. } => "download_failed",
+            ToolError::ArchiveRefused { .. } => "archive_refused",
             ToolError::InstallFailed { .. } => "tool_install_failed",
         }
     }
@@ -217,8 +252,30 @@ fn validate_entry(entry: &ToolEntry) -> Result<(), ToolError> {
             &format!("the platform {:?} is not <arch>-<os>", entry.platform),
         ));
     }
-    if entry.sha256.len() != 64 || !entry.sha256.chars().all(|c| c.is_ascii_hexdigit()) {
+    if !is_sha256(&entry.sha256) {
         return Err(invalid(entry, "sha256 must be 64 hex digits"));
+    }
+    match (&entry.archive, &entry.member, &entry.file_sha256) {
+        (None, None, None) => {}
+        (Some(_), Some(member), Some(hash)) => {
+            if member.is_empty() || !member.split('/').all(is_safe_component) {
+                return Err(invalid(
+                    entry,
+                    &format!(
+                        "the member {member:?} is not a plain relative path of safe components"
+                    ),
+                ));
+            }
+            if !is_sha256(hash) {
+                return Err(invalid(entry, "file_sha256 must be 64 hex digits"));
+            }
+        }
+        _ => {
+            return Err(invalid(
+                entry,
+                "archive, member and file_sha256 go together: all three or none",
+            ))
+        }
     }
     if entry.licence.trim().is_empty() {
         return Err(invalid(entry, "a licence (SPDX expression) is required"));
@@ -233,6 +290,10 @@ fn validate_entry(entry: &ToolEntry) -> Result<(), ToolError> {
         ));
     }
     Ok(())
+}
+
+fn is_sha256(text: &str) -> bool {
+    text.len() == 64 && text.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// A name that is one plain path component on every platform CodeRipper runs on.
@@ -473,7 +534,9 @@ impl ToolCache {
     pub fn status(&self, entry: &ToolEntry) -> ToolStatus {
         match sha256_file(&self.path_of(entry)) {
             Err(_) => ToolStatus::NotInstalled,
-            Ok(actual) if actual.eq_ignore_ascii_case(&entry.sha256) => ToolStatus::Installed,
+            Ok(actual) if actual.eq_ignore_ascii_case(entry.installed_sha256()) => {
+                ToolStatus::Installed
+            }
             Ok(_) => ToolStatus::Corrupt,
         }
     }
@@ -501,19 +564,21 @@ impl ToolCache {
             });
         };
         let path = self.path_of(entry);
-        let mismatch = |actual: String, note: &'static str| ToolError::ChecksumMismatch {
-            tool: entry.name.clone(),
-            version: entry.version.clone(),
-            expected: entry.sha256.to_ascii_lowercase(),
-            actual,
-            note,
-        };
+        let mismatch =
+            |expected: &str, actual: String, note: &'static str| ToolError::ChecksumMismatch {
+                tool: entry.name.clone(),
+                version: entry.version.clone(),
+                expected: expected.to_ascii_lowercase(),
+                actual,
+                note,
+            };
         match sha256_file(&path) {
-            Ok(actual) if actual.eq_ignore_ascii_case(&entry.sha256) => return Ok(path),
+            Ok(actual) if actual.eq_ignore_ascii_case(entry.installed_sha256()) => return Ok(path),
             Ok(actual) => {
                 // An installed file that no longer matches. Replacing it is a write: only with consent.
                 if consent != Consent::Granted {
                     return Err(mismatch(
+                        entry.installed_sha256(),
                         actual,
                         "the installed file was left as it is; run the install command with --install-tools to replace it",
                     ));
@@ -539,8 +604,36 @@ impl ToolCache {
             })?;
         let actual = sha256_hex(&bytes);
         if !actual.eq_ignore_ascii_case(&entry.sha256) {
-            return Err(mismatch(actual, "the download was discarded"));
+            return Err(mismatch(
+                &entry.sha256,
+                actual,
+                "the download was discarded",
+            ));
         }
+        // An archive has passed its own checksum; now take the one member out and check that too, before anything is written.
+        let bytes = match (entry.archive, &entry.member) {
+            (Some(kind), Some(member)) => {
+                let member_bytes = archive::extract_member(kind, &bytes, member, MAX_TOOL_BYTES)
+                    .map_err(|e| match e {
+                        archive::ArchiveError::Refused(reason) => ToolError::ArchiveRefused {
+                            tool: entry.name.clone(),
+                            version: entry.version.clone(),
+                            reason,
+                        },
+                        archive::ArchiveError::Failed(reason) => install_failed(entry, reason),
+                    })?;
+                let actual = sha256_hex(&member_bytes);
+                if !actual.eq_ignore_ascii_case(entry.installed_sha256()) {
+                    return Err(mismatch(
+                        entry.installed_sha256(),
+                        actual,
+                        "the archive's member did not match file_sha256 and was discarded",
+                    ));
+                }
+                member_bytes
+            }
+            _ => bytes,
+        };
         write_atomically(&path, &bytes).map_err(|e| install_failed(entry, e.to_string()))?;
         Ok(path)
     }
@@ -576,5 +669,7 @@ fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod archive_tests;
 #[cfg(test)]
 mod tests;

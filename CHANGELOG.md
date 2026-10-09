@@ -4,6 +4,39 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.0 - 2026-10-09 (proposed)
+
+### Breaking
+- `coderipper::tools::ToolEntry` and `ToolError` are now `#[non_exhaustive]`, and gained fields (`archive`, `member`, `file_sha256`) and a
+  variant (`ArchiveRefused`): struct-literal construction and exhaustive matches outside the crate stop compiling. Pre-1.0, so the
+  second number moves (0.3.x was never published). Later additions are non-breaking.
+
+### Added
+- **Tools can be installed from an archive** (multi-language P3, PR 3a): a lock entry may name `archive = "tar.gz"` or `"zip"`, the
+  `member` to take out (a `/`-separated path of safe components) and `file_sha256`, the member's SHA-256; the three go together or the
+  lock is `tools_lock_invalid`. `sha256` is then the archive's (what a publisher's checksum file lists). The archive is hashed before it
+  is opened, unpacked in memory, and the member is hashed against `file_sha256` before anything is written; the installed file is
+  re-checked against `file_sha256` each time it is resolved. Only the member is written.
+- **Archives are refused whole** (`archive_refused`, exit 3 from the CLI) if any entry, wanted or not, has a name that could leave the
+  directory (`..`, absolute, a drive, a backslash, a NUL, not UTF-8) or is a symlink, hardlink, device or fifo; so is an archive with two
+  entries of the member's name (tar only: the zip reader folds a repeated name into the last entry, so a zip duplicate is not
+  reported, but the member's hash still binds what is written) or whose member is not a regular file. A member over the size limit
+  is `tool_install_failed`, not truncated; the decompressed tar stream is bounded too, and reaching its bound is an error (a cut on an
+  entry boundary would otherwise leave later entries unchecked). An archive that is not the declared kind, or lacks the member, is `tool_install_failed`.
+- New dependencies, all pure Rust: `flate2`, `tar` (without `xattr`), `zip` (the library only reads zips; the tests write them).
+- `ToolEntry` and `ToolError` are now `#[non_exhaustive]` (they gained fields/variants; this makes the next addition non-breaking).
+  Building `ring` needs a C compiler; nothing else here does.
+- README: a note that `ring` (C and assembly, through `ureq`'s `rustls`, `cli` feature only) is the one non-Rust dependency, and that
+  replacing it is wanted.
+
+### Changed
+- `coderipper tools install NAME` with a name the lock does not have is now exit **2** (usage), not 3, and nothing is installed even for
+  the valid names given beside it. The message still begins `tool_missing`. A tool known for other platforms only stays exit 3.
+
+### Known limits
+- The shipped lock is still empty: the delegations (gitleaks, osv-scanner, lychee, zizmor, buf; checkov needs a pip installer) follow.
+- `--install-tools` is still only on `tools install`; it joins the run commands with the first delegation.
+
 ## 0.3.7 - 2026-10-09 (proposed)
 
 ### Added

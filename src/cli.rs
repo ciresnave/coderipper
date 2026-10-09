@@ -324,6 +324,13 @@ fn tools_command(action: ToolsAction) -> anyhow::Result<u8> {
     if names.is_empty() {
         println!("nothing to install: the lock has no tools for {platform}");
     }
+    // A name the lock does not have is a typo in the command line, not a tool that could not be had: check them all before
+    // installing any, so a typo beside a valid name installs nothing.
+    if let Some(unknown) = names.iter().find(|n| !lock.knows(n)) {
+        return Err(
+            UsageError(crate::tools::ToolError::Missing(unknown.clone()).to_string()).into(),
+        );
+    }
     let consent = if install_tools {
         Consent::Granted
     } else {
