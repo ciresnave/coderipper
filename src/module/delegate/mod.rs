@@ -17,11 +17,12 @@
 //! The module is in process (the tool is the child), so a rule's findings belong to the result that follows them.
 
 mod gitleaks;
+mod osv;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use super::external::{run_child, Who, ENV_ALLOWLIST};
+use super::external::{run_child_accepting, Who, ENV_ALLOWLIST};
 use super::{
     Capabilities, ErrorKind, Event, Hello, Limits, Module, ModuleOutput, ModuleSummary, Request,
     RuleClaim, RuleResult,
@@ -78,6 +79,7 @@ pub(crate) fn resolve(env: &ToolEnv, tool: &str) -> Resolved {
 pub(crate) struct ToolRun {
     scratch: tempfile::TempDir,
     stderr: String,
+    exit_code: Option<i32>,
 }
 
 impl ToolRun {
@@ -90,16 +92,23 @@ impl ToolRun {
     pub(crate) fn log(&self) -> &str {
         &self.stderr
     }
+
+    /// The exit code the tool ended with (one of the `ok_codes` given to [`run_tool`], or 0).
+    pub(crate) fn exit_code(&self) -> Option<i32> {
+        self.exit_code
+    }
 }
 
 /// Runs `program` with `args` and the run's limits. `args` may name files in the scratch directory: `args` is given that
 /// directory, so the tool's report path can be built before it starts.
 ///
-/// A non-zero exit, a timeout, output past the limit: each is `Err((kind, detail))` with the tail of the tool's stderr.
+/// An exit code other than 0 or one of `ok_codes` (the codes this tool uses to answer, such as "found something"), a timeout,
+/// output past the limit: each is `Err((kind, detail))` with the tail of the tool's stderr.
 pub(crate) fn run_tool(
     program: &Path,
     args: impl FnOnce(&Path) -> Vec<std::ffi::OsString>,
     limits: &Limits,
+    ok_codes: &[i32],
 ) -> Result<ToolRun, (ErrorKind, String)> {
     let scratch = tempfile::tempdir().map_err(|e| {
         (
@@ -122,12 +131,13 @@ pub(crate) fn run_tool(
     }
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(&mut command, 0);
-    let run = run_child(command, None, limits, Who::Tool);
+    let run = run_child_accepting(command, None, limits, Who::Tool, ok_codes);
     match run.failure {
         Some(failure) => Err((failure.kind, failure.detail)),
         None => Ok(ToolRun {
             scratch,
             stderr: run.stderr,
+            exit_code: run.exit_code,
         }),
     }
 }
@@ -139,11 +149,23 @@ struct Rule {
     run: fn(&ToolEnv, &Request) -> Verdict,
 }
 
-const RULES: &[Rule] = &[Rule {
-    id: gitleaks::RULE,
-    tool: gitleaks::TOOL,
-    run: gitleaks::run,
-}];
+const RULES: &[Rule] = &[
+    Rule {
+        id: gitleaks::RULE,
+        tool: gitleaks::TOOL,
+        run: gitleaks::run,
+    },
+    Rule {
+        id: osv::SUP,
+        tool: osv::TOOL,
+        run: osv::run_sup,
+    },
+    Rule {
+        id: osv::SEC,
+        tool: osv::TOOL,
+        run: osv::run_sec,
+    },
+];
 
 /// The rules this module delegates, in the order it reports them.
 pub fn delegated_rule_ids() -> Vec<&'static str> {
@@ -206,8 +228,9 @@ impl Module for DelegatedModule {
             env!("CARGO_PKG_VERSION"),
             vec!["any".into()],
             vec![],
-            // the tools read the repository's history (a child process); none runs the project's code or needs the network to run
-            Capabilities::new(false, false, false, false),
+            // the tools read the repository (a child process); none runs the project's code. osv-scanner's rules need the network
+            // (they are sweep-tier rules, and a run that does not permit it reports them as a gap)
+            Capabilities::new(false, true, false, false),
             RULES
                 .iter()
                 .map(|r| {

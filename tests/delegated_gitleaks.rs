@@ -86,7 +86,7 @@ fn the_claim_is_earned_by_the_fixtures_against_the_real_tool() {
         .cache_root(tools_dir())
         .consent(Consent::NotGiven);
     let module = DelegatedModule::new(env);
-    let proofs = run(&module, &Options::new(fixtures())).expect("the runner works");
+    let proofs = run(&module, &Options::new(fixtures()).rule("SEC-002")).expect("the runner works");
     let verdicts: Vec<_> = proofs
         .rules
         .iter()

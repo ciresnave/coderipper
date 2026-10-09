@@ -1,0 +1,3 @@
+# A clean twin expects nothing: a lockfile pinning two small packages with no published advisory (checked against osv.dev on
+# 2026-10-09). A new advisory against either would make this fixture fail by itself: replace the package then.
+needs_network = true

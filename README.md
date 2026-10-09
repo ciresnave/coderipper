@@ -238,6 +238,28 @@ A tool that is not there is a **coverage gap, never a failure**: without it the 
 install command, the rule counts as skipped in the coverage line, and the exit code is not affected. (A tool that was asked for and
 could not be had or trusted, a checksum mismatch say, is an error.) Nothing is downloaded unless you pass `--install-tools`.
 
+### Rules run by a tool, over the network: `SUP-002` and `SEC-006`
+
+`SUP-002` (dependencies free of known advisories) and `SEC-006` (no known exploitable dependency vulnerabilities) are run by
+[osv-scanner](https://github.com/google/osv-scanner) (Apache-2.0, an external process, never linked). It reads the lockfiles,
+manifests and SBOMs it knows anywhere under the project (not inside a `node_modules` directory), resolves each package to an exact version and asks [osv.dev](https://osv.dev)
+which advisories cover it. Both rules use the network, so they are **sweep-tier**: `coderipper sweep --profile extended` runs them, and
+`coderipper check SUP-002 --profile extended` runs one with the network permitted; a `fast` run leaves them alone.
+
+```sh
+coderipper tools install osv-scanner --install-tools     # once; or pass --install-tools to the run itself
+coderipper sweep --profile extended --deny high
+```
+
+One finding per advisory group of one package in one lockfile, at the lockfile; severity follows the highest CVSS score (an unscored
+advisory is `High`). `SEC-006` reports only the groups scored 7.0 or higher (or unscored) and **does not know whether the flawed code is
+reachable**: call analysis builds the project's code, so it is not run, and every `SEC-006` finding says so. The answer is as of the day
+it was asked: the database moves, and a clean result today can be a finding tomorrow.
+
+The repository cannot silence these rules: a committed `osv-scanner.toml` (its `IgnoredVulns`) and a `.gitignore` entry for a lockfile are
+not honoured (the project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project osv-scanner finds no package
+sources in is reported as **not run**, not clean; a lockfile it cannot read is an error (exit 3), not a clean result.
+
 ## Tools CodeRipper may install: `coderipper tools`
 
 Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
@@ -252,7 +274,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1 for now (`tools list` shows it); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1 and osv-scanner 2.6.0 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

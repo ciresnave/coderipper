@@ -295,8 +295,8 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
     ));
     let hello = absent.describe().unwrap();
     assert!(hello.problem().is_none());
-    assert_eq!(hello.rules.len(), 1);
-    let claim = &hello.rules[0];
+    assert_eq!(hello.rules.len(), 3);
+    let claim = hello.rules.iter().find(|r| r.id == "SEC-002").unwrap();
     assert_eq!(
         (
             claim.id.as_str(),
@@ -317,10 +317,20 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
         &fake,
     ));
     resolve(&present.env, "gitleaks");
-    assert_eq!(
-        present.describe().unwrap().rules[0].proof.as_deref(),
-        Some("conformance/SEC-002")
-    );
+    let described = present.describe().unwrap();
+    let proof = |id: &str| {
+        described
+            .rules
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .proof
+            .clone()
+    };
+    assert_eq!(proof("SEC-002").as_deref(), Some("conformance/SEC-002"));
+    // osv-scanner is not installed here: its rules earn nothing
+    assert_eq!(proof("SUP-002"), None);
+    assert_eq!(proof("SEC-006"), None);
 }
 
 #[test]

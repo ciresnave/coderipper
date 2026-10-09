@@ -203,14 +203,15 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks and the five proven language-neutral rules
     assert_eq!(rust["covered"], 9);
-    // reachability's claim and SEC-002's (its tool is not installed in the empty tools directory this run uses)
-    assert_eq!(rust["claimed_unproven"], 2);
+    // reachability's claim and the three delegated ones: SEC-002, SUP-002, SEC-006 (no tool is installed in the empty tools directory
+    // this run uses)
+    assert_eq!(rust["claimed_unproven"], 4);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the five language-neutral rules apply to it (SEC-002 is a gap while gitleaks is not installed)
+    // no TypeScript module, but the five language-neutral rules apply to it (the three delegated rules are gaps while their tools are not installed)
     assert_eq!(ts["covered"], 5);
-    assert_eq!(ts["claimed_unproven"], 1);
+    assert_eq!(ts["claimed_unproven"], 3);
     assert_eq!(
         ts["note"],
         "no module for typescript, only the language-neutral rules"

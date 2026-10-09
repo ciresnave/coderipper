@@ -16,7 +16,12 @@
 //! rule = "version-consistency"
 //! file = "c/Cargo.toml"
 //! line = 3                   # optional
+//! many = true                # optional: one or more findings here, not exactly one (see below)
 //! ```
+//!
+//! An expectation is met by exactly one finding, and a second finding in the same place is unexplained. A rule that reports what an
+//! outside database holds today (an advisory feed) reports a number the fixture cannot fix, so its expectation says `many = true`:
+//! one or more findings at that file (and line, if given). None is still a miss, and a finding elsewhere is still unexplained.
 //!
 //! [`run`] copies each fixture into a throwaway git repository (the checks read `HEAD`), asks the module for that one rule, and
 //! judges the answer: every expectation must be met, nothing else may be reported in the defective project, and nothing at all
@@ -145,6 +150,9 @@ struct Expect {
     file: String,
     #[serde(default)]
     line: Option<u32>,
+    /// One or more findings meet this expectation, instead of exactly one.
+    #[serde(default)]
+    many: bool,
 }
 
 /// The parsed `expect.toml`.
@@ -396,7 +404,11 @@ fn judge_one(
                 }
             }
             for (i, (file, line)) in found.iter().enumerate() {
-                if !assigned.contains(&Some(i)) {
+                let explained_by_many = expect
+                    .expect
+                    .iter()
+                    .any(|e| e.many && matches(e, file, *line));
+                if !assigned.contains(&Some(i)) && !explained_by_many {
                     reasons.push(format!(
                         "{name}: a finding at {} is not in expect.toml",
                         place(file, *line)
