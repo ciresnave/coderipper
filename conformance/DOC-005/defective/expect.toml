@@ -1,0 +1,9 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "DOC-005"
+file = "docs/adr/0001-use-x.md"
+
+[[expect]]
+rule = "DOC-005"
+file = "docs/adr/0003-cache.md"

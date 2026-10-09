@@ -158,10 +158,50 @@ pub fn run_workspace(
     only_check_id: Option<&str>,
     on_member: &mut dyn FnMut(&str, usize, usize),
 ) -> WorkspaceRun {
-    run_workspace_over(&registered_checks(), ctx, tier, only_check_id, on_member)
+    run_workspace_in(Profile::Classic, ctx, tier, only_check_id, on_member)
 }
 
-fn run_workspace_over(
+/// Which rules a run takes (the CLI's `--profile`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Profile {
+    /// The five original checks and nothing else: what [`run_checks`] and [`run_workspace`] always ran.
+    Classic,
+    /// `Classic`, plus the rules of the built-in language-neutral module ([`module::NeutralModule`]). Those rules judge the
+    /// whole repository, so a workspace run takes them once, at the workspace root.
+    Extended,
+}
+
+impl Profile {
+    /// The rule ids this profile adds to the five original checks.
+    fn extra_rules(self) -> Vec<&'static str> {
+        match self {
+            Profile::Classic => Vec::new(),
+            Profile::Extended => module::neutral_rule_ids(),
+        }
+    }
+}
+
+/// [`run_workspace`] under a profile.
+pub fn run_workspace_in(
+    profile: Profile,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    on_member: &mut dyn FnMut(&str, usize, usize),
+) -> WorkspaceRun {
+    run_workspace_over_in(
+        profile,
+        &registered_checks(),
+        ctx,
+        tier,
+        only_check_id,
+        on_member,
+    )
+}
+
+fn run_workspace_over_in(
+    profile: Profile,
     checks: &[Box<dyn Check>],
     ctx: &CheckContext,
     tier: Tier,
@@ -174,7 +214,7 @@ fn run_workspace_over(
         members_with_errors: 0,
     };
     // before visiting any member: a wrong id would otherwise repeat its error once per member
-    if let Some(problem) = check_list_problem(checks, only_check_id) {
+    if let Some(problem) = check_list_problem(checks, &profile.extra_rules(), only_check_id) {
         return failed(problem);
     }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
@@ -189,7 +229,8 @@ fn run_workspace_over(
     // or unknown-check entry is reported once.
     let mut judged = std::collections::HashSet::new();
 
-    let repository = run_checks_over(
+    let repository = run_checks_over_in(
+        profile,
         checks,
         &CheckContext {
             project_root: root.clone(),
@@ -227,7 +268,8 @@ fn run_workspace_over(
     session::with_session(&session, || {
         for (index, member) in members.iter().enumerate() {
             on_member(&member.name, index + 1, total);
-            let run = run_checks_over(
+            let run = run_checks_over_in(
+                profile,
                 checks,
                 &CheckContext {
                     project_root: member.dir.clone(),
@@ -304,6 +346,24 @@ pub fn run_checks(ctx: &CheckContext, tier: Tier, only_check_id: Option<&str>) -
     run_checks_with(&registered_checks(), ctx, tier, only_check_id)
 }
 
+/// [`run_checks`] under a [`Profile`]: `Extended` also asks the language-neutral module for its rules, in the same run, so one
+/// allowlist and one set of rule ids apply to all of them. `only_check_id` may then name one of those rules (`SUP-001`).
+pub fn run_checks_in(
+    profile: Profile,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+) -> RunResult {
+    run_checks_over_in(
+        profile,
+        &registered_checks(),
+        ctx,
+        tier,
+        only_check_id,
+        UnitFilter::Any,
+    )
+}
+
 /// Runs the checks you pass, the way [`run_checks`] runs the built-in ones: through the host, not by calling
 /// [`Check::run`] yourself.
 ///
@@ -365,8 +425,12 @@ pub fn run_checks_with(
 
 /// Why this list of checks and this `only_check_id` cannot be run, if they cannot: a named check that does not exist
 /// (a typo must not read as a clean run) or two checks sharing an id (the id keys allowlist entries and `only_check_id`).
-fn check_list_problem(checks: &[Box<dyn Check>], only_check_id: Option<&str>) -> Option<String> {
-    let ids: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+fn check_list_problem(
+    checks: &[Box<dyn Check>],
+    extra_rules: &[&str],
+    only_check_id: Option<&str>,
+) -> Option<String> {
+    let mut ids: Vec<&str> = checks.iter().map(|c| c.id()).collect();
     if let Some(id) = ids
         .iter()
         .enumerate()
@@ -376,6 +440,7 @@ fn check_list_problem(checks: &[Box<dyn Check>], only_check_id: Option<&str>) ->
             "the check id \"{id}\" is used by more than one check; ids must be unique"
         ));
     }
+    ids.extend(extra_rules);
     let wanted = only_check_id?;
     (!ids.contains(&wanted)).then(|| {
         format!(
@@ -393,11 +458,23 @@ fn run_checks_over(
     only_check_id: Option<&str>,
     units: UnitFilter,
 ) -> RunResult {
-    if let Some(problem) = check_list_problem(checks, only_check_id) {
+    run_checks_over_in(Profile::Classic, checks, ctx, tier, only_check_id, units)
+}
+
+fn run_checks_over_in(
+    profile: Profile,
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    units: UnitFilter,
+) -> RunResult {
+    let extra = profile.extra_rules();
+    if let Some(problem) = check_list_problem(checks, &extra, only_check_id) {
         return RunResult::new(Vec::new(), vec![problem]);
     }
     // The checks to run, decided here (the host chooses what is in scope), then asked of the Rust module as one request.
-    let selected: Vec<String> = checks
+    let mut selected: Vec<String> = checks
         .iter()
         .filter(|check| match units {
             UnitFilter::Only(unit) => check.unit() == unit,
@@ -414,9 +491,26 @@ fn run_checks_over(
         UnitFilter::Only(unit) => Some(unit),
         UnitFilter::Any => None,
     };
-    let registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    // The neutral rules judge the whole repository, so they run in the repository pass (and in a plain run), once.
+    if !matches!(units, UnitFilter::Only(check::Unit::Package)) {
+        selected.extend(
+            extra
+                .iter()
+                .filter(|id| only_check_id.is_none_or(|only| only == **id))
+                .map(|id| (*id).to_string()),
+        );
+    }
+    let mut registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    registered.extend(&extra);
+    let rust = module::RustModule::new(checks);
+    let neutral = module::NeutralModule::new();
+    let composite = module::Composite::new(vec![&rust, &neutral]);
+    let module: &dyn module::Module = match profile {
+        Profile::Classic => &rust,
+        _ => &composite,
+    };
     run_module_over(
-        &module::RustModule::new(checks),
+        module,
         ctx,
         tier,
         unit,

@@ -13,15 +13,26 @@ use predicates::prelude::*;
 
 const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n";
 
-/// A Rust project with nothing for any check to say.
+/// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
+const LOCK: &str = "version = 4\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\n";
+const OWNERS: &str = "* @example-owner\n";
+
+/// A Rust project with nothing for any check to say, under either profile.
 fn clean_project() -> tempfile::TempDir {
-    common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/main.rs", "fn main() {}\n")])
+    common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
+        ("src/main.rs", "fn main() {}\n"),
+    ])
 }
 
 /// A clean Rust project that also contains a TypeScript package no module checks.
 fn polyglot_project() -> tempfile::TempDir {
     common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
         ("src/main.rs", "fn main() {}\n"),
         ("web/package.json", "{}\n"),
         ("web/app.ts", "export {};\n"),
@@ -33,6 +44,8 @@ fn polyglot_project() -> tempfile::TempDir {
 fn project_with_a_medium_finding() -> tempfile::TempDir {
     common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
         ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() { f(); }\n"),
     ])
 }
@@ -183,13 +196,18 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     );
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
-    assert_eq!(rust["covered"], 4);
+    // the four proven Rust checks and the five proven language-neutral rules
+    assert_eq!(rust["covered"], 9);
     assert_eq!(rust["claimed_unproven"], 1);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    assert_eq!(ts["covered"], 0);
-    assert_eq!(ts["note"], "no module for typescript");
+    // no TypeScript module, but the five language-neutral rules apply to it
+    assert_eq!(ts["covered"], 5);
+    assert_eq!(
+        ts["note"],
+        "no module for typescript, only the language-neutral rules"
+    );
     assert_eq!(ts["source_files"], 2);
     // The exit code in the summary is untouched by the gaps.
     assert_eq!(lines[2]["exit_code"], 0);
@@ -202,4 +220,66 @@ fn an_unknown_profile_is_a_usage_error() {
         .args(["fast", "--profile", "nonsense"])
         .assert()
         .code(2);
+}
+
+/// A clean Rust project that also contains a Python package: SUP-001 reads Cargo and npm files only.
+fn python_project() -> tempfile::TempDir {
+    common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
+        ("src/main.rs", "fn main() {}\n"),
+        ("py/pyproject.toml", "[project]\nname = \"p\"\n"),
+        ("py/app.py", "print(1)\n"),
+    ])
+}
+
+#[test]
+fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_does_not() {
+    let out = fast(&python_project())
+        .args([
+            "--profile",
+            "extended",
+            "--coverage=full",
+            "--message-format",
+            "json",
+        ])
+        .assert()
+        .code(0)
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(out).unwrap();
+    let lines: Vec<serde_json::Value> = text
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    let py = lines
+        .iter()
+        .find(|l| l["language"] == "python")
+        .unwrap_or_else(|| panic!("{text}"));
+    // the four rules that read any file kind are covered; SUP-001 reads Cargo and npm files only
+    assert_eq!(py["covered"], 4, "{py}");
+    let gaps: Vec<&str> = py["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g.as_str().unwrap())
+        .collect();
+    assert!(gaps.contains(&"SUP-001"), "{py}");
+    for covered in ["SUP-011", "DOC-005", "DOC-009", "WSP-001"] {
+        assert!(!gaps.contains(&covered), "{covered} in {gaps:?}");
+    }
+    // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
+    let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
+    assert_eq!(rust["covered"], 9, "{rust}");
+}
+
+#[test]
+fn coverage_full_names_the_lockfile_rule_among_pythons_gaps() {
+    fast(&python_project())
+        .args(["--profile", "extended", "--coverage=full"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::is_match(r"python: .*SUP-001").unwrap());
 }

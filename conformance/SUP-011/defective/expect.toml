@@ -1,0 +1,5 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "SUP-011"
+file = "codecov.yml"

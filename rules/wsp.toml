@@ -71,6 +71,7 @@ kb_refs = []
 remediation = "Add the repository to the inventory, filling in owner, importance level and stage of life, and keep a CODEOWNERS file in step."
 related = ["WSP-005"]
 lifecycle = "experimental"
+checked_today = "A CODEOWNERS file exists and names a default (*) owner. Not judged: an inventory entry that records the repository's importance level and stage of life."
 
 [rule.applicability]
 languages = ["any"]

@@ -225,6 +225,10 @@ pub struct RuleClaim {
     /// Why a rule is not applicable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// The languages the claim covers. Empty means every language the rule applies to; a module whose check reads only some
+    /// languages' files says which, so the coverage report shows the rest as gaps.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub languages: Vec<String>,
 }
 
 impl RuleClaim {
@@ -236,7 +240,19 @@ impl RuleClaim {
             tool: None,
             proof: None,
             reason: None,
+            languages: Vec::new(),
         }
+    }
+
+    /// Limits the claim to these languages (see [`RuleClaim::languages`]).
+    pub fn only_languages(mut self, languages: &[&str]) -> Self {
+        self.languages = languages.iter().map(|l| (*l).to_string()).collect();
+        self
+    }
+
+    /// Whether the claim covers `language` (an empty list covers every language).
+    pub fn covers_language(&self, language: &str) -> bool {
+        self.languages.is_empty() || self.languages.iter().any(|l| l == language)
     }
 }
 

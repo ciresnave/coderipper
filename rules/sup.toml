@@ -19,6 +19,7 @@ kb_refs = []
 remediation = "Commit the lockfile and switch CI installs to the strict mode of the package manager (locked, frozen, or clean-install)."
 related = []
 lifecycle = "experimental"
+checked_today = "Cargo packages with a binary and private npm packages have a committed lockfile, and GitHub Actions workflows run npm install, yarn install and cargo build/test/check/clippy/run/doc/bench only in the strict mode (npm ci, --frozen-lockfile or --immutable, --locked or --frozen). Other ecosystems (Go, Python, Gradle) and other CI systems are not checked."
 
 [rule.applicability]
 languages = ["any"]
@@ -259,6 +260,7 @@ kb_refs = []
 remediation = "List vendored directories in the exclusion configuration of the analysis tools."
 related = []
 lifecycle = "experimental"
+checked_today = "Directories named vendor, vendors, third_party, third-party, node_modules or bower_components are named, as text, in each tracked codecov, codacy, sonar-project, eslintignore or deepsource configuration. Whether the name is an exclusion, and tools configured elsewhere, are not judged."
 
 [rule.applicability]
 languages = ["any"]

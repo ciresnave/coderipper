@@ -110,6 +110,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Fix the status, add the missing reverse link, or point the record at the rule or check that enforces it."
 lifecycle = "experimental"
+checked_today = "Markdown records in a directory named adr, adrs or decisions state a status from proposed, accepted, rejected, deprecated, superseded, and supersession links point both ways. Not judged: that records refer to the rules that enforce them."
 
 [rule.applicability]
 languages = ["any"]
@@ -203,6 +204,7 @@ kb_refs = []
 remediation = "Create or extend the glossary and align divergent names in docs and code."
 related = ["RDB-011"]
 lifecycle = "experimental"
+checked_today = "A repository with markdown under docs/ or doc/ has a glossary file, and no term is defined twice in it. Not judged: that documents and code use the glossary's terms the same way."
 
 [rule.applicability]
 languages = ["any"]

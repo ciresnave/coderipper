@@ -195,6 +195,25 @@ and it never changes the exit code. A language in your repository that has no mo
 profile prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
 least one source file among the files git tracks; a project outside git is not scanned).
 
+## Language-neutral rules: `--profile extended`
+
+Under `--profile extended` five rules that read a repository's files, not its source, run next to the original checks, in the same
+run and under the same `.coderipper.toml` allowlist. Their ids are catalog ids; each is a narrow, deterministic reading of a broader
+rule, and each is proven by a conformance fixture (`coderipper conformance --module neutral`). The default `classic` profile does
+not run them. `coderipper check SUP-001 --profile extended` runs one.
+
+| Rule | Reports |
+|---|---|
+| `SUP-001` | an application (a Cargo package with a binary, or a private npm package) whose lockfile is not committed; a GitHub Actions workflow that runs `npm install`, `yarn install` or `cargo build`/`test`/... without the strict mode (`npm ci`, `--frozen-lockfile`/`--immutable`, `--locked`) |
+| `SUP-011` | a vendored directory (`vendor`, `third_party`, `node_modules`, ...) that a tracked analysis configuration (`codecov.yml`, `.codacy.yml`, `sonar-project.properties`, `.eslintignore`, `.deepsource.toml`) does not mention |
+| `DOC-005` | a decision record (markdown in an `adr`, `adrs` or `decisions` directory) with no or an unknown status, or a supersession link that dangles, is not reciprocated, or leaves the old record current |
+| `DOC-009` | a repository with a `docs/` directory but no glossary file; a glossary that defines one term twice |
+| `WSP-001` | a repository with no `CODEOWNERS` file, or one with no default (`*`) owner |
+
+Each rule's reading, and what it cannot see, is in the documentation of its module (`src/module/neutral/`). A rule that does not
+apply to a repository (no decision records, no manifest it knows) is reported as not applicable here, never as clean. Files are read
+from `HEAD`, so the repository must be a git repository with a commit.
+
 ## Suppressing a finding
 
 Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).

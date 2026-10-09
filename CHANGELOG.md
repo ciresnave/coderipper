@@ -4,6 +4,41 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.6 - 2026-10-09 (allocated by the PM)
+
+### Added
+- **The language-neutral module and its first five rules** (multi-language P3, PR 1), behind `--profile extended`: `SUP-001` (a
+  committed lockfile for an application; CI installs in the strict mode), `SUP-011` (vendored code excluded from analysis
+  configuration), `DOC-005` (decision-record status and supersession links), `DOC-009` (a glossary exists; no term defined twice),
+  `WSP-001` (a default code owner). Each reads the tracked files at `HEAD`, reports under its catalog id, honours the
+  `.coderipper.toml` allowlist, and is proven by a seeded-defect fixture and a clean twin under `conformance/<rule>/`. Each is a
+  narrow reading of a broader rule; the module documents what it does not see (for example, `WSP-001` judges the owner, not an
+  inventory with importance and stage of life, and `DOC-009` does not judge how terms are used). The `DOC-009` fixture proves the
+  missing-glossary reading; the duplicate-term reading is covered by unit tests only.
+- `coderipper::module::NeutralModule`, `coderipper::module::Composite` (modules asked as one, with one allowlist and one rule-id set),
+  `coderipper::Profile`, `run_checks_in` and `run_workspace_in` (the existing `run_checks` and `run_workspace` are `Classic`),
+  `coverage::for_missing_module_with`.
+- `coderipper check <RULE> --profile extended` runs one neutral rule; `coderipper conformance --module neutral` judges them.
+- Coverage is derived per rule and language from what each claim really reads. A claim may name its languages
+  (`RuleClaim::languages`); `SUP-001` reads Cargo and npm-family manifests only, so a Python or Go project shows it as not yet
+  implemented, while the other four (which read file kinds, not languages) are covered for every language. A workspace run takes the
+  rules once, at the workspace root.
+- Catalog records gain `checked_today`: what the check judges now and what it does not. The five records say so (`WSP-001` judges a
+  default owner, not an inventory with importance and stage of life; `DOC-009` a glossary's existence and duplicate terms, not
+  usage; `DOC-005` status and supersession links, not references to enforcing rules; `SUP-001` Cargo and npm only).
+
+### Known limits (found by the independent audit; deliberate for this PR)
+- A tracked file that cannot be read is skipped by the rule that wanted it, not reported as an error (only a project that is not a
+  git repository with a commit is an error for every rule).
+- `check <RULE> --profile extended` for a rule that does not apply here (for example `DOC-005` in a repository with no decision
+  records) fails the run as "no verdict", because the host treats a module that skips every requested rule as having given none.
+- Files are read one `git show` at a time; a project below the repository root sees only its own directory (so a repository-level
+  `CODEOWNERS` above it is not seen).
+
+### Changed
+- `--profile extended` now also runs these rules, so it can report findings (and, with `--deny`, fail) where it only printed the
+  coverage report before. `classic`, the default, is byte-for-byte what it was.
+
 ## 0.3.5 - 2026-10-09 (proposed; the PM allocates the number at gate time)
 
 ### Added

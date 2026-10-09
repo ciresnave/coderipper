@@ -40,8 +40,18 @@ enum MessageFormat {
 enum Profile {
     /// The five original checks and exactly the output they have always had (the default).
     Classic,
-    /// `classic`, plus the coverage report; the rules of the language-neutral and language modules join it as they arrive.
+    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); the
+    /// rules of the language modules join it as they arrive.
     Extended,
+}
+
+impl Profile {
+    fn lib(self) -> crate::Profile {
+        match self {
+            Profile::Classic => crate::Profile::Classic,
+            Profile::Extended => crate::Profile::Extended,
+        }
+    }
 }
 
 /// `--coverage`'s values: how much of the gap list to print.
@@ -147,7 +157,7 @@ enum Command {
     /// twin. Exits 1 when a fixture contradicts a claim, 3 when a rule could not run. Meant for a module's own CI.
     /// Fixtures are code that runs (the checks build them): use only fixtures you trust.
     Conformance {
-        /// The module to judge. Only the built-in `rust` module exists so far.
+        /// The module to judge: the built-in `rust` module (the default) or `neutral` (the language-neutral rules).
         #[arg(long, default_value = "rust")]
         module: String,
         /// Judge only this rule.
@@ -275,16 +285,20 @@ fn conformance_command(
     message_format: MessageFormat,
 ) -> anyhow::Result<u8> {
     use crate::conformance::{run, Options, Verdict};
-    if module != "rust" {
+    if !matches!(module, "rust" | "neutral") {
         return Err(UsageError(format!(
-            "no module named \"{module}\"; the only module so far is the built-in \"rust\""
+            "no module named \"{module}\"; the built-in modules are \"rust\" and \"neutral\""
         ))
         .into());
     }
     let checks = crate::registered_checks();
+    let known: Vec<&str> = if module == "neutral" {
+        crate::module::neutral_rule_ids()
+    } else {
+        checks.iter().map(|c| c.id()).collect()
+    };
     if let Some(wanted) = &rule {
-        if !checks.iter().any(|c| c.id() == wanted) {
-            let known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+        if !known.contains(&wanted.as_str()) {
             return Err(UsageError(format!(
                 "the module claims no rule \"{wanted}\"; it claims: {}",
                 known.join(", ")
@@ -299,12 +313,14 @@ fn conformance_command(
         ))
         .into());
     }
-    let module = crate::module::RustModule::new(&checks);
+    let rust = crate::module::RustModule::new(&checks);
+    let neutral = crate::module::NeutralModule::new();
+    let module: &dyn crate::module::Module = if module == "neutral" { &neutral } else { &rust };
     let mut options = Options::new(fixtures).network(network);
     if let Some(rule) = rule {
         options = options.rule(rule);
     }
-    let result = run(&module, &options)?;
+    let result = run(module, &options)?;
     let mut failed = result.any_failed();
     let errored = result.any_errored();
     for proof in &result.rules {
@@ -414,10 +430,20 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         only_check_id,
     } = args;
     if let Some(id) = &only_check_id {
-        let known: Vec<&str> = crate::registered_checks().iter().map(|c| c.id()).collect();
+        let checks = crate::registered_checks();
+        let mut known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+        let neutral = crate::module::neutral_rule_ids();
+        if profile == Profile::Extended {
+            known.extend(&neutral);
+        }
         if !known.contains(&id.as_str()) {
+            let hint = if neutral.contains(&id.as_str()) {
+                " (that rule belongs to --profile extended)"
+            } else {
+                ""
+            };
             return Err(UsageError(format!(
-                "no check named \"{id}\"; the checks are: {}",
+                "no check named \"{id}\"{hint}; the checks are: {}",
                 known.join(", ")
             ))
             .into());
@@ -440,7 +466,8 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     let ctx = CheckContext::new(project_root).portfolio_root(portfolio_root);
 
     let result = if workspace {
-        let run = crate::run_workspace(
+        let run = crate::run_workspace_in(
+            profile.lib(),
             &ctx,
             tier,
             only_check_id.as_deref(),
@@ -452,7 +479,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         );
         run.result
     } else {
-        crate::run_checks(&ctx, tier, only_check_id.as_deref())
+        crate::run_checks_in(profile.lib(), &ctx, tier, only_check_id.as_deref())
     };
 
     // A check error outranks a finding: a run that could not judge everything must not look like a complete one
@@ -470,7 +497,8 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
     // outcomes. A gap in it never touches `code` above.
     let unchecked = crate::coverage::unchecked_languages(&ctx.project_root);
     let show_coverage = profile == Profile::Extended || coverage.is_some();
-    let reports = show_coverage.then(|| coverage_reports(&result, &unchecked));
+    let reports =
+        show_coverage.then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended));
 
     match message_format {
         MessageFormat::Human => {
@@ -548,17 +576,33 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
 fn coverage_reports(
     result: &crate::RunResult,
     unchecked: &[crate::coverage::UncheckedLanguage],
+    with_neutral: bool,
 ) -> Vec<crate::coverage::LanguageCoverage> {
-    use crate::coverage::{for_missing_module, for_module};
-    use crate::module::Module;
+    use crate::coverage::{for_missing_module_with, for_module};
+    use crate::module::{Composite, Module, NeutralModule, RustModule};
     let catalog = crate::catalog::Catalog::builtin();
     let checks = crate::registered_checks();
+    let rust = RustModule::new(&checks);
+    let neutral = NeutralModule::new();
+    // Under `extended` the language-neutral rules are part of what runs, so they count for every language.
+    let composite = Composite::new(vec![&rust, &neutral]);
+    let serving: &dyn Module = if with_neutral { &composite } else { &rust };
     let mut reports = Vec::new();
-    if let Ok(hello) = crate::module::RustModule::new(&checks).describe() {
+    if let Ok(hello) = serving.describe() {
         reports.push(for_module(catalog, &hello, "rust", Some(&result.outcomes)));
     }
+    let others: Vec<_> = if with_neutral {
+        neutral.describe().into_iter().collect()
+    } else {
+        Vec::new()
+    };
     for u in unchecked {
-        reports.push(for_missing_module(catalog, &u.language, u.source_files));
+        reports.push(for_missing_module_with(
+            catalog,
+            &u.language,
+            u.source_files,
+            &others,
+        ));
     }
     reports
 }
