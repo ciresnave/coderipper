@@ -1,0 +1,3 @@
+[[expect]]
+rule = "version-consistency"
+file = "c/Cargo.toml"

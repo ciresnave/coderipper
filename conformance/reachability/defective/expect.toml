@@ -1,0 +1,4 @@
+[[expect]]
+rule = "reachability"
+file = "src/lib.rs"
+line = 1
