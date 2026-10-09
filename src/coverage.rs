@@ -223,6 +223,52 @@ pub fn for_missing_module(
     coverage
 }
 
+/// Coverage of a language that has no module of its own but is served by the language-neutral modules in `others`: a rule one
+/// of them claims with a proof is covered for this language too (the rules that apply to `any` language), and the rest are gaps
+/// exactly as in [`for_missing_module`].
+pub fn for_missing_module_with(
+    catalog: &Catalog,
+    language: &str,
+    source_files: usize,
+    others: &[Hello],
+) -> LanguageCoverage {
+    let mut coverage = for_missing_module(catalog, language, source_files);
+    if others.is_empty() {
+        return coverage;
+    }
+    coverage.module = Some(
+        others
+            .iter()
+            .map(|h| h.module.as_str())
+            .collect::<Vec<_>>()
+            .join("+"),
+    );
+    coverage.note = Some(format!(
+        "no module for {language}, only the language-neutral rules"
+    ));
+    coverage.not_covered = 0;
+    coverage.gaps.clear();
+    for rule in catalog.rules().iter().filter(|r| applies_to(r, language)) {
+        let claim = others
+            .iter()
+            .flat_map(|h| &h.rules)
+            .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
+        match claim {
+            Some(c) if c.status == "not-applicable" => coverage.not_applicable += 1,
+            Some(c) if c.proof.is_some() => coverage.covered += 1,
+            Some(_) => {
+                coverage.claimed_unproven += 1;
+                coverage.gaps.push(rule.id().to_string());
+            }
+            None => {
+                coverage.not_covered += 1;
+                coverage.gaps.push(rule.id().to_string());
+            }
+        }
+    }
+    coverage
+}
+
 fn empty(catalog: &Catalog, language: &str) -> LanguageCoverage {
     LanguageCoverage {
         language: language.to_string(),

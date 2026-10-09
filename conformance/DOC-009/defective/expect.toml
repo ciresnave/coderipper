@@ -1,0 +1,5 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "DOC-009"
+file = "GLOSSARY.md"

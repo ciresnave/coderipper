@@ -13,15 +13,26 @@ use predicates::prelude::*;
 
 const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n";
 
-/// A Rust project with nothing for any check to say.
+/// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
+const LOCK: &str = "version = 4\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\n";
+const OWNERS: &str = "* @example-owner\n";
+
+/// A Rust project with nothing for any check to say, under either profile.
 fn clean_project() -> tempfile::TempDir {
-    common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/main.rs", "fn main() {}\n")])
+    common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
+        ("src/main.rs", "fn main() {}\n"),
+    ])
 }
 
 /// A clean Rust project that also contains a TypeScript package no module checks.
 fn polyglot_project() -> tempfile::TempDir {
     common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
         ("src/main.rs", "fn main() {}\n"),
         ("web/package.json", "{}\n"),
         ("web/app.ts", "export {};\n"),
@@ -33,6 +44,8 @@ fn polyglot_project() -> tempfile::TempDir {
 fn project_with_a_medium_finding() -> tempfile::TempDir {
     common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
         ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() { f(); }\n"),
     ])
 }
@@ -183,13 +196,18 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     );
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
-    assert_eq!(rust["covered"], 4);
+    // the four proven Rust checks and the five proven language-neutral rules
+    assert_eq!(rust["covered"], 9);
     assert_eq!(rust["claimed_unproven"], 1);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    assert_eq!(ts["covered"], 0);
-    assert_eq!(ts["note"], "no module for typescript");
+    // no TypeScript module, but the five language-neutral rules apply to it
+    assert_eq!(ts["covered"], 5);
+    assert_eq!(
+        ts["note"],
+        "no module for typescript, only the language-neutral rules"
+    );
     assert_eq!(ts["source_files"], 2);
     // The exit code in the summary is untouched by the gaps.
     assert_eq!(lines[2]["exit_code"], 0);

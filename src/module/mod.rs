@@ -7,13 +7,17 @@
 //! Whatever a module prints, [`reconcile`] is what the host believes: **a rule that gave no verdict is an error, never a
 //! clean run**, and a module cannot leave a hole by being silent, crashing, hanging or lying about a count.
 
+mod composite;
 mod external;
+mod neutral;
 mod protocol;
 mod rust;
 
 use std::collections::{HashMap, HashSet};
 
+pub use composite::Composite;
 pub use external::ExternalModule;
+pub use neutral::{rule_ids as neutral_rule_ids, NeutralModule};
 pub use protocol::{
     Capabilities, ErrorKind, Event, Hello, Limits, ModuleSummary, Request, RuleClaim, RuleRan,
     RuleResult, HELLO_REASON, PROTOCOL, REQUEST_REASON,
