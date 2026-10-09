@@ -187,6 +187,7 @@ default_severity = "high"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Pin each action to a full commit hash and declare minimal permissions at workflow or job level."
+checked_today = "Every tracked GitHub Actions workflow (.github/workflows/*.yml and *.yaml) and action definition (action.yml, action.yaml; not those below node_modules, vendor, third_party or target) is audited offline by zizmor, and two kinds of its findings are reported: a uses: reference (an action or a reusable workflow) that is not pinned to an immutable hash (a tag or a branch), a container, services or docker:// image not pinned to a digest, and a workflow or job whose token permissions are the broad defaults (no permissions: block, write-all, read-all, a workflow-level write scope). Severity and confidence are zizmor's. The repository's own zizmor.yml and its zizmor: ignore comments are not honoured. Not judged: what a job actually needs (a workflow-level write scope is reported even when needed, and the allowlist is how to say so; a write scope declared on one job is not reported), whether a pinned hash is the commit the tag names (an impostor commit is an online audit), every other zizmor audit (template injection, credential persistence, dangerous triggers, ...), workflows outside .github/workflows, and a file zizmor cannot read (a clean result is then a gap, never clean). A uses: with no @ref or an expression stops zizmor for the whole project (an error, never clean). A project with no workflow is a gap."
 related = []
 lifecycle = "experimental"
 

@@ -278,6 +278,26 @@ that is the case is reported as **not run**, never clean (as is a project with n
 `#fragments`, mail addresses and other schemes. The repository cannot silence the rule: a committed `lychee.toml`, `.lycheeignore` or
 `.gitignore` entry is not honoured (use the `.coderipper.toml` allowlist).
 
+### Rule run by a tool: `SUP-008`
+
+`SUP-008` (CI workflows pinned and least-privileged) is run by [zizmor](https://github.com/zizmorcore/zizmor) (MIT, an external process,
+never linked). It audits the project's tracked GitHub Actions workflows (`.github/workflows/*.yml`) and action definitions (`action.yml`),
+**offline**, and reports two things: an action, reusable workflow or image referenced by a tag or branch instead of an immutable hash or digest, and a
+workflow or job whose token permissions are the broad default (no `permissions:` block), `write-all` or `read-all`, or a workflow-level write scope
+(a write scope declared on one job is not reported). Nothing else zizmor checks is
+reported as this rule.
+
+```sh
+coderipper tools install zizmor --install-tools     # once; or pass --install-tools to the run itself
+coderipper check SUP-008 --profile extended
+```
+
+One finding per zizmor finding, at the file and line it is on, with zizmor's severity and confidence. zizmor cannot know what a job needs,
+so a workflow-level `contents: write` that is needed is reported too; say so in the `.coderipper.toml` allowlist. A workflow zizmor could not read (a YAML
+syntax error: it skips the file and still exits 0) makes a clean result **not run**, never clean, as does a project with no workflow. The
+repository cannot silence the rule: a committed `zizmor.yml` and `# zizmor: ignore` comments are not honoured (a finding that carries such a
+comment is reported and says so).
+
 ## Tools CodeRipper may install: `coderipper tools`
 
 Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
@@ -292,7 +312,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1, osv-scanner 2.6.0 and lychee 0.24.2 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2 and zizmor 1.30.1 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

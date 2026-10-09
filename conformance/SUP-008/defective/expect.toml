@@ -1,0 +1,7 @@
+# The seeded defect: .github/workflows/ci.yml line 9 uses actions/checkout by a tag (v4), which can be moved to other code.
+# The workflow declares its permissions (read-only), so that is the only finding of the two audits this rule reports.
+
+[[expect]]
+rule = "SUP-008"
+file = ".github/workflows/ci.yml"
+line = 9

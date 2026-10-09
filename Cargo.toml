@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 description = "Audits a Rust project for what clippy does not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"

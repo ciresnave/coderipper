@@ -4,6 +4,64 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.4 - 2026-10-09 (proposed)
+
+### Added
+- **SUP-008 (CI workflows pinned and least-privileged), run by [zizmor](https://github.com/zizmorcore/zizmor)** (MIT; multi-language
+  P3, PR 6) under `--profile extended`. zizmor is given the project's *tracked* GitHub Actions files (`git ls-files`): the workflows in
+  `.github/workflows/` and every `action.yml`/`action.yaml` (not those below `node_modules`, `vendor`, `third_party` or `target`). It runs
+  **offline**, so the rule needs no network and no token and is not sweep-tier. Of what zizmor reports only the three audits that are this
+  rule's wording are kept: `unpinned-uses` (an action or reusable workflow referenced by a tag or branch, not an immutable hash), `unpinned-images` (a `container:`,
+  `services:` or `docker://` image not pinned to a digest) and
+  `excessive-permissions` (the broad default token, `write-all`, `read-all`, a workflow-level write scope). Every other zizmor audit
+  (template injection, credential persistence, dangerous triggers, ...) is another rule's business and is not reported as SUP-008.
+- **One finding per zizmor finding**, at the file and line of its primary location, severity and confidence zizmor's own, subject the
+  `uses:` value (or, for a permission, the place in the file: `permissions`, `jobs.build`). Workflow text is third-party text: control
+  characters are removed and the length is cut.
+- **The stricter `pedantic` persona is used, on purpose.** Measured against zizmor 1.30.1, its default persona does not report
+  `permissions: write-all` or an unpinned `container:` image at all; `pedantic` reports both (and, on the workflows probed, nothing for the audits kept
+  that the `auditor` persona adds). A test pins the reason: it fails if the default persona starts reporting `write-all`.
+- **A workflow zizmor could not read makes a clean result a gap.** Measured: a workflow with a YAML syntax error beside a valid one is skipped
+  with a warning and zizmor exits **0** with `[]`. zizmor is run quietly (`-q`: stderr then holds only warnings and errors, so a long log
+  cannot push the warning out of the part kept), and a warning that an input failed to parse, validate or load beside an exit 0 is a partial read (another audit's warning is not): findings carry a note, and a
+  clean result is reported as **not run** (`SUP-008 not run: ...`), never clean. A project whose every workflow is unreadable (zizmor exits 3,
+  "no inputs collected") and a project with no workflow or action are gaps too.
+- **The analysed repository cannot silence the rule** (design 5.2). Measured: a committed `zizmor.yml` or `.github/zizmor.yml` with
+  `rules: unpinned-uses: disable: true` drops the findings, and so does a `# zizmor: ignore[unpinned-uses]` comment. `--no-config` and
+  `--no-ignores` are passed; a finding that carries such a comment is still reported and says that CodeRipper does not honour the comment.
+  (`.gitignore` does not hide a file named on the command line; measured.) The project's way to suppress a finding is the
+  `.coderipper.toml` allowlist.
+- **zizmor 1.30.1 is pinned** for `x86_64-windows`, `x86_64-linux` (gnu), `aarch64-linux` (gnu), `aarch64-macos` and `x86_64-macos` (every
+  build the release has), as the publisher's archives (`.zip` on Windows, `.tar.gz` elsewhere). **The release lists no checksum file**: the
+  archive hashes are the SHA-256 digests GitHub computed for each release asset (`assets[].digest` of the release API), re-checked against the
+  downloaded archives; the lock pins the extracted executable's hash too.
+- **Many workflows are read whole**: file names are passed to zizmor in groups that fit a command line (a Windows command line is cut at
+  32 767 characters); a test with 250 workflows checks that none is lost at a seam.
+- **Conformance and tests.** `conformance/SUP-008/` (a workflow using `actions/checkout@v4`, and the same workflow pinned to the commit
+  the `v4.2.2` tag names) is proven by the fixture runner against the real zizmor. `tests/delegated_zizmor.rs` installs the pinned zizmor
+  and runs the fixtures and the CLI against it, including the cases above. zizmor runs offline and every workflow in the tests is written
+  by the test, so **pull-request CI depends on no web site and no day's data** (it downloads the pinned zizmor from its GitHub release once).
+
+### Changed
+- The delegation framework's run result now carries the tool's stdout (`ToolRun::stdout`), for a tool with no option to write its report to
+  a file; the `git ls-files` listing lychee used is now shared (`tracked_listing`). No behaviour change.
+
+### Known limits
+- zizmor cannot know what a job *needs*: a workflow-level `contents: write` is reported even when it is needed (the finding carries zizmor's
+  confidence), and the allowlist is how to say so. The rule is about *declared* permissions.
+- A write scope declared on one job (`jobs.x.permissions: contents: write`) is **not** reported: zizmor treats that as the right way to ask
+  for it. A workflow-level `read-all` is reported.
+- A `uses:` with no `@ref`, an expression (`${{ matrix.action }}`) or a workflow that is not UTF-8 makes zizmor stop for the whole project
+  (exit 1, "no audit was performed"): the rule is then an **error** naming the cause, never clean, and no other file is judged until it is fixed.
+- A tracked `action.yml` that is not a GitHub action (another tool's configuration with that name) is warned about by zizmor and keeps
+  the rule a gap ("could not read part"). Fixture and example directories are not excluded.
+- Whether a pinned hash is the commit the tag names (zizmor's `impostor-commit` audit) and other online audits are not run: the rule is
+  offline.
+- Workflows outside `.github/workflows` are not read (GitHub does not run them); `dependabot.yml` and pre-commit files are not audited.
+- A finding that zizmor reports twice for one cause (a workflow with no `permissions:` block is reported at the workflow and at each job)
+  is two findings, with different subjects.
+- Only gitleaks, osv-scanner, lychee and zizmor are pinned. buf follows; checkov (PyPI only) needs a Python-prerequisite decision.
+
 ## 0.4.3 - 2026-10-09 (proposed)
 
 ### Added
