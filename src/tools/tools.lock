@@ -173,3 +173,63 @@ licence     = "Apache-2.0 OR MIT"
 archive     = "tar.gz"
 member      = "lychee-x86_64-apple-darwin/lychee"
 file_sha256 = "db236f940ad0dbe02b8c3e12ac0f7b7dcae15be02bb5fb1868def5026b5e01e7"
+
+# zizmor 1.30.1 (MIT): SUP-008. The release lists no checksum file, so the archive hashes are the SHA-256 digests GitHub computed for each
+# release asset (read 2026-10-09 from https://api.github.com/repos/zizmorcore/zizmor/releases/tags/v1.30.1, assets[].digest) and were
+# re-checked against the downloaded archives; file_sha256 is the extracted executable's, computed from those verified archives. The release
+# also has no other platform builds (no linux musl, no windows arm64), so every build it has is pinned.
+
+[[tool]]
+name        = "zizmor"
+version     = "1.30.1"
+platform    = "x86_64-windows"
+source      = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-pc-windows-msvc.zip"
+sha256      = "b183b1e996eddfab9659f1e9b46e059f1ef1cf984a1f14e5da09f7876a4b3a1c"
+licence     = "MIT"
+archive     = "zip"
+member      = "zizmor.exe"
+file_sha256 = "4ace959d58c0dc48659c3eeefc4bb9e3b18197c174e5e997d2f8e0896f0d3c9e"
+
+[[tool]]
+name        = "zizmor"
+version     = "1.30.1"
+platform    = "x86_64-linux"
+source      = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+sha256      = "e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a"
+licence     = "MIT"
+archive     = "tar.gz"
+member      = "zizmor"
+file_sha256 = "d39db5594fd89d57fdadd744079e1b3a405f24ff312714904f8bd708c69f322f"
+
+[[tool]]
+name        = "zizmor"
+version     = "1.30.1"
+platform    = "aarch64-linux"
+source      = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-aarch64-unknown-linux-gnu.tar.gz"
+sha256      = "7ff1dce33bdd18fd2a4affe63bdd47efcccca97b2cec1c1863ec26e9e2647540"
+licence     = "MIT"
+archive     = "tar.gz"
+member      = "zizmor"
+file_sha256 = "72715e768ed9eda0fb7ace42ce50168c99c9146246710858fd2daf9b31ab14b1"
+
+[[tool]]
+name        = "zizmor"
+version     = "1.30.1"
+platform    = "aarch64-macos"
+source      = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-aarch64-apple-darwin.tar.gz"
+sha256      = "e28d22b087f9ebb8d99da6e740d348c930f559961c7c3f12badda54f882195a2"
+licence     = "MIT"
+archive     = "tar.gz"
+member      = "zizmor"
+file_sha256 = "0cd1e69b329cdbc2ded5cd3b5161f21ffd89652eab6563153e4af5a69344c64d"
+
+[[tool]]
+name        = "zizmor"
+version     = "1.30.1"
+platform    = "x86_64-macos"
+source      = "https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-apple-darwin.tar.gz"
+sha256      = "10e6b18b11ea07e515a16f0f0518c7b07527bc9977c1fd5698181ce7f3554202"
+licence     = "MIT"
+archive     = "tar.gz"
+member      = "zizmor"
+file_sha256 = "ca04f59e9ccdc58eed3641abcd304a4cd37e7f416f1bfacf019da77b66d62dcb"

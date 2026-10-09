@@ -93,25 +93,7 @@ fn select_documents(listing: &str, root: &Path) -> Vec<String> {
 
 /// The tracked documents of the repository at `root`, from the index.
 fn tracked_documents(root: &Path) -> Result<Vec<String>, String> {
-    let out = std::process::Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["ls-files", "-z", "--cached"])
-        .env_remove("GIT_DIR")
-        .env_remove("GIT_WORK_TREE")
-        .env_remove("GIT_INDEX_FILE")
-        .output()
-        .map_err(|e| format!("cannot run git to list the tracked files: {e}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "git could not list the tracked files: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
-    Ok(select_documents(
-        &String::from_utf8_lossy(&out.stdout),
-        root,
-    ))
+    Ok(select_documents(&super::tracked_listing(root)?, root))
 }
 
 #[derive(Debug, Deserialize)]

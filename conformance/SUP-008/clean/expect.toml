@@ -1,0 +1,2 @@
+# A clean twin expects nothing: the rule must report nothing here. The action is pinned to the commit the v4.2.2 tag names (with the
+# version in a comment) and the workflow declares read-only permissions: the same workflow as the defective one, apart from the pin.

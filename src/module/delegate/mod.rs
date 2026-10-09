@@ -19,6 +19,7 @@
 mod gitleaks;
 mod lychee;
 mod osv;
+mod zizmor;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -81,6 +82,7 @@ pub(crate) struct ToolRun {
     scratch: tempfile::TempDir,
     stderr: String,
     exit_code: Option<i32>,
+    stdout: Vec<String>,
 }
 
 impl ToolRun {
@@ -92,6 +94,11 @@ impl ToolRun {
     /// The tail of the tool's stderr (its log), for a tool whose exit code does not say whether it saw everything.
     pub(crate) fn log(&self) -> &str {
         &self.stderr
+    }
+
+    /// What the tool printed on stdout, for a tool that has no option to write its report to a file (zizmor).
+    pub(crate) fn stdout(&self) -> String {
+        self.stdout.join("\n")
     }
 
     /// The exit code the tool ended with (one of the `ok_codes` given to [`run_tool`], or 0).
@@ -139,8 +146,30 @@ pub(crate) fn run_tool(
             scratch,
             stderr: run.stderr,
             exit_code: run.exit_code,
+            stdout: run.lines,
         }),
     }
+}
+
+/// The tracked files of the repository at `root`, NUL-separated, from the index (never a walk of the disk: another worktree or a
+/// virtualenv below `root` is not the project's).
+pub(crate) fn tracked_listing(root: &Path) -> Result<String, String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files", "-z", "--cached"])
+        .env_remove("GIT_DIR")
+        .env_remove("GIT_WORK_TREE")
+        .env_remove("GIT_INDEX_FILE")
+        .output()
+        .map_err(|e| format!("cannot run git to list the tracked files: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "git could not list the tracked files: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 /// One delegated rule: its catalog id, the tool it runs, and the function that runs it.
@@ -170,6 +199,11 @@ const RULES: &[Rule] = &[
         id: lychee::RULE,
         tool: lychee::TOOL,
         run: lychee::run,
+    },
+    Rule {
+        id: zizmor::RULE,
+        tool: zizmor::TOOL,
+        run: zizmor::run,
     },
 ];
 
