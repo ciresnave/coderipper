@@ -17,6 +17,7 @@
 //! The module is in process (the tool is the child), so a rule's findings belong to the result that follows them.
 
 mod gitleaks;
+mod lychee;
 mod osv;
 
 use std::path::{Path, PathBuf};
@@ -165,6 +166,11 @@ const RULES: &[Rule] = &[
         tool: osv::TOOL,
         run: osv::run_sec,
     },
+    Rule {
+        id: lychee::RULE,
+        tool: lychee::TOOL,
+        run: lychee::run,
+    },
 ];
 
 /// The rules this module delegates, in the order it reports them.
@@ -228,7 +234,7 @@ impl Module for DelegatedModule {
             env!("CARGO_PKG_VERSION"),
             vec!["any".into()],
             vec![],
-            // the tools read the repository (a child process); none runs the project's code. osv-scanner's rules need the network
+            // the tools read the repository (a child process); none runs the project's code. osv-scanner's and lychee's rules need the network
             // (they are sweep-tier rules, and a run that does not permit it reports them as a gap)
             Capabilities::new(false, true, false, false),
             RULES

@@ -228,6 +228,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Fix or remove each dead link, and run a link checker regularly; checking external links needs network access."
 lifecycle = "experimental"
+checked_today = "Every link that lychee extracts from the tracked Markdown, HTML and text documents of the project (not those below node_modules, vendor, third_party or target) is checked: a link to a local file or directory must exist, and a web page must not answer 404 or 410; each dead link is a finding. Not judged: a link that timed out, failed to connect, was rate limited or got another answer (reported as not judged: with no dead link found the rule is then a gap, never clean, and beside dead links every finding says how many were not judged), a #fragment, mail addresses and other schemes, links in code blocks, and documents lychee cannot read. A project with no links is a gap."
 
 [rule.applicability]
 languages = ["any"]

@@ -260,6 +260,24 @@ The repository cannot silence these rules: a committed `osv-scanner.toml` (its `
 not honoured (the project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project osv-scanner finds no package
 sources in is reported as **not run**, not clean; a lockfile it cannot read is an error (exit 3), not a clean result.
 
+### Rule run by a tool, over the network: `DOC-010`
+
+`DOC-010` (documentation links resolve) is run by [lychee](https://github.com/lycheeverse/lychee) (Apache-2.0 OR MIT, an external process,
+never linked). It checks every link in the project's tracked Markdown, HTML and text documents (not those below `node_modules`, `vendor`,
+`third_party` or `target`): a link to a file must exist, and a web page must not answer 404 or 410. It requests web pages, so it is
+**sweep-tier** like the advisory rules above.
+
+```sh
+coderipper tools install lychee --install-tools     # once; or pass --install-tools to the run itself
+coderipper check DOC-010 --profile extended
+```
+
+One finding per dead link, at the document and line it is on. A link lychee could not settle (a timeout, a failed connection, a rate
+limit, a `403` from a site that turns bots away) is **not judged**: it is neither a finding nor evidence the link works, and a run where
+that is the case is reported as **not run**, never clean (as is a project with no links, or a document lychee skipped). Not checked:
+`#fragments`, mail addresses and other schemes. The repository cannot silence the rule: a committed `lychee.toml`, `.lycheeignore` or
+`.gitignore` entry is not honoured (use the `.coderipper.toml` allowlist).
+
 ## Tools CodeRipper may install: `coderipper tools`
 
 Some rules hand their work to a tool that already does it well (a secret scanner, a link checker). Those tools are never
@@ -274,7 +292,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1 and osv-scanner 2.6.0 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1, osv-scanner 2.6.0 and lychee 0.24.2 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

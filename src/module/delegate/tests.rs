@@ -295,7 +295,7 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
     ));
     let hello = absent.describe().unwrap();
     assert!(hello.problem().is_none());
-    assert_eq!(hello.rules.len(), 3);
+    assert_eq!(hello.rules.len(), 4);
     let claim = hello.rules.iter().find(|r| r.id == "SEC-002").unwrap();
     assert_eq!(
         (
@@ -331,6 +331,7 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
     // osv-scanner is not installed here: its rules earn nothing
     assert_eq!(proof("SUP-002"), None);
     assert_eq!(proof("SEC-006"), None);
+    assert_eq!(proof("DOC-010"), None);
 }
 
 #[test]

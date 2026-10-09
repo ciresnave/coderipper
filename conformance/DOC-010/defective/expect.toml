@@ -1,0 +1,7 @@
+# The seeded defect: README.md line 3 links to docs/missing.md, which is not in the fixture.
+needs_network = true
+
+[[expect]]
+rule = "DOC-010"
+file = "README.md"
+line = 3

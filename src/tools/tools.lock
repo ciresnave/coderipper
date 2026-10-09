@@ -114,3 +114,62 @@ platform = "x86_64-macos"
 source   = "https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_darwin_amd64"
 sha256   = "60c5296637e977b28eeda5c7f13573e447659a632922737f94d11fa7e30ad6ca"
 licence  = "Apache-2.0"
+
+# lychee 0.24.2 (Apache-2.0 OR MIT): DOC-010. Archive hashes are the ones in the publisher's own .sha256 file beside each asset (read 2026-10-09 from
+# https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/<asset>.sha256) and were re-checked against the downloaded archive; file_sha256 is the extracted executable's, computed from those verified archives.
+# The release also has linux musl/arm/i686 builds and a macOS dmg, which are not pinned (CodeRipper does not run there yet).
+
+[[tool]]
+name        = "lychee"
+version     = "0.24.2"
+platform    = "x86_64-windows"
+source      = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-pc-windows-msvc.zip"
+sha256      = "32975d1493ee1a975d6bb41e4fb56fe419cb442ded628bb772ba2e614acfacad"
+licence     = "Apache-2.0 OR MIT"
+archive     = "zip"
+member      = "lychee-x86_64-pc-windows-msvc/lychee.exe"
+file_sha256 = "2d15a3f78ac680103720b0c59667dc6f1da7de35f7e9c95171bdf4b76fb6829b"
+
+[[tool]]
+name        = "lychee"
+version     = "0.24.2"
+platform    = "x86_64-linux"
+source      = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz"
+sha256      = "1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a"
+licence     = "Apache-2.0 OR MIT"
+archive     = "tar.gz"
+member      = "lychee-x86_64-unknown-linux-gnu/lychee"
+file_sha256 = "87e6e75195df5753f08c53b5c0a13694b8328edd8df009914ae9e29b5000162d"
+
+[[tool]]
+name        = "lychee"
+version     = "0.24.2"
+platform    = "aarch64-linux"
+source      = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-aarch64-unknown-linux-gnu.tar.gz"
+sha256      = "91a7bd65685da41b90ccb9bc867a3d649a7818042dae04ff405e55a25bddee4c"
+licence     = "Apache-2.0 OR MIT"
+archive     = "tar.gz"
+member      = "lychee-aarch64-unknown-linux-gnu/lychee"
+file_sha256 = "7674d743f60997b0f2c6d6dbf4e02b50b311d8fe6c0051b11ad085c3f244e98a"
+
+[[tool]]
+name        = "lychee"
+version     = "0.24.2"
+platform    = "aarch64-macos"
+source      = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-aarch64-apple-darwin.tar.gz"
+sha256      = "c9d3740ea2d891854d37116c9fba840f37b6e7c89d330e7db84ac333631c4977"
+licence     = "Apache-2.0 OR MIT"
+archive     = "tar.gz"
+member      = "lychee-aarch64-apple-darwin/lychee"
+file_sha256 = "af111b5890746a863e60b4929720ab383337843ed15b701515871aa6e8817c2b"
+
+[[tool]]
+name        = "lychee"
+version     = "0.24.2"
+platform    = "x86_64-macos"
+source      = "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-apple-darwin.tar.gz"
+sha256      = "887503a9cff667d322b8d0892b40bf49976eb9507af8483220a3706cdad55978"
+licence     = "Apache-2.0 OR MIT"
+archive     = "tar.gz"
+member      = "lychee-x86_64-apple-darwin/lychee"
+file_sha256 = "db236f940ad0dbe02b8c3e12ac0f7b7dcae15be02bb5fb1868def5026b5e01e7"
