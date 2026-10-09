@@ -52,7 +52,7 @@ fn keys(v: &Value) -> Vec<&str> {
 fn a_finding_is_one_json_line_followed_by_a_summary_line() {
     let repo = project_with_a_medium_finding();
     let (code, lines) = run_json(&["check", "unused-return-values"], repo.path());
-    assert_eq!(code, 0);
+    assert_eq!(code, 1, "a finding fails the run by default (0.5.0)");
     assert_eq!(lines.len(), 2, "{lines:?}");
     let finding = &lines[0];
     assert_eq!(finding["reason"], "coderipper-finding");
@@ -64,7 +64,8 @@ fn a_finding_is_one_json_line_followed_by_a_summary_line() {
     assert_eq!(summary["reason"], "coderipper-summary");
     assert_eq!(summary["findings"], 1);
     assert_eq!(summary["errors"], serde_json::json!([]));
-    assert_eq!(summary["exit_code"], 0);
+    assert_eq!(summary["waived"], 0);
+    assert_eq!(summary["exit_code"], 1);
 }
 
 #[test]
@@ -79,7 +80,8 @@ fn golden_the_keys_of_a_finding_line_and_of_the_summary_line() {
     assert_eq!(keys(&lines[0]["location"]), ["file", "line"]);
     assert_eq!(
         keys(&lines[1]),
-        ["errors", "exit_code", "findings", "reason"]
+        ["errors", "exit_code", "findings", "reason", "waived"],
+        "`waived` is the 0.5.0 schema addition"
     );
 }
 
@@ -140,7 +142,14 @@ fn a_check_that_could_not_run_is_in_the_summary_and_exits_3() {
 fn an_unknown_message_format_is_a_usage_error() {
     let repo = project_with_a_medium_finding();
     coderipper()
-        .args(["fast", "--message-format", "yaml", "--project"])
+        .args([
+            "fast",
+            "--deny",
+            "none",
+            "--message-format",
+            "yaml",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .code(2);
@@ -150,7 +159,13 @@ fn an_unknown_message_format_is_a_usage_error() {
 fn the_default_format_is_still_the_human_text() {
     let repo = project_with_a_medium_finding();
     coderipper()
-        .args(["check", "unused-return-values", "--project"])
+        .args([
+            "check",
+            "unused-return-values",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .code(0)

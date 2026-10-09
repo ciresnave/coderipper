@@ -94,6 +94,8 @@ fn run_json(rule: &str, project: &Path) -> (i32, String, String) {
         .args([
             "check",
             rule,
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",
@@ -488,14 +490,28 @@ fn a_fast_run_leaves_the_network_rules_alone_and_a_sweep_reports_them_as_a_gap()
     let repo = repo_of("defective");
     // fast: the advisory rules are sweep-tier, so they are not even attempted (no note about them)
     coderipper(empty.path())
-        .args(["fast", "--profile", "extended", "--project"])
+        .args([
+            "fast",
+            "--deny",
+            "none",
+            "--profile",
+            "extended",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("SUP-002").not())
         .stderr(predicate::str::contains("SEC-006").not());
     // sweep: attempted, and with no tool installed each is a reported gap
     coderipper(empty.path())
-        .args(["sweep", "--profile", "extended", "--project"])
+        .args([
+            "sweep",
+            "--deny",
+            "none",
+            "--profile",
+            "extended",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("SUP-002 not run"))

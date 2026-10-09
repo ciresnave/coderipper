@@ -113,6 +113,8 @@ fn run_json(project: &Path) -> (i32, String, String) {
         .args([
             "check",
             "DOC-010",
+            "--deny",
+            "none",
             "--profile",
             "extended",
             "--message-format",
@@ -434,12 +436,26 @@ fn a_fast_run_leaves_the_network_rule_alone_and_a_sweep_reports_it_as_a_gap() {
     let empty = tempfile::tempdir().unwrap();
     let repo = repo_of("defective");
     coderipper(empty.path())
-        .args(["fast", "--profile", "extended", "--project"])
+        .args([
+            "fast",
+            "--deny",
+            "none",
+            "--profile",
+            "extended",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("DOC-010").not());
     coderipper(empty.path())
-        .args(["sweep", "--profile", "extended", "--project"])
+        .args([
+            "sweep",
+            "--deny",
+            "none",
+            "--profile",
+            "extended",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("DOC-010 not run"));

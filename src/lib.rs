@@ -79,7 +79,7 @@ pub(crate) mod worktree;
 
 use allowlist::Allowlist;
 use check::{Check, CheckContext, Tier};
-use finding::Finding;
+use finding::{Finding, Waived};
 use suppression::Suppression;
 use tools::ToolEnv;
 
@@ -99,13 +99,13 @@ pub fn registered_checks() -> Vec<Box<dyn Check>> {
 
 /// Run every registered check at or below the requested tier, collect and validate their
 /// findings, apply the project's allowlist to them (checks return RAW findings; suppression is the
-/// host's job), and return what is left plus one `Info` finding per allowlist
+/// host's job; what an entry waives is kept in [`RunResult::waived`]), and return what is left plus one `Info` finding per allowlist
 /// entry that no longer suppresses anything. A check whose `run` returns an invalid absence-claim finding is
 /// dropped with an error noted in `errors`, not silently included — see `Finding::validate`.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct RunResult {
-    /// The validated findings that the allowlist did not suppress, plus the allowlist's own `Info` findings.
+    /// The validated findings that the allowlist did not waive, plus the allowlist's own `Info` findings.
     pub findings: Vec<Finding>,
     /// What went wrong: a check that failed to run, a finding the host rejected as invalid, an unreadable allowlist.
     /// A non-empty list means the audit is incomplete, whatever `findings` says.
@@ -116,6 +116,9 @@ pub struct RunResult {
     /// Rules that were not run, and why, when that is a gap and not an error: a delegated rule whose tool is not installed
     /// (`SEC-002 not run: gitleaks is not available: ...`). Informational: it never fails a run.
     pub notes: Vec<String>,
+    /// The findings the project's `[[allow]]` entries waived, each with its reason. They are not in `findings` and never fail a run, but
+    /// a report should show them: a waiver the reader cannot see is a finding hidden.
+    pub waived: Vec<Waived>,
 }
 
 impl RunResult {
@@ -126,6 +129,7 @@ impl RunResult {
             errors,
             outcomes: Vec::new(),
             notes: Vec::new(),
+            waived: Vec::new(),
         }
     }
 }
@@ -259,6 +263,7 @@ fn run_workspace_over_in(
     let mut errors = Vec::new();
     let mut outcomes: Vec<coverage::RuleRun> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
+    let mut waived: Vec<Waived> = Vec::new();
     // The same allowlist file can be judged twice (a root package is both the repository's unit and a member): a stale
     // or unknown-check entry is reported once.
     let mut judged = std::collections::HashSet::new();
@@ -284,6 +289,7 @@ fn run_workspace_over_in(
     }
     errors.extend(repository.errors);
     notes.extend(repository.notes);
+    waived.extend(repository.waived);
     coverage::merge_runs(&mut outcomes, repository.outcomes);
 
     let session = match session::Session::open(&root) {
@@ -291,7 +297,10 @@ fn run_workspace_over_in(
         Err(e) => {
             errors.push(format!("cannot open the workspace session: {e}"));
             return WorkspaceRun {
-                result: RunResult::new(findings, errors),
+                result: RunResult {
+                    waived,
+                    ..RunResult::new(findings, errors)
+                },
                 members: 0,
                 members_with_errors: 0,
             };
@@ -325,6 +334,10 @@ fn run_workspace_over_in(
             }
             if !run.errors.is_empty() {
                 with_errors += 1;
+            }
+            for mut waiver in run.waived {
+                waiver.finding.member = Some(member.name.clone());
+                waived.push(waiver);
             }
             for mut finding in run.findings {
                 if finding.check_id == suppression::ALLOWLIST_CHECK_ID
@@ -367,6 +380,7 @@ fn run_workspace_over_in(
             errors,
             outcomes,
             notes,
+            waived,
         },
         members: analysed,
         members_with_errors: with_errors,
@@ -434,9 +448,11 @@ pub fn run_checks_in_with_tools(
 /// - **Validates every finding** ([`finding::Finding::validate`]). A finding whose summary claims an absence (contains
 ///   the whole word "zero", "no", "none", "missing", "unreachable" or "0"; "10 threads" and "casino" do not count)
 ///   without a `positive_control` is dropped and reported in `errors`.
-/// - **Applies the project's allowlist**, read from `.coderipper.toml` in `ctx.project_root`. An entry suppresses a
-///   finding only when its `check`, `file` and `symbol` equal the finding's `check_id`, `location.file` and `subject`,
-///   so a check that wants to be suppressible must set a location and a subject.
+/// - **Applies the project's allowlist**, read from `.coderipper.toml` in `ctx.project_root`. An entry waives a finding
+///   only when its `check` and `file` equal the finding's `check_id` and `location.file`, and, when the entry gives them,
+///   its `symbol` equals the finding's `subject` and the finding's `location.line` is within its `lines`. A check that
+///   wants its findings to be waivable must set a location. Waived findings leave `findings` and are returned, with the
+///   entry's reason, in [`RunResult::waived`].
 /// - **Judges stale entries against the checks you pass.** An entry that suppressed nothing is reported as an `Info`
 ///   finding from the check id `allowlist`, and an entry naming a check that is not in `checks` is reported as an
 ///   unknown check. If you pass only your own check and the project's `.coderipper.toml` names built-in checks, each
@@ -702,6 +718,7 @@ fn run_module_over(
         errors,
         outcomes,
         notes,
+        waived: suppression.take_waived(),
     }
 }
 

@@ -9,7 +9,7 @@
 //! N runs" needs a run-history store that does not exist; it is a documented future extension.
 
 use crate::allowlist::{AllowEntry, Allowlist};
-use crate::finding::{Confidence, Finding, Location, Severity};
+use crate::finding::{Confidence, Finding, Location, Severity, Waived};
 use std::collections::HashMap;
 
 /// `check_id` of the findings this module emits.
@@ -23,6 +23,8 @@ pub(crate) struct Suppression<'a> {
     /// entry for one of these can be judged stale: a check that errored, or never ran, tells us
     /// nothing about whether its entries still match.
     completed: HashMap<String, usize>,
+    /// The findings entries waived, each with the reason of the first entry that named it.
+    waived: Vec<Waived>,
 }
 
 impl<'a> Suppression<'a> {
@@ -31,6 +33,7 @@ impl<'a> Suppression<'a> {
             allowlist,
             matched: vec![false; allowlist.entries().len()],
             completed: HashMap::new(),
+            waived: Vec::new(),
         }
     }
 
@@ -40,21 +43,29 @@ impl<'a> Suppression<'a> {
         self.completed.insert(check_id.to_string(), raw_count);
     }
 
-    /// Drops every finding an entry names (exact `check_id` + file + subject) and remembers which
-    /// entries did so.
+    /// Takes out every finding an entry names (exact `check_id` + file, and the symbol and lines when the entry gives them),
+    /// remembers which entries did so, and keeps the waived findings with their reasons (see [`Self::take_waived`]).
     pub fn apply(&mut self, raw: Vec<Finding>) -> Vec<Finding> {
-        raw.into_iter()
-            .filter(|f| {
-                let mut suppressed = false;
-                for (i, entry) in self.allowlist.entries().iter().enumerate() {
-                    if names_finding(entry, f) {
-                        self.matched[i] = true;
-                        suppressed = true;
-                    }
+        let mut kept = Vec::new();
+        for f in raw {
+            let mut reason = None;
+            for (i, entry) in self.allowlist.entries().iter().enumerate() {
+                if names_finding(entry, &f) {
+                    self.matched[i] = true;
+                    reason.get_or_insert_with(|| entry.reason.clone());
                 }
-                !suppressed
-            })
-            .collect()
+            }
+            match reason {
+                Some(reason) => self.waived.push(Waived { finding: f, reason }),
+                None => kept.push(f),
+            }
+        }
+        kept
+    }
+
+    /// The findings waived so far, in the order they were seen.
+    pub fn take_waived(&mut self) -> Vec<Waived> {
+        std::mem::take(&mut self.waived)
     }
 
     /// One `Info` finding per entry that matched nothing in a check that completed, plus one per
@@ -77,11 +88,27 @@ impl<'a> Suppression<'a> {
 }
 
 fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
+    let Some(location) = f.location.as_ref() else {
+        return false;
+    };
     entry.check == f.check_id
-        && f.location
-            .as_ref()
-            .is_some_and(|l| l.file == normalize_entry_path(&entry.file))
-        && f.subject.as_deref() == Some(entry.symbol.as_str())
+        && location.file == normalize_entry_path(&entry.file)
+        && entry
+            .symbol
+            .as_deref()
+            .is_none_or(|symbol| f.subject.as_deref() == Some(symbol))
+        && entry
+            .lines
+            .is_none_or(|range| location.line.is_some_and(|line| range.contains(line)))
+}
+
+/// What an entry names, for messages: the symbol when it gives one, else its lines, else just the file.
+fn target(entry: &AllowEntry) -> String {
+    match (&entry.symbol, entry.lines) {
+        (Some(symbol), _) => format!("`{symbol}`"),
+        (None, Some(lines)) => format!("lines {lines}"),
+        (None, None) => "every finding".to_string(),
+    }
 }
 
 /// Findings carry `src/x.rs`; an author may write `src\x.rs`, `./src/x.rs` or `src//x.rs`. Compared
@@ -104,7 +131,7 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
             file: ".coderipper.toml".into(),
             line: None,
         }),
-        subject: Some(entry.symbol.clone()),
+        subject: entry.symbol.clone(),
         summary: String::new(),
         detail: String::new(),
         positive_control: None,
@@ -115,12 +142,14 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
 fn stale(entry: &AllowEntry, raw_count: usize, project: &str) -> Finding {
     Finding {
         summary: format!(
-            "allowlist entry for `{}` in `{}` ({}) suppressed nothing this run -- its cause may be gone",
-            entry.symbol, entry.file, entry.check
+            "allowlist entry for {} in `{}` ({}) suppressed nothing this run -- its cause may be gone",
+            target(entry),
+            entry.file,
+            entry.check
         ),
         detail: format!(
             "This entry was written because: \"{}\". Nothing `{}` reported this run matches it \
-             (same check, same file, same symbol), so the suppression may no longer apply. Remove \
+             (same check, same file, and the same symbol and lines when the entry gives them), so the suppression may no longer apply. Remove \
              it if the cause is fixed; keep it only if the finding is expected to come back.",
             entry.reason, entry.check
         ),
@@ -136,8 +165,10 @@ fn stale(entry: &AllowEntry, raw_count: usize, project: &str) -> Finding {
 fn unknown_check(entry: &AllowEntry, registered: &[&str], project: &str) -> Finding {
     Finding {
         summary: format!(
-            "allowlist entry for `{}` names a check, `{}`, that is not registered",
-            entry.symbol, entry.check
+            "allowlist entry for {} in `{}` names a check, `{}`, that is not registered",
+            target(entry),
+            entry.file,
+            entry.check
         ),
         detail: format!(
             "Registered checks: {}. An entry for a check that does not exist can never suppress \
@@ -265,6 +296,106 @@ mod tests {
             let kept = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
             assert!(kept.is_empty(), "entry spelled {spelling:?} should match");
         }
+    }
+
+    fn at_line(mut f: Finding, line: Option<u32>) -> Finding {
+        f.location.as_mut().unwrap().line = line;
+        f
+    }
+
+    const NO_SYMBOL: &str = "[[allow]]\ncheck = \"a\"\nfile = \"src/x.rs\"\nreason = \"why\"\n";
+
+    #[test]
+    fn an_entry_without_a_symbol_waives_every_finding_of_that_check_in_that_file() {
+        let al = allowlist(NO_SYMBOL);
+        let mut s = Suppression::new(&al);
+        let kept = s.apply(vec![
+            finding("a", "src/x.rs", Some("f")), // waived
+            finding("a", "src/x.rs", None),      // waived: no subject needed
+            finding("a", "src/y.rs", Some("f")), // other file
+            finding("b", "src/x.rs", Some("f")), // other check
+        ]);
+        assert_eq!(kept.len(), 2);
+        assert_eq!(s.take_waived().len(), 2);
+    }
+
+    #[test]
+    fn a_finding_with_no_location_is_never_waived() {
+        let al = allowlist(NO_SYMBOL);
+        let mut s = Suppression::new(&al);
+        let mut f = finding("a", "src/x.rs", None);
+        f.location = None;
+        assert_eq!(s.apply(vec![f]).len(), 1);
+        assert!(s.take_waived().is_empty());
+    }
+
+    #[test]
+    fn a_lines_entry_waives_only_findings_at_those_lines() {
+        let al = allowlist(&format!("{NO_SYMBOL}lines = \"10-20\"\n"));
+        let mut s = Suppression::new(&al);
+        let kept = s.apply(vec![
+            at_line(finding("a", "src/x.rs", Some("f")), Some(9)),
+            at_line(finding("a", "src/x.rs", Some("f")), Some(10)),
+            at_line(finding("a", "src/x.rs", Some("f")), Some(20)),
+            at_line(finding("a", "src/x.rs", Some("f")), Some(21)),
+            at_line(finding("a", "src/x.rs", Some("f")), None), // names no line: never inside a range
+        ]);
+        let kept: Vec<_> = kept
+            .iter()
+            .map(|f| f.location.as_ref().unwrap().line)
+            .collect();
+        assert_eq!(kept, vec![Some(9), Some(21), None]);
+        assert_eq!(s.take_waived().len(), 2);
+    }
+
+    #[test]
+    fn a_symbol_and_lines_must_both_match() {
+        let al = allowlist(&format!("{ONE}lines = \"5\"\n"));
+        let mut s = Suppression::new(&al);
+        let kept = s.apply(vec![
+            at_line(finding("a", "src/x.rs", Some("f")), Some(5)), // both: waived
+            at_line(finding("a", "src/x.rs", Some("f")), Some(6)), // symbol only
+            at_line(finding("a", "src/x.rs", Some("g")), Some(5)), // line only
+        ]);
+        assert_eq!(kept.len(), 2);
+    }
+
+    #[test]
+    fn when_two_entries_name_a_finding_the_first_ones_reason_is_kept() {
+        let second = ONE.replace("\"why\"", "\"second\"");
+        let al = allowlist(&format!("{ONE}\n{second}"));
+        let mut s = Suppression::new(&al);
+        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let waived = s.take_waived();
+        assert_eq!(waived.len(), 1, "one finding is waived once");
+        assert_eq!(waived[0].reason, "why");
+    }
+
+    #[test]
+    fn a_waived_finding_is_kept_whole_with_the_entrys_reason() {
+        let al = allowlist(ONE);
+        let mut s = Suppression::new(&al);
+        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let waived = s.take_waived();
+        assert_eq!(waived.len(), 1);
+        assert_eq!(waived[0].reason, "why");
+        assert_eq!(waived[0].finding.subject.as_deref(), Some("f"));
+        assert!(s.take_waived().is_empty(), "taking empties the list");
+    }
+
+    #[test]
+    fn a_stale_entry_without_a_symbol_says_what_it_names() {
+        let al = allowlist(NO_SYMBOL);
+        let mut s = Suppression::new(&al);
+        s.mark_completed("a", 0);
+        let stale = s.stale_findings(&["a"], "p");
+        assert_eq!(stale.len(), 1);
+        assert!(
+            stale[0].summary.contains("every finding"),
+            "{}",
+            stale[0].summary
+        );
+        assert_eq!(stale[0].subject, None);
     }
 
     #[test]

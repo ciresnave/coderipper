@@ -4,6 +4,34 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.5.0 - 2026-10-09 (proposed)
+
+### Breaking
+- **A finding fails the run by default.** `--deny` used to be off: findings were printed and the run exited 0 unless the caller passed
+  `--deny <level>`. It now defaults to `info`, so **any finding makes the run exit 1** (CireSnave's rulings Q7 and Q9, 2026-10-08).
+  **To restore the old behaviour pass `--deny none`** (findings are printed, the run never fails on one); `--deny medium` (or any level)
+  still lets findings below it through. A CI job or script that ran `coderipper` or `cargo coderipper` without `--deny` and expected
+  exit 0 now exits 1 when the project has a finding. The stale-waiver and unknown-check findings of the allowlist (check `allowlist`) are
+  findings like any other and fail the run too. Exit 3 (a check could not run) still outranks exit 1.
+- **An `[[allow]]` entry with a key it does not know is now an error.** Before 0.5.0 such an entry (an old `note = "..."`, a misspelt `line = 5`)
+  loaded and suppressed; now the file does not load, the run reports `allowlist: ...` and exits 3. An existing `.coderipper.toml` whose entries
+  carry only `check`, `file`, `symbol` and `reason` loads and behaves as before (apart from the default exit code above).
+- **Coverage gaps never fail a run** (unchanged and now stated as a rule): a rule not implemented for a language, or whose tool is not
+  installed, is reported as not run, never as a finding.
+
+### Added
+- **Waivers.** An `[[allow]]` entry now needs only `check`, `file` and `reason`. `symbol` is optional (omitted: every finding of the check in
+  the file), and a new optional `lines = "12"` / `"10-20"` (inclusive) narrows an entry to findings reported at those lines. A finding with no
+  line is never matched by an entry with `lines`. A `lines` value that is not a line or a range (`"0"`, `"20-10"`, `"+5"`, `"5 - 7"`) is an error
+  rather than a wider waiver.
+- **A waived finding is shown, not dropped.** Human output prints `[waived/<severity>] ... -- reason: <reason>` for it; `RunResult::waived`
+  (a new public field; `Waived { finding, reason }`) carries it; it never counts toward exit 1. The stale-entry judgement is unchanged (an
+  entry that waived at least one finding is live).
+- **JSON schema addition:** a `coderipper-waived` line per waived finding (the `Finding` fields, plus `waiver_reason`), and `waived` (a count) in
+  the `coderipper-summary` line. Existing keys and lines are unchanged.
+- The roadmap records the `SEC-009` (checkov) decision: no Python prerequisite and no `pip` installer; the rule stays a reported coverage gap
+  until checkov ships a standalone binary or another route is justified (README, "Rules waiting on a tool").
+
 ## 0.4.5 - 2026-10-09 (proposed)
 
 ### Added

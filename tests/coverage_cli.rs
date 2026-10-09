@@ -166,7 +166,7 @@ fn coverage_full_lists_the_gaps_by_rule_id() {
 #[test]
 fn the_report_counts_this_runs_outcomes() {
     fast(&project_with_a_medium_finding())
-        .arg("--coverage")
+        .args(["--coverage", "--deny", "none"])
         .assert()
         .code(0)
         .stdout(predicate::str::is_match(r"this run: \d+ clean, 1 with findings").unwrap());
@@ -225,7 +225,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
 fn an_unknown_profile_is_a_usage_error() {
     Command::cargo_bin("coderipper")
         .unwrap()
-        .args(["fast", "--profile", "nonsense"])
+        .args(["fast", "--deny", "none", "--profile", "nonsense"])
         .assert()
         .code(2);
 }

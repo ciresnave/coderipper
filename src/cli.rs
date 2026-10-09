@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 // Exit codes (a promise to CI, documented in the README):
-const EXIT_CLEAN: u8 = 0; // every check ran and nothing is at or above `--deny` (no `--deny`: any run that finished)
-const EXIT_FINDINGS: u8 = 1; // a finding at or above `--deny`
+const EXIT_CLEAN: u8 = 0; // every check ran and no finding is at or above `--deny` (default `info`: no finding at all; `none`: any run that finished)
+const EXIT_FINDINGS: u8 = 1; // a finding at or above `--deny`, and no `[[allow]]` entry waives it
 const EXIT_USAGE: u8 = 2; // bad arguments (clap exits 2 itself) or a project path that cannot be read
 const EXIT_COULD_NOT_RUN: u8 = 3; // a check could not run, so part of the audit did not happen
 
@@ -63,9 +63,10 @@ enum CoverageMode {
     Full,
 }
 
-/// `--deny`'s values: the severity at which a finding fails the run.
+/// `--deny`'s values: the severity at which a finding fails the run, or `none` for never.
 #[derive(Clone, Copy, ValueEnum)]
 enum Deny {
+    None,
     Info,
     Low,
     Medium,
@@ -74,13 +75,15 @@ enum Deny {
 }
 
 impl Deny {
-    fn severity(self) -> Severity {
+    /// The lowest severity that fails the run; `None` when nothing does.
+    fn severity(self) -> Option<Severity> {
         match self {
-            Deny::Info => Severity::Info,
-            Deny::Low => Severity::Low,
-            Deny::Medium => Severity::Medium,
-            Deny::High => Severity::High,
-            Deny::Critical => Severity::Critical,
+            Deny::None => None,
+            Deny::Info => Some(Severity::Info),
+            Deny::Low => Some(Severity::Low),
+            Deny::Medium => Some(Severity::Medium),
+            Deny::High => Some(Severity::High),
+            Deny::Critical => Some(Severity::Critical),
         }
     }
 }
@@ -108,10 +111,10 @@ struct RunOpts {
     /// Root of the portfolio, for checks that read sibling projects. Defaults to the parent of `project`.
     #[arg(long)]
     portfolio_root: Option<PathBuf>,
-    /// Exit 1 when a finding is at least this severe. Without it findings are printed but never fail the run, like
-    /// clippy's warnings; CI usually wants `--deny medium`.
-    #[arg(long, value_enum)]
-    deny: Option<Deny>,
+    /// Exit 1 when a finding is at least this severe and no `[[allow]]` entry waives it. The default is `info`: any finding
+    /// fails the run. `--deny medium` lets Low and Info findings through; `--deny none` never fails on a finding.
+    #[arg(long, value_enum, default_value = "info")]
+    deny: Deny,
     /// How to write findings to stdout: `human` (default) or `json` (one object per line, like cargo's own
     /// `--message-format json`).
     #[arg(long, value_enum, default_value = "human")]
@@ -652,7 +655,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
 
     // A check error outranks a finding: a run that could not judge everything must not look like a complete one
     // that found something (review finding: errors used to be printed but the process still exited 0).
-    let denied = deny.map(Deny::severity);
+    let denied = deny.severity();
     let code = if !result.errors.is_empty() {
         EXIT_COULD_NOT_RUN
     } else if denied.is_some_and(|level| result.findings.iter().any(|f| f.severity >= level)) {
@@ -672,7 +675,12 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         MessageFormat::Human => {
             // Review finding: this used to print "no checks registered yet" whenever BOTH findings and
             // errors were empty -- which is what a genuinely clean run also looks like. Distinguish the real cases.
-            if result.findings.is_empty() && result.errors.is_empty() {
+            if result.findings.is_empty() && result.errors.is_empty() && !result.waived.is_empty() {
+                println!(
+                    "coderipper: no findings ({} waived, shown above)",
+                    result.waived.len()
+                );
+            } else if result.findings.is_empty() && result.errors.is_empty() {
                 if result.notes.is_empty() {
                     println!("coderipper: no issues found");
                 } else {
@@ -681,6 +689,21 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                         result.notes.len()
                     );
                 }
+            }
+            for w in &result.waived {
+                let f = &w.finding;
+                println!(
+                    "[waived/{:?}] {} — {} ({}) -- reason: {}",
+                    f.severity,
+                    f.member.as_deref().unwrap_or(&f.project),
+                    f.summary,
+                    f.check_id,
+                    // one line, printable: the reason comes from a file the project edits
+                    w.reason
+                        .chars()
+                        .map(|c| if c.is_control() { ' ' } else { c })
+                        .collect::<String>()
+                );
             }
             for f in &result.findings {
                 println!(
@@ -706,6 +729,15 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 object.insert("reason".into(), "coderipper-finding".into());
                 println!("{line}");
             }
+            for w in &result.waived {
+                let mut line = serde_json::to_value(&w.finding)?;
+                let object = line
+                    .as_object_mut()
+                    .expect("a Finding serializes to an object");
+                object.insert("reason".into(), "coderipper-waived".into());
+                object.insert("waiver_reason".into(), w.reason.clone().into());
+                println!("{line}");
+            }
             for report in reports.iter().flatten() {
                 let limit = if coverage == Some(CoverageMode::Full) {
                     usize::MAX
@@ -717,6 +749,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
             let mut summary = serde_json::json!({
                 "reason": "coderipper-summary",
                 "findings": result.findings.len(),
+                "waived": result.waived.len(),
                 "errors": result.errors,
                 "exit_code": code,
             });

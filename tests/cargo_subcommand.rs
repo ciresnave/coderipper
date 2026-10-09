@@ -31,7 +31,13 @@ fn as_cargo_runs_it(project: &std::path::Path) -> Command {
 #[test]
 fn a_bare_invocation_runs_the_fast_checks_in_the_current_directory() {
     let repo = project_with_a_medium_finding();
+    // a finding fails the run by default (0.5.0), under `cargo coderipper` as under `coderipper`
     as_cargo_runs_it(repo.path())
+        .assert()
+        .code(1)
+        .stdout(predicates::str::contains("(unused-return-values)"));
+    as_cargo_runs_it(repo.path())
+        .args(["--deny", "none"])
         .assert()
         .code(0)
         .stdout(predicates::str::contains("(unused-return-values)"));
@@ -57,7 +63,11 @@ fn workspace_and_message_format_are_accepted() {
         .args(["--workspace", "--message-format", "json"])
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "a finding fails the run by default"
+    );
     let stdout = String::from_utf8(out.stdout).unwrap();
     let last: Value = serde_json::from_str(stdout.lines().last().unwrap()).unwrap();
     assert_eq!(last["reason"], "coderipper-summary");
@@ -81,7 +91,7 @@ fn it_also_runs_without_the_subcommand_name_cargo_adds() {
         .env("CODERIPPER_CACHE", "off")
         .current_dir(repo.path())
         .assert()
-        .code(0)
+        .code(1)
         .stdout(predicates::str::contains("(unused-return-values)"));
 }
 
