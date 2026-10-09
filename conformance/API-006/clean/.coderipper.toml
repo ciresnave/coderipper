@@ -1,0 +1,3 @@
+# the schema this project is compared with: the commit before this one (the runner commits .baseline first)
+[buf]
+baseline = "HEAD~1"

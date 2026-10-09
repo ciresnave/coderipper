@@ -4,6 +4,77 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.5 - 2026-10-09 (proposed)
+
+### Added
+- **API-006 (schema changes obey evolution rules), run by [buf](https://github.com/bufbuild/buf)** (Apache-2.0; multi-language P3, PR 7)
+  under `--profile extended`: `buf breaking`, category `FILE`, over the project's Protocol Buffers schemas, comparing the **working tree**
+  with a **baseline** commit. Local-tier: the baseline is a commit of the local repository and the invocation names no remote (not measured with
+  the network blocked); no token reaches the tool.
+- **The baseline** is the git ref named by `[buf] baseline = "<ref>"` in `.coderipper.toml` (new; a branch, tag or commit, normally the last
+  release), else the merge-base of `HEAD` with `origin/HEAD` (`origin/main`, `origin/master`). A ref that was named and does not resolve is an
+  error (`config_invalid`); a ref that starts with `-` is refused, never passed to git.
+- **Nothing compared is a gap, never clean** (PM ruling). Asked to compare a tree with itself, buf answers with nothing, and that is not a
+  check. The rule is reported as **not run** when there is no `origin` and no named ref, when a shallow clone lacks the merge-base, when **no
+  `.proto` file differs** from the baseline (a run on the default branch with a clean tree, where the merge-base of `HEAD` with itself is
+  `HEAD`; a branch that changes no schema), when the files that differ are **not below a module that has schema on both sides** (measured: buf
+  is not given them, exits 0 and prints nothing), when the baseline holds no `.proto` file below a module (a schema that is new cannot break
+  anyone), and when every schema was removed from the tree. Uncommitted schema changes are compared with the baseline, also on the default
+  branch. A rename away from `.proto` counts as a deletion (`git diff --no-renames`).
+- **Modules.** buf needs the same modules on both sides and refuses a module with no schema (measured: "input contained 1 images, whereas
+  against contained 2"; "had no .proto files"). The roots are read from each side's own `buf.yaml`/`buf.work.yaml` (the baseline's from
+  git) and the modules compared are those with schema on both sides: a module added since the baseline cannot break anyone and is skipped; a
+  module that had schema in the baseline and has none now is a removal buf cannot report, so the result carries a note and a clean result is
+  **not run**.
+- **The repository cannot silence the rule.** Measured with buf 1.73.0: a `buf.yaml` with `breaking: ignore:` drops the findings, at the tree and
+  at the baseline, nested ones too. Both are replaced by a configuration given on the command line (`--config` and `--against-config`).
+  An inline `// buf:breaking:ignore` comment is not a feature of buf 1.73.0 (measured: the finding comes back); `buf:lint:ignore` is lint's
+  and the rule does not run lint. The project's way to suppress a finding is the `.coderipper.toml` allowlist.
+- **Module roots** (where a file's imports are relative to) are read from the tracked `buf.yaml`/`buf.yml`/`buf.work.yaml` files: a v1 file's
+  directory, a v2 file's directory or the `path:` of each of its `modules:`, a work file's `directories:`; else the project's directory. buf is
+  given the top of the working tree as its input and these as its modules (measured: a module root is only found that way when the tool
+  runs outside the project). A project that sits in a subdirectory of a repository, or a linked worktree, is compared the same way and its
+  findings are named relative to the project.
+- **A schema buf cannot compile makes the rule a gap** (a missing import, which includes a Buf Schema Registry dependency since no
+  token reaches the tool; a syntax error). Measured: buf builds all of the schemas or none; with one file that does not compile it prints
+  `COMPILE` entries (exit 100) and **no violation at all**, even for a real breaking change in another file. So the rule is reported as
+  **not run**, naming the file, never clean.
+- **A file that was deleted has no `path` in buf's output** (`FILE_NO_DELETE`); it is named from buf's message when exactly one file of the
+  baseline or the index matches, else the finding is kept without a location.
+- **Only the project's files are reported:** buf walks the module roots on disk, so a finding is kept only for a file the index tracks or the
+  baseline had (a removed file is reported by its baseline name; there is no skip list for these: a package of the project called `target` or
+  `vendor` is judged). A violation left out is counted, the result says so, and a clean result then becomes **not run**. Output past the findings
+  limit is an error.
+- **One finding per violation**, at the file and line buf prints, severity and confidence from the catalog (high), subject buf's rule id
+  (`FIELD_SAME_TYPE`, `FILE_NO_DELETE`, ...). buf's text is third-party text: control characters are removed and the length is cut.
+- **buf 1.73.0 is pinned** for `x86_64-windows`, `x86_64-linux`, `aarch64-linux`, `aarch64-macos` and `x86_64-macos`, as the publisher's bare
+  binaries; the hashes are the ones in the release's `sha256.txt`, re-checked against the downloaded files. (`windows_arm64` is not pinned,
+  as for gitleaks and osv-scanner.)
+- **Conformance and tests.** The fixture runner can give a fixture a history: a `.baseline/` directory is committed first, the fixture proper
+  on top of it. `conformance/API-006/` (a field retyped from `int32` to `string`, and a compatible new field) is proven against the real
+  buf. `tests/delegated_buf.rs` installs the pinned buf and covers the cases above against it. Every repository in the tests is built by the
+  test: **pull-request CI depends on no web site and no day's data** (it downloads the pinned buf from its GitHub release once).
+
+### Known limits
+- Only Protocol Buffers: other schema formats (Avro, JSON Schema, OpenAPI, GraphQL) need their own tools. buf's lint and its `WIRE` and
+  `WIRE_JSON` breaking categories are not run.
+- Whether a retyped field was in use anywhere is not known; the rule reports the schema change.
+- A project with a Buf Schema Registry dependency, or with schemas that import a file kept outside its modules, is a gap until the import can
+  be resolved (no registry token reaches the tool).
+- The `buf.yaml` reader is small (v1 directory, v2 `path:` entries in block or flow style, work-file `directories:` as a block list). A form
+  it does not know yields no root; with no root at all the project's directory is the module, and imports that do not resolve make the
+  rule a gap, never a clean pass.
+- A stray schema in an untracked or ignored directory below a module root that conflicts with the project's (the same message declared twice)
+  stops buf from building anything: the rule is a gap. (buf's `--exclude-path` is relative to the tool's working directory, which is a scratch
+  directory by design, so it could not be used.)
+- Not exercised: a `--workspace` run (the baseline is read from the git history of the checkout the rule is given, and `[buf] baseline` from the
+  `.coderipper.toml` in it; a test covers `--project <member>` only).
+- A malformed or dependency-bearing `buf.lock` in the project makes buf fail (an error, not a gap). A schema inside a git submodule is not
+  tracked by the project's index and is not compared. The configuration is passed twice on the command line, so very many modules (hundreds)
+  could reach a Windows command-line limit.
+- A path containing `#` or `,` cannot be given to buf (its input syntax): the rule is a gap there.
+- Only gitleaks, osv-scanner, lychee, zizmor and buf are pinned. checkov (PyPI only) needs a Python-prerequisite decision.
+
 ## 0.4.4 - 2026-10-09 (proposed)
 
 ### Added

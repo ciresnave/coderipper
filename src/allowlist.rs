@@ -8,6 +8,17 @@ struct AllowlistFile {
     entries: Vec<AllowEntry>,
     #[serde(default)]
     tracks: Vec<TrackEntry>,
+    #[serde(default)]
+    buf: Option<BufSettings>,
+}
+
+/// `[buf]`: how API-006 (`buf breaking`) picks the schema version it compares the working tree with.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BufSettings {
+    /// A git ref (branch, tag or commit) naming the released schema. Without it the baseline is the merge-base of `HEAD` with
+    /// `origin/HEAD`.
+    baseline: Option<String>,
 }
 
 /// A declared relationship, not a suppression: `package` is exempt from the one-version rule because
@@ -35,6 +46,7 @@ pub(crate) struct AllowEntry {
 pub struct Allowlist {
     entries: Vec<AllowEntry>,
     tracks: Vec<TrackEntry>,
+    buf_baseline: Option<String>,
 }
 
 impl Allowlist {
@@ -42,6 +54,7 @@ impl Allowlist {
         Self {
             entries: Vec::new(),
             tracks: Vec::new(),
+            buf_baseline: None,
         }
     }
 
@@ -55,6 +68,7 @@ impl Allowlist {
         Ok(Self {
             entries: parsed.entries,
             tracks: parsed.tracks,
+            buf_baseline: parsed.buf.and_then(|b| b.baseline),
         })
     }
 
@@ -64,6 +78,11 @@ impl Allowlist {
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {
         &self.tracks
+    }
+
+    /// The `[buf] baseline` git ref, when the project names one.
+    pub(crate) fn buf_baseline(&self) -> Option<&str> {
+        self.buf_baseline.as_deref()
     }
 }
 
