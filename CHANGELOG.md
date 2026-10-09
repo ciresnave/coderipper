@@ -4,7 +4,12 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
-## 0.3.8 - 2026-10-09 (proposed)
+## 0.4.0 - 2026-10-09 (proposed)
+
+### Breaking
+- `coderipper::tools::ToolEntry` and `ToolError` are now `#[non_exhaustive]`, and gained fields (`archive`, `member`, `file_sha256`) and a
+  variant (`ArchiveRefused`): struct-literal construction and exhaustive matches outside the crate stop compiling. Pre-1.0, so the
+  second number moves (0.3.x was never published). Later additions are non-breaking.
 
 ### Added
 - **Tools can be installed from an archive** (multi-language P3, PR 3a): a lock entry may name `archive = "tar.gz"` or `"zip"`, the
