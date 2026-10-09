@@ -4,6 +4,56 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.4.1 - 2026-10-09 (proposed)
+
+### Added
+- **The delegation framework, and the first delegated rule: SEC-002 (no committed secrets), run by [gitleaks](https://github.com/gitleaks/gitleaks)**
+  (multi-language P3, PR 3b). `coderipper::module::DelegatedModule` runs rules through tools the cache installs. It resolves the tool
+  through a `tools::ToolEnv` (lock, cache, consent, fetcher), runs it with a scrubbed environment, an empty scratch directory as its working
+  directory and the run's limits (the process tree is killed on a timeout), and reads only its machine-readable output. A tool whose
+  output cannot be read is `tool_output_unreadable`, never "no findings"; a non-zero exit is `tool_failed` with the tail of stderr.
+- **SEC-002 under `--profile extended`**: `gitleaks git` scans the whole history (a secret committed and later deleted is still
+  reported), with `--redact`, so the value of a secret is never read into CodeRipper and cannot reach a finding, a log or the JSON output.
+  Each leak is a `High`-severity finding at `file:line`, subject the file (so the allowlist can name `check` + `file`), confidence
+  `Medium` (`Low` for gitleaks' generic entropy rule). It sees gitleaks' own rule set at the pinned version, and nothing outside git.
+- **A missing tool is a coverage gap, never a failure.** Not pinned, no build for this platform, or not installed and not allowed to be
+  (`consent_not_given`): the rule is reported as not run (`coderipper: note: SEC-002 not run: ... run: coderipper tools install gitleaks
+  --install-tools`), counted as skipped in the coverage line, and the exit code is untouched. An error is reserved for a tool that was
+  asked for and could not be had or trusted: a `checksum_mismatch`, a refused archive, an install that failed after `--install-tools`.
+  The coverage figure does not count the claim as covered while the tool is not installed on that machine.
+- **The analysed repository cannot silence SEC-002** (design 5.2): gitleaks is run with its default rules only, `--ignore-gitleaks-allow`,
+  and the repository's **git directory** as its source, so a committed `.gitleaksignore`, `.gitleaks.toml` or `gitleaks:allow` comment is not
+  honoured. The project's way to suppress a finding is the `.coderipper.toml` allowlist (check + file), which is visible in review.
+- **Scope**: a project in a subdirectory of a repository gets the leaks under it, named relative to it (history is the repository's);
+  a path that is not a git repository with a commit is `tool_failed` (exit 3), never a clean rule; a relative `project_root` is made absolute.
+- **A scan that did not read the history is a failure**: gitleaks exits 0 with an empty report when the `git` it runs fails (a repository
+  git calls unsafe, say). Its log is checked as a guard: an `ERR` line, no commit count, or "0 commits scanned" in a repository that has
+  commits makes the rule `tool_failed` (exit 3). The log can only turn "nothing found" into a failure, never the reverse.
+- **A shallow clone is a gap too**: gitleaks sees only the commits that were fetched, so an empty report from a shallow repository (CI's
+  default checkout) is reported as not run (`git fetch --unshallow`), never as clean. Findings in a shallow clone are still reported.
+- A run in which a rule did not run for want of its tool no longer prints a bare `coderipper: no issues found`: it says
+  `no issues found by the rules that ran (N not run: see the notes on stderr)`, and the JSON summary line gains a `notes` array
+  **only then** (every other run keeps exactly its keys). The coverage line's `not applicable here` count now reads `not run here`.
+- **`--install-tools` and `--tools-lock FILE` on `fast`, `sweep`, `check` and `conformance`** (and so `cargo coderipper`). Without
+  `--install-tools` a run downloads and writes nothing.
+- **gitleaks 8.30.1 is pinned** for `x86_64-windows`, `x86_64-linux`, `aarch64-linux`, `aarch64-macos` and `x86_64-macos`. The archive
+  hashes are those in the publisher's `gitleaks_8.30.1_checksums.txt`; each member's hash was computed from the verified archive.
+- `coderipper conformance --module delegated` runs the SEC-002 fixtures (`conformance/SEC-002/`, a seeded committed key and a clean twin
+  holding a placeholder) against the real tool. Without the tool the rule is `unproven`, not failed. `tests/delegated_gitleaks.rs` installs
+  the pinned gitleaks and runs the fixtures and the CLI against it; it needs the network once (`CODERIPPER_SKIP_NETWORK_TESTS=1` skips it).
+- Library: `RuleStatus::Unavailable`, `RuleResult::tool_unavailable`, `TOOL_UNAVAILABLE` (only a built-in, in-process module may report a
+  tool gap; from an external module it is a `protocol_mismatch`), `RunResult::notes`, `tools::ToolEnv`, `run_checks_in_with_tools` and
+  `run_workspace_in_with_tools`. `run_checks_in` and `run_workspace_in` keep their signatures and use `ToolEnv::from_environment()`,
+  which has no consent to install.
+
+### Changed
+- `coderipper tools list` now lists gitleaks (the shipped lock is no longer empty).
+
+### Known limits
+- Only gitleaks is pinned. osv-scanner, lychee, zizmor and buf follow, one per release; checkov (PyPI only) needs a Python-prerequisite decision.
+- SEC-002 reads history through git, so it needs a git repository (a project outside git is `tool_failed`); a secret gitleaks has no pattern for is not seen.
+- A `Composite` of a `DelegatedModule` with an external module counts as not in process, and then refuses a tool gap as a protocol mismatch: compose built-in modules only.
+
 ## 0.4.0 - 2026-10-09 (proposed)
 
 ### Breaking

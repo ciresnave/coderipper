@@ -8,6 +8,7 @@
 //! clean run**, and a module cannot leave a hole by being silent, crashing, hanging or lying about a count.
 
 mod composite;
+mod delegate;
 mod external;
 mod neutral;
 mod protocol;
@@ -16,11 +17,12 @@ mod rust;
 use std::collections::{HashMap, HashSet};
 
 pub use composite::Composite;
+pub use delegate::{delegated_rule_ids, DelegatedModule};
 pub use external::ExternalModule;
 pub use neutral::{rule_ids as neutral_rule_ids, NeutralModule};
 pub use protocol::{
     Capabilities, ErrorKind, Event, Hello, Limits, ModuleSummary, Request, RuleClaim, RuleRan,
-    RuleResult, HELLO_REASON, PROTOCOL, REQUEST_REASON,
+    RuleResult, HELLO_REASON, PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
 
@@ -108,6 +110,12 @@ pub enum RuleStatus {
         /// Why.
         kind: ErrorKind,
         /// The details.
+        detail: String,
+    },
+    /// (Declared last: a variant added before `Error` would change its discriminant.) The rule was not run because the tool it delegates to is not available (see [`TOOL_UNAVAILABLE`]). A coverage gap: it
+    /// fails nothing, and it is never `clean`.
+    Unavailable {
+        /// What is missing and what to do about it.
         detail: String,
     },
 }
@@ -222,7 +230,7 @@ pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
     let mut rules: Vec<RuleOutcome> = requested
         .iter()
         .map(|&rule| match committed.remove(rule) {
-            Some((result, findings)) => judge(result, findings),
+            Some((result, findings)) => judge(result, findings, output.in_process),
             None => {
                 let (kind, detail) = output.failure.as_ref().map_or_else(
                     || {
@@ -264,7 +272,7 @@ pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
 }
 
 /// One rule's committed result against the findings received for it.
-fn judge(result: RuleResult, findings: Vec<Finding>) -> RuleOutcome {
+fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOutcome {
     let mismatch = |detail: String| RuleOutcome {
         rule: result.rule.clone(),
         findings: Vec::new(),
@@ -282,6 +290,16 @@ fn judge(result: RuleResult, findings: Vec<Finding>) -> RuleOutcome {
     }
     let status = match result.status {
         RuleRan::Ran => RuleStatus::Ran,
+        RuleRan::Skipped
+            if in_process && result.reason_code.as_deref() == Some(TOOL_UNAVAILABLE) =>
+        {
+            if !findings.is_empty() {
+                return mismatch("a rule whose tool is unavailable sent findings".into());
+            }
+            RuleStatus::Unavailable {
+                detail: result.detail.clone().unwrap_or_default(),
+            }
+        }
         RuleRan::Skipped => {
             if result.reason_code.as_deref() != Some("not_applicable_here") {
                 return mismatch(
@@ -503,6 +521,70 @@ mod tests {
             .rules
             .iter()
             .all(|o| kind_of(o) == Some(ErrorKind::NoVerdict)));
+    }
+
+    fn in_process(events: Vec<Event>) -> ModuleOutput {
+        ModuleOutput {
+            in_process: true,
+            ..ModuleOutput::from_events(events)
+        }
+    }
+
+    #[test]
+    fn a_tool_unavailable_rule_of_an_in_process_module_is_a_gap_not_an_error() {
+        let r = reconcile(
+            &request(&["a", "b"]),
+            in_process(vec![
+                Event::RuleResult(RuleResult::tool_unavailable(
+                    "a",
+                    "gitleaks is not installed",
+                )),
+                ran("b", 0),
+                summary(),
+            ]),
+        );
+        assert_eq!(r.run_errors, Vec::<String>::new());
+        assert!(
+            matches!(&r.rules[0].status, RuleStatus::Unavailable { detail } if detail == "gitleaks is not installed")
+        );
+        assert_eq!(kind_of(&r.rules[0]), None);
+    }
+
+    #[test]
+    fn a_module_whose_every_rule_has_no_tool_has_not_failed() {
+        // unlike a module that skips everything as "not applicable" (no_verdict): the absence of a tool is declared and reported
+        let r = reconcile(
+            &request(&["a"]),
+            in_process(vec![
+                Event::RuleResult(RuleResult::tool_unavailable("a", "no tool")),
+                summary(),
+            ]),
+        );
+        assert!(matches!(r.rules[0].status, RuleStatus::Unavailable { .. }));
+        assert!(r.run_errors.is_empty() && !r.incomplete);
+    }
+
+    #[test]
+    fn an_external_module_cannot_report_a_tool_gap() {
+        let r = reconcile(
+            &request(&["a"]),
+            ModuleOutput::from_events(vec![
+                Event::RuleResult(RuleResult::tool_unavailable("a", "no tool")),
+                summary(),
+            ]),
+        );
+        assert_eq!(kind_of(&r.rules[0]), Some(ErrorKind::ProtocolMismatch));
+    }
+
+    #[test]
+    fn a_tool_gap_that_sent_findings_is_a_protocol_mismatch() {
+        let mut gap = RuleResult::tool_unavailable("a", "no tool");
+        gap.findings = 1;
+        let r = reconcile(
+            &request(&["a"]),
+            in_process(vec![finding("a"), Event::RuleResult(gap), summary()]),
+        );
+        assert_eq!(kind_of(&r.rules[0]), Some(ErrorKind::ProtocolMismatch));
     }
 
     #[test]

@@ -377,6 +377,18 @@ impl RuleResult {
         }
     }
 
+    /// A rule not run because its tool is not available (see [`TOOL_UNAVAILABLE`]); `detail` says what to do about it.
+    pub fn tool_unavailable(rule: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            rule: rule.into(),
+            status: RuleRan::Skipped,
+            findings: 0,
+            reason_code: Some(TOOL_UNAVAILABLE.into()),
+            detail: Some(detail.into()),
+            error_kind: None,
+        }
+    }
+
     /// A rule that could not give a verdict.
     pub fn error(rule: impl Into<String>, kind: ErrorKind, detail: impl Into<String>) -> Self {
         Self {
@@ -389,6 +401,11 @@ impl RuleResult {
         }
     }
 }
+
+/// The `reason_code` of a rule the host's own module could not run because the tool it delegates to is not available (not in the
+/// lock, no build for this platform, or not installed and not allowed to be). A coverage gap, never a failure: the run goes on and
+/// the rule is reported as not run. Only an in-process module may use it; from an external module it is a `protocol_mismatch`.
+pub const TOOL_UNAVAILABLE: &str = "tool_unavailable";
 
 /// The module's closing tally. The host does not trust it; its absence is what matters.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

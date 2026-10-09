@@ -26,7 +26,9 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 mod archive;
+mod env;
 pub use archive::ArchiveKind;
+pub use env::ToolEnv;
 
 /// One line of the lock: a tool, at one version, for one platform.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

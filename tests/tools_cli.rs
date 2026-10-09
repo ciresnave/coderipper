@@ -61,13 +61,20 @@ fn coderipper(tools_dir: &Path) -> Command {
 }
 
 #[test]
-fn list_on_the_shipped_lock_says_nothing_is_pinned_yet() {
+fn list_on_the_shipped_lock_shows_gitleaks_pinned_and_not_installed() {
     let tools = tempfile::tempdir().unwrap();
     coderipper(tools.path())
         .args(["tools", "list"])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("no tools are pinned yet"));
+        .stdout(predicate::str::contains("gitleaks 8.30.1"))
+        .stdout(predicate::str::contains("MIT"))
+        .stdout(predicate::str::contains("no tools are pinned yet").not());
+    assert_eq!(
+        std::fs::read_dir(tools.path()).unwrap().count(),
+        0,
+        "listing installs nothing"
+    );
 }
 
 #[test]

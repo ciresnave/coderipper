@@ -11,7 +11,7 @@ use super::{ErrorKind, Event, Hello, Limits, Module, ModuleFailure, ModuleOutput
 
 /// The environment a module is started with; everything else is scrubbed (design §5.7). Enough to find its tools and a
 /// temporary directory, nothing that carries a credential.
-const ENV_ALLOWLIST: &[&str] = &[
+pub(super) const ENV_ALLOWLIST: &[&str] = &[
     "PATH",
     "SYSTEMROOT",
     "SYSTEMDRIVE",
@@ -90,7 +90,12 @@ impl Module for ExternalModule {
     fn describe(&self) -> anyhow::Result<Hello> {
         let scratch = tempfile::tempdir()?;
         let limits = Limits::new(DESCRIBE_WALL.as_secs(), 1024 * 1024);
-        let run = run_child(self.command("describe", scratch.path()), None, &limits);
+        let run = run_child(
+            self.command("describe", scratch.path()),
+            None,
+            &limits,
+            Who::Module,
+        );
         if let Some(failure) = run.failure {
             anyhow::bail!("{}: {}", failure.kind, failure.detail);
         }
@@ -126,6 +131,7 @@ impl Module for ExternalModule {
             self.command("check", scratch.path()),
             Some(&line),
             &request.limits,
+            Who::Module,
         );
         let mut output = ModuleOutput::default();
         let mut findings = 0;
@@ -165,9 +171,35 @@ fn clip(line: &str) -> String {
 }
 
 /// What running a child produced.
-struct ChildRun {
-    lines: Vec<String>,
-    failure: Option<ModuleFailure>,
+pub(super) struct ChildRun {
+    pub(super) lines: Vec<String>,
+    pub(super) failure: Option<ModuleFailure>,
+    /// The tail of the child's stderr, kept when it exited normally (a tool's log can say what its exit code does not).
+    pub(super) stderr: String,
+}
+
+/// What a child process is: a module (speaks the protocol) or a delegated tool (a program whose output the host reads). Only
+/// the words of a failure and the kind of a crash differ.
+#[derive(Clone, Copy)]
+pub(super) enum Who {
+    Module,
+    Tool,
+}
+
+impl Who {
+    fn noun(self) -> &'static str {
+        match self {
+            Who::Module => "module",
+            Who::Tool => "tool",
+        }
+    }
+
+    fn crashed(self) -> ErrorKind {
+        match self {
+            Who::Module => ErrorKind::ModuleCrashed,
+            Who::Tool => ErrorKind::ToolFailed,
+        }
+    }
 }
 
 enum Piece {
@@ -178,7 +210,12 @@ enum Piece {
 
 /// Runs a prepared command: writes `stdin_line` to its stdin, reads its stdout as lines against `limits`, keeps the tail
 /// of its stderr, and kills the process tree on a timeout or a limit.
-fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) -> ChildRun {
+pub(super) fn run_child(
+    mut command: Command,
+    stdin_line: Option<&str>,
+    limits: &Limits,
+    who: Who,
+) -> ChildRun {
     let started = Instant::now();
     let deadline = started + Duration::from_secs(limits.wall_secs);
     let mut child = match command.spawn() {
@@ -187,9 +224,10 @@ fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) ->
             return ChildRun {
                 lines: Vec::new(),
                 failure: Some(ModuleFailure::new(
-                    ErrorKind::ModuleCrashed,
-                    format!("cannot start the module: {e}"),
+                    who.crashed(),
+                    format!("cannot start the {}: {e}", who.noun()),
                 )),
+                stderr: String::new(),
             }
         }
     };
@@ -297,7 +335,11 @@ fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) ->
         }
     }
     if failure.is_some() {
-        return ChildRun { lines, failure };
+        return ChildRun {
+            lines,
+            failure,
+            stderr: String::new(),
+        };
     }
 
     // stdout is closed: the module is exiting, or has closed its output and carried on
@@ -306,8 +348,11 @@ fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) ->
             Ok(Some(status)) => {
                 if !status.success() {
                     failure = Some(ModuleFailure::new(
-                        ErrorKind::ModuleCrashed,
-                        with_stderr(format!("the module exited with {status}"), stderr_text()),
+                        who.crashed(),
+                        with_stderr(
+                            format!("the {} exited with {status}", who.noun()),
+                            stderr_text(),
+                        ),
                     ));
                 }
                 break;
@@ -327,17 +372,26 @@ fn run_child(mut command: Command, stdin_line: Option<&str>, limits: &Limits) ->
             Err(e) => {
                 failure = Some(ModuleFailure::new(
                     ErrorKind::Internal,
-                    format!("cannot wait for the module: {e}"),
+                    format!("cannot wait for the {}: {e}", who.noun()),
                 ));
                 break;
             }
         }
     }
-    ChildRun { lines, failure }
+    let stderr = if failure.is_none() {
+        stderr_text()
+    } else {
+        String::new()
+    };
+    ChildRun {
+        lines,
+        failure,
+        stderr,
+    }
 }
 
 /// Kills the child and everything it started, then reaps it.
-fn kill_tree(child: &mut Child) {
+pub(super) fn kill_tree(child: &mut Child) {
     let pid = child.id();
     #[cfg(windows)]
     {

@@ -81,6 +81,7 @@ use allowlist::Allowlist;
 use check::{Check, CheckContext, Tier};
 use finding::Finding;
 use suppression::Suppression;
+use tools::ToolEnv;
 
 /// Every compiled-in check, in the order they run.
 ///
@@ -112,6 +113,9 @@ pub struct RunResult {
     /// How each rule that was asked for fared: clean, findings, skipped (did not apply) or could not run. This is what the
     /// coverage report's "this run" counts come from; it is empty for a result built with [`RunResult::new`].
     pub outcomes: Vec<coverage::RuleRun>,
+    /// Rules that were not run, and why, when that is a gap and not an error: a delegated rule whose tool is not installed
+    /// (`SEC-002 not run: gitleaks is not available: ...`). Informational: it never fails a run.
+    pub notes: Vec<String>,
 }
 
 impl RunResult {
@@ -121,6 +125,7 @@ impl RunResult {
             findings,
             errors,
             outcomes: Vec::new(),
+            notes: Vec::new(),
         }
     }
 }
@@ -168,8 +173,9 @@ pub fn run_workspace(
 pub enum Profile {
     /// The five original checks and nothing else: what [`run_checks`] and [`run_workspace`] always ran.
     Classic,
-    /// `Classic`, plus the rules of the built-in language-neutral module ([`module::NeutralModule`]). Those rules judge the
-    /// whole repository, so a workspace run takes them once, at the workspace root.
+    /// `Classic`, plus the rules of the built-in language-neutral module ([`module::NeutralModule`]) and the rules delegated to
+    /// installed tools ([`module::DelegatedModule`]; a tool that is not installed makes its rule a reported gap, never a
+    /// failure). Those rules judge the whole repository, so a workspace run takes them once, at the workspace root.
     Extended,
 }
 
@@ -178,7 +184,11 @@ impl Profile {
     fn extra_rules(self) -> Vec<&'static str> {
         match self {
             Profile::Classic => Vec::new(),
-            Profile::Extended => module::neutral_rule_ids(),
+            Profile::Extended => {
+                let mut ids = module::neutral_rule_ids();
+                ids.extend(module::delegated_rule_ids());
+                ids
+            }
         }
     }
 }
@@ -191,8 +201,29 @@ pub fn run_workspace_in(
     only_check_id: Option<&str>,
     on_member: &mut dyn FnMut(&str, usize, usize),
 ) -> WorkspaceRun {
+    run_workspace_in_with_tools(
+        profile,
+        &ToolEnv::from_environment(),
+        ctx,
+        tier,
+        only_check_id,
+        on_member,
+    )
+}
+
+/// [`run_workspace_in`] with the tools the delegated rules may use: where they are cached, which lock pins them, and whether
+/// installing a missing one is allowed (see [`tools::ToolEnv`]).
+pub fn run_workspace_in_with_tools(
+    profile: Profile,
+    tools: &ToolEnv,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    on_member: &mut dyn FnMut(&str, usize, usize),
+) -> WorkspaceRun {
     run_workspace_over_in(
         profile,
+        tools,
         &registered_checks(),
         ctx,
         tier,
@@ -203,6 +234,7 @@ pub fn run_workspace_in(
 
 fn run_workspace_over_in(
     profile: Profile,
+    tools: &ToolEnv,
     checks: &[Box<dyn Check>],
     ctx: &CheckContext,
     tier: Tier,
@@ -226,12 +258,14 @@ fn run_workspace_over_in(
     let mut findings = Vec::new();
     let mut errors = Vec::new();
     let mut outcomes: Vec<coverage::RuleRun> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
     // The same allowlist file can be judged twice (a root package is both the repository's unit and a member): a stale
     // or unknown-check entry is reported once.
     let mut judged = std::collections::HashSet::new();
 
     let repository = run_checks_over_in(
         profile,
+        tools,
         checks,
         &CheckContext {
             project_root: root.clone(),
@@ -249,6 +283,7 @@ fn run_workspace_over_in(
         }
     }
     errors.extend(repository.errors);
+    notes.extend(repository.notes);
     coverage::merge_runs(&mut outcomes, repository.outcomes);
 
     let session = match session::Session::open(&root) {
@@ -271,6 +306,7 @@ fn run_workspace_over_in(
             on_member(&member.name, index + 1, total);
             let run = run_checks_over_in(
                 profile,
+                tools,
                 checks,
                 &CheckContext {
                     project_root: member.dir.clone(),
@@ -282,6 +318,11 @@ fn run_workspace_over_in(
             );
             analysed += 1;
             coverage::merge_runs(&mut outcomes, run.outcomes);
+            for note in run.notes {
+                if !notes.contains(&note) {
+                    notes.push(note);
+                }
+            }
             if !run.errors.is_empty() {
                 with_errors += 1;
             }
@@ -325,6 +366,7 @@ fn run_workspace_over_in(
             findings,
             errors,
             outcomes,
+            notes,
         },
         members: analysed,
         members_with_errors: with_errors,
@@ -355,8 +397,28 @@ pub fn run_checks_in(
     tier: Tier,
     only_check_id: Option<&str>,
 ) -> RunResult {
+    run_checks_in_with_tools(
+        profile,
+        &ToolEnv::from_environment(),
+        ctx,
+        tier,
+        only_check_id,
+    )
+}
+
+/// [`run_checks_in`] with the tools the delegated rules may use. `ToolEnv::from_environment()` (what [`run_checks_in`] passes)
+/// has no consent to install, so a rule whose tool is not already installed is reported as not run; `.consent(Consent::Granted)`
+/// lets the run install the pinned tool first.
+pub fn run_checks_in_with_tools(
+    profile: Profile,
+    tools: &ToolEnv,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+) -> RunResult {
     run_checks_over_in(
         profile,
+        tools,
         &registered_checks(),
         ctx,
         tier,
@@ -459,11 +521,20 @@ fn run_checks_over(
     only_check_id: Option<&str>,
     units: UnitFilter,
 ) -> RunResult {
-    run_checks_over_in(Profile::Classic, checks, ctx, tier, only_check_id, units)
+    run_checks_over_in(
+        Profile::Classic,
+        &ToolEnv::from_environment(),
+        checks,
+        ctx,
+        tier,
+        only_check_id,
+        units,
+    )
 }
 
 fn run_checks_over_in(
     profile: Profile,
+    tools: &ToolEnv,
     checks: &[Box<dyn Check>],
     ctx: &CheckContext,
     tier: Tier,
@@ -505,7 +576,8 @@ fn run_checks_over_in(
     registered.extend(&extra);
     let rust = module::RustModule::new(checks);
     let neutral = module::NeutralModule::new();
-    let composite = module::Composite::new(vec![&rust, &neutral]);
+    let delegated = module::DelegatedModule::new(tools.clone());
+    let composite = module::Composite::new(vec![&rust, &neutral, &delegated]);
     let module: &dyn module::Module = match profile {
         Profile::Classic => &rust,
         _ => &composite,
@@ -536,6 +608,7 @@ fn run_module_over(
     let mut findings = Vec::new();
     let mut errors = Vec::new();
     let mut outcomes = Vec::new();
+    let mut notes = Vec::new();
 
     // A malformed allowlist must not swallow the findings: report it, and run unsuppressed.
     let allowlist = Allowlist::load(&ctx.project_root).unwrap_or_else(|e| {
@@ -548,10 +621,17 @@ fn run_module_over(
     let reconciled = module::reconcile(&request, module.check(&request));
 
     for outcome in reconciled.rules {
-        let skipped = matches!(outcome.status, module::RuleStatus::Skipped { .. });
+        let skipped = matches!(
+            outcome.status,
+            module::RuleStatus::Skipped { .. } | module::RuleStatus::Unavailable { .. }
+        );
         let completed = match &outcome.status {
             module::RuleStatus::Ran => true,
             module::RuleStatus::Skipped { .. } => false,
+            module::RuleStatus::Unavailable { detail } => {
+                notes.push(format!("{} not run: {detail}", outcome.rule));
+                false
+            }
             module::RuleStatus::Error { kind, detail } => {
                 errors.push(match kind {
                     module::ErrorKind::Internal => {
@@ -606,6 +686,7 @@ fn run_module_over(
         findings,
         errors,
         outcomes,
+        notes,
     }
 }
 

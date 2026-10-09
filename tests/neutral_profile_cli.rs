@@ -20,6 +20,11 @@ fn coderipper(project: &tempfile::TempDir, args: &[&str]) -> Command {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.args(args).arg("--project").arg(project.path());
     cmd.env("CODERIPPER_CACHE", "off");
+    // no tools anywhere: what these tests say must not depend on what is installed on the machine running them
+    cmd.env(
+        "CODERIPPER_TOOLS_DIR",
+        std::env::temp_dir().join("coderipper-test-no-tools-here"),
+    );
     cmd
 }
 
