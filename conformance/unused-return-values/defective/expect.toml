@@ -1,0 +1,4 @@
+[[expect]]
+rule = "unused-return-values"
+file = "src/lib.rs"
+line = 1

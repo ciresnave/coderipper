@@ -177,6 +177,15 @@ example or bench reaches by name (and everything that item reaches). It can ther
 shares a name with something live, but it does not report live code as dead. `pub` items inside the bins
 themselves are not analyzed when a library exists.
 
+## Earning a claim: `coderipper conformance`
+
+A check that says it covers a rule has to show it. For each rule there is a small project with a seeded defect and a clean twin
+(`conformance/<rule>/defective` and `clean`, each with an `expect.toml` saying where the rule must report, or that it must report
+nothing). `coderipper conformance [--rule ID] [--fixtures DIR]` runs them and prints, per rule, `proven`, `FAILED` (with why),
+`unproven` (needs the network; add `--network`) or `no fixture`. It exits 1 when a fixture contradicts a claim, 3 when a rule
+could not run on its fixture; add `--require-proven` to fail on anything short of proven. Fixtures are code that runs (the checks build
+them), so use only fixtures you trust. This is for the people who write checks and modules, not for a normal run.
+
 ## Suppressing a finding
 
 Some findings are deliberate (public API built ahead of its consumer, a value discarded on purpose).

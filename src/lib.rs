@@ -66,6 +66,7 @@ pub mod checks;
 #[cfg(feature = "cli")]
 #[doc(hidden)]
 pub mod cli;
+pub mod conformance;
 pub mod finding;
 pub mod github;
 pub mod module;

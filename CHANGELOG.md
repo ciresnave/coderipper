@@ -4,6 +4,20 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.4 - 2026-10-08 (proposed; the PM allocates the number at gate time)
+
+### Added
+- **`coderipper::conformance` and `coderipper conformance`**: how a module earns a claim to cover a rule (multi-language design
+  section 6.2). Each rule has a seeded-defect project and a clean twin under `conformance/<rule>/`, each with an `expect.toml`
+  naming where the rule must report (or, for the twin, nothing). The runner copies each into a throwaway git repository, runs the
+  one rule, and calls it `proven` only if every expectation is met, nothing unexplained is reported, and the twin is silent.
+  A claim with no complete pair is `no fixture`; one that needs the network is `unproven` unless `--network`. `--require-proven`
+  turns anything short of proven into exit 1 (for a CI job).
+- Fixtures for the four original checks that can run offline: `reachability`, `unused-parameters`, `unused-return-values`,
+  `version-consistency`. `ci-protection-presence` needs a GitHub repository and stays claimed but not earned. A test puts the defect
+  into a clean twin and requires the real module to fail it, so the passes are not vacuous.
+- No behaviour change for the other commands or `run_checks`.
+
 ## 0.3.3 - 2026-10-08 (proposed; the PM allocates the number at gate time)
 
 ### Added

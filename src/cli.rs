@@ -111,6 +111,31 @@ enum Command {
         #[command(flatten)]
         opts: RunOpts,
     },
+    /// Run a module's conformance fixtures: which of its claims to cover a rule are earned by a seeded defect and a clean
+    /// twin. Exits 1 when a fixture contradicts a claim, 3 when a rule could not run. Meant for a module's own CI.
+    /// Fixtures are code that runs (the checks build them): use only fixtures you trust.
+    Conformance {
+        /// The module to judge. Only the built-in `rust` module exists so far.
+        #[arg(long, default_value = "rust")]
+        module: String,
+        /// Judge only this rule.
+        #[arg(long)]
+        rule: Option<String>,
+        /// The directory of fixtures: `<rule>/defective` and `<rule>/clean`, each with an `expect.toml`. Relative to the current
+        /// directory, so run it from a source checkout (an installed binary does not carry the fixtures).
+        #[arg(long, default_value = "conformance")]
+        fixtures: PathBuf,
+        /// Allow fixtures that need the network to run.
+        #[arg(long)]
+        network: bool,
+        /// Exit 1 unless every judged rule is proven (a claim with no fixture, or one that needs the network without
+        /// `--network`, is then a failure instead of a note).
+        #[arg(long)]
+        require_proven: bool,
+        /// How to write the verdicts to stdout: `human` (default) or `json` (one `coderipper-conformance` object per rule).
+        #[arg(long, value_enum, default_value = "human")]
+        message_format: MessageFormat,
+    },
     /// Inspect or trim the build cache (the persistent target directory the checks build in).
     Cache {
         #[command(subcommand)]
@@ -209,6 +234,92 @@ fn cache_command(
     Ok(EXIT_CLEAN)
 }
 
+fn conformance_command(
+    module: &str,
+    rule: Option<String>,
+    fixtures: PathBuf,
+    network: bool,
+    require_proven: bool,
+    message_format: MessageFormat,
+) -> anyhow::Result<u8> {
+    use crate::conformance::{run, Options, Verdict};
+    if module != "rust" {
+        return Err(UsageError(format!(
+            "no module named \"{module}\"; the only module so far is the built-in \"rust\""
+        ))
+        .into());
+    }
+    let checks = crate::registered_checks();
+    if let Some(wanted) = &rule {
+        if !checks.iter().any(|c| c.id() == wanted) {
+            let known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+            return Err(UsageError(format!(
+                "the module claims no rule \"{wanted}\"; it claims: {}",
+                known.join(", ")
+            ))
+            .into());
+        }
+    }
+    if !fixtures.is_dir() {
+        return Err(UsageError(format!(
+            "the fixtures directory {} does not exist; run this from a source checkout of the module, or pass --fixtures",
+            fixtures.display()
+        ))
+        .into());
+    }
+    let module = crate::module::RustModule::new(&checks);
+    let mut options = Options::new(fixtures).network(network);
+    if let Some(rule) = rule {
+        options = options.rule(rule);
+    }
+    let result = run(&module, &options)?;
+    let mut failed = result.any_failed();
+    let errored = result.any_errored();
+    for proof in &result.rules {
+        let (word, notes): (&str, Vec<String>) = match &proof.verdict {
+            Verdict::Proven => ("proven", Vec::new()),
+            Verdict::Failed(reasons) => ("FAILED", reasons.clone()),
+            Verdict::Errored(problems) => ("ERROR", problems.clone()),
+            Verdict::Unproven(why) => ("unproven", vec![why.clone()]),
+            Verdict::NoFixture => ("no fixture", Vec::new()),
+        };
+        if require_proven && proof.verdict != Verdict::Proven {
+            failed = true;
+        }
+        match message_format {
+            MessageFormat::Human => {
+                println!("{}: {word}", proof.rule);
+                for note in notes {
+                    println!("  {note}");
+                }
+            }
+            MessageFormat::Json => println!(
+                "{}",
+                serde_json::json!({
+                    "reason": "coderipper-conformance",
+                    "rule": proof.rule,
+                    "verdict": match &proof.verdict {
+                        Verdict::Proven => "proven",
+                        Verdict::Failed(_) => "failed",
+                        Verdict::Errored(_) => "error",
+                        Verdict::Unproven(_) => "unproven",
+                        Verdict::NoFixture => "no-fixture",
+                    },
+                    "notes": notes,
+                })
+            ),
+        }
+    }
+    // A rule that could not run outranks a contradiction, as an error outranks a finding in a normal run.
+    Ok(if errored {
+        EXIT_COULD_NOT_RUN
+    } else if failed {
+        EXIT_FINDINGS
+    } else {
+        EXIT_CLEAN
+    })
+}
+
 /// A run: what `fast`, `sweep` and `check` each add to the shared options.
 struct RunArgs {
     opts: RunOpts,
@@ -233,6 +344,21 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             tier: Tier::Fast,
             only_check_id: Some(id),
         }),
+        Command::Conformance {
+            module,
+            rule,
+            fixtures,
+            network,
+            require_proven,
+            message_format,
+        } => conformance_command(
+            &module,
+            rule,
+            fixtures,
+            network,
+            require_proven,
+            message_format,
+        ),
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Serve { port } => {
             anyhow::bail!("server mode is not implemented yet (port {port} requested)")
@@ -370,6 +496,7 @@ pub fn run_as_cargo_subcommand(mut args: Vec<OsString>) -> ExitCode {
                 "fast"
                     | "sweep"
                     | "check"
+                    | "conformance"
                     | "cache"
                     | "serve"
                     | "help"
