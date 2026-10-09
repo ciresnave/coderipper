@@ -77,12 +77,18 @@ pub(crate) fn resolve(env: &ToolEnv, tool: &str) -> Resolved {
 /// What a tool run produced: the files it was told to write sit in `scratch`, which lives as long as this value.
 pub(crate) struct ToolRun {
     scratch: tempfile::TempDir,
+    stderr: String,
 }
 
 impl ToolRun {
     /// The scratch directory the tool ran in and wrote its report to.
     pub(crate) fn scratch(&self) -> &Path {
         self.scratch.path()
+    }
+
+    /// The tail of the tool's stderr (its log), for a tool whose exit code does not say whether it saw everything.
+    pub(crate) fn log(&self) -> &str {
+        &self.stderr
     }
 }
 
@@ -119,7 +125,10 @@ pub(crate) fn run_tool(
     let run = run_child(command, None, limits, Who::Tool);
     match run.failure {
         Some(failure) => Err((failure.kind, failure.detail)),
-        None => Ok(ToolRun { scratch }),
+        None => Ok(ToolRun {
+            scratch,
+            stderr: run.stderr,
+        }),
     }
 }
 

@@ -144,15 +144,40 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
     scan_with(&program, scan_args, request)
 }
 
-/// `git rev-parse <args>` in `dir`: its output when it succeeded.
+/// `git <args>` in `dir`: its output when it succeeded (only the line ending is trimmed: a path may begin with a space).
 fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
     crate::conformance::git_command(dir)
-        .arg("rev-parse")
         .args(args)
         .output()
         .ok()
         .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim_end_matches(['\n', '\r'])
+                .to_string()
+        })
+}
+
+/// What gitleaks' log says about whether it really read the history, or `None` when it did.
+///
+/// gitleaks exits 0 with an empty report when the `git` it runs fails (a repository git calls unsafe, say): `ERR` lines and
+/// "0 commits scanned". That is a scan that did not happen, and must not read as a clean rule. The log is not the verdict, only a
+/// check on it: it can turn "nothing found" into a failure, never the reverse. `expected` is the number of commits in the repository.
+fn log_problem(log: &str, expected: usize) -> Option<String> {
+    if let Some(line) = log.lines().find(|l| l.contains(" ERR ")) {
+        return Some(format!("it logged an error: {}", line.trim()));
+    }
+    let scanned = log.lines().find_map(|l| {
+        let (before, _) = l.split_once(" commits scanned")?;
+        before.rsplit(' ').next()?.parse::<usize>().ok()
+    });
+    match scanned {
+        None => Some("its log does not say how many commits it scanned".to_string()),
+        Some(0) if expected > 0 => Some(format!(
+            "it scanned 0 commits of the {expected} in the repository"
+        )),
+        Some(_) => None,
+    }
 }
 
 /// Runs `program` with the arguments `args(repo, scratch)` builds, and reads the JSON report it was told to write at
@@ -167,7 +192,7 @@ pub(super) fn scan_with(
     let repo =
         std::path::absolute(&request.project_root).unwrap_or_else(|_| request.project_root.clone());
     // gitleaks scans an empty history, and says so only in its log, when there is none: that must not read as a clean rule.
-    if git_output(&repo, &["--verify", "HEAD"]).is_none() {
+    if git_output(&repo, &["rev-parse", "--verify", "HEAD"]).is_none() {
         return Verdict::Failed(
             ErrorKind::ToolFailed,
             format!(
@@ -176,7 +201,7 @@ pub(super) fn scan_with(
             ),
         );
     }
-    let Some(git_dir) = git_output(&repo, &["--absolute-git-dir"]) else {
+    let Some(git_dir) = git_output(&repo, &["rev-parse", "--absolute-git-dir"]) else {
         return Verdict::Failed(
             ErrorKind::ToolFailed,
             format!("cannot find the git directory of {}", repo.display()),
@@ -212,6 +237,15 @@ pub(super) fn scan_with(
             return Verdict::Failed(ErrorKind::ToolOutputUnreadable, format!("{TOOL}: {why}"))
         }
     };
+    let expected = git_output(&repo, &["rev-list", "--all", "--count"])
+        .and_then(|n| n.trim().parse::<usize>().ok())
+        .unwrap_or(1);
+    if let Some(why) = log_problem(run.log(), expected) {
+        return Verdict::Failed(
+            ErrorKind::ToolFailed,
+            format!("{TOOL} did not read the history ({why}); its report says nothing"),
+        );
+    }
     if leaks.len() > request.limits.max_findings {
         return Verdict::Failed(
             ErrorKind::LimitExceeded,
@@ -224,7 +258,7 @@ pub(super) fn scan_with(
     }
     // gitleaks scans the whole repository whatever directory it is given, and names files from the repository root. A project in a
     // subdirectory keeps the leaks under it, named relative to it, so a finding's location and the allowlist agree with the project.
-    let prefix = git_output(&repo, &["--show-prefix"]).unwrap_or_default();
+    let prefix = git_output(&repo, &["rev-parse", "--show-prefix"]).unwrap_or_default();
     if !prefix.is_empty() {
         leaks = leaks
             .into_iter()
@@ -242,7 +276,7 @@ pub(super) fn scan_with(
     // A shallow clone (CI's default checkout) holds only the commits it fetched: an empty report there is about those commits, not
     // about the history, so it must not read as a clean rule. Findings, if there are any, are true whatever else is hidden.
     if leaks.is_empty()
-        && git_output(&repo, &["--is-shallow-repository"]).as_deref() == Some("true")
+        && git_output(&repo, &["rev-parse", "--is-shallow-repository"]).as_deref() == Some("true")
     {
         return Verdict::Unavailable(
             "the repository is a shallow clone, so gitleaks saw only the commits that were fetched and an empty report says nothing \
@@ -348,6 +382,23 @@ mod tests {
         assert_eq!(after("--gitleaks-ignore-path"), "/scratch/gitleaksignore");
         assert_eq!(args.last().map(String::as_str), Some("/abs/repo/.git"));
         assert_eq!(args[0], "git");
+    }
+
+    #[test]
+    fn a_log_that_shows_the_history_was_not_read_is_a_failure_not_a_clean_scan() {
+        // measured with gitleaks 8.30.1: a healthy scan, and git failing inside gitleaks (exit code 0, report `[]`)
+        let healthy = "2:07AM INF 2 commits scanned.\n2:07AM INF scanned ~214 bytes (214 bytes) in 556ms\n2:07AM INF no leaks found\n";
+        let unsafe_repo = "2:07AM ERR [git] fatal: detected dubious ownership in repository at 'C:/x'\n2:07AM ERR error=\"stderr is not empty\"\n2:07AM INF 0 commits scanned.\n2:07AM INF no leaks found\n";
+        let nothing_scanned = "2:07AM INF 0 commits scanned.\n2:07AM INF no leaks found\n";
+        assert_eq!(log_problem(healthy, 2), None);
+        assert!(log_problem(unsafe_repo, 2)
+            .unwrap()
+            .contains("dubious ownership"));
+        assert!(log_problem(nothing_scanned, 2)
+            .unwrap()
+            .contains("0 commits"));
+        assert!(log_problem("", 2).unwrap().contains("does not say"));
+        assert!(log_problem("garbage", 2).is_some());
     }
 
     #[test]

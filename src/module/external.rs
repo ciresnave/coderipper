@@ -174,6 +174,8 @@ fn clip(line: &str) -> String {
 pub(super) struct ChildRun {
     pub(super) lines: Vec<String>,
     pub(super) failure: Option<ModuleFailure>,
+    /// The tail of the child's stderr, kept when it exited normally (a tool's log can say what its exit code does not).
+    pub(super) stderr: String,
 }
 
 /// What a child process is: a module (speaks the protocol) or a delegated tool (a program whose output the host reads). Only
@@ -225,6 +227,7 @@ pub(super) fn run_child(
                     who.crashed(),
                     format!("cannot start the {}: {e}", who.noun()),
                 )),
+                stderr: String::new(),
             }
         }
     };
@@ -332,7 +335,11 @@ pub(super) fn run_child(
         }
     }
     if failure.is_some() {
-        return ChildRun { lines, failure };
+        return ChildRun {
+            lines,
+            failure,
+            stderr: String::new(),
+        };
     }
 
     // stdout is closed: the module is exiting, or has closed its output and carried on
@@ -371,7 +378,16 @@ pub(super) fn run_child(
             }
         }
     }
-    ChildRun { lines, failure }
+    let stderr = if failure.is_none() {
+        stderr_text()
+    } else {
+        String::new()
+    };
+    ChildRun {
+        lines,
+        failure,
+        stderr,
+    }
 }
 
 /// Kills the child and everything it started, then reaps it.

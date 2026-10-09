@@ -329,3 +329,46 @@ fn the_rule_ids_are_what_the_module_claims() {
     let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
     assert_eq!(claimed, delegated_rule_ids());
 }
+
+// ---- a tool that exits 0 with an empty report but whose log says it read nothing ----
+
+/// A stand-in for gitleaks: writes an empty report, logs that it scanned 0 commits (what gitleaks does when the `git` it runs
+/// fails), and exits 0.
+fn silent_failure_args(_repo: &std::path::Path, scratch: &std::path::Path) -> Vec<OsString> {
+    let report = scratch.join("report.json");
+    if cfg!(windows) {
+        vec![
+            "/C".into(),
+            format!(
+                "echo []> {} & echo 2:07AM INF 0 commits scanned. 1>&2",
+                report.display()
+            )
+            .into(),
+        ]
+    } else {
+        vec![
+            "-c".into(),
+            format!(
+                "echo '[]' > {}; echo '2:07AM INF 0 commits scanned.' >&2",
+                report.display()
+            )
+            .into(),
+        ]
+    }
+}
+
+fn shell() -> std::path::PathBuf {
+    std::path::PathBuf::from(if cfg!(windows) { "cmd" } else { "sh" })
+}
+
+#[test]
+fn an_empty_report_with_a_log_that_says_nothing_was_scanned_is_a_failure_not_clean() {
+    // the project is this repository: it has commits, so "0 commits scanned" cannot be true
+    let Verdict::Failed(kind, why) =
+        gitleaks::scan_with(&shell(), silent_failure_args, &request(&["SEC-002"]))
+    else {
+        panic!("a scan that read nothing must not read as a clean rule")
+    };
+    assert_eq!(kind, ErrorKind::ToolFailed, "{why}");
+    assert!(why.contains("did not read the history"), "{why}");
+}

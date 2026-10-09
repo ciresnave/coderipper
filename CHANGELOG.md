@@ -26,6 +26,9 @@ versions has been published to crates.io or tagged on GitHub yet: they are the v
   honoured. The project's way to suppress a finding is the `.coderipper.toml` allowlist (check + file), which is visible in review.
 - **Scope**: a project in a subdirectory of a repository gets the leaks under it, named relative to it (history is the repository's);
   a path that is not a git repository with a commit is `tool_failed` (exit 3), never a clean rule; a relative `project_root` is made absolute.
+- **A scan that did not read the history is a failure**: gitleaks exits 0 with an empty report when the `git` it runs fails (a repository
+  git calls unsafe, say). Its log is checked as a guard: an `ERR` line, no commit count, or "0 commits scanned" in a repository that has
+  commits makes the rule `tool_failed` (exit 3). The log can only turn "nothing found" into a failure, never the reverse.
 - **A shallow clone is a gap too**: gitleaks sees only the commits that were fetched, so an empty report from a shallow repository (CI's
   default checkout) is reported as not run (`git fetch --unshallow`), never as clean. Findings in a shallow clone are still reported.
 - A run in which a rule did not run for want of its tool no longer prints a bare `coderipper: no issues found`: it says
