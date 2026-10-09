@@ -1,0 +1,289 @@
+# Rule records, domain ARC (dependency direction and architectural boundaries). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "ARC-001"
+title = "Dependencies follow the declared component graph"
+domain = "ARC"
+statement = "Every dependency edge between components appears in the project's declared list of allowed edges."
+rationale = "An architecture only holds if its intended structure is checked against what the code really does; otherwise it erodes unnoticed."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Remove the offending dependency, or, if the design has really changed, update the declared graph in the same change."
+related = ["ARC-002", "ARC-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-002"
+title = "No cycles between components"
+domain = "ARC"
+statement = "Inside the component-level dependency graph, no chain of edges may lead back to where it began. Loops within one component are only warnings. Every report gives how many nodes the loop spans and which edges, once removed, dissolve it."
+rationale = "Components in a loop cannot be built, tested or replaced separately and effectively behave as one large unit."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Report the strongly connected set and break it at the edge whose removal is cheapest, usually by inverting a dependency."
+related = ["MOD-002", "ARC-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-003"
+title = "Stable policy avoids volatile details"
+domain = "ARC"
+statement = "Core business components, once tagged stable, must not link to anything tagged as volatile (frameworks, storage, transport, cloud SDKs, user interface). Links that exist only under some build feature count as links."
+rationale = "Details that change often should depend on the core, not the other way round, otherwise every vendor or framework change reaches the business rules."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Introduce a boundary the policy owns and let the volatile component implement or adapt to it."
+related = ["ARC-001", "ARC-004", "ARC-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-004"
+title = "Infrastructure types kept out of policy signatures"
+domain = "ARC"
+statement = "Policy components never expose, in their public function signatures or fields, a type that comes from a banned namespace: database mappings, web request objects, open transactions or framework markers. The check works from type-resolved facts and a pattern allowlist; recorded exceptions are allowed."
+rationale = "Leaking infrastructure types through a signature drags the technology into every caller even when no import statement shows it."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Translate at the boundary so policy code sees plain domain types, or record a justified exception, for example annotation-only derives."
+related = ["ARC-003", "ARC-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-005"
+title = "Depend toward stability"
+domain = "ARC"
+statement = "A component depends only on components at least as stable as itself. Instability is the outgoing (efferent) coupling divided by the sum of incoming (afferent) and outgoing coupling. Violations are ranked by how large the gap is."
+rationale = "Depending on something more likely to change makes the dependent unstable too, so churn spreads inward."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Depend on a more stable abstraction, or move the volatile code behind a boundary the stable component owns."
+related = ["ARC-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-006"
+title = "Component API within budget, no third-party types"
+domain = "ARC"
+statement = "What a component offers to the outside has a declared size ceiling, and none of it is made of types owned by outside libraries."
+rationale = "A wide or borrowed API ties consumers to the component's internals and to the release schedule of someone else's library."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Shrink the API to what consumers need and wrap third-party types in the component's own."
+related = ["ARC-004", "MOD-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-007"
+title = "Data owned by one component"
+domain = "ARC"
+statement = "Only the owning component reads or writes a given table, collection or topic; other components go through the owner."
+rationale = "Shared data stores create hidden coupling between components that no import graph shows."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Route access through the owner's interface, or declare and move ownership if the current split is wrong."
+related = ["ARC-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-008"
+title = "Indirection that earns nothing"
+domain = "ARC"
+statement = "Pointless layering is reported: forwarding-only layers, interfaces with one implementation that no test double or expected change justifies, chains of near-identical data mappers, and long call paths before any I/O happens."
+rationale = "Each layer costs readers effort, so one without a purpose such as a second implementation, a boundary or an invariant is pure overhead."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Collapse the layer or inline the abstraction unless one of its justifications can be named."
+related = ["MOD-008", "EXT-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-009"
+title = "Architectural drift over time"
+domain = "ARC"
+statement = "The number of boundary violations, active waivers and the age of exceptions are tracked per component over history, and rising trends are reported."
+rationale = "A single snapshot hides slow erosion; the direction of travel shows whether the architecture is being kept or abandoned."
+evidence_tiers = ["V0", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Pay down or retire old waivers, and investigate components whose violation counts keep growing."
+related = ["ARC-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-010"
+title = "Changes respect recorded architectural intent"
+domain = "ARC"
+statement = "A language model checks a change against the reasoning in architecture decision records and the specification, for instance a rule that one service never calls another synchronously."
+rationale = "Some constraints are written in prose and cannot be expressed as graph edges, so review against the text is the only check available."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Treat the finding as advisory; revise the change or amend the decision record if the intent has moved on."
+related = ["ARC-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-011"
+title = "Signs of a distributed monolith"
+domain = "ARC"
+statement = "Services are examined for shared schemas, wide synchronous call fan-out, and releases or changes that always happen together."
+rationale = "Services that cannot move independently carry the cost of distribution without its benefit."
+evidence_tiers = ["V1", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Give each service its own data, replace chatty synchronous calls with contracts or events, or merge services that always move together."
+related = ["ARC-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "ARC-012"
+title = "Construction only in composition roots"
+domain = "ARC"
+statement = "Concrete adapters are built, and dependency containers consulted, only in the declared composition roots of each executable."
+rationale = "When wiring is spread through the code, policy ends up choosing its own implementations and the boundary dissolves."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Pass the dependency in from the root as a parameter instead of building or looking it up locally."
+related = ["ARC-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]

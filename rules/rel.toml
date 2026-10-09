@@ -1,0 +1,289 @@
+# Rule records, domain REL (reliability and resilience). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "REL-001"
+title = "Outbound calls have deadlines"
+domain = "REL"
+statement = "Every call that leaves the process (HTTP, database, RPC) is made with a timeout or a deadline."
+rationale = "A dependency that stops answering would otherwise hold the caller's resources indefinitely and spread the outage upstream."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Configure a timeout when the client is constructed and pass the caller's remaining deadline along each hop."
+related = ["CON-008", "REL-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-002"
+title = "Retries follow a safe policy"
+domain = "REL"
+statement = "Retries apply only to operations that are safe to repeat, use exponential backoff with jitter, stop after a capped number of attempts, and happen at a single layer of the call chain."
+rationale = "Careless retries multiply load on a struggling dependency and, when stacked across layers, amplify a small fault into an outage."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Classify errors into retryable and permanent, add a retry budget, remove nested retry loops, and restrict retries to idempotent operations or those protected by an idempotency key."
+related = ["REL-001", "REL-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-003"
+title = "Bounded channels with overflow policy"
+domain = "REL"
+statement = "Queues and channels have a fixed capacity and a stated behaviour for when they fill up; this is the reliability face of the concurrency rule on bounded buffers."
+rationale = "An unbounded buffer converts latency into memory exhaustion, and a queue only relocates a failure unless its overflow behaviour is chosen on purpose."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Set a capacity and document whether producers wait, items are shed or errors are returned when it is reached."
+related = ["CON-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-004"
+title = "Idempotent message handlers"
+domain = "REL"
+statement = "A handler that consumes messages tolerates redelivery, through a deduplication key or because the operation is naturally repeatable, and tests replay messages to prove it."
+rationale = "Most queues deliver at least once, so duplicates are normal operation and non-idempotent handlers corrupt state when they occur."
+evidence_tiers = ["V4", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Record processed message keys or make the update an upsert, define a dead-letter path for poison messages, and add a test that delivers each message twice."
+related = ["REL-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-005"
+title = "Probes and resource limits in manifests"
+domain = "REL"
+statement = "A workload shipped without health probes or resource ceilings can neither be restarted at the right moment nor be stopped from crowding out its neighbours, so each container spec sets separate liveness and readiness checks plus CPU and memory caps."
+rationale = "Without distinct health signals the platform cannot tell a stuck process from one that is still starting, and without limits one workload can starve its neighbours."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Give each container spec its own liveness probe, readiness probe, and CPU and memory caps; enforce this with a policy engine over the manifests."
+related = ["REL-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-006"
+title = "Graceful shutdown"
+domain = "REL"
+statement = "A long-running service handles termination signals and drains in-flight work before exiting."
+rationale = "Abrupt exits drop requests and leave half-completed operations, which every rolling deploy would otherwise trigger."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Install a signal handler that stops accepting new work, waits for running tasks up to a limit, then exits; cover it with a test that sends the signal mid-request."
+related = ["REL-005", "CON-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-007"
+title = "Failure model per component"
+domain = "REL"
+statement = "Each component that depends on something external has a written failure model listing its failure modes, their effects, how each is detected and how it is handled."
+rationale = "Writing the failure modes down forces the team to decide in advance what degraded operation looks like rather than discovering it during an incident."
+evidence_tiers = ["V4", "V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add a short failure-mode table per component, including the service's behaviour while a dependency is unavailable, and have a person review it."
+related = ["REL-008", "REL-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-008"
+title = "Fault-injection tests for declared failures"
+domain = "REL"
+statement = "Every failure mode named in the failure model has a test that injects that fault and checks the documented behaviour."
+rationale = "A resilience claim that has never been exercised is a hope; injected faults show whether the degraded mode actually works."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Use a fault-injecting proxy or test hooks to cut, delay or corrupt the dependency, and assert that the service degrades as described."
+related = ["REL-007", "REL-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-009"
+title = "Monotonic clocks for durations"
+domain = "REL"
+statement = "Elapsed time is measured with a monotonic clock, never by subtracting wall-clock readings."
+rationale = "Wall clocks jump when they are adjusted, which makes timeouts and measured intervals negative or wildly wrong."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Use the language's monotonic or instant clock for intervals and keep wall-clock time for timestamps shown to people or stored."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-010"
+title = "Crash-recovery tests for stateful components"
+domain = "REL"
+statement = "A component that persists data is tested by killing it in the middle of a write, restarting it and verifying that the stored state is consistent."
+rationale = "Durability claims only mean something if recovery has been shown to work after an unclean stop."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Adopt a defined durability protocol (write, flush, rename or log-then-apply) and add a harness that terminates the process abruptly at varied points, then checks integrity after restart."
+related = ["REL-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-011"
+title = "Breakers and bulkheads where required"
+domain = "REL"
+statement = "Where the specification says a shared dependency must be isolated, the code uses the declared circuit breaker or bulkhead for it."
+rationale = "Isolation stops one failing dependency from consuming the shared capacity that other work needs, but only where it is deliberately applied."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Wrap calls to the named dependency in the declared breaker or a separate resource pool, and tune its thresholds; do not add them to cheap in-process calls."
+related = ["REL-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "REL-012"
+title = "SLO conformance checked at runtime"
+domain = "REL"
+statement = "Service-level objectives are verified continuously against telemetry in staging or production, acting as a fitness function that can gate a release."
+rationale = "Objectives that nobody measures drift; checking them against live data ties reliability promises to evidence."
+evidence_tiers = ["V2", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Define the objectives and error budgets, wire a telemetry query into the pipeline, and block or flag releases that burn the budget."
+related = ["REL-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

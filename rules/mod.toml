@@ -1,4 +1,4 @@
-# Rule records, domain MOD (modules and public surface). Written in CodeRipper's own words.
+# Rule records, domain MOD (modules and public surface). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
 id = "reachability"
@@ -23,4 +23,244 @@ lifecycle = "advisory"
 
 [rule.applicability]
 languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-001"
+title = "Small, documented public surface"
+domain = "MOD"
+statement = "Only items that outside code is meant to use are public, and every public item carries documentation. Internals stay hidden behind narrower visibility."
+rationale = "Whatever is exported becomes something callers rely on, so each extra public item is a promise to maintain. Documentation turns an export into a stated contract."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Narrow the visibility of items that are not part of the intended interface, and write docs for the ones that remain public."
+related = ["MOD-003", "MOD-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-002"
+title = "No dependency cycles between modules"
+domain = "MOD"
+statement = "Modules and packages do not depend on each other in a loop, at every level of structure the project declares."
+rationale = "Parts caught in a cycle cannot be understood, tested, built or released on their own, so a change to one can ripple through all of them."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Break the loop by moving the shared piece into a module both sides depend on, or by inverting one edge so it points the other way."
+related = ["ARC-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-003"
+title = "No reaching into a module's internals"
+domain = "MOD"
+statement = "Code in one module uses another module only through that module's public interface, never by importing its inner files or private parts."
+rationale = "Deep imports bind the caller to implementation details that the owner expects to change freely, which defeats information hiding."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Import from the module's entry point instead; if the needed item is missing there, add it deliberately to the public interface."
+related = ["MOD-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-004"
+title = "Types that split into separate usage clusters"
+domain = "MOD"
+statement = "A type or module is flagged when its members fall into groups that use disjoint parts of its state, suggesting it holds several unrelated jobs."
+rationale = "Members that never touch the same state have little reason to live together, and the combined type changes for more than one reason."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Split the type along the clusters the analysis found, after checking by eye that the groups really are unrelated."
+related = ["MOD-005", "MOD-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-005"
+title = "Size and coupling outliers within the codebase"
+domain = "MOD"
+statement = "Types and modules are compared with the rest of the same codebase on size, member count and fan-out. Those far above the typical percentile, especially if growing, are reported."
+rationale = "A relative measure avoids arbitrary absolute limits while still pointing at the places most likely to be doing too much."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Look at the outlier and decide whether it is cohesive; if it serves several purposes, split it, otherwise leave it and note why."
+related = ["MOD-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-006"
+title = "Divergent change across unrelated edits"
+domain = "MOD"
+statement = "A module is reported when its change history breaks into independent groups of commits that have nothing to do with each other."
+rationale = "A module edited for unrelated reasons is answering to several drivers of change at once, which is the practical symptom of mixed responsibilities."
+evidence_tiers = ["V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Separate the parts of the module that change for different reasons, using the commit clusters as the guide."
+related = ["MOD-004", "MOD-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-007"
+title = "Stated responsibility compared with declared purpose"
+domain = "MOD"
+statement = "A language model summarises a module's job by naming the stakeholders it serves and what drives its changes, and the description is compared with the module's declared purpose. Descriptions that join unrelated actors are raised for review."
+rationale = "Responsibility is about whom a module answers to, which is hard to measure directly, so a summary against a rubric gives a reviewer a starting point."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Treat the finding as a prompt to review; clarify the declared purpose or split the module if the summary reveals several actors."
+related = ["MOD-004", "MOD-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-008"
+title = "Pass-through wrappers"
+domain = "MOD"
+statement = "A method or type whose entire body passes one call straight on with unchanged arguments adds interface without hiding anything and is reported."
+rationale = "A wrapper that neither translates, validates nor applies policy makes readers hop through an extra layer for no gain in encapsulation."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Remove the wrapper and call the target directly, unless it genuinely adds an invariant, a translation or a policy."
+related = ["ARC-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-009"
+title = "Long reach-through chains"
+domain = "MOD"
+statement = "Chains of member access or calls that dig through several domain objects to reach distant internals are flagged beyond a configurable length. Iterator pipelines, builders and fluent APIs are excluded."
+rationale = "Reaching through objects couples the caller to the structure of everything along the path, so internal reshuffling breaks distant code."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Ask the nearest object to do the job, or give it a method that hides the traversal."
+related = ["MOD-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "MOD-010"
+title = "Invariant-bearing types keep fields private"
+domain = "MOD"
+statement = "A type that guards an invariant has non-public fields and can only be created through a path that validates its input."
+rationale = "Public fields or unchecked construction let any caller produce an invalid value, so the invariant cannot be relied on anywhere."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Make the fields private and offer a constructor or factory that checks the invariant."
+related = ["MOD-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]

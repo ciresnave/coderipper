@@ -1,0 +1,217 @@
+# Rule records, domain GOV (governance and enforcement). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "GOV-001"
+title = "Baseline findings and ratchet downward"
+domain = "GOV"
+statement = "Findings that exist today are recorded as a baseline; new code may add none, and the recorded total can only shrink."
+rationale = "A tool adopted on an old codebase would otherwise drown in legacy findings or be switched off. Freezing the past and blocking only new damage makes adoption possible and progress monotonic."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Record a baseline per component, identify each finding by a fingerprint that survives nearby edits, fail the gate on any finding outside the baseline, and lower the baseline whenever findings are fixed."
+related = ["GOV-002", "GOV-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-002"
+title = "Waivers with owner and expiry"
+domain = "GOV"
+statement = "An accepted exception is a record naming the rule, the target, the reason, an owner, a creation date and an expiry date, and a waiver past its expiry stops suppressing the finding."
+rationale = "Teams that cannot record a justified exception end up disabling the checker. Expiry forces the exception to be revisited, and counting waivers and their age shows whether exceptions are piling up."
+evidence_tiers = ["V0", "V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Give every suppression a full record, make the expiry date mandatory, fail the run on expired waivers, and report waiver count and average age over time."
+related = ["GOV-001", "GOV-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-003"
+title = "Rule maturity stages driven by precision"
+domain = "GOV"
+statement = "Each rule moves through experimental, advisory and blocking stages according to its measured precision, and returns to an earlier stage when precision slips."
+rationale = "A noisy rule that blocks merges destroys trust in the whole tool. Promotion only on evidence, and demotion on drift, keeps blocking rules trustworthy; it matters most for model-assisted checks."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Store a stage on every rule, measure precision against labelled examples before promoting, and review the stage periodically so a degraded rule is demoted."
+related = ["GOV-004", "GOV-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-004"
+title = "Policy versioned, reviewed and tested"
+domain = "GOV"
+statement = "The rule set and its configuration live in version control, change through review, are tested with fixtures, and a policy change triggers an analysis of its effect on existing baselines."
+rationale = "A policy that silently changes makes results incomparable over time, and an untested rule may be wrong in either direction. Treating policy like code gives it the same safeguards."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Keep policy files in the repository, give each rule fixtures that must and must not match, run those fixtures in CI, and re-run the baseline comparison when policy changes."
+related = ["GOV-003", "GOV-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-005"
+title = "Classify code into analysis scopes"
+domain = "GOV"
+statement = "Code is classified as first-party, generated, vendored, third-party, test, benchmark, example, experimental or deprecated, and each class has its own set of applicable rules."
+rationale = "One rule set cannot suit all code: style rules are noise on generated files, yet boundary and security rules still matter there. Explicit scopes make these choices visible."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Declare scopes by path or marker, assign rule sets per scope, and skip only the rules that make no sense for a scope rather than excluding the code entirely."
+related = ["GOV-004", "GOV-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-006"
+title = "Every finding states severity, confidence, proof and a fix"
+domain = "GOV"
+statement = "Every finding states how bad it is if true, how likely it is true, the evidence behind it, and how to remediate it."
+rationale = "Severity and confidence are separate questions and a gate needs both. A finding without evidence cannot be reviewed, and one without remediation leaves the reader stuck."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Emit findings as structured records with all four parts, and fail the build on a finding that lacks any of them."
+related = ["GOV-007", "GOV-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-007"
+title = "Report per dimension, never one score"
+domain = "GOV"
+statement = "Results are reported separately for each quality dimension and gated by severity, with no single composite cleanliness number."
+rationale = "A blended score lets strength in one area hide a serious flaw in another; a critical authorization hole is not cancelled by tidy formatting."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Show status and trend for each domain separately, gate on the worst severity present, and do not publish a combined grade."
+related = ["GOV-006", "GOV-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-008"
+title = "Layered gates from editor to runtime"
+domain = "GOV"
+statement = "Checks run in layers: fast ones in the editor and before commit, the full static and test-based set in CI on changed scope, and policy checks on deployment manifests and runtime objectives afterwards."
+rationale = "Early layers give quick feedback and later layers give authority. Noise at any layer teaches people to ignore the tool, which costs more than an occasional miss."
+evidence_tiers = ["V0", "V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Put cheap deterministic checks in the editor and pre-commit hook, run the broad set in CI, and delegate deploy-time policy to existing policy engines; tune every layer for few false positives."
+related = ["GOV-003", "GOV-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "GOV-009"
+title = "Rules ship rationale and remediation guidance"
+domain = "GOV"
+statement = "Each rule comes with its reasoning, examples and a pointer to remediation advice, and developers have a route to propose changes to rules."
+rationale = "Rules adopted without understanding get resented or worked around. Whether a tool is used is a human question as much as a technical one."
+evidence_tiers = ["V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Publish a guide page per rule, link findings to it, and provide a documented way to suggest or contest a rule."
+related = ["GOV-002", "GOV-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

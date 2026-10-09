@@ -1,0 +1,265 @@
+# Rule records, domain CON (concurrency and resource safety). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "CON-001"
+title = "No data races"
+domain = "CON"
+statement = "Unsynchronised concurrent access to shared memory must be ruled out, either because the language guarantees it for safe code or because a race detector has exercised the concurrent paths in tests."
+rationale = "Data races produce failures that vary from run to run and seldom show up in ordinary tests, so the guarantee has to come from the toolchain rather than from luck."
+evidence_tiers = ["V0", "V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Keep shared state inside types the compiler can verify, or run the test suite under the platform's race or thread sanitizer and fix every report; treat a clean run as evidence, not proof."
+related = ["CON-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-002"
+title = "No lock held over a suspension point"
+domain = "CON"
+statement = "A mutex guard, a borrowed cell reference or a similar guard must not remain held while the task suspends or makes a call that blocks."
+rationale = "Holding a guard while the task is suspended or blocked stalls every other task that wants the same lock and is a common route to deadlock."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Shrink the critical section so the guard is dropped before the await, copy out what you need first, or switch to a lock designed to be held across suspension when that is truly required."
+related = ["CON-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-003"
+title = "No thread-blocking calls in async code"
+domain = "CON"
+statement = "Code running on an async executor must not call APIs that block the thread; such work belongs on a dedicated blocking pool."
+rationale = "A blocked executor thread starves every other task scheduled on it, which shows up as latency spikes or apparent hangs."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Replace the blocking call with its async equivalent, or hand it to the runtime's blocking pool; stall detection in tests can catch what a list of known blocking APIs misses."
+related = ["CON-002", "CON-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-004"
+title = "Bounded queues, channels and spawns"
+domain = "CON"
+statement = "Every queue, channel, worker pool and spawn site has an explicit capacity, and the project says what happens when that capacity is reached."
+rationale = "An unbounded buffer turns a slow consumer into memory exhaustion; a declared overflow policy forces a decision about backpressure, dropping or failing."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Give each queue a capacity and state in the specification whether a full queue blocks the producer, sheds load or returns an error; cap pool sizes the same way."
+related = ["REL-003", "CON-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-005"
+title = "No unsupervised detached tasks"
+domain = "CON"
+statement = "A spawned task keeps a handle or sits under a supervising scope that joins it, forwards its errors and can cancel it; a deliberately detached task needs a written justification."
+rationale = "A task nobody owns can fail silently, outlive the work that started it, and leak resources at shutdown."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Keep the join handle and await it, spawn inside a task scope or set, or record in a comment why this task is allowed to run on its own."
+related = ["CON-007", "CON-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-006"
+title = "No lock-order cycles"
+domain = "CON"
+statement = "Locks are always acquired in one consistent order, so no cycle of waiting threads can form."
+rationale = "Two code paths taking the same locks in opposite orders can deadlock only under rare timing, which makes the bug hard to reproduce by hand."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "low"
+kb_refs = []
+remediation = "Document a lock hierarchy and follow it, then back it with a deadlock detector or schedule-permutation tests; passes are evidence only, since only the explored schedules were checked."
+related = ["CON-001", "CON-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-007"
+title = "Deterministic release of resources"
+domain = "CON"
+statement = "Each acquired resource (file, socket, connection, task, buffer) is released predictably, including on error paths, and tests check that nothing is left open afterwards."
+rationale = "Leaks accumulate quietly and show up as descriptor or memory exhaustion long after the faulty code ran."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Tie release to scope with RAII, defer, context managers or try-with-resources, and add counters for open descriptors, threads and tasks that tests compare before and after."
+related = ["CON-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-008"
+title = "Timeouts on externally dependent awaits"
+domain = "CON"
+statement = "An await whose completion depends on something outside the process carries a timeout or deadline, unless an exception is declared in the specification."
+rationale = "Without a bound, one stalled peer can park a task forever and slowly consume the capacity of the whole service."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Wrap the operation in a timeout or pass a deadline down from the caller; list the few places where waiting indefinitely is intended."
+related = ["REL-001", "CON-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-009"
+title = "Cancellation safety is documented"
+domain = "CON"
+statement = "Async functions that keep partial state while suspended document what happens if they are cancelled midway, and that documentation has been reviewed."
+rationale = "Cancellation can stop a future at any suspension point, leaving half-finished updates behind unless the author thought about it."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "State in the function's documentation whether dropping it midway is safe; restructure so state changes happen in one step after the last suspension, or protect them with a guard."
+related = ["CON-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-010"
+title = "Weak atomic orderings are justified"
+domain = "CON"
+statement = "Any atomic operation using an ordering weaker than sequential consistency carries a comment that explains why that ordering is enough."
+rationale = "Memory-ordering mistakes are subtle and platform dependent; the strongest ordering is the safe default, so a weaker one should be an argued choice."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Use the strongest ordering unless profiling shows a need, and write the reasoning next to each weaker one; model-check the algorithm where the stakes are high."
+related = ["CON-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-011"
+title = "Shared state has a declared owner"
+domain = "CON"
+statement = "Global statics, shared mutex-wrapped values, registries and singletons are listed in an inventory that names who owns each one."
+rationale = "Shared mutable state is where races and lifetime confusion concentrate, so knowing who is responsible for it is a precondition for reasoning about it."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Extract the shared items from the code, declare an owner for each in the architecture description, and replace any that have no good reason to be shared with passed-in values."
+related = ["CON-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

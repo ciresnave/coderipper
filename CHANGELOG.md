@@ -4,6 +4,18 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.3.3 - 2026-10-08 (proposed; the PM allocates the number at gate time)
+
+### Added
+- **The whole rule catalog**: `Catalog::builtin()` now holds 221 rules: the 216 of the owner's knowledge base (informed by it, written
+  in CodeRipper's own words: statement, rationale, remediation, applicability, related rules; every one `experimental`) and the five
+  original checks. Records are in `rules/<domain>.toml` (the concurrency domain is `concurrency.toml`: `con` is a reserved device name
+  on Windows).
+- **`docs/rules/`**: a guide page per domain (the problem, the practices, the cautions, and a table of where each rule is checked, which
+  says "no check yet" for everything that is not implemented), the verification model, the contested-guidance register and language
+  profiles, the lessons behind the rules, and a reading list.
+- Nothing the command or `run_checks` does has changed: the catalog is read by nothing yet, and no new rule runs.
+
 ## 0.3.2 - 2026-10-08 (proposed; the PM allocates the number at gate time)
 
 ### Added

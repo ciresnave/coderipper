@@ -1,0 +1,241 @@
+# Rule records, domain EXT (extensibility and substitutability). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "EXT-001"
+title = "Exhaustive matching on closed variant sets"
+domain = "EXT"
+statement = "A match over a fixed family of variants lists them all. A catch-all arm outside the defining module is reported, because it would silently absorb variants added later."
+rationale = "Exhaustive matching lets the compiler point at each place needing attention once a new variant appears."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Replace the catch-all arm with explicit variants so a new variant produces a compile error."
+related = ["EXT-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-002"
+title = "No downcasts on abstractions"
+domain = "EXT"
+statement = "Client code does not test the concrete type behind an abstraction or downcast it, using instanceof, Any downcasts or type switches."
+rationale = "Needing to know the real type means the abstraction is not substitutable, which is the usual symptom of a Liskov violation."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Move the varying behaviour into the abstraction itself, or model the cases as a closed enum matched exhaustively."
+related = ["EXT-003", "EXT-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-003"
+title = "Implementations honour their contract"
+domain = "EXT"
+statement = "Non-test implementations do not stub out part of the contract with unimplemented or todo markers, not-supported errors or silent empty overrides."
+rationale = "An implementation that refuses promised behaviour breaks every client written against the abstraction."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Implement the behaviour, or narrow the abstraction so the type is not asked to promise it."
+related = ["EXT-002", "EXT-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-004"
+title = "Fat interfaces"
+domain = "EXT"
+statement = "An interface is reported when it is large and its clients each use disjoint subsets of its members, or implementers leave many members empty."
+rationale = "Clients should depend only on the role they use; broad interfaces force needless coupling and awkward stub implementations."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Split the interface into small role interfaces matching how clients use it."
+related = ["EXT-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-005"
+title = "Bounded inheritance"
+domain = "EXT"
+statement = "Class hierarchies are kept shallow, subclassing across module borders is held in check, and a class others may extend never exposes protected state that can be changed."
+rationale = "Deep or cross-module inheritance fuses base and derived code so a change in the base can break subclasses far away."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Prefer composition, seal or finalize classes not designed for extension, and make shared state private."
+related = ["EXT-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-006"
+title = "Shared contract tests for every implementation"
+domain = "EXT"
+statement = "For every abstraction with several implementations, one common set of behavioural tests is executed against each of them."
+rationale = "Substitutability is a behavioural property that types cannot prove, so only running the same tests against every implementation demonstrates it."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Write an abstract test suite or property tests for the contract and instantiate it once per implementation."
+related = ["EXT-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-007"
+title = "Speculative generality"
+domain = "EXT"
+statement = "Extension points that nothing uses are reported: abstractions with one implementation, unused type parameters, and parameters that always receive the same argument. History can show an abstraction that was never extended."
+rationale = "Guessing at flexibility before real variants exist tends to put the seams in the wrong place, and the cost of carrying them starts immediately."
+evidence_tiers = ["V1", "V3"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Inline the abstraction until a second real variant appears."
+related = ["ARC-008", "EXT-005"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-008"
+title = "Shotgun surgery when adding a variant"
+domain = "EXT"
+statement = "Commits that add a new variant are mined, and a rule fires when they typically touch more files than a set limit."
+rationale = "If adding one variant forces edits all over, the design does not localise that kind of change."
+evidence_tiers = ["V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Gather the scattered per-variant logic behind one extension point or into one match."
+related = ["EXT-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-009"
+title = "Stable components edited for new variants"
+domain = "EXT"
+statement = "Feature commits are inspected for edits to components tagged as stable; frequent edits show the extension point lives in the wrong place."
+rationale = "Stable code is supposed to stay closed, so repeated modification means the variation was not isolated."
+evidence_tiers = ["V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Move the varying part out of the stable component behind an extension mechanism."
+related = ["EXT-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EXT-010"
+title = "Abstraction cuts along the true dimension of variation"
+domain = "EXT"
+statement = "A language model reviews call sites and actual variants to judge whether an abstraction splits along the dimension in which the code really varies."
+rationale = "An abstraction on the wrong axis is worse than none, and only reading the real variants shows which axis they differ on."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Treat as advisory; rework the abstraction around the observed variation or remove it."
+related = ["EXT-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

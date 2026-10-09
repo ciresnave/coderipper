@@ -1,0 +1,232 @@
+# Rule records, domain DOC (Documentation, Intent and Decision Records). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "DOC-001"
+title = "Public items are documented"
+domain = "DOC"
+statement = "Every item that is part of the public interface has a documentation comment."
+rationale = "Callers cannot see intent from a signature alone, and the public surface is where misunderstanding costs the most."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Write a short doc comment for each public item stating its purpose, and enable the compiler or linter warning for missing documentation."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-002"
+title = "Documentation examples build and run"
+domain = "DOC"
+statement = "Code samples inside documentation are compiled and executed automatically, so they cannot silently rot."
+rationale = "An example that no longer compiles teaches the wrong thing and signals that the surrounding text may be stale too."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Turn samples into doctests or run them with a snippet runner as part of continuous integration."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-003"
+title = "Components carry a purpose and an owner in the spec"
+domain = "DOC"
+statement = "Each component listed in the architecture specification carries a purpose statement and a named owner."
+rationale = "Intent and accountability are inputs that no tool can infer from code, and a component without them has nobody who can say what it is for."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Fill in a purpose and an owner for every component in the declared architecture, and validate the spec so blanks are rejected."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-004"
+title = "Significant architectural changes come with a decision record"
+domain = "DOC"
+statement = "A change that adds a dependency edge, an external integration or a boundary crossing is accompanied by an architecture decision record."
+rationale = "Structural changes are the ones future maintainers will question; the reasoning is cheapest to capture when the change is made."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Write a decision record covering context, choice and consequences, and include it in the same change."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-005"
+title = "Decision-record statuses and links are consistent"
+domain = "DOC"
+statement = "Each decision record has a valid status, supersession links point both ways, and records refer to the rules that enforce them."
+rationale = "A record marked current but replaced elsewhere, or a dangling link, makes the decision log untrustworthy."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Fix the status, add the missing reverse link, or point the record at the rule or check that enforces it."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-006"
+title = "Docs and comments match current behaviour"
+domain = "DOC"
+statement = "Readers should be able to trust a comment, doc page or README about parameters, defaults and failure behaviour; once the code has moved on, the text is wrong and needs correcting."
+rationale = "Documentation that disagrees with code is worse than none, because readers act on it with confidence."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Update the text to the real behaviour, or change the code if the documentation states the intent; cross-check names and signatures mechanically."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-007"
+title = "Diagrams that have drifted from the dependency graph"
+domain = "DOC"
+statement = "Diagrams kept in the repository agree with the dependencies the code actually has."
+rationale = "A diagram that has drifted gives a false picture of the system and hides unintended coupling."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Generate diagrams from the dependency graph, or write them as code and diff them against the graph in CI."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-008"
+title = "Changes users can see get changelog entries"
+domain = "DOC"
+statement = "A change that users can notice is recorded in the changelog."
+rationale = "Consumers decide whether to upgrade from the changelog; omissions turn upgrades into surprises."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add an entry describing the change from the user's point of view in the same change."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-009"
+title = "A glossary exists and terms are used consistently"
+domain = "DOC"
+statement = "The project keeps a glossary of its domain terms, and documents and code use those terms the same way."
+rationale = "A shared vocabulary lowers misreading; synonyms and shifting meanings are a common source of defects in communication."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Create or extend the glossary and align divergent names in docs and code."
+related = ["RDB-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "DOC-010"
+title = "Documentation links resolve"
+domain = "DOC"
+statement = "Links and references in documentation lead to something that exists."
+rationale = "Broken links cut readers off from the material the docs depend on, and external ones decay over time."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Fix or remove each dead link, and run a link checker regularly; checking external links needs network access."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

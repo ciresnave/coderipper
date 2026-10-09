@@ -1,0 +1,241 @@
+# Rule records, domain COR (correctness and contracts). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "COR-001"
+title = "Public API docs state errors, panics and safety"
+domain = "COR"
+statement = "Documentation of public functions states their preconditions, how they fail, when they panic, and what callers of unsafe items must guarantee."
+rationale = "A contract only the author knows cannot be honored by callers or checked by reviewers, so misuse becomes the caller's guess."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Add the missing sections to the doc comments: what errors can be returned, what causes a panic, and the safety conditions."
+related = ["COR-002", "COR-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-002"
+title = "Invariant types enforce invariants in code"
+domain = "COR"
+statement = "A type documented as upholding an invariant should enforce it executably, through constructor validation or assertions, instead of relying on convention."
+rationale = "An invariant that only exists in prose is broken silently by the first caller who has not read it."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Validate in the constructor or factory so invalid values cannot be built, and add assertions where later mutation could break the invariant."
+related = ["COR-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-003"
+title = "Codec pairs have round-trip property tests"
+domain = "COR"
+statement = "Every encoder and decoder, or serializer and parser, pair has property tests showing that decoding an encoding gives back the original, and that repeating normalization is stable."
+rationale = "Example-based tests rarely reach the odd inputs where codecs lose or corrupt data; generated inputs find those cases."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add a property test per pair using a generator library, asserting the round trip and idempotence for the supported input domain."
+related = ["TST-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-004"
+title = "Reference-implementation algorithms get differential tests"
+domain = "COR"
+statement = "Where an algorithm has a declared reference implementation or simple oracle, a test compares the production code against it on the same inputs."
+rationale = "When code is rewritten for speed, comparing against the slow trusted version catches behavioral drift that no hand-written example anticipates."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Tag the function with its reference, then run both on generated and recorded inputs and assert equal results."
+related = ["COR-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-005"
+title = "Requirements and doc claims traced to asserting tests"
+domain = "COR"
+statement = "Each requirement, design decision and documented claim maps to a test whose assertions actually imply it."
+rationale = "A claim with no test behind it, or a test that merely touches the code, gives false confidence that the promise is kept."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Link each claim to a test, review that the assertions entail the claim, and use mutation results on the covered code as a cross-check."
+related = ["TST-002", "TST-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-006"
+title = "Unsafe confined, justified and run under Miri"
+domain = "COR"
+statement = "Rust code should either ban unsafe outright or restrict it to compact areas that each carry a written justification, and the test suite is additionally executed under Miri or a sanitizer to expose undefined behavior."
+rationale = "Undefined behavior defeats every other guarantee, and ordinary tests can pass over it unnoticed."
+evidence_tiers = ["V0", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "high"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Forbid unsafe by default, keep any remaining blocks minimal with a SAFETY comment, and run the suite under Miri or the sanitizers that fit the language."
+related = ["COR-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-007"
+title = "No float equality; tolerances declared"
+domain = "COR"
+statement = "Floating-point values are not compared for exact equality, and the tolerance used for approximate comparison is stated."
+rationale = "Rounding makes exact equality unreliable, so such comparisons succeed or fail by accident on different inputs or platforms."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Compare with an explicit absolute or relative tolerance, and define the policy for NaN and infinity where they can occur."
+related = ["COR-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust", "typescript", "python"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-008"
+title = "Critical protocols modelled and code traced to model"
+domain = "COR"
+statement = "Protocols whose failure would be costly, such as concurrent or distributed ones, have a formal model, and the code is linked back to that model."
+rationale = "Subtle interleavings are hard to reason about informally; a checked model finds design flaws before they are built in."
+evidence_tiers = ["V5", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Write the protocol in a modelling language such as TLA+ or Alloy, check it, and add model-based tests or comments mapping code steps to model steps."
+related = ["COR-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-009"
+title = "Critical functions have proof harnesses in CI"
+domain = "COR"
+statement = "Functions the team deems critical get verification harnesses, built on bounded model checking or formal proof, which the pipeline runs on every change."
+rationale = "For small, high-stakes kernels, exhaustive reasoning gives assurance that sampling-based tests cannot."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Pick the few functions that justify the effort, write harnesses with a verifier suited to the language, and run them on every change."
+related = ["COR-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-010"
+title = "Idempotency and ordering claims tested with replay"
+domain = "COR"
+statement = "Any claim that an operation is idempotent, order-tolerant or has exactly-once effect is backed by tests that redeliver and reorder its inputs."
+rationale = "Retry and reordering are normal in distributed systems, and these guarantees fail only under the very conditions plain tests never create."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Build a replay harness that duplicates and shuffles messages, then assert the final state matches a single in-order delivery."
+related = ["ERR-010"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

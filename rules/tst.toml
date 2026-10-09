@@ -1,0 +1,313 @@
+# Rule records, domain TST (test quality). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "TST-001"
+title = "Changed-code coverage meets threshold"
+domain = "TST"
+statement = "Coverage figures for the lines and branches a change touches are held to a minimum, whereas the repository-wide total is published for information only."
+rationale = "Execution coverage is only loosely tied to bug detection; focusing on the changed lines keeps the signal useful without rewarding filler tests."
+evidence_tiers = ["V2"]
+evidence_strength = "E"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Measure coverage on the diff with a tool for the language and add tests for uncovered changed branches."
+related = ["TST-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-002"
+title = "Mutation score on the diff meets threshold"
+domain = "TST"
+statement = "The tests must catch a minimum share of artificially injected faults in the modified code, and any injected faults that go unnoticed are reported so reviewers can look at them."
+rationale = "Mutants approximate real faults, so a test that fails to notice them probably misses real defects too."
+evidence_tiers = ["V2"]
+evidence_strength = "E"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Run a mutation tool limited to the diff, strengthen tests for survivors, and mark equivalent mutants after review."
+related = ["TST-001", "TST-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-003"
+title = "No empty, trivial or non-calling tests"
+domain = "TST"
+statement = "Tests must assert something meaningful and must actually invoke the code they claim to test."
+rationale = "A test without a real assertion passes forever and creates the impression of protection where none exists."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add assertions about observable behavior, or delete the test; make sure it calls the unit under test."
+related = ["TST-008", "TST-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-004"
+title = "Over-mocking heuristics in tests"
+domain = "TST"
+statement = "Tests with many mock setup lines per assertion, or that verify calls on internal collaborators, are flagged."
+rationale = "Such tests restate the implementation, break on harmless refactors and prove little about behavior."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Prefer fakes at boundaries you own, assert on outcomes instead of interactions, and use real components for integration checks."
+related = ["TST-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-005"
+title = "Intermittent tests are assigned and time-boxed"
+domain = "TST"
+statement = "Tests that sometimes pass and sometimes fail are detected and isolated, each with a named owner and a deadline to fix or remove."
+rationale = "Silent retries hide the problem and teach everyone to ignore red builds."
+evidence_tiers = ["V2", "V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "network"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Detect flakiness by reruns or CI history, move the test to a tracked quarantine list, and assign someone to resolve it by a set date."
+related = ["TST-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-006"
+title = "Tests hermetic: no network, clock or shared filesystem"
+domain = "TST"
+statement = "Unless a fixture is explicitly declared, a test may not reach out to the network, read the system clock or touch shared locations on disk, since those make outcomes depend on where and when it runs."
+rationale = "Environmental dependence makes results vary by machine and time, which is the main source of unreproducible failures."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Inject time and randomness, use temporary directories and local fakes, and confirm by running the suite offline with the clock frozen."
+related = ["TST-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-007"
+title = "Bug fixes ship a regression test"
+domain = "TST"
+statement = "A change that fixes a defect also adds a test that fails without the fix."
+rationale = "Without a test the same bug can quietly return, and the fix has no proof of working."
+evidence_tiers = ["V3", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Write a test reproducing the reported failure first, confirm it fails, then apply the fix."
+related = ["TST-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-008"
+title = "Test names agree with assertions"
+domain = "TST"
+statement = "The behavior a test's name claims is the behavior its assertions verify."
+rationale = "A misleading name sends later maintainers to the wrong conclusion about what is protected."
+evidence_tiers = ["V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Rename the test or change the assertions so that title and check say the same thing."
+related = ["TST-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-009"
+title = "Risky modules have fuzz or property targets"
+domain = "TST"
+statement = "Modules that consume untrusted or structured input, or that contain a lot of unsafe code, need generated-input tests, either property-based or fuzzing, and these are wired into the pipeline."
+rationale = "Input-handling code fails on shapes nobody wrote an example for, which generated and mutated inputs reach."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Identify the risky modules, add a property or fuzz target to each, and run them regularly, with longer fuzz runs on a nightly schedule."
+related = ["COR-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-010"
+title = "Cross-component interfaces have two-sided contract tests"
+domain = "TST"
+statement = "Interfaces between components, including those living in different repositories, have contract tests that both the provider and the consumer run."
+rationale = "Each side can pass its own tests while the two disagree, and only a shared contract exposes the mismatch."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "portfolio"
+network = "local"
+unit = "repository"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Publish the expected interactions or schema from the consumer and verify them in the provider's pipeline, for example with Pact."
+related = ["TST-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-011"
+title = "Test order and parallelism do not change results"
+domain = "TST"
+statement = "The suite gives the same results regardless of execution order and when tests run concurrently."
+rationale = "Hidden coupling between tests shows up only under parallel or shuffled runs and causes confusing intermittent failures."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Run with randomized order and parallel workers, then remove shared state such as global variables, fixed ports and common files."
+related = ["TST-005", "TST-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-012"
+title = "Test duration budgets with size classes"
+domain = "TST"
+statement = "Each test is labeled small, medium or large by its footprint, and the suite as a whole has an agreed time limit that it must stay under."
+rationale = "Slow suites get run less often, and without size classes nobody can reason about which tests to run when."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Track timing in CI, classify tests by size, and move slow tests to a scheduled tier or speed them up."
+related = ["TST-011"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TST-013"
+title = "Expected values not derived from the implementation"
+domain = "TST"
+statement = "Expected results in tests come from the specification or an independent source, not from running the code under test and copying its output."
+rationale = "A test that mirrors the implementation agrees with it even when both are wrong."
+evidence_tiers = ["V4", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Compute expected values by hand or from an independent oracle, and check test strength with mutation results."
+related = ["AIH-005", "TST-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

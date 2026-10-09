@@ -1,0 +1,209 @@
+# Rule records, domain EVO (Change History and Evolutionary Health). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "EVO-001"
+title = "Hotspot ranking from churn, complexity and defects"
+domain = "EVO"
+statement = "Components are ranked by combining how often they change, how complex they are and how many recent fixes touched them, and the ranking is published for each release."
+rationale = "Change effort and defects concentrate in a few places, so a ranking tells a team where refactoring pays back first."
+evidence_tiers = ["V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Review the top of the ranking and schedule refactoring there before spreading effort evenly."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-002"
+title = "Hidden coupling found through co-change"
+domain = "EVO"
+statement = "File pairs that are often changed together, are reported when nothing declares a link between them or when they sit on opposite sides of a declared boundary."
+rationale = "Shared schemas, protocols and copied logic couple modules without any import, and only history reveals it."
+evidence_tiers = ["V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Examine each pair: declare the dependency, remove the duplication, or place a proper interface between them."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-003"
+title = "Divergent change inside a module"
+domain = "EVO"
+statement = "A module whose files change in independent groups of commits is flagged as holding several responsibilities."
+rationale = "If different reasons for change touch different parts of one module, it is probably several modules joined together."
+evidence_tiers = ["V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Split the module along the clusters of changes, keeping each cluster's reason for change in one place."
+related = ["MOD-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-004"
+title = "Sole-owner risk in critical components"
+domain = "EVO"
+statement = "Critical components where nearly all changes come from one person are reported as a knowledge-loss risk."
+rationale = "If the one expert leaves or is unavailable, nobody else can safely change that part. Evidence links ownership to quality."
+evidence_tiers = ["V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Spread knowledge through reviews, pairing and rotation. The signal is advisory and must not be used to assess individuals."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-005"
+title = "Erosion trend of violations and waivers"
+domain = "EVO"
+statement = "Per component and per period, the project watches whether violations and waivers are growing or shrinking, and how faithfully the ratchet is followed."
+rationale = "A single snapshot hides direction; a rising count or ageing waivers show architecture decaying before it fails."
+evidence_tiers = ["V0", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Chart the trend per component and act when it worsens, shortening waiver lifetimes where they only accumulate."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-006"
+title = "Stale rules and specs for untouched components"
+domain = "EVO"
+statement = "Rules and specs governing components that have not changed for a long time are reviewed to see whether they still apply."
+rationale = "Long-unchanged code may be frozen on purpose or simply forgotten; either way the governing text may no longer match it."
+evidence_tiers = ["V3", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Compare the spec with the code for each long-idle component and update or retire whichever is out of date."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-007"
+title = "Defect clustering by component"
+domain = "EVO"
+statement = "A component that attracts far more than its fair share of fix commits is treated as a redesign candidate; fixes are tied to the code they changed to find it."
+rationale = "Defects tend to cluster, so repeated fixes in one place indicate a structural problem that patching will not cure."
+evidence_tiers = ["V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Link fixes to the components they touch, rank them, and consider redesigning the worst; the issue tracker link is optional."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-008"
+title = "Change-size distribution"
+domain = "EVO"
+statement = "The sizes of changes are tracked so that unusually large, risky ones stand out."
+rationale = "Big changes are harder to review and more likely to introduce defects, so their frequency is a health indicator."
+evidence_tiers = ["V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Encourage smaller, incremental changes and review the outliers; pull-request metadata comes from the forge, so this is advisory."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EVO-009"
+title = "Per-function complexity trend"
+domain = "EVO"
+statement = "The complexity of each function is followed across commits so that regressions are noticed."
+rationale = "Complexity grows by small steps that no single review notices; a trend line makes the drift visible."
+evidence_tiers = ["V1", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Record per-commit metrics and flag functions whose complexity keeps rising, then simplify them."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

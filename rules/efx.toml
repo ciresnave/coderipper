@@ -1,0 +1,169 @@
+# Rule records, domain EFX (state, purity and effects). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "EFX-001"
+title = "Components declared pure avoid effectful APIs"
+domain = "EFX"
+statement = "Components tagged as pure do not reference file, network, environment, process, clock, randomness or thread APIs."
+rationale = "Confining effects to the edge keeps the core deterministic and easy to test without fixtures."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Move the effectful call out to the caller and pass in the value, or pass a capability the tests can replace."
+related = ["EFX-006", "EFX-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-002"
+title = "Global mutable state only where allowed"
+domain = "EFX"
+statement = "Only modules on an explicit allowlist may own process-wide mutable data such as static mut, global locks, singletons or module-level variables; anywhere else, such data makes behaviour depend on hidden history."
+rationale = "Shared hidden state makes behaviour depend on call order and breaks isolated testing."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Pass the state in explicitly from a composition root; allowlist the legitimate cases such as logging or metrics."
+related = ["EFX-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-003"
+title = "Environment reads are centralized"
+domain = "EFX"
+statement = "Reading environment variables happens in one configuration module, not scattered through the code."
+rationale = "Scattered reads hide configuration inputs and make them hard to list, validate or fake in tests."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Read the environment once in the config module, parse it into typed settings and hand those to the code that needs them."
+related = ["EFX-001", "OPS-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-004"
+title = "Deterministic algorithms give identical results every run"
+domain = "EFX"
+statement = "For algorithms declared deterministic, repeated runs, changes of thread count and fixed seeds produce the same output."
+rationale = "Output that varies with scheduling or run order cannot be reproduced, debugged or trusted."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Remove the dependence on iteration order or races, fix seeds, and add a repeat-and-hash test."
+related = ["EFX-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-005"
+title = "Methods that both change state and answer queries"
+domain = "EFX"
+statement = "Object methods are flagged when they modify state and also return information, so a human can decide whether the mix is intended."
+rationale = "Separating commands from queries makes calls safe to repeat and reason about; a few well-known exceptions are fine."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Split the method into a command and a query unless it is an accepted idiom such as pop or compare-and-swap."
+related = ["RDB-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-006"
+title = "Functions claimed pure are pure"
+domain = "EFX"
+statement = "A function documented or tagged as pure cannot reach any effectful API through its calls."
+rationale = "A false purity claim misleads callers and the tests built on the claim."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Either remove the effect from the call chain or drop the purity claim."
+related = ["EFX-001", "EFX-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "EFX-007"
+title = "Shared-mutation spots say who owns them"
+domain = "EFX"
+statement = "Cells, shared mutable aliases and caches carry documentation saying who owns and may change them."
+rationale = "Mutation through a shared reference is easy to misuse, and without a stated owner nobody knows the rules."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Add a comment naming the owner, the access discipline and the invalidation rule, or remove the sharing."
+related = ["EFX-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

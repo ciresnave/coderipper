@@ -1,6 +1,8 @@
 //! CI/protection-presence check (project scope, NETWORK): does the repository's default branch enforce
 //! required status checks?
 //!
+//! Rule record: `ci-protection-presence` in `rules/wsp.toml` (the rule catalog). Background in `docs/rules/wsp.md`; there is no knowledge-base rule; the closest context is SUP-008 and GOV-008.
+//!
 //! CireSnave's standing rule: every repo gets CI, and branch protection that REQUIRES it. This reads
 //! GitHub's branch-protection settings for the repository `origin` points at and reports a default
 //! branch that enforces nothing.

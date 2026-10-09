@@ -42,16 +42,73 @@ fn parse(files: &[(&str, String)]) -> Result<Catalog, CatalogError> {
 }
 
 #[test]
-fn the_builtin_catalog_has_exactly_the_registered_checks() {
-    let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
+fn every_registered_check_has_a_record() {
+    let catalog = Catalog::builtin();
     let registered = coderipper::registered_checks();
-    let mut in_code: Vec<&str> = registered.iter().map(|c| c.id()).collect();
-    in_catalog.sort_unstable();
-    in_code.sort_unstable();
     assert_eq!(
-        in_catalog, in_code,
-        "a legacy check without a record, or a record without a check"
+        registered.len(),
+        5,
+        "positive control: the five built-in checks"
     );
+    for check in registered {
+        assert!(
+            catalog.get(check.id()).is_some(),
+            "no record for {}",
+            check.id()
+        );
+    }
+}
+
+/// The triage list (our own data, one row per rule of the knowledge base) and the catalog must name the same rules, and
+/// the catalog adds exactly the five original checks.
+#[test]
+fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
+    let tsv = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/superpowers/triage/rules.tsv"),
+    )
+    .expect("the triage list");
+    let mut triaged: Vec<&str> = tsv
+        .lines()
+        .skip(1)
+        .filter_map(|l| l.split('\t').next())
+        .filter(|id| !id.is_empty())
+        .collect();
+    assert_eq!(
+        triaged.len(),
+        216,
+        "positive control: the triage list has 216 rules"
+    );
+    triaged.extend(coderipper::registered_checks().iter().map(|c| c.id()));
+    let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
+    triaged.sort_unstable();
+    in_catalog.sort_unstable();
+    assert_eq!(in_catalog, triaged);
+}
+
+#[test]
+fn a_knowledge_base_id_sits_in_the_file_of_its_domain() {
+    for rule in Catalog::builtin().rules() {
+        if let Some((prefix, number)) = rule.id().split_once('-') {
+            if prefix.len() == 3 && number.chars().all(|c| c.is_ascii_digit()) {
+                assert_eq!(rule.domain(), prefix, "{}", rule.id());
+            }
+        }
+    }
+}
+
+#[test]
+fn every_new_rule_starts_experimental_with_no_overlap_refs() {
+    for rule in Catalog::builtin().rules() {
+        if rule
+            .id()
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_uppercase())
+        {
+            assert_eq!(rule.lifecycle(), Lifecycle::Experimental, "{}", rule.id());
+            assert!(rule.kb_refs().is_empty(), "{}", rule.id());
+        }
+    }
 }
 
 #[test]

@@ -1,0 +1,193 @@
+# Rule records, domain PRF (performance). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "PRF-001"
+title = "Hot paths have budgets enforced by benchmarks"
+domain = "PRF"
+statement = "Code paths designated as performance-critical have a stated budget, checked by benchmarks that run in CI."
+rationale = "A requirement nobody measures drifts; budgets make regressions visible while they are still cheap to fix."
+evidence_tiers = ["V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Declare the budget in the specification and add a benchmark that fails when it is exceeded."
+related = ["PRF-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-002"
+title = "Statistically detected benchmark regressions"
+domain = "PRF"
+statement = "A slowdown in changed code is reported only when a significance test and a threshold tuned to the measured noise both call it real, judged against a stored baseline."
+rationale = "Raw timing differences are mostly noise; only a proper comparison separates a real slowdown from jitter."
+evidence_tiers = ["V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Adopt benchmark comparison tooling with a threshold tuned to the measured noise."
+related = ["PRF-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-003"
+title = "Algorithmic red flags in code"
+domain = "PRF"
+statement = "Code avoids patterns that signal accidental super-linear cost: nested scans of one collection, repeated concatenation, cloning inside loops, and per-row queries."
+rationale = "Such shapes behave well on small test data and collapse at production scale, where they are expensive to find."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Replace the pattern with an indexed lookup, a single pass, a builder, or one batched query."
+related = ["PRF-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-004"
+title = "Hot loops tagged for speed allocate nothing"
+domain = "PRF"
+statement = "Loops tagged as hot allocate no memory per iteration."
+rationale = "Allocation in the innermost loop adds latency and contention, but only the tagged loops justify the effort of avoiding it."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Hoist or reuse buffers outside the loop, and confirm the gain with an allocation counter."
+related = ["PRF-003"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-005"
+title = "Caches and collections lacking growth bounds"
+domain = "PRF"
+statement = "Caches have an eviction policy and collections that accept external input have a size limit."
+rationale = "Unbounded growth turns a long-running process into a slow memory leak or an easy denial-of-service target."
+evidence_tiers = ["V1"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add an eviction policy or a hard capacity, and decide what happens when the limit is hit."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-006"
+title = "Performance exceptions documented with benchmark link"
+domain = "PRF"
+statement = "A deviation from normal structure made for speed carries a marker linking to the benchmark that justified it."
+rationale = "Unexplained ugly code gets cleaned up and slows down again, or is kept forever after the reason has gone."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add a marker next to the deviation that links to the benchmark evidence."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-007"
+title = "Critical query plans avoid full table scans"
+domain = "PRF"
+statement = "Queries declared critical have tests inspecting their execution plans for full scans."
+rationale = "A missing index shows up only on large data, so a plan test catches it before production does."
+evidence_tiers = ["V2"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add or fix an index, or rewrite the query so the planner can use one."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "PRF-008"
+title = "Tail latency tracked beside averages"
+domain = "PRF"
+statement = "For tagged paths, high-percentile latency is recorded next to the mean."
+rationale = "Averages hide the slow requests that users actually notice, and slow tails compound across fan-out calls."
+evidence_tiers = ["V2", "V3"]
+evidence_strength = "E"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Record p95 and p99 in telemetry for the tagged paths and alert on them."
+related = []
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

@@ -1,0 +1,232 @@
+# Rule records, domain OPS (Operability, Observability and Configuration). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "OPS-001"
+title = "One typed, validated configuration entry point"
+domain = "OPS"
+statement = "Settings are parsed into a typed structure once, when the program starts, and the rest of the code obtains them from that single place instead of reading the environment or files itself."
+rationale = "Scattered reads make the real configuration impossible to list and let a bad value surface late, deep inside a request, rather than at boot."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Move environment and file reads into one configuration module that validates and returns a typed value, and pass that value to callers."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-002"
+title = "Config keys are documented, defaulted and used"
+domain = "OPS"
+statement = "Each configuration key has a written description and an explicit default, and the documented set matches the keys the code reads, with no duplicates and no leftover entries."
+rationale = "Operators learn a system's knobs from its documentation; keys that are undocumented or dead mislead them and hide risky settings."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Produce an inventory of keys from code and from config files, then document the missing ones and delete the unused ones."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-003"
+title = "Structured logging, no raw printing in libraries"
+domain = "OPS"
+statement = "Libraries emit records through a logging facility with levels and fields rather than writing straight to standard output or using debug-print macros."
+rationale = "Raw prints cannot be filtered, routed or correlated, and a library that writes to the console takes that decision away from the application embedding it."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Replace print and debug-dump calls with the project's logger at a suitable level, and enable the linters that forbid console output."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-004"
+title = "Trace context follows outbound calls"
+domain = "OPS"
+statement = "Calls leaving the process carry the current trace context, and spans are opened at the boundaries where work enters or leaves."
+rationale = "Without propagation a request's path breaks into unrelated fragments, so a slow or failing hop in a chain cannot be located."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Pass the trace context through every client call and add boundary spans; cover the propagation with an integration test."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-005"
+title = "Golden-signal metrics for endpoints and dependencies"
+domain = "OPS"
+statement = "Each endpoint and each outbound dependency reports the standard signals of latency, traffic, errors and saturation."
+rationale = "These few numbers answer most questions during an incident; a path that lacks them is blind exactly when it fails."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Instrument every endpoint and client with request counts, error counts and latency, keeping label values bounded."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-006"
+title = "No secrets in configuration files"
+domain = "OPS"
+statement = "Credentials and tokens are kept out of files that are committed or shipped as ordinary configuration."
+rationale = "A secret in a config file is copied wherever the file goes, including version history, and cannot be rotated without a code change."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+remediation = "Remove the secret, rotate it, and load it from a secret store or the environment at runtime. Detection itself is the job of the secrets rule."
+related = ["SEC-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-007"
+title = "Flags need an accountable owner and a sunset date"
+domain = "OPS"
+statement = "Every feature flag is registered with a responsible owner and an end date, and flags whose rollout has finished are deleted."
+rationale = "Forgotten flags multiply code paths, raise the number of states to reason about, and eventually become permanent accidental configuration."
+evidence_tiers = ["V0", "V3"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Keep a flag registry with owner and expiry, review it regularly, and remove the flag and its dead branch when the rollout completes."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-008"
+title = "Liveness and readiness endpoints exist"
+domain = "OPS"
+statement = "A service exposes separate health probes: one for being alive and one for being ready, the latter checking the dependencies it truly needs."
+rationale = "Orchestrators and load balancers rely on these probes to restart or route around a sick instance; a missing or careless probe either hides failure or causes needless restarts."
+evidence_tiers = ["V1", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add a cheap liveness route and a readiness route that tests essential dependencies, and exercise both in probe tests."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-009"
+title = "Alerts are tied to objectives and have runbooks"
+domain = "OPS"
+statement = "Paging alerts derive from service-level objectives and each one links to a runbook describing what to do."
+rationale = "An alert with no objective behind it creates noise, and one with no runbook leaves the responder improvising at the worst moment."
+evidence_tiers = ["V4", "V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "low"
+kb_refs = []
+remediation = "Review each alert against a stated objective, drop or demote those without one, and write a runbook for every alert that pages."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-010"
+title = "Build and version information is exposed"
+domain = "OPS"
+statement = "A running artifact can report which version and build it is, so that behaviour can be tied to a specific source revision."
+rationale = "Diagnosing a defect starts with knowing which build produced it; without that, reports and logs cannot be matched to code."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "info"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Embed the version and revision at build time and expose them through a flag, endpoint or log line at startup."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

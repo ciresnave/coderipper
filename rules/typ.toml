@@ -1,0 +1,217 @@
+# Rule records, domain TYP (domain modelling and types). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
+
+[[rule]]
+id = "TYP-001"
+title = "Public APIs wrap domain values in dedicated types"
+domain = "TYP"
+statement = "Public signatures use dedicated types, not raw numbers or strings, for identifiers, money, units and durations."
+rationale = "A bare integer can be an id, a count or a price, and the compiler cannot tell a swapped pair of arguments apart."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Introduce a newtype or branded type for the concept, but only where confusion is plausible or an invariant exists."
+related = ["TYP-003", "TYP-005", "RDB-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-002"
+title = "Strings standing in for enums"
+domain = "TYP"
+statement = "When code branches on text such as \"pending\" or \"done\", or on a set of flags that together name a mode, the choices belong in an enum or union so that a typo cannot compile and a new case gets noticed."
+rationale = "A misspelt literal compiles and fails at run time, and nothing forces every branch to handle a new state."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Define an enum or union of the legal values and switch over it exhaustively."
+related = ["TYP-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-003"
+title = "Invariant-bearing types can only be built through validation"
+domain = "TYP"
+statement = "A type marked as carrying an invariant has private fields and is created only through a constructor that checks the invariant."
+rationale = "If anyone can build the value directly, the guarantee the type is meant to give disappears and callers must re-check."
+evidence_tiers = ["V0", "V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Make the fields private and expose a validating constructor or parse function."
+related = ["TYP-004", "TYP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-004"
+title = "Outside data becomes domain types at the boundary"
+domain = "TYP"
+statement = "Core logic should only ever see values that have already been converted from raw input into domain types; the conversion, with its checks, happens where the data first enters the program."
+rationale = "Parsing once at the edge means the interior works only with values that are valid by construction, rather than re-checking them repeatedly."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = true
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "low"
+kb_refs = []
+remediation = "Add a parsing step at the point of entry that returns a validated domain type, and pass that type inward."
+related = ["TYP-003", "TYP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-005"
+title = "Money and exact amounts avoid binary floats"
+domain = "TYP"
+statement = "Money and other quantities needing exact arithmetic use whole numbers of the smallest unit, or a decimal type, rather than float types."
+rationale = "Binary floating point cannot represent many decimal fractions exactly, so sums drift and comparisons surprise."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Store amounts as integers of the smallest unit or in a decimal type, and wrap them in a money type."
+related = ["TYP-001"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-006"
+title = "No unwrap or null assertions on production paths"
+domain = "TYP"
+statement = "Production code does not call unwrap, expect or a non-null assertion on a value that can legitimately be absent, except where an invariant is justified in writing."
+rationale = "These operations turn a missing value into a crash at a distance from its cause."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+remediation = "Handle the absent case explicitly, propagate it, or document the invariant that makes it impossible."
+related = ["TYP-008"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-007"
+title = "Boolean blindness in signatures"
+domain = "TYP"
+statement = "Functions are not given several boolean parameters, and do not return a bare boolean whose meaning is unclear."
+rationale = "At a call site true and false carry no meaning, so arguments are easily swapped and results misread."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Replace the booleans with enums or separate functions, and return a descriptive type instead of a bare flag."
+related = ["RDB-004"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-008"
+title = "Invariants are written down and checked"
+domain = "TYP"
+statement = "Each important invariant is written down and also enforced by a type, an assertion or a property test."
+rationale = "An invariant that is only a comment gets violated, and one that is only enforced is a puzzle for the next reader."
+evidence_tiers = ["V1", "V2", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Document the invariant next to the type and add the check that guarantees it; make the two agree."
+related = ["TYP-003", "TYP-006"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "TYP-009"
+title = "State machines make transitions explicit"
+domain = "TYP"
+statement = "State machines list their legal transitions; an illegal move is either impossible to express or rejected."
+rationale = "Implicit transitions let the system drift into states nobody designed for."
+evidence_tiers = ["V0", "V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Encode states as a sum type with exhaustive matching, or keep a transition table that tests exercise."
+related = ["TYP-002"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
