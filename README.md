@@ -46,6 +46,21 @@ on purpose (see "Waiving a finding"). **A coverage gap never fails a run**: a ru
 language, or whose tool is not installed, is reported as not run, and that is CodeRipper's incomplete coverage, not an issue
 with the code being checked. A check that could not run is exit 3, as before.
 
+## A repository with no Rust crate at its root
+
+The Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`) judge a cargo package. Where
+the project directory has no tracked `Cargo.toml`, CodeRipper no longer asks cargo about it and fails (exit 3, before 0.6.0):
+
+- **No Rust anywhere in the repository:** the four rules are *not run here* (a coverage gap, never a failure), one `note:` says
+  `no Rust crate at this path`, and the rules that are not about Rust (`ci-protection-presence`, and under `--profile extended` the
+  language-neutral and delegated rules) run as usual. Exit 0 when nothing else is wrong.
+- **Rust crates below the root** (a SvelteKit app whose server is `backend/`, a repository of several independent crates): they are
+  found from the git index (never by walking the disk), the run says which (`found 1 Rust crate(s) below it and checked each where it
+  is: backend (backend/Cargo.toml)`), and each is checked the way `--project <its directory>` checks a member: its own
+  `.coderipper.toml` applies (not the root's), its findings lead with its package name, and `version-consistency` runs once per
+  workspace root. A `Cargo.toml` that is on disk but not committed is cargo's error (exit 3), not "no Rust". A nested workspace is checked member by member. `--workspace` does the same
+  when the root has no crate. A crate that is found and cannot be built is an error (exit 3), never a skip.
+
 ## Machine-readable output
 
 `--message-format json` prints one JSON object per line on stdout, each with a `"reason"`, the way cargo's own
@@ -61,7 +76,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.5", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.6", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run

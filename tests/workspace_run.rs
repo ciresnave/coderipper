@@ -342,9 +342,28 @@ fn a_root_package_workspace_reports_an_unknown_check_entry_once() {
     assert_eq!(unknown, 1, "{}\n{}", out.stdout, out.stderr);
 }
 
+/// Since 0.6.0 a project with no Rust at all is a gap, not an error (see `tests/rust_crate_discovery.rs`).
 #[test]
-fn workspace_without_a_cargo_workspace_is_an_error_that_says_so() {
+fn workspace_with_no_cargo_project_at_all_is_a_gap_that_says_so() {
     let dir = common::git_repo_with(&[("README.md", "not a cargo project\n")]);
+    let out = run(&[
+        "check",
+        "unused-parameters",
+        "--workspace",
+        "--project",
+        path(dir.path()),
+    ]);
+    assert!(out.ok, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("no Rust crate at this path"),
+        "{}",
+        out.stderr
+    );
+}
+
+#[test]
+fn workspace_with_a_tracked_manifest_cargo_cannot_read_is_an_error_that_says_so() {
+    let dir = common::git_repo_with(&[("Cargo.toml", "this is [not a manifest\n")]);
     let out = run(&[
         "check",
         "unused-parameters",

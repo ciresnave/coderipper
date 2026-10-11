@@ -141,6 +141,9 @@ enum UnitFilter {
     Any,
     /// Only the checks that judge this unit.
     Only(check::Unit),
+    /// Only the checks that judge this unit AND read a Rust crate, and no other rule: a crate found below a project root that
+    /// has none of its own is checked with these (see [`run_below_root`]).
+    RustOnly(check::Unit),
 }
 
 /// What a `--workspace` run did, beyond its findings and errors.
@@ -253,6 +256,24 @@ fn run_workspace_over_in(
     // before visiting any member: a wrong id would otherwise repeat its error once per member
     if let Some(problem) = check_list_problem(checks, &profile.extra_rules(), only_check_id) {
         return failed(problem);
+    }
+    // No crate at the root: nothing for `cargo metadata` to answer, so the single-project path decides (a gap, or the crates
+    // it finds below the root, checked where they are).
+    if checks.iter().any(|c| c.requires_rust_crate()) && !package::has_manifest(&ctx.project_root) {
+        let (result, members, members_with_errors) = run_checks_over_in_counted(
+            profile,
+            tools,
+            checks,
+            ctx,
+            tier,
+            only_check_id,
+            UnitFilter::Any,
+        );
+        return WorkspaceRun {
+            result,
+            members,
+            members_with_errors,
+        };
     }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
         Ok(found) => found,
@@ -557,26 +578,230 @@ fn run_checks_over_in(
     only_check_id: Option<&str>,
     units: UnitFilter,
 ) -> RunResult {
+    run_checks_over_in_counted(profile, tools, checks, ctx, tier, only_check_id, units).0
+}
+
+/// Whether `check` is asked for by this tier and `only_check_id` (a check named by id runs at any tier).
+fn wanted_by(check: &dyn Check, tier: Tier, only_check_id: Option<&str>) -> bool {
+    match only_check_id {
+        Some(id) => check.id() == id,
+        // Sweep mode runs everything; fast mode runs only fast-tier checks.
+        None => !(check.tier() != tier && tier == Tier::Fast),
+    }
+}
+
+/// [`run_checks_over_in`], how many crates were found and checked below a project root with no crate of its own (0 when the
+/// root has one, which is the ordinary case), and how many of those crates reported an error.
+fn run_checks_over_in_counted(
+    profile: Profile,
+    tools: &ToolEnv,
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    units: UnitFilter,
+) -> (RunResult, usize, usize) {
     let extra = profile.extra_rules();
     if let Some(problem) = check_list_problem(checks, &extra, only_check_id) {
-        return RunResult::new(Vec::new(), vec![problem]);
+        return (RunResult::new(Vec::new(), vec![problem]), 0, 0);
     }
+    // A project root with no `Cargo.toml` is "no Rust crate at this path", not a crate whose cargo failed. Only a plain run
+    // decides this: a workspace run reaches a package only through a directory cargo already named.
+    let rootless = matches!(units, UnitFilter::Any)
+        && checks.iter().any(|c| c.requires_rust_crate())
+        && !package::has_manifest(&ctx.project_root);
+    let mut result = run_selected_checks(
+        profile,
+        tools,
+        checks,
+        ctx,
+        tier,
+        only_check_id,
+        units,
+        rootless,
+    );
+    if !rootless {
+        return (result, 0, 0);
+    }
+    let wanted: Vec<&str> = checks
+        .iter()
+        .filter(|c| c.requires_rust_crate() && wanted_by(c.as_ref(), tier, only_check_id))
+        .map(|c| c.id())
+        .collect();
+    if wanted.is_empty() {
+        return (result, 0, 0);
+    }
+    let (below, crates, with_errors) =
+        run_below_root(profile, tools, checks, ctx, tier, only_check_id, &wanted);
+    result.findings.extend(below.findings);
+    result.errors.extend(below.errors);
+    result.notes.extend(below.notes);
+    result.waived.extend(below.waived);
+    coverage::merge_runs(&mut result.outcomes, below.outcomes);
+    (result, crates, with_errors)
+}
+
+/// A project root with no crate of its own: finds the cargo workspaces the repository tracks below it and runs the
+/// crate-reading checks in each (`wanted` names them), exactly as `--project <member directory>` would run them, so a
+/// member's own `.coderipper.toml` applies. Says which crates it found, or that there is none: the Rust rules are then
+/// `Skipped` in the coverage (a gap, never a failure). A crate that is found and cannot be read or built is an error.
+fn run_below_root(
+    profile: Profile,
+    tools: &ToolEnv,
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    wanted: &[&str],
+) -> (RunResult, usize, usize) {
+    let mut result = RunResult::new(Vec::new(), Vec::new());
+    let (found, problems) = package::discover_below(&ctx.project_root);
+    result.errors.extend(problems.iter().cloned());
+    if found.is_empty() {
+        let outcome = if problems.is_empty() {
+            result.notes.push(format!(
+                "{} not run: no Rust crate at this path (no Cargo.toml in {} or below it)",
+                wanted.join(", "),
+                ctx.project_root.display()
+            ));
+            coverage::RunOutcome::Skipped
+        } else {
+            coverage::RunOutcome::CouldNotRun
+        };
+        result
+            .outcomes
+            .extend(wanted.iter().map(|id| coverage::RuleRun::new(*id, outcome)));
+        return (result, 0, 0);
+    }
+
+    let crates: usize = found.iter().map(|w| w.members.len()).sum();
+    let listing: Vec<String> = found
+        .iter()
+        .flat_map(|w| &w.members)
+        .map(|m| {
+            let dir = package::relative_to(&ctx.project_root, &m.dir);
+            let separator = if dir.ends_with('/') { "" } else { "/" };
+            format!("{} ({dir}{separator}Cargo.toml)", m.name)
+        })
+        .collect();
+    result.notes.push(format!(
+        "no Cargo.toml at {}; found {} Rust crate(s) below it and checked each where it is: {}",
+        ctx.project_root.display(),
+        crates,
+        listing.join(", ")
+    ));
+
+    let mut judged = std::collections::HashSet::new();
+    let mut with_errors = 0;
+    let mut absorb = |run: RunResult, member: Option<&str>, label: &str, dir: &str| {
+        if !run.errors.is_empty() {
+            with_errors += 1;
+        }
+        coverage::merge_runs(&mut result.outcomes, run.outcomes);
+        for note in run.notes {
+            if !result.notes.contains(&note) {
+                result.notes.push(note);
+            }
+        }
+        for mut waiver in run.waived {
+            waiver.finding.member = member.map(str::to_string);
+            result.waived.push(waiver);
+        }
+        for mut finding in run.findings {
+            // one allowlist file, one stale-entry judgement: a root package is both a repository unit and a member, and two
+            // crates can share a directory name, so the key carries the directory
+            if finding.check_id == suppression::ALLOWLIST_CHECK_ID
+                && !judged.insert((dir.to_string(), allowlist_key(&finding)))
+            {
+                continue;
+            }
+            finding.member = member.map(str::to_string);
+            result.findings.push(finding);
+        }
+        result
+            .errors
+            .extend(run.errors.into_iter().map(|e| format!("{label}: {e}")));
+    };
+    let any_at = |unit: check::Unit| {
+        checks
+            .iter()
+            .any(|c| c.unit() == unit && wanted.contains(&c.id()))
+    };
+    for workspace in &found {
+        let label = package::relative_to(&ctx.project_root, &workspace.root);
+        if any_at(check::Unit::Repository) {
+            let run = run_checks_over_in(
+                profile,
+                tools,
+                checks,
+                &CheckContext {
+                    project_root: workspace.root.clone(),
+                    portfolio_root: ctx.portfolio_root.clone(),
+                },
+                tier,
+                only_check_id,
+                UnitFilter::RustOnly(check::Unit::Repository),
+            );
+            absorb(
+                run,
+                None,
+                label.trim_end_matches('/'),
+                &workspace.root.display().to_string(),
+            );
+        }
+        if any_at(check::Unit::Package) {
+            for member in &workspace.members {
+                let run = run_checks_over_in(
+                    profile,
+                    tools,
+                    checks,
+                    &CheckContext {
+                        project_root: member.dir.clone(),
+                        portfolio_root: ctx.portfolio_root.clone(),
+                    },
+                    tier,
+                    only_check_id,
+                    UnitFilter::RustOnly(check::Unit::Package),
+                );
+                absorb(
+                    run,
+                    Some(&member.name),
+                    &member.name,
+                    &member.dir.display().to_string(),
+                );
+            }
+        }
+    }
+    (result, crates, with_errors)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_selected_checks(
+    profile: Profile,
+    tools: &ToolEnv,
+    checks: &[Box<dyn Check>],
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    units: UnitFilter,
+    rootless: bool,
+) -> RunResult {
+    let extra = profile.extra_rules();
     // The checks to run, decided here (the host chooses what is in scope), then asked of the Rust module as one request.
     let mut selected: Vec<String> = checks
         .iter()
         .filter(|check| match units {
             UnitFilter::Only(unit) => check.unit() == unit,
+            UnitFilter::RustOnly(unit) => check.unit() == unit && check.requires_rust_crate(),
             UnitFilter::Any => true,
         })
-        .filter(|check| match only_check_id {
-            Some(id) => check.id() == id,
-            // Sweep mode runs everything; fast mode runs only fast-tier checks.
-            None => !(check.tier() != tier && tier == Tier::Fast),
-        })
+        // no crate at the root: the crate-reading checks are not asked of it (see `run_below_root`)
+        .filter(|check| !(rootless && check.requires_rust_crate()))
+        .filter(|check| wanted_by(check.as_ref(), tier, only_check_id))
         .map(|check| check.id().to_string())
         .collect();
     let unit = match units {
-        UnitFilter::Only(unit) => Some(unit),
+        UnitFilter::Only(unit) | UnitFilter::RustOnly(unit) => Some(unit),
         UnitFilter::Any => None,
     };
     // A rule that asks a service over the network (the advisory database) is a sweep-tier rule, like a network check: a fast run
@@ -587,7 +812,10 @@ fn run_checks_over_in(
             .is_some_and(|rule| rule.network() == check::Network::NetworkRequired)
     };
     // The neutral rules judge the whole repository, so they run in the repository pass (and in a plain run), once.
-    if !matches!(units, UnitFilter::Only(check::Unit::Package)) {
+    if !matches!(
+        units,
+        UnitFilter::Only(check::Unit::Package) | UnitFilter::RustOnly(_)
+    ) {
         selected.extend(
             extra
                 .iter()

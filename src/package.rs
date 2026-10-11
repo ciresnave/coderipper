@@ -86,8 +86,109 @@ pub(crate) fn workspace_members(dir: &Path) -> anyhow::Result<(PathBuf, Vec<Pack
     Ok((meta.workspace_root, members))
 }
 
+/// The tracked files under `dir` that match `pathspec`, as git prints them (relative to `dir`, forward slashes), or `None`
+/// when git cannot say (`dir` is not inside a repository, git is missing).
+fn tracked(dir: &Path, pathspec: &str) -> Option<Vec<String>> {
+    let output = Command::new("git")
+        .args(["ls-files", "-z", "--", pathspec])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(
+        String::from_utf8_lossy(&output.stdout)
+            .split('\0')
+            .filter(|p| !p.is_empty())
+            .map(str::to_string)
+            .collect(),
+    )
+}
+
+/// Whether `dir` is, or is inside, a Rust crate as far as cargo is concerned: the repository tracks a `Cargo.toml` in `dir`
+/// or in a directory above it (a project root such as `app/examples/web` inside the crate `app`), or one is on disk in `dir`
+/// though not committed (the checks then fail on it with cargo's own error, which is the truth, instead of "no Rust here").
+/// When git cannot say it answers `true` for the same reason.
+pub(crate) fn has_manifest(dir: &Path) -> bool {
+    if dir.join("Cargo.toml").is_file() {
+        return true;
+    }
+    let Ok(prefix) = git_prefix(dir) else {
+        return true;
+    };
+    let depth = prefix.split('/').filter(|c| !c.is_empty()).count();
+    dir.ancestors()
+        .take(depth + 1)
+        .any(|above| tracked(above, "Cargo.toml").is_none_or(|files| !files.is_empty()))
+}
+
+/// A cargo workspace found below a project root that has no crate of its own.
+pub(crate) struct FoundWorkspace {
+    pub root: PathBuf,
+    /// Its members, sorted by directory (the same order `--workspace` uses).
+    pub members: Vec<Package>,
+}
+
+/// Every cargo workspace whose manifest the repository tracks below `dir`, found from the index (never by walking the disk,
+/// which would see untracked build output and other checkouts). Two manifests of one workspace give one entry. The second
+/// value is what could not be read: a manifest that `cargo metadata` refuses is an error to report, not a crate to skip.
+pub(crate) fn discover_below(dir: &Path) -> (Vec<FoundWorkspace>, Vec<String>) {
+    let Some(listed) = tracked(dir, "*Cargo.toml") else {
+        return (
+            Vec::new(),
+            vec![format!(
+                "cannot list the tracked files of {}: git did not answer",
+                dir.display()
+            )],
+        );
+    };
+    let mut manifests: Vec<String> = listed
+        .into_iter()
+        .filter(|p| p == "Cargo.toml" || p.ends_with("/Cargo.toml"))
+        .collect();
+    manifests.sort();
+    let mut found: Vec<FoundWorkspace> = Vec::new();
+    let mut problems = Vec::new();
+    for manifest in manifests {
+        let relative = manifest.trim_end_matches("Cargo.toml");
+        let crate_dir = dir.join(relative);
+        // already answered by a workspace found earlier (a member's manifest): no second `cargo metadata`
+        if found
+            .iter()
+            .flat_map(|w| &w.members)
+            .any(|m| same_dir(&m.dir, &crate_dir))
+        {
+            continue;
+        }
+        match metadata(&crate_dir) {
+            Ok(meta) => {
+                if found
+                    .iter()
+                    .any(|w| same_dir(&w.root, &meta.workspace_root))
+                {
+                    continue;
+                }
+                let mut members = meta.packages;
+                members.sort_by(|a, b| a.dir.cmp(&b.dir));
+                found.push(FoundWorkspace {
+                    root: meta.workspace_root,
+                    members,
+                });
+            }
+            Err(e) => problems.push(format!("{}: {e}", relative.trim_end_matches('/'))),
+        }
+    }
+    (found, problems)
+}
+
+/// `dir`'s path below `base` as `"backend/"`, or the full path when it is not below it.
+pub(crate) fn relative_to(base: &Path, dir: &Path) -> String {
+    prefix_in(base, dir).unwrap_or_else(|_| dir.display().to_string())
+}
+
 fn same_dir(a: &Path, b: &Path) -> bool {
-    matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
+    a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
 }
 
 /// The package whose own directory is `dir`. A virtual workspace root, or any directory that is not

@@ -133,6 +133,14 @@ pub trait Check: Send + Sync {
         Unit::Package
     }
 
+    /// Whether the check reads a Rust crate, so there is nothing for it to judge in a repository that has none. Such a check
+    /// is not run at a project root with no `Cargo.toml`: the host reports "no Rust crate at this path" and, for each crate it
+    /// finds below the root, runs the check there. A check about something else (the forge, the repository's files) keeps the
+    /// default, `false`, and runs wherever it is asked to.
+    fn requires_rust_crate(&self) -> bool {
+        false
+    }
+
     /// Run the check and return whatever it found, RAW: do not apply the project's allowlist. The
     /// host suppresses, because only it can tell which allowlist entries went
     /// stale. A check that would make an absence claim without a positive control must not

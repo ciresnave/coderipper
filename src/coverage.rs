@@ -124,6 +124,9 @@ pub struct LanguageCoverage {
     pub not_covered: usize,
     /// The ids of the claimed-but-unproven and the not-covered rules, in catalog order.
     pub gaps: Vec<String>,
+    /// The ids in `gaps` that the module HAS built and claims, but that have no conformance fixture yet (so they are not
+    /// counted as covered). The rest of `gaps` are not built.
+    pub claimed_unproven_ids: Vec<String>,
     /// How this run fared, when a run is being reported.
     pub run: Option<RunCounts>,
     /// For a language with no module: how many tracked source files were found and not checked.
@@ -195,9 +198,13 @@ pub fn for_module(
                 coverage.gaps.push(rule.id().to_string());
             }
             Some(c) if c.proof.is_some() => coverage.covered += 1,
-            Some(_) => {
+            Some(c) => {
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
+                // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
+                if c.status != "delegated" {
+                    coverage.claimed_unproven_ids.push(rule.id().to_string());
+                }
             }
             None => {
                 coverage.not_covered += 1;
@@ -265,9 +272,13 @@ pub fn for_missing_module_with(
                 coverage.gaps.push(rule.id().to_string());
             }
             Some(c) if c.proof.is_some() => coverage.covered += 1,
-            Some(_) => {
+            Some(c) => {
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
+                // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
+                if c.status != "delegated" {
+                    coverage.claimed_unproven_ids.push(rule.id().to_string());
+                }
             }
             None => {
                 coverage.not_covered += 1;
@@ -292,6 +303,7 @@ fn empty(catalog: &Catalog, language: &str) -> LanguageCoverage {
         not_applicable: 0,
         not_covered: 0,
         gaps: Vec::new(),
+        claimed_unproven_ids: Vec::new(),
         run: None,
         source_files: None,
         note: None,
@@ -327,6 +339,7 @@ impl LanguageCoverage {
             "not_covered": self.not_covered,
             "gaps": self.gaps.iter().take(limit).collect::<Vec<_>>(),
             "gaps_truncated": self.gaps.len() > limit,
+            "claimed_unproven_ids": self.claimed_unproven_ids,
         });
         let object = value.as_object_mut().expect("an object");
         if let Some(run) = self.run {

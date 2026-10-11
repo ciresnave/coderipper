@@ -55,6 +55,10 @@ impl Check for UnusedReturnValuesCheck {
         Scope::Project
     }
 
+    fn requires_rust_crate(&self) -> bool {
+        true
+    }
+
     fn network(&self) -> Network {
         Network::LocalOnly
     }
