@@ -521,3 +521,66 @@ fn only_tracked_documents_are_read() {
     assert!(findings(&out).is_empty(), "{out}");
     assert!(!err.contains("not run"), "{err}");
 }
+
+#[test]
+fn a_root_relative_link_in_a_web_page_is_not_judged_against_the_repository_root() {
+    needs_network!();
+    // `/branding/icon.png` in an HTML page names the web root of whatever serves it (SvelteKit's `static/`, Astro's `public/`),
+    // not the repository root. The file exists under `app/static/`; judging it against the repository root said "dead"
+    // (found by the 2026-10-11 dogfood run on a SvelteKit app: two false findings).
+    let repo = repo_with(&[
+        (
+            "app/src/app.html",
+            b"<link rel=\"icon\" href=\"/branding/icon.png\">\n<link rel=\"apple-touch-icon\" href='/branding/touch.png'>\n",
+        ),
+        ("app/static/branding/icon.png", b"x"),
+        ("app/static/branding/touch.png", b"x"),
+        ("README.md", b"# T\n[ok](app/src/app.html)\n"),
+    ]);
+    let (code, out, err) = run_json(repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    assert!(findings(&out).is_empty(), "false findings: {out}");
+    // nothing was judged about those links, so the rule is not clean either: a gap that names why
+    assert!(err.contains("DOC-010 not run"), "{err}");
+    assert!(err.contains("web root"), "{err}");
+}
+
+#[test]
+fn a_dead_relative_link_in_a_web_page_is_still_found_beside_a_root_relative_one() {
+    needs_network!();
+    let repo = repo_with(&[
+        (
+            "site/page.html",
+            b"<a href=\"/img/logo.png\">logo</a>\n<a href=\"gone.html\">x</a>\n",
+        ),
+        ("README.md", b"# T\n[ok](site/page.html)\n"),
+    ]);
+    let (code, out, err) = run_json(repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    let all = findings(&out);
+    assert_eq!(all.len(), 1, "{out}\n{err}");
+    assert_eq!(all[0]["location"]["line"], 2, "{out}");
+    let detail = all[0]["detail"].as_str().unwrap();
+    assert!(
+        detail.contains("web root"),
+        "the finding says what was not judged: {detail}"
+    );
+}
+
+#[test]
+fn a_root_relative_link_in_markdown_is_still_resolved_against_the_repository_root() {
+    needs_network!();
+    // GitHub renders `/docs/gone.md` in a README against the repository root: that reading is kept for Markdown
+    let repo = repo_with(&[
+        (
+            "README.md",
+            b"# T\n[ok](/docs/a.md)\n[dead](/docs/gone.md)\n",
+        ),
+        ("docs/a.md", b"# A\n"),
+    ]);
+    let (code, out, err) = run_json(repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    let all = findings(&out);
+    assert_eq!(all.len(), 1, "{out}\n{err}");
+    assert_eq!(all[0]["location"]["line"], 3, "{out}");
+}

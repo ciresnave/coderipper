@@ -292,7 +292,10 @@ coderipper tools install lychee --install-tools     # once; or pass --install-to
 coderipper check DOC-010 --profile extended
 ```
 
-One finding per dead link, at the document and line it is on. A link lychee could not settle (a timeout, a failed connection, a rate
+One finding per dead link, at the document and line it is on. A root-relative link (`/branding/a.png`) is read against the repository
+root in a Markdown document, as GitHub reads it; in an HTML page it names the web root of whatever serves the page (`static/` in a
+SvelteKit app, `public/` in an Astro site), which the repository does not say, so a link that the page's own line shows written
+root-relative is **not judged** and the run says so (a form the reader does not recognise is still read against the repository root). A link lychee could not settle (a timeout, a failed connection, a rate
 limit, a `403` from a site that turns bots away) is **not judged**: it is neither a finding nor evidence the link works, and a run where
 that is the case is reported as **not run**, never clean (as is a project with no links, or a document lychee skipped). Not checked:
 `#fragments`, mail addresses and other schemes. The repository cannot silence the rule: a committed `lychee.toml`, `.lycheeignore` or
@@ -406,6 +409,20 @@ symbol = "f"          # optional: only the finding about this symbol
 lines = "40-52"       # optional: only findings reported at these lines ("12" or "10-20", inclusive)
 reason = "the result is deliberately dropped; see issue 7"
 ```
+
+### Where a waiver, a `tracks` entry and `--deny` are read from
+
+A `.coderipper.toml` is read **from the directory of the package being checked**, and from nowhere else. In a repository with a crate
+at its root that is the root file. When the root has no crate and CodeRipper finds crates below it (0.6.0), **each nested crate reads
+its own `.coderipper.toml`; the root file is not applied to it.** That errs toward **more findings reported**: a waiver
+written at the root for a finding inside `backend/src/` does not waive it (put the entry in `backend/.coderipper.toml`, with `file`
+relative to `backend/`); it does not make the entry stale either, because the root run never asked for that rule. Entries at the root
+still apply to the rules the root run itself makes: the repository-wide and language-neutral rules (`ci-protection-presence`, and under
+`--profile extended` `SUP-008`, `WSP-001` and the others). A `[[tracks]]` entry is read where `version-consistency` runs, the nested
+workspace's root. `--deny` is a command-line option, not a file setting: it is one level for the whole run, nested crates included.
+**One setting errs the other way:** `[buf] baseline` is read from the repository root only (API-006 judges the whole repository), so a
+`[buf]` table in a nested crate's file is ignored and the default baseline is used, which can report fewer breaking changes than the
+baseline you wrote. Put it in the root `.coderipper.toml`.
 
 A waived finding does not fail the run, but it is **not hidden**: it is printed as `[waived/<severity>] ... -- reason: <reason>`
 (a `coderipper-waived` line in JSON), so a reader of the output sees what was waived and why. With neither `symbol` nor

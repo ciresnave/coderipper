@@ -378,3 +378,33 @@ fn the_coverage_list_does_not_call_an_implemented_rule_not_yet_implemented() {
         .join("\n");
     assert!(proven_later.contains("ci-protection-presence"), "{text}");
 }
+
+#[test]
+fn a_waiver_at_the_root_is_not_applied_to_a_nested_crate_and_that_errs_toward_more_findings() {
+    // the documented direction: the finding stays (exit 1), and the root entry is not reported stale either
+    let repo = common::git_repo_with(&[
+        ("README.md", "# app\n"),
+        ("backend/Cargo.toml", &manifest("backendcrate")),
+        ("backend/src/main.rs", DEFECTIVE_MAIN),
+        (
+            ".coderipper.toml",
+            "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"written at the root\"\n",
+        ),
+    ]);
+    let out = run(&["fast"], repo.path()).code(1);
+    let text = stdout_of(&out);
+    assert!(text.contains("(unused-return-values)"), "{text}");
+    assert!(!text.contains("[waived/"), "{text}");
+    assert!(!text.contains("(allowlist)"), "{text}");
+}
+
+#[test]
+fn deny_is_one_setting_for_the_whole_run_nested_crates_included() {
+    let repo = common::git_repo_with(&[
+        ("backend/Cargo.toml", &manifest("backendcrate")),
+        ("backend/src/main.rs", DEFECTIVE_MAIN),
+    ]);
+    // the finding is Medium
+    run(&["fast", "--deny", "medium"], repo.path()).code(1);
+    run(&["fast", "--deny", "high"], repo.path()).code(0);
+}
