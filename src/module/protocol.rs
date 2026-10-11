@@ -356,7 +356,8 @@ pub struct RuleResult {
     /// Why a rule was skipped (`not_applicable_here`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason_code: Option<String>,
-    /// Human-readable detail, required for a skip and an error.
+    /// Human-readable detail, required for a skip and an error. On a rule that RAN it is read as notes, one per line: printed as
+    /// notes by the host (control characters replaced, each line and the count capped), never as findings.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
     /// Why an errored rule gave no verdict.
@@ -375,6 +376,16 @@ impl RuleResult {
             detail: None,
             error_kind: None,
         }
+    }
+
+    /// A rule that ran and sent `findings` finding lines, and has `notes` to say that are not findings (one per line). The host
+    /// prints them as notes; they never change the verdict.
+    pub fn ran_noted(rule: impl Into<String>, findings: usize, notes: &[String]) -> Self {
+        let mut result = Self::ran(rule, findings);
+        if !notes.is_empty() {
+            result.detail = Some(notes.join("\n"));
+        }
+        result
     }
 
     /// A rule not run because its tool is not available (see [`TOOL_UNAVAILABLE`]); `detail` says what to do about it.

@@ -482,3 +482,47 @@ fn the_siblings_are_compiled_once_per_session() {
         "one --workspace run compiled {compiled} units, three --project runs {by_hand_compiled}: no sibling reuse"
     );
 }
+
+#[test]
+fn a_set_aside_note_names_the_member_it_is_about() {
+    // two members each set one candidate aside (their bin names the lib's only function): the notes must not be one
+    // unattributed line, and must not collapse into one
+    let repo = common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"alpha\", \"beta\"]\nresolver = \"2\"\n",
+        ),
+        (
+            "alpha/Cargo.toml",
+            "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("alpha/src/lib.rs", "pub fn only_fn() -> i32 { 1 }\n"),
+        (
+            "alpha/src/main.rs",
+            "fn main() { let _ = alpha::only_fn(); }\n",
+        ),
+        (
+            "beta/Cargo.toml",
+            "[package]\nname = \"beta\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("beta/src/lib.rs", "pub fn only_fn() -> i32 { 1 }\n"),
+        (
+            "beta/src/main.rs",
+            "fn main() { let _ = beta::only_fn(); }\n",
+        ),
+    ]);
+    let out = run(&[
+        "check",
+        "reachability",
+        "--workspace",
+        "--project",
+        path(repo.path()),
+    ]);
+    assert!(out.ok, "{}", out.stderr);
+    assert!(
+        out.stderr.contains("alpha: reachability:"),
+        "{}",
+        out.stderr
+    );
+    assert!(out.stderr.contains("beta: reachability:"), "{}", out.stderr);
+}

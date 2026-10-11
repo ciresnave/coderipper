@@ -479,20 +479,27 @@ pub fn orphan() {}
 }
 
 #[test]
-fn when_everything_is_set_aside_the_run_says_so_instead_of_printing_nothing() {
+fn when_everything_is_set_aside_it_is_a_note_and_not_a_finding() {
+    // 0.6.3: this was an Info finding, and Info fails a run by default; a count of what was not reported is bookkeeping
     let repo = git_repo_with(&[
         ("Cargo.toml", MANIFEST),
-        ("src/lib.rs", "pub fn only_fn() -> i32 { 1 }\n"),
+        (
+            "src/lib.rs",
+            "pub fn only_fn() -> i32 { 1 }
+",
+        ),
         ("src/main.rs", &bin_calls("fixture::only_fn()")),
     ]);
     let findings = run_reachability(&repo).unwrap();
-    assert_eq!(findings.len(), 1, "{findings:?}");
-    assert_eq!(findings[0].severity, coderipper::finding::Severity::Info);
+    assert!(findings.is_empty(), "{findings:?}");
+    // the host still says it, as a note
+    let ctx = coderipper::check::CheckContext::new(repo.path());
+    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert!(result.findings.is_empty(), "{:?}", result.findings);
     assert!(
-        findings[0].summary.contains("set aside"),
-        "{}",
-        findings[0].summary
+        result.notes.iter().any(|n| n.contains("set aside")),
+        "{:?}",
+        result.notes
     );
-    assert!(findings[0].positive_control.is_some());
-    assert!(findings[0].clone().validate().is_ok());
 }

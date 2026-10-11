@@ -113,8 +113,9 @@ pub struct RunResult {
     /// How each rule that was asked for fared: clean, findings, skipped (did not apply) or could not run. This is what the
     /// coverage report's "this run" counts come from; it is empty for a result built with [`RunResult::new`].
     pub outcomes: Vec<coverage::RuleRun>,
-    /// Rules that were not run, and why, when that is a gap and not an error: a delegated rule whose tool is not installed
-    /// (`SEC-002 not run: gitleaks is not available: ...`). Informational: it never fails a run.
+    /// What the run has to say that is neither a finding nor an error. Rules that were not run, and why, when that is a gap
+    /// (a delegated rule whose tool is not installed: `SEC-002 not run: gitleaks is not available: ...`), and what a rule that DID
+    /// run set aside (`reachability: 3 dead-code candidate(s) were set aside ...`). Informational: it never fails a run.
     pub notes: Vec<String>,
     /// The findings the project's `[[allow]]` entries waived, each with its reason. They are not in `findings` and never fail a run, but
     /// a report should show them: a waiver the reader cannot see is a finding hidden.
@@ -348,7 +349,9 @@ fn run_workspace_over_in(
             );
             analysed += 1;
             coverage::merge_runs(&mut outcomes, run.outcomes);
+            // a member's note says which member it is about: two members can set aside different counts, or the same one
             for note in run.notes {
+                let note = format!("{}: {note}", member.name);
                 if !notes.contains(&note) {
                     notes.push(note);
                 }
@@ -699,6 +702,8 @@ fn run_below_root(
         }
         coverage::merge_runs(&mut result.outcomes, run.outcomes);
         for note in run.notes {
+            // a crate's note says which crate it is about (see the workspace loop)
+            let note = format!("{label}: {note}");
             if !result.notes.contains(&note) {
                 result.notes.push(note);
             }
@@ -917,6 +922,7 @@ fn run_module_over(
         if completed && all_valid {
             suppression.mark_completed(&outcome.rule, valid.len());
         }
+        notes.extend(outcome.notes);
         let kept = suppression.apply(valid);
         outcomes.push(coverage::RuleRun::new(
             &outcome.rule,

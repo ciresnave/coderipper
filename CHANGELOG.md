@@ -4,6 +4,18 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.6.3 - 2026-10-11 (proposed)
+
+### Changed (a loosening, not a fix)
+- **`reachability`'s "N dead-code candidate(s) were set aside" is a note, not a finding.** When a library's own bin, test, example or
+  bench names every candidate, the check used to report one `Info` finding saying so. Under the 0.5.0 default (`--deny info`: any
+  finding fails) that bookkeeping line made a crate with nothing wrong exit 1. It is now a note (stderr, and `notes` in the JSON summary),
+  so **a run that exited 1 on only that line now exits 0**. The count is still printed on every run that sets candidates aside and finds
+  nothing else; when there are findings, the count is still in their `detail`.
+- API: `Check::run_noted` (default: `run` and no notes) lets a check say something that is not a finding; `RuleOutcome::notes`; the human
+  line for a clean run now reads `(see the N note(s) on stderr)` instead of `(N not run: see the notes on stderr)`, because a note is not
+  always a rule that did not run.
+
 ## 0.6.2 - 2026-10-11 (proposed)
 
 ### Added

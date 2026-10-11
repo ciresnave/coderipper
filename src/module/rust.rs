@@ -73,13 +73,15 @@ impl Module for RustModule<'_> {
                 errored += 1;
                 continue;
             };
-            match check.run(&ctx) {
-                Ok(raw) => {
+            match check.run_noted(&ctx) {
+                Ok((raw, notes)) => {
                     ran += 1;
                     findings += raw.len();
                     let count = raw.len();
                     events.extend(raw.into_iter().map(|f| Event::Finding(Box::new(f))));
-                    events.push(Event::RuleResult(RuleResult::ran(rule, count)));
+                    events.push(Event::RuleResult(RuleResult::ran_noted(
+                        rule, count, &notes,
+                    )));
                 }
                 Err(e) => {
                     errored += 1;

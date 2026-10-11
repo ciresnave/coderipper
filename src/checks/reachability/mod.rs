@@ -77,6 +77,10 @@ impl Check for ReachabilityCheck {
     }
 
     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+        self.run_noted(ctx).map(|(findings, _)| findings)
+    }
+
+    fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
         let wt = RewrittenWorktree::create_with(&ctx.project_root, |_, source| {
             Ok(rewrite_pub_to_pub_crate(source))
         })?;
@@ -156,7 +160,7 @@ impl Check for ReachabilityCheck {
              claim from a different one"
         );
 
-        let mut findings: Vec<Finding> = candidates
+        let findings: Vec<Finding> = candidates
             .into_iter()
             .map(|hit| Finding {
                 check_id: "reachability".into(),
@@ -180,30 +184,19 @@ impl Check for ReachabilityCheck {
             })
             .collect();
 
-        // A run that sets candidates aside and reports nothing would otherwise print the same
-        // "no issues found" as a crate with nothing dead. Say what happened.
+        // A run that sets candidates aside and reports nothing would otherwise print the same "no issues found" as a
+        // crate with nothing dead. Say what happened, as a NOTE: it is bookkeeping about what was not reported, not a
+        // defect, so it must not fail a run (it was an Info finding before 0.6.3, and Info fails a run by default).
+        let mut notes = Vec::new();
         if findings.is_empty() && set_aside > 0 {
-            findings.push(Finding {
-                check_id: "reachability".into(),
-                severity: Severity::Info,
-                confidence: Confidence::High,
-                project: project_name.clone(),
-                location: None,
-                subject: None,
-                summary: format!(
-                    "{set_aside} dead-code candidate(s) were set aside because a bin, test, example or \
-                     bench reaches them by name; nothing else was found"
-                ),
-                detail: format!(
-                    "With a library, only the library is built, so an item another target uses looks \
-                     dead to rustc.{set_aside_note} Matching is by identifier, so a dead item that shares \
-                     a name with something live is hidden too."
-                ),
-                positive_control: Some(positive_control),
-                member: None,
-            });
+            notes.push(format!(
+                "reachability: {set_aside} dead-code candidate(s) were set aside because a bin, test, example or bench reaches \
+                 them by name; nothing else was found. With a library only the library is built, so an item another target \
+                 uses looks dead to rustc; matching is by identifier, so a dead item that shares a name with something live \
+                 is hidden too"
+            ));
         }
 
-        Ok(findings)
+        Ok((findings, notes))
     }
 }

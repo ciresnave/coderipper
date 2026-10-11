@@ -148,6 +148,13 @@ pub trait Check: Send + Sync {
     /// finding before it reaches a report. Set `Finding::subject` to the symbol the finding is
     /// about, or it can never be allowlisted.
     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>>;
+
+    /// [`Check::run`], and what the check wants said that is **not a finding**: a count it set aside, a thing it could not look
+    /// at. The host prints each as a note, never as a finding, so it cannot fail a run (a run that found nothing is clean however
+    /// many notes it carries). The default has none; a check that has one overrides this and makes `run` its first half.
+    fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
+        Ok((self.run(ctx)?, Vec::new()))
+    }
 }
 
 #[cfg(test)]

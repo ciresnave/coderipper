@@ -130,6 +130,9 @@ pub struct RuleOutcome {
     pub findings: Vec<Finding>,
     /// How it ended.
     pub status: RuleStatus,
+    /// What the rule said that is not a finding (a count it set aside): a rule that ran may carry some in its `detail`, one per
+    /// line. Notes, never findings: they cannot fail a run.
+    pub notes: Vec<String>,
 }
 
 /// The host's judgement of a [`ModuleOutput`].
@@ -246,6 +249,7 @@ pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
                     // partial findings are shown, flagged by the error status; they never make the rule clean
                     findings: pending.remove(rule).unwrap_or_default(),
                     status: RuleStatus::Error { kind, detail },
+                    notes: Vec::new(),
                 }
             }
         })
@@ -271,6 +275,31 @@ pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
     }
 }
 
+/// How many notes one rule's result may carry, and how long one may be: a note is text from a module (possibly a child
+/// process) that reaches a terminal and a JSON line.
+const MAX_NOTES_PER_RULE: usize = 20;
+const MAX_NOTE_CHARS: usize = 500;
+
+/// `line` with control characters and bidi overrides replaced by a space, cut at [`MAX_NOTE_CHARS`] characters.
+fn clean_note(line: &str) -> String {
+    let flat: String = line
+        .chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+    if flat.chars().count() > MAX_NOTE_CHARS {
+        let cut: String = flat.chars().take(MAX_NOTE_CHARS).collect();
+        format!("{cut}...")
+    } else {
+        flat
+    }
+}
+
 /// One rule's committed result against the findings received for it.
 fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOutcome {
     let mismatch = |detail: String| RuleOutcome {
@@ -280,6 +309,7 @@ fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOu
             kind: ErrorKind::ProtocolMismatch,
             detail,
         },
+        notes: Vec::new(),
     };
     if result.findings != findings.len() {
         return mismatch(format!(
@@ -319,10 +349,20 @@ fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOu
             detail: result.detail.clone().unwrap_or_default(),
         },
     };
+    let notes = match (&status, &result.detail) {
+        (RuleStatus::Ran, Some(detail)) => detail
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .take(MAX_NOTES_PER_RULE)
+            .map(clean_note)
+            .collect(),
+        _ => Vec::new(),
+    };
     RuleOutcome {
         rule: result.rule,
         findings,
         status,
+        notes,
     }
 }
 
@@ -660,5 +700,49 @@ mod tests {
         let mut twice = ok.clone();
         twice.rules.push(RuleClaim::native("a"));
         assert!(twice.problem().is_some());
+    }
+}
+
+#[cfg(test)]
+mod note_tests {
+    use super::*;
+
+    #[test]
+    fn a_ran_rules_detail_becomes_clean_capped_notes_and_never_a_finding() {
+        let mut result = RuleResult::ran("a", 0);
+        let long = "x".repeat(900);
+        result.detail = Some(format!(
+            "first \u{1b}]0;title\u{7}line\n\n{long}\n\u{202e}reversed"
+        ));
+        let outcome = judge(result, Vec::new(), true);
+        assert_eq!(outcome.status, RuleStatus::Ran);
+        assert!(outcome.findings.is_empty());
+        assert_eq!(outcome.notes.len(), 3, "{:?}", outcome.notes);
+        assert!(outcome
+            .notes
+            .iter()
+            .all(|n| !n.chars().any(|c| c.is_control() || c == '\u{202e}')));
+        assert!(outcome.notes[1].chars().count() <= MAX_NOTE_CHARS + 3);
+    }
+
+    #[test]
+    fn a_rule_may_carry_only_so_many_notes() {
+        let mut result = RuleResult::ran("a", 0);
+        result.detail = Some(
+            (0..100)
+                .map(|i| format!("n{i}"))
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
+        assert_eq!(
+            judge(result, Vec::new(), true).notes.len(),
+            MAX_NOTES_PER_RULE
+        );
+    }
+
+    #[test]
+    fn a_skipped_or_errored_rules_detail_is_not_read_as_notes() {
+        let result = RuleResult::error("a", ErrorKind::Internal, "boom");
+        assert!(judge(result, Vec::new(), true).notes.is_empty());
     }
 }
