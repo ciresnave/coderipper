@@ -380,3 +380,44 @@ fn a_waiver_reason_with_a_newline_stays_on_one_line() {
         .expect("a waived line");
     assert!(line.contains("first line second line"), "{text}");
 }
+
+/// A library whose only function is named by its own bin: reachability sets that one candidate aside and has nothing to report.
+fn project_whose_only_news_is_a_set_aside_count() -> tempfile::TempDir {
+    common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "pub fn only_fn() -> i32 { 1 }
+",
+        ),
+        (
+            "src/main.rs",
+            "fn main() { let _ = fixture::only_fn(); }
+",
+        ),
+    ])
+}
+
+#[test]
+fn a_set_aside_count_is_a_note_that_does_not_fail_the_default_run() {
+    // 0.6.3: it was an Info finding, so the 0.5.0 default (any finding fails) exited 1 on a crate with nothing wrong
+    let repo = project_whose_only_news_is_a_set_aside_count();
+    let out = run(&["check", "reachability"], repo.path()).code(0);
+    let err = String::from_utf8_lossy(&out.get_output().stderr).into_owned();
+    assert!(err.contains("set aside"), "the count stays visible: {err}");
+    assert!(
+        !String::from_utf8_lossy(&out.get_output().stdout).contains("(reachability)"),
+        "it is not a finding line"
+    );
+}
+
+#[test]
+fn the_clean_run_line_points_at_the_notes() {
+    let repo = project_whose_only_news_is_a_set_aside_count();
+    let out = run(&["check", "reachability"], repo.path()).code(0);
+    let text = String::from_utf8_lossy(&out.get_output().stdout).into_owned();
+    assert!(
+        text.contains("no issues found by the rules that ran (see the 1 note(s) on stderr)"),
+        "{text}"
+    );
+}

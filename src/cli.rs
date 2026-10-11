@@ -685,7 +685,7 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                     println!("coderipper: no issues found");
                 } else {
                     println!(
-                        "coderipper: no issues found by the rules that ran ({} not run: see the notes on stderr)",
+                        "coderipper: no issues found by the rules that ran (see the {} note(s) on stderr)",
                         result.notes.len()
                     );
                 }
@@ -755,7 +755,8 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 "errors": result.errors,
                 "exit_code": code,
             });
-            // Only when a rule did not run for want of its tool: the summary of every other run keeps exactly its keys.
+            // Only when the run has a note (a rule not run for want of its tool, a count a rule set aside): the summary of every
+            // other run keeps exactly its keys.
             if !result.notes.is_empty() {
                 summary["notes"] = serde_json::json!(result.notes);
             }
