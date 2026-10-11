@@ -10,6 +10,8 @@ pub struct DeadCodeHit {
 pub struct CollectResult {
     pub hits: Vec<DeadCodeHit>,
     pub build_failed_for_other_reasons: bool,
+    /// Why the build failed, in one line, when `build_failed_for_other_reasons` (empty otherwise).
+    pub failure_cause: String,
 }
 
 /// Which targets to build. `LibOnly` is for a package with a library: downgrading the lib's `pub`
@@ -60,6 +62,11 @@ pub fn collect_dead_code_in(
     Ok(CollectResult {
         hits,
         build_failed_for_other_reasons: build.is_broken(),
+        failure_cause: if build.is_broken() {
+            build.failure_cause()
+        } else {
+            String::new()
+        },
     })
 }
 
@@ -98,6 +105,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
+            ..
         } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
@@ -163,6 +171,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
+            ..
         } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
@@ -184,6 +193,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
+            ..
         } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(!build_failed_for_other_reasons);
@@ -214,6 +224,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
+            ..
         } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);
@@ -228,6 +239,7 @@ mod tests {
         let CollectResult {
             hits,
             build_failed_for_other_reasons,
+            ..
         } = collect_dead_code_in(tmp.path(), None, Targets::All).unwrap();
 
         assert!(build_failed_for_other_reasons);

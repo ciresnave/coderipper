@@ -46,6 +46,8 @@ impl Diagnostic {
 pub(crate) struct BuildOutput {
     pub diagnostics: Vec<Diagnostic>,
     pub success: bool,
+    /// The first and last of cargo's own stderr (plain text, not rustc JSON): where a failing build script says why.
+    pub stderr_tail: String,
     /// Every compilation unit this build reported, fresh or compiled (tests only: nothing in production reads it).
     #[cfg(test)]
     pub units: Vec<UnitReport>,
@@ -67,7 +69,136 @@ pub(crate) struct UnitReport {
     pub fresh: bool,
 }
 
+/// How much of cargo's stderr is kept: the first [`STDERR_HEAD_BYTES`] and the last [`STDERR_TAIL_BYTES`]. A failing build script
+/// prints `error: failed to run custom build command` first and its (possibly long) stdout before its stderr, so the head holds
+/// the line that names the failure and the tail holds the end of a long compile.
+const STDERR_HEAD_BYTES: usize = 4 * 1024;
+const STDERR_TAIL_BYTES: usize = 12 * 1024;
+/// The longest cause printed in an error message.
+const CAUSE_CHARS: usize = 400;
+
+/// The part of `stderr` worth keeping (see [`STDERR_HEAD_BYTES`]); the cut between the two parts is marked by a line.
+fn keep_ends(stderr: &[u8]) -> String {
+    if stderr.len() <= STDERR_HEAD_BYTES + STDERR_TAIL_BYTES {
+        return String::from_utf8_lossy(stderr).into_owned();
+    }
+    let head = String::from_utf8_lossy(&stderr[..STDERR_HEAD_BYTES]);
+    let tail = String::from_utf8_lossy(&stderr[stderr.len() - STDERR_TAIL_BYTES..]);
+    format!("{head}\n[... cargo's stderr cut here ...]\n{tail}")
+}
+
+/// `c` is a control character, or one that reorders or hides the text around it (bidi overrides and isolates).
+fn is_unsafe_char(c: char) -> bool {
+    c.is_control() || matches!(c, '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}')
+}
+
+/// `text` on one line, without control characters (it is third-party output that reaches a terminal), cut at [`CAUSE_CHARS`].
+fn one_line(text: &str) -> String {
+    let flat: String = text
+        .chars()
+        .map(|c| if is_unsafe_char(c) { ' ' } else { c })
+        .collect();
+    let flat = flat.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.chars().count() > CAUSE_CHARS {
+        let cut: String = flat.chars().take(CAUSE_CHARS).collect();
+        format!("{cut}...")
+    } else {
+        flat
+    }
+}
+
+/// `text` without ANSI escape sequences: with `CARGO_TERM_COLOR=always` (CI sets it) cargo colours the word `error`, and the line
+/// then no longer starts with `error:`.
+fn without_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' {
+            out.push(c);
+            continue;
+        }
+        if chars.peek() == Some(&'[') {
+            chars.next();
+            // parameters and intermediates, then one final byte in `@`..=`~`
+            for next in chars.by_ref() {
+                if ('@'..='~').contains(&next) {
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// What cargo's own stderr says went wrong: its first `error:` line, then the first two lines of the `--- stderr` block that
+/// FOLLOWS it (a failed build script: a `-sys` crate says there what it could not find) or, when there is none, the last line after
+/// the final `Caused by:` (a registry or process failure's root cause). Falls back to the last line it wrote.
+fn cargo_cause(stderr: &str) -> String {
+    let plain = without_ansi(stderr);
+    let lines: Vec<&str> = plain.lines().map(str::trim).collect();
+    let mut parts: Vec<&str> = Vec::new();
+    let error_at = lines.iter().position(|l| l.starts_with("error:"));
+    if let Some(at) = error_at {
+        parts.push(lines[at]);
+    }
+    let block = lines
+        .iter()
+        .enumerate()
+        .skip(error_at.unwrap_or(0))
+        .find(|(_, l)| l.starts_with("--- stderr"))
+        .map(|(at, _)| at);
+    if let Some(at) = block {
+        parts.extend(
+            lines[at + 1..]
+                .iter()
+                .filter(|l| !l.is_empty())
+                .take(2)
+                .copied(),
+        );
+    } else if let Some(at) = lines.iter().rposition(|l| l.starts_with("Caused by:")) {
+        parts.extend(lines[at + 1..].iter().find(|l| !l.is_empty()).copied());
+    }
+    if parts.is_empty() {
+        if let Some(last) = lines.iter().rev().find(|l| !l.is_empty()) {
+            parts.push(last);
+        }
+    }
+    if parts.is_empty() {
+        "cargo exited with an error and wrote nothing to say why".to_string()
+    } else {
+        one_line(&parts.join(" | "))
+    }
+}
+
 impl BuildOutput {
+    /// Why this build is broken, in one line for an error message: the first real compiler error (with its code and place), or
+    /// what cargo itself reported (a build script that failed, a dependency that could not be built).
+    pub fn failure_cause(&self) -> String {
+        if let Some(d) = self
+            .diagnostics
+            .iter()
+            .find(|d| d.is_hard_error() && !d.message.starts_with("aborting due to"))
+        {
+            let code = d
+                .code
+                .as_deref()
+                .map(|c| format!("[{c}]"))
+                .unwrap_or_default();
+            let place = d
+                .primary_span()
+                .map(|s| format!(" ({}:{})", s.file, s.line))
+                .unwrap_or_default();
+            let note = d
+                .notes
+                .iter()
+                .find(|n| !n.trim().is_empty())
+                .map(|n| format!(" | {n}"))
+                .unwrap_or_default();
+            return one_line(&format!("error{code}: {}{place}{note}", d.message));
+        }
+        cargo_cause(&self.stderr_tail)
+    }
+
     /// True when this build can't be trusted to have reported what a check looked for: a real
     /// compiler error, or a non-zero exit with no diagnostic at all (e.g. a panicking build.rs,
     /// which writes plain text to stderr rather than rustc JSON).
@@ -230,6 +361,8 @@ fn build_with(
             "--message-format=json",
         ])
         .current_dir(root)
+        // plain text: the cause is read from cargo's stderr, which colour escapes would break
+        .env("CARGO_TERM_COLOR", "never")
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
     let mut cache_dir = None;
@@ -255,6 +388,7 @@ fn build_with(
     }
     let output = cargo.output()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr_tail = keep_ends(&output.stderr);
     let (fresh, compiled) = count_units(&stdout);
     crate::build_cache::record(fresh, compiled, cache_dir.as_deref());
     drop(choice);
@@ -262,6 +396,7 @@ fn build_with(
     Ok(BuildOutput {
         diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
+        stderr_tail,
         #[cfg(test)]
         units: unit_reports(&stdout),
         #[cfg(test)]
@@ -589,6 +724,7 @@ mod tests {
         let out = BuildOutput {
             diagnostics: vec![],
             success: false,
+            stderr_tail: String::new(),
             units: vec![],
             cache_note: None,
         };
@@ -596,9 +732,115 @@ mod tests {
         let ok = BuildOutput {
             diagnostics: vec![],
             success: true,
+            stderr_tail: String::new(),
             units: vec![],
             cache_note: None,
         };
         assert!(!ok.is_broken());
+    }
+
+    #[test]
+    fn a_failed_build_script_is_named_with_what_it_printed_to_stderr() {
+        let stderr = "   Compiling openssl-sys v0.9.117\n\
+            error: failed to run custom build command for `openssl-sys v0.9.117`\n\n\
+            Caused by:\n  process didn't exit successfully: `build-script-build` (exit code: 101)\n  --- stdout\n  cargo:rerun-if-env-changed=X\n\n  --- stderr\n  thread 'main' panicked at build.rs:3:\n  Could not find directory of OpenSSL installation\n";
+        let cause = cargo_cause(stderr);
+        assert!(
+            cause.starts_with("error: failed to run custom build command"),
+            "{cause}"
+        );
+        assert!(
+            cause.contains("Could not find directory of OpenSSL installation"),
+            "{cause}"
+        );
+        assert!(!cause.contains('\n'));
+    }
+
+    #[test]
+    fn a_coloured_stderr_is_read_like_a_plain_one() {
+        // CARGO_TERM_COLOR=always (CI): the word `error` is wrapped in escapes
+        let stderr = "\u{1b}[1m\u{1b}[31merror\u{1b}[0m\u{1b}[1m: failed to run custom build command for `x v1`\u{1b}[0m\n  --- stderr\n  \u{1b}[31mthe real reason\u{1b}[0m\n";
+        let cause = cargo_cause(stderr);
+        assert!(
+            cause.starts_with("error: failed to run custom build command"),
+            "{cause:?}"
+        );
+        assert!(
+            cause.contains("the real reason") && !cause.contains('\u{1b}'),
+            "{cause:?}"
+        );
+    }
+
+    #[test]
+    fn the_stderr_block_that_belongs_to_the_first_error_is_the_one_used() {
+        // an earlier warning block of another crate must not lend its text
+        let stderr = "--- stderr\nunrelated earlier noise\nerror: failed to run custom build command for `a v1`\n  --- stderr\n  a's own reason\n";
+        let cause = cargo_cause(stderr);
+        assert!(cause.contains("a's own reason"), "{cause}");
+        assert!(!cause.contains("unrelated earlier noise"), "{cause}");
+    }
+
+    #[test]
+    fn a_failure_with_no_stderr_block_gives_its_root_cause() {
+        let stderr = "error: failed to get `serde` as a dependency\n\nCaused by:\n  failed to load source\n\nCaused by:\n  network is unreachable\n";
+        let cause = cargo_cause(stderr);
+        assert!(
+            cause.contains("failed to get `serde`") && cause.contains("network is unreachable"),
+            "{cause}"
+        );
+    }
+
+    #[test]
+    fn nothing_written_is_said_as_such_and_the_last_line_is_the_fallback() {
+        assert!(cargo_cause("").contains("wrote nothing"));
+        assert_eq!(
+            cargo_cause("warning: x\nlinker blew up\n"),
+            "linker blew up"
+        );
+    }
+
+    #[test]
+    fn a_cause_is_one_line_without_control_or_bidi_characters_and_is_cut() {
+        let text = format!("error: a\u{1b}[31mb\n\u{202e}c{}", "x".repeat(600));
+        let cause = one_line(&text);
+        assert!(
+            !cause.chars().any(|c| c.is_control() || c == '\u{202e}'),
+            "{cause:?}"
+        );
+        assert!(cause.ends_with("..."));
+        assert!(cause.chars().count() <= CAUSE_CHARS + 3);
+    }
+
+    #[test]
+    fn a_long_stderr_keeps_its_first_error_line_and_its_end() {
+        let mut big = b"error: failed to run custom build command for `x v1`\n".to_vec();
+        big.extend(std::iter::repeat_n(b'.', 40 * 1024));
+        big.extend_from_slice(b"\n  --- stderr\n  the end says why\n");
+        let kept = keep_ends(&big);
+        assert!(kept.starts_with("error: failed to run custom build command"));
+        assert!(kept.contains("the end says why"));
+        assert!(kept.len() < 20 * 1024);
+    }
+
+    #[test]
+    fn rustcs_own_trailer_is_not_the_cause_and_the_first_note_is_carried() {
+        let mut trailer = diag("error", None);
+        trailer.message = "aborting due to 1 previous error".into();
+        let mut real = diag("error", Some("E0425"));
+        real.message = "cannot find value `x` in this scope".into();
+        real.notes = vec!["proc macro panicked: boom".into()];
+        let out = BuildOutput {
+            diagnostics: vec![trailer, real],
+            success: false,
+            stderr_tail: String::new(),
+            units: vec![],
+            cache_note: None,
+        };
+        let cause = out.failure_cause();
+        assert!(
+            cause.contains("E0425") && cause.contains("proc macro panicked: boom"),
+            "{cause}"
+        );
+        assert!(!cause.contains("aborting due to"), "{cause}");
     }
 }

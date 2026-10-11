@@ -61,6 +61,14 @@ the project directory has no tracked `Cargo.toml`, CodeRipper no longer asks car
   workspace root. A `Cargo.toml` that is on disk but not committed is cargo's error (exit 3), not "no Rust". A nested workspace is checked member by member. `--workspace` does the same
   when the root has no crate. A crate that is found and cannot be built is an error (exit 3), never a skip.
 
+## Reading the text output
+
+A finding prints as `[<severity>/<confidence>] <package or project> — <summary> at <file>:<line> (<check id>)`; a finding about a
+whole file has ` at <file>`, one with no place has neither, and every finding line ends in `(<check id>)` (a waived one then adds
+`-- reason: <reason>`). A check that could not run prints, on stderr, `coderipper: check error: <check> failed to run: <why>` (or
+`failed to run (<kind>): <why>` for a delegated tool); for a failed build the why ends `Cause:` and one line: the first compiler error with its
+code and place, or what cargo and a failing build script said. The text is for people; `--message-format json` is the stable interface.
+
 ## Machine-readable output
 
 `--message-format json` prints one JSON object per line on stdout, each with a `"reason"`, the way cargo's own
