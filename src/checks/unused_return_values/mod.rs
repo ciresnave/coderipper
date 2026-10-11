@@ -98,7 +98,8 @@ impl Check for UnusedReturnValuesCheck {
         anyhow::ensure!(
             !build.is_broken(),
             "this crate's build reported real compiler error(s) (or failed without any diagnostic) \
-             after the unused-return-values rewrite, so no result can be trusted"
+             after the unused-return-values rewrite, so no result can be trusted. Cause: {}",
+            build.failure_cause()
         );
 
         let classification = classify(&build.diagnostics, &tags, &use_ranges);

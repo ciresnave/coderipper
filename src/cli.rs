@@ -693,10 +693,11 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
             for w in &result.waived {
                 let f = &w.finding;
                 println!(
-                    "[waived/{:?}] {} — {} ({}) -- reason: {}",
+                    "[waived/{:?}] {} — {}{} ({}) -- reason: {}",
                     f.severity,
                     f.member.as_deref().unwrap_or(&f.project),
                     f.summary,
+                    place(f),
                     f.check_id,
                     // one line, printable: the reason comes from a file the project edits
                     w.reason
@@ -707,12 +708,13 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
             }
             for f in &result.findings {
                 println!(
-                    "[{:?}/{:?}] {} — {} ({})",
+                    "[{:?}/{:?}] {} — {}{} ({})",
                     f.severity,
                     f.confidence,
                     // a `--workspace` finding leads with its package (two members can share a directory name)
                     f.member.as_deref().unwrap_or(&f.project),
                     f.summary,
+                    place(f),
                     f.check_id
                 );
             }
@@ -784,6 +786,24 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         );
     }
     Ok(code)
+}
+
+/// ` at <file>:<line>` (or ` at <file>`) for a finding that has a location, printed before the check id so a line still ends in
+/// `(<check id>)`. Several findings of one rule in one repository read the same without it (eight "actions/checkout@v4 is not
+/// pinned" lines), and the JSON had the place all along. The file is third-party text: control characters are replaced.
+fn place(f: &crate::finding::Finding) -> String {
+    let Some(location) = &f.location else {
+        return String::new();
+    };
+    let file: String = location
+        .file
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    match location.line {
+        Some(line) => format!(" at {file}:{line}"),
+        None => format!(" at {file}"),
+    }
 }
 
 /// The coverage of the Rust module for this run, then one entry per language found that no module checks.

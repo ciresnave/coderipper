@@ -4,6 +4,23 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.6.2 - 2026-10-11 (proposed)
+
+### Added
+- **A build that fails now says why.** `reachability`, `unused-parameters` and `unused-return-values` used to end a crate whose build
+  failed with "build reported real compiler error(s) (or failed without any diagnostic), so no result can be trusted" and nothing else
+  (a SvelteKit app's `backend/` crate on a machine with no OpenSSL: a `-sys` build script panicked, and the message never said so). The
+  message now ends `Cause: <...>`: the first real compiler error with its code and place (`error[E0425]: cannot find value ... (src/main.rs:2)`),
+  or cargo's own first `error:` line and the first two lines the failed build script printed (`error: failed to run custom build command
+  for `openssl-sys v0.9.117` | Could not find directory of OpenSSL installation, ...`), on one line, control characters removed, cut at
+  400 characters. Exit codes are unchanged (3); the strings in the JSON summary's `errors` now carry the cause too, which is third-party
+  build output (paths, environment values a build script printed): a hosted service must treat it as untrusted text.
+- **Text output names where a finding is.** `[Medium/High] app — actions/checkout@v4 is not pinned to an immutable hash at
+  .github/workflows/ci.yml:24 (SUP-008)`: ` at <file>:<line>` (or ` at <file>` for a finding about a whole file) before the check id, for
+  findings and waived findings alike. Eight findings of one rule used to print eight identical lines; the JSON always had the location. A
+  finding line still ends in `(<check id>)` (a waived one then adds `-- reason: ...`). A script that matched the whole summary text of a text line exactly must allow for the suffix (the
+  JSON output is the stable interface).
+
 ## 0.6.1 - 2026-10-11 (proposed)
 
 ### Fixed

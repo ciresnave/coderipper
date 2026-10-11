@@ -82,7 +82,8 @@ impl Check for UnusedParametersCheck {
         anyhow::ensure!(
             !build.is_broken(),
             "this crate's build reported real compiler error(s) (or failed without any diagnostic), \
-             so no result can be trusted"
+             so no result can be trusted. Cause: {}",
+            build.failure_cause()
         );
 
         let hits = unused_variable_hits(&build.diagnostics);

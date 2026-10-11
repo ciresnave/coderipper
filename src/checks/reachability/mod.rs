@@ -97,7 +97,8 @@ impl Check for ReachabilityCheck {
         anyhow::ensure!(
             !result.build_failed_for_other_reasons,
             "this crate's build reported real compiler error(s) unrelated to dead_code after the \
-             rewrite, so no result can be trusted"
+             rewrite, so no result can be trusted. Cause: {}",
+            result.failure_cause
         );
 
         // The sentinel is a REAL per-run positive control, not a fixed narrative string: it's a
