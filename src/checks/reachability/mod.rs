@@ -68,6 +68,10 @@ impl Check for ReachabilityCheck {
         Scope::Project
     }
 
+    fn requires_rust_crate(&self) -> bool {
+        true
+    }
+
     fn network(&self) -> Network {
         Network::LocalOnly
     }

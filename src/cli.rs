@@ -834,13 +834,41 @@ fn print_coverage_human(reports: &[crate::coverage::LanguageCoverage], full: boo
     for report in reports {
         println!("{}", report.human_line());
     }
-    if reports.iter().any(|r| !r.gaps.is_empty()) {
+    // A rule the module has built but has no conformance fixture for yet is not "not yet implemented": it runs, and it is
+    // simply not counted as covered. The two lists are kept apart so neither wording is false.
+    let not_built = |r: &crate::coverage::LanguageCoverage| -> Vec<String> {
+        r.gaps
+            .iter()
+            .filter(|g| !r.claimed_unproven_ids.contains(g))
+            .cloned()
+            .collect()
+    };
+    if reports.iter().any(|r| !not_built(r).is_empty()) {
         println!(
             "Not yet implemented: CodeRipper has not built these checks yet. This says nothing about your code and never fails a run."
         );
         if full {
-            for report in reports.iter().filter(|r| !r.gaps.is_empty()) {
-                println!("  {}: {}", report.language, report.gaps.join(", "));
+            for report in reports.iter().filter(|r| !not_built(r).is_empty()) {
+                println!("  {}: {}", report.language, not_built(report).join(", "));
+            }
+        } else {
+            println!("  (use --coverage=full to list them)");
+        }
+    }
+    if reports.iter().any(|r| !r.claimed_unproven_ids.is_empty()) {
+        println!(
+            "Implemented, not yet proven: these checks run, but have no conformance fixture yet, so they are not counted as covered. This says nothing about your code and never fails a run."
+        );
+        if full {
+            for report in reports
+                .iter()
+                .filter(|r| !r.claimed_unproven_ids.is_empty())
+            {
+                println!(
+                    "  {}: {}",
+                    report.language,
+                    report.claimed_unproven_ids.join(", ")
+                );
             }
         } else {
             println!("  (use --coverage=full to list them)");

@@ -4,6 +4,28 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.6.0 - 2026-10-11 (proposed)
+
+### Breaking
+- **A project root with no tracked `Cargo.toml` is "no Rust crate at this path", not an error.** `coderipper fast`/`sweep`/`check` and
+  `cargo coderipper` used to ask cargo about the root, fail four times (`cargo metadata ... could not find Cargo.toml`) and exit 3 on any
+  repository that is not a crate at its root (found by the 2026-10-11 dogfood run: a Rust-free site and a SvelteKit app with its crate in
+  `backend/` both exited 3 and were never audited). They now exit 0 (or 1 on a finding) with a note, and the four crate-reading rules are
+  *not run here* in the coverage. A script that treated that exit 3 as "this repository is not Rust" must read the note instead.
+- **Crates below the root are discovered and checked** (git index, never a disk walk): each cargo workspace found is checked as `--project`
+  would check its members, and the run says which crates it found. A nested crate that does not build is exit 3 as before. `--workspace`
+  does the same when the root has no crate.
+
+### Added
+- `Check::requires_rust_crate()` (default `false`; the four crate-reading built-ins return `true`): the host does not run such a check at a
+  root with no crate. A check that is not about Rust (`ci-protection-presence`, your own) is unaffected.
+- `LanguageCoverage::claimed_unproven_ids` and a `claimed_unproven_ids` key in the `coderipper-coverage` JSON line.
+
+### Fixed
+- **The coverage list no longer calls a built rule "not yet implemented".** `ci-protection-presence` (built, no conformance fixture yet
+  because it needs a forge) was listed under "Not yet implemented"; it is now listed under "Implemented, not yet proven". `gaps` in the JSON
+  line is unchanged (it still holds both).
+
 ## 0.5.0 - 2026-10-09 (proposed)
 
 ### Breaking
