@@ -3,8 +3,9 @@
 //! **What this judges:** lychee is given the project's *tracked* Markdown, HTML and text documents (`git ls-files`, never a walk of
 //! the disk, so a virtualenv, a build directory or another worktree is not read; a tracked file below `node_modules`, `vendor`,
 //! `third_party` or `target` is left out too), extracts their links and checks each: a link to a file or directory is looked for on
-//! disk (a root-relative `/docs/a.md` is resolved against the project root, the reading GitHub uses; a site served from a
-//! subdirectory reads them differently), a link to a web page is requested. Only a link that is
+//! disk (a root-relative `/docs/a.md` in a Markdown or text document is resolved against the project root, the reading GitHub
+//! uses; in an HTML page it is **not judged**: the page's root is the web root of whatever serves it, a SvelteKit app's `static/` or
+//! an Astro site's `public/`, which the repository does not state), a link to a web page is requested. Only a link that is
 //! **known to be dead** is a finding: a local target that does not exist, or a web page that answered `404 Not Found` or
 //! `410 Gone`. Anything else lychee could not settle (a timeout, a connection that failed, a rate limit, a `403` from a site that
 //! turns bots away, a `5xx`) is *not judged*: it is neither a finding nor evidence of a working link.
@@ -150,6 +151,9 @@ struct Links {
     dead: Vec<Dead>,
     /// Links it could not settle (timeouts, failed connections, rate limits, other answers): not judged either way.
     unjudged: u64,
+    /// Root-relative links (`/img/a.png`) in a web page that lychee resolved against the repository root and did not find. The
+    /// root of a page is the web root of whatever serves it, which the repository does not say: these are not judged either way.
+    web_root_links: u64,
     /// What lychee reported when it could not read an input at all (its report then holds an entry whose "url" is the error).
     unread_input: Option<String>,
 }
@@ -209,8 +213,74 @@ fn parse_report(text: &str) -> Result<Links, String> {
         total: report.total,
         dead,
         unjudged: other_errors + report.timeouts + report.unknown,
+        web_root_links: 0,
         unread_input,
     })
+}
+
+/// Whether `line` holds `target` (a project-relative path) as a root-relative reference, `"/branding/a.png"`: a quote, a
+/// parenthesis, `=` or white space before the slash, and the end of a reference after the name. A `../branding/a.png` or a
+/// `x/branding/a.png` is a relative path and does not count.
+fn root_relative_on_line(line: &str, target: &str) -> bool {
+    // lychee prints the target decoded; the page may spell a space `%20`
+    let spellings = [target.to_string(), target.replace(' ', "%20")];
+    spellings.iter().any(|spelling| {
+        let needle = format!("/{spelling}");
+        line.match_indices(&needle).any(|(at, _)| {
+            let before = line[..at].chars().next_back();
+            let after = line[at + needle.len()..].chars().next();
+            // a comma separates the candidates of a `srcset`; a `/` after the name is a `<base href="/docs/">`
+            before
+                .is_none_or(|c| matches!(c, '"' | '\'' | '(' | '=' | ' ' | '\t' | '<' | '>' | ','))
+                && after.is_none_or(|c| {
+                    matches!(
+                        c,
+                        '"' | '\'' | ')' | '#' | '?' | ' ' | '\t' | '<' | '>' | '/' | ','
+                    )
+                })
+        })
+    })
+}
+
+/// Moves the dead local links of a **web page** (`.html`, `.htm`) that are root-relative in the page out of `dead`: lychee
+/// resolved `/branding/a.png` against the repository root, and that is how GitHub reads a Markdown file, not how a site serves a
+/// page (a SvelteKit app serves it from `static/`, an Astro site from `public/`). Whether the file exists under that web root is
+/// not something the repository states, so the link is counted as not judged, never as dead. A Markdown document keeps the
+/// reading lychee used. A link whose line cannot be read stays dead: the reading is only changed on evidence.
+fn without_web_root_links(mut links: Links, root: &Path, roots: &[String]) -> Links {
+    // each page is read once, however many of its links are dead (`None`: it could not be read, so its links stay dead)
+    let mut pages: std::collections::HashMap<String, Option<Vec<String>>> =
+        std::collections::HashMap::new();
+    let mut kept = Vec::with_capacity(links.dead.len());
+    for dead in links.dead {
+        let document = relative(&dead.file, roots);
+        let is_page = document.rsplit_once('.').is_some_and(|(_, ext)| {
+            ext.eq_ignore_ascii_case("html") || ext.eq_ignore_ascii_case("htm")
+        });
+        let judged_by_web_root = dead.local
+            && is_page
+            && dead.line.is_some_and(|line| {
+                let Some(target) = file_url_path(&dead.url).map(|p| relative(&p, roots)) else {
+                    return false;
+                };
+                let lines = pages.entry(document.clone()).or_insert_with(|| {
+                    std::fs::read_to_string(root.join(&document))
+                        .ok()
+                        .map(|text| text.lines().map(str::to_string).collect())
+                });
+                lines
+                    .as_ref()
+                    .and_then(|l| l.get((line as usize).saturating_sub(1)))
+                    .is_some_and(|l| root_relative_on_line(l, &target))
+            });
+        if judged_by_web_root {
+            links.web_root_links += 1;
+        } else {
+            kept.push(dead);
+        }
+    }
+    links.dead = kept;
+    links
 }
 
 /// `text` with its `%XX` escapes decoded (lychee prints a `file://` URL encoded: a space is `%20`).
@@ -456,7 +526,14 @@ fn scan_with(program: &Path, args: fn(&Path, &Path) -> Vec<OsString>, request: &
     let report = std::fs::read(run.scratch().join("report.json"))
         .map_err(|e| format!("it wrote no report ({e})"))
         .and_then(|bytes| parse_report(&String::from_utf8_lossy(&bytes)));
-    match judge(run.exit_code(), run.log(), report) {
+    let verdict = match judge(run.exit_code(), run.log(), report) {
+        Scan::Read { links, unread } => Scan::Read {
+            links: without_web_root_links(links, &root, &roots_of(&root)),
+            unread,
+        },
+        other => other,
+    };
+    match verdict {
         Scan::Read { links, unread } if links.dead.len() > request.limits.max_findings => {
             let _ = unread;
             Scan::Failed(
@@ -473,8 +550,17 @@ fn scan_with(program: &Path, args: fn(&Path, &Path) -> Vec<OsString>, request: &
 }
 
 /// What a result that is not clean says about the links that were not judged.
-fn caveat(unjudged: u64, unread: Option<&str>) -> Option<String> {
+fn caveat(unjudged: u64, web_root: u64, unread: Option<&str>) -> Option<String> {
     let mut parts = Vec::new();
+    if web_root > 0 {
+        parts.push(format!(
+            "{web_root} root-relative link{} in web pages name{} the web root of whatever serves the page, which the repository does not \
+             say, so {} not judged",
+            if web_root == 1 { "" } else { "s" },
+            if web_root == 1 { "s" } else { "" },
+            if web_root == 1 { "it was" } else { "they were" }
+        ));
+    }
     if unjudged > 0 {
         parts.push(format!(
             "{unjudged} other link{} could not be settled (a timeout, a failed connection, a rate limit or another answer) and {} not judged",
@@ -510,22 +596,23 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
     };
     match scan_with(&program, check_args, request) {
         Scan::Read { links, unread } => {
+            let root = std::path::absolute(&request.project_root)
+                .unwrap_or_else(|_| request.project_root.clone());
+            let roots = roots_of(&root);
             if links.dead.is_empty() {
-                if let Some(note) = caveat(links.unjudged, unread.as_deref()) {
+                if let Some(note) = caveat(links.unjudged, links.web_root_links, unread.as_deref())
+                {
                     return Verdict::Unavailable(format!(
                         "{TOOL} found no dead link, but it cannot say the links are fine. {note}"
                     ));
                 }
                 return Verdict::Findings(vec![]);
             }
-            let root = std::path::absolute(&request.project_root)
-                .unwrap_or_else(|_| request.project_root.clone());
             let project = root
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let roots = roots_of(&root);
-            let note = caveat(links.unjudged, unread.as_deref());
+            let note = caveat(links.unjudged, links.web_root_links, unread.as_deref());
             Verdict::Findings(
                 links
                     .dead
@@ -864,6 +951,7 @@ mod tests {
             total,
             dead: vec![template; dead],
             unjudged,
+            web_root_links: 0,
             unread_input: None,
         })
     }
@@ -943,14 +1031,16 @@ mod tests {
 
     #[test]
     fn links_not_judged_are_said_in_every_finding_and_a_clean_result_needs_none() {
-        assert_eq!(caveat(0, None), None);
-        let note = caveat(3, None).unwrap();
+        assert_eq!(caveat(0, 0, None), None);
+        let note = caveat(3, 0, None).unwrap();
         assert!(
             note.contains("3 other links") && note.contains("not judged"),
             "{note}"
         );
-        assert!(caveat(1, None).unwrap().contains("1 other link could not"));
-        let skipped = caveat(0, Some("[WARN] Skipping file x")).unwrap();
+        assert!(caveat(1, 0, None)
+            .unwrap()
+            .contains("1 other link could not"));
+        let skipped = caveat(0, 0, Some("[WARN] Skipping file x")).unwrap();
         assert!(skipped.contains("Skipping file x"), "{skipped}");
         let dead = parse_report(REPORT).unwrap().dead[0].clone();
         let f = to_finding(&dead, "demo", &roots(), Some(&note));
@@ -968,5 +1058,126 @@ mod tests {
             .expect("the record does not say what is checked today");
         assert!(text.contains("404") && text.contains("fragment"), "{text}");
         assert!(text.contains("not judged"), "{text}");
+    }
+
+    #[test]
+    fn a_root_relative_reference_is_told_from_a_relative_path() {
+        let t = "branding/a.png";
+        assert!(root_relative_on_line(r#"<link href="/branding/a.png">"#, t));
+        assert!(root_relative_on_line("<link href='/branding/a.png'>", t));
+        assert!(root_relative_on_line("![x](/branding/a.png)", t));
+        assert!(root_relative_on_line("/branding/a.png", t));
+        // a relative path that merely ends in the same words is not a root-relative reference
+        assert!(!root_relative_on_line(
+            r#"<link href="../branding/a.png">"#,
+            t
+        ));
+        assert!(!root_relative_on_line(
+            r#"<link href="x/branding/a.png">"#,
+            t
+        ));
+        assert!(!root_relative_on_line(r#"<link href="branding/a.png">"#, t));
+        // a `srcset` candidate after a comma, a space the page spells `%20`, and a `<base href="/branding/">`
+        assert!(root_relative_on_line(
+            r#"<img srcset="/x.png 1x,/branding/a.png 2x">"#,
+            t
+        ));
+        assert!(root_relative_on_line(
+            r#"<img src="/my%20dir/a.png">"#,
+            "my dir/a.png"
+        ));
+        assert!(root_relative_on_line(
+            r#"<base href="/branding/">"#,
+            "branding"
+        ));
+        // and a longer name is not this one
+        assert!(!root_relative_on_line(
+            r#"<link href="/branding/a.png2">"#,
+            t
+        ));
+        assert!(!root_relative_on_line(
+            r#"<link href="/branding/a.pngx">"#,
+            t
+        ));
+    }
+
+    #[test]
+    fn a_web_page_root_relative_link_is_moved_out_of_dead_and_a_markdown_one_is_not() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("app")).unwrap();
+        std::fs::write(
+            dir.path().join("app/app.html"),
+            "<p>x</p>\n<link href=\"/branding/a.png\">\n<a href=\"gone.html\">y</a>\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("README.md"), "[a](/branding/a.png)\n").unwrap();
+        let root = dir.path().to_string_lossy().replace('\\', "/");
+        let roots = vec![root.clone()];
+        let dead = |file: &str, line: u32, target: &str| Dead {
+            file: format!("{root}/{file}"),
+            line: Some(line),
+            url: if root.starts_with('/') {
+                format!("file://{root}/{target}")
+            } else {
+                format!("file:///{root}/{target}")
+            },
+            why: "File not found".into(),
+            local: true,
+        };
+        let links = Links {
+            total: 3,
+            dead: vec![
+                dead("app/app.html", 2, "branding/a.png"),
+                dead("app/app.html", 3, "app/gone.html"),
+                dead("README.md", 1, "branding/a.png"),
+            ],
+            unjudged: 0,
+            web_root_links: 0,
+            unread_input: None,
+        };
+        let out = without_web_root_links(links, dir.path(), &roots);
+        assert_eq!(out.web_root_links, 1);
+        let kept: Vec<_> = out
+            .dead
+            .iter()
+            .map(|d| (d.file.rsplit('/').next().unwrap(), d.line))
+            .collect();
+        assert_eq!(kept, [("app.html", Some(3)), ("README.md", Some(1))]);
+    }
+
+    #[test]
+    fn a_page_line_that_cannot_be_read_leaves_the_link_dead() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_string_lossy().replace('\\', "/");
+        let links = Links {
+            total: 1,
+            dead: vec![Dead {
+                file: format!("{root}/missing.html"),
+                line: Some(1),
+                url: format!("file:///{root}/branding/a.png"),
+                why: "File not found".into(),
+                local: true,
+            }],
+            unjudged: 0,
+            web_root_links: 0,
+            unread_input: None,
+        };
+        let out = without_web_root_links(links, dir.path(), &[root]);
+        assert_eq!((out.dead.len(), out.web_root_links), (1, 0));
+    }
+
+    #[test]
+    fn the_caveat_says_what_web_root_links_were_not_judged() {
+        let note = caveat(0, 2, None).unwrap();
+        assert!(
+            note.contains("2 root-relative links") && note.contains("web root"),
+            "{note}"
+        );
+        assert!(note.contains("they were not judged"), "{note}");
+        let one = caveat(0, 1, None).unwrap();
+        assert!(
+            one.contains("1 root-relative link in web pages names"),
+            "{one}"
+        );
     }
 }

@@ -4,6 +4,23 @@ All notable changes to CodeRipper. Versions follow the portfolio rule: **every p
 a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
 versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
 
+## 0.6.1 - 2026-10-11 (proposed)
+
+### Fixed
+- **DOC-010 no longer reports a root-relative link in an HTML page as dead.** lychee resolves `/branding/a.png` against the repository
+  root, which is how GitHub reads a Markdown file and not how a site serves a page (a SvelteKit app serves it from `static/`, an Astro
+  site from `public/`). The 2026-10-11 dogfood run reported two such links in a SvelteKit `app.html` as dead although both files exist
+  under `static/`. In a `.html`/`.htm` page, a link that is written root-relative on its line is now **not judged** (the repository does
+  not say where the web root is): it is not a finding, the run says how many it did not judge, and a run with nothing else to say is
+  the usual gap, never clean. A dead relative link in the same page is still a finding, and a root-relative link in Markdown is still read
+  against the repository root. Found by reading the link on its line, not by guessing a web root. Known limits: a line that holds both a relative and a root-relative
+  reference to the same file leaves both not judged; a form the reader does not recognise (an unquoted value ending in another character, a
+  non-ASCII spelling the page escapes) is still read against the repository root, the old behaviour.
+
+### Documented
+- README: where `.coderipper.toml` is read from. A root file is **not** applied to crates discovered below the root (each reads its
+  own); that errs toward more findings, never fewer, and `--deny` is one setting for the whole run.
+
 ## 0.6.0 - 2026-10-11 (proposed)
 
 ### Breaking
