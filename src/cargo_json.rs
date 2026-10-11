@@ -107,11 +107,35 @@ fn one_line(text: &str) -> String {
     }
 }
 
+/// `text` without ANSI escape sequences: with `CARGO_TERM_COLOR=always` (CI sets it) cargo colours the word `error`, and the line
+/// then no longer starts with `error:`.
+fn without_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' {
+            out.push(c);
+            continue;
+        }
+        if chars.peek() == Some(&'[') {
+            chars.next();
+            // parameters and intermediates, then one final byte in `@`..=`~`
+            for next in chars.by_ref() {
+                if ('@'..='~').contains(&next) {
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
 /// What cargo's own stderr says went wrong: its first `error:` line, then the first two lines of the `--- stderr` block that
 /// FOLLOWS it (a failed build script: a `-sys` crate says there what it could not find) or, when there is none, the last line after
 /// the final `Caused by:` (a registry or process failure's root cause). Falls back to the last line it wrote.
 fn cargo_cause(stderr: &str) -> String {
-    let lines: Vec<&str> = stderr.lines().map(str::trim).collect();
+    let plain = without_ansi(stderr);
+    let lines: Vec<&str> = plain.lines().map(str::trim).collect();
     let mut parts: Vec<&str> = Vec::new();
     let error_at = lines.iter().position(|l| l.starts_with("error:"));
     if let Some(at) = error_at {
@@ -337,6 +361,8 @@ fn build_with(
             "--message-format=json",
         ])
         .current_dir(root)
+        // plain text: the cause is read from cargo's stderr, which colour escapes would break
+        .env("CARGO_TERM_COLOR", "never")
         .env("RUSTFLAGS", compose_rustflags(&existing, extra_rustflags))
         .env_remove("CARGO_ENCODED_RUSTFLAGS");
     let mut cache_dir = None;
@@ -728,6 +754,21 @@ mod tests {
             "{cause}"
         );
         assert!(!cause.contains('\n'));
+    }
+
+    #[test]
+    fn a_coloured_stderr_is_read_like_a_plain_one() {
+        // CARGO_TERM_COLOR=always (CI): the word `error` is wrapped in escapes
+        let stderr = "\u{1b}[1m\u{1b}[31merror\u{1b}[0m\u{1b}[1m: failed to run custom build command for `x v1`\u{1b}[0m\n  --- stderr\n  \u{1b}[31mthe real reason\u{1b}[0m\n";
+        let cause = cargo_cause(stderr);
+        assert!(
+            cause.starts_with("error: failed to run custom build command"),
+            "{cause:?}"
+        );
+        assert!(
+            cause.contains("the real reason") && !cause.contains('\u{1b}'),
+            "{cause:?}"
+        );
     }
 
     #[test]
