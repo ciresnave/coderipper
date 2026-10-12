@@ -5,6 +5,18 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.5 - 2026-10-12 (proposed)
+
+### Documented
+- **Hosted service: sandbox, abuse policy and community-post scope (design only).**
+  `docs/superpowers/plans/2026-10-12-hosted-service.md` turns CireSnave's board-180 answers into a design: face A (results uploaded
+  from the user's own CI, first) and face B (scan by URL, later); a per-job isolated runner whose build phase has **no network at
+  all**, so a hostile `build.rs` cannot exfiltrate and a build that needs the network is a reported gap, never a pass; fair-share
+  ordering by an account's trailing usage (no quota) with a per-account concurrent-job cap of 2 stated as a safety measure; v1 B
+  scans only a public repository the logged-in user can push to; retention 30 days by default, user-settable, ceiling 365. It
+  records the Community lane's finding that **no service can post as a user today** (browser sessions only, no idempotency key, no
+  per-account post rate limit) and what that does to the "results post to community" ruling. Nothing is built; no behaviour changes.
+
 ## 0.6.4 - 2026-10-12 (proposed)
 
 ### Documented
