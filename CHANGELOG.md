@@ -1,10 +1,24 @@
 # Changelog
 
 All notable changes to CodeRipper. Versions follow the portfolio rule: **every pushed change changes the version;
-a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). None of these
-versions has been published to crates.io or tagged on GitHub yet: they are the versions of `main` at each merge.
+a breaking change changes the major version, and before 1.0 the major is the second number** (0.n.x). **0.6.3 was published
+to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
+recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
-## 0.6.3 - 2026-10-11 (proposed)
+## 0.6.4 - 2026-10-12 (proposed)
+
+### Documented
+- **Redaction pass (design only).** `docs/superpowers/plans/2026-10-12-redaction-pass.md` lists every place third-party build and tool
+  output reaches CodeRipper's output, what is done to it today (ANSI, control and bidi characters removed, length cuts; **no secret
+  redaction anywhere**), and a design for the hosted service: say less first (fixed sentences for build-script and tool failures),
+  redact known key and URL-userinfo shapes second, one function plus a final pass at serialisation. Nothing is built; a developer's
+  local output is unchanged.
+- **Known limit of 0.6.3's set-aside note.** `reachability` prints "N dead-code candidate(s) were set aside" as a note only when the
+  check has no findings at all (`findings.is_empty()`). When every finding is waived, the note is not printed; the count is in the
+  findings' `detail`, as before. Untested: DOC-010's findings limit is applied after the web-root reading, and no test sets
+  `max_findings` for it.
+
+## 0.6.3 - 2026-10-11 (published)
 
 ### Changed (a loosening, not a fix)
 - **`reachability`'s "N dead-code candidate(s) were set aside" is a note, not a finding.** When a library's own bin, test, example or
