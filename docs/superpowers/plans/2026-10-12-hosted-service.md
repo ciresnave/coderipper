@@ -14,7 +14,8 @@
 PM rulings on this design's first questions (2026-10-12): **B v1 scans only public repositories the logged-in user can push to**; a
 **per-account concurrent-job cap (2) exists as a safety measure, not a quota, and the docs say so**; **retention defaults to 30 days,
 is user-settable, with a ceiling of 365 days; the Community post persists as a summary and its link says "expired"**. Runner provider
-and a monthly cost ceiling are CireSnave's (board 187); **this design prices nothing**. The terms of service and takedown contact are
+and a cost ceiling were answered by CireSnave (board 187a): the runners are his VPS and spare home PCs and his cost does not change
+with the number of jobs, so **the limits are capacity, not money** (§10). The terms of service and takedown contact are
 CireSnave's (board 187).
 
 ## 2. Shape: two faces of one service
@@ -102,7 +103,7 @@ errors, the redaction count and the policy that applied), built from the library
 |---|---|
 | Anonymous abuse | **Login required** (his #4). `auth-framework` when ready; until then GitHub OAuth, which is also what answers "can this user push to this repository" |
 | Scanning someone else's repo and posting it | **v1 B scans only a public repository the logged-in user can push to**, verified through the GitHub API at submit time (PM, 2026-10-12). Private repositories use face A on their own CI |
-| One account starving the rest | **Fair share, not a cap** (his #3): jobs are ordered by the account's compute-seconds over the trailing 30 days, heaviest last; global backpressure on queue depth (a queue is allowed to grow; a job waits, it is not refused for the account's total) |
+| One account starving the rest | **Fair share, not a cap** (his #3 and his scheduling ruling of 2026-10-12): fewest runs in the last month first, then least resource used; see §10. Global backpressure on queue depth is a capacity limit, not a quota |
 | One account occupying every runner | **Per-account concurrent-job cap of 2.** A safety measure on parallelism, not a quota on total use; stated as such in the user-facing docs (PM, 2026-10-12). Any change is CireSnave's, because it sits beside "no limit" |
 | Outbound attacks from our runners | no egress during build (§3.3); the resolve proxy allows crates.io only |
 | Mining / pegged CPU | bounded by wall clock; flagged when CPU is saturated with no cargo progress; repeated timeouts deprioritise the account and can suspend it |
@@ -146,6 +147,28 @@ expiry (it lives until its author deletes it, the account is removed, or moderat
 - **Open, for CireSnave via the PM:** whether "post as a post on community" requires the service to post (route (c)) or accepts the
   user posting a prepared summary (route (a)).
 
+### 6.1 Outcome: route A agreed with the Community lane (2026-10-12)
+
+The Community lane did **not** want route (c) for v1 (a delegated credential, a per-author budget and an abuse path are unjustified
+when the user can post from their own session), and neither does this lane; the PM's instruction was "A = user's own session +
+idempotency key". Agreed contract, **proposals from the Community lane, nothing built on either side**:
+
+- **Prefill by URL fragment, not a cross-site POST** (a cross-origin write cannot work: the session cookie is `SameSite=Lax` and the
+  API accepts non-GET only from the community origin): `GET https://community.thinkersjournal.com/new-post#cr=<base64url(JSON)>`.
+  The fragment never reaches a server (no logs, no Referer, no URL length limit); a small bundled script reads it once, sets the
+  title, textarea and tags by `.value` (never `innerHTML`), and clears the hash. Without JavaScript the editor is empty and nothing
+  breaks. The user still presses Publish. Payload: `{title, markdownSource, tags: ["coderipper"], idempotencyKey}`; the body is
+  sanitised on render and the 100,000-character cap applies.
+- **Idempotency key:** header `Idempotency-Key` on `POST /posts` (`[A-Za-z0-9_-]`, 16-64 characters), scoped to
+  `(author_id, key)`; the same key and body returns the original post, the same key with a different body is a 422, no header is
+  today's behaviour. Our key is the **result id**: one scan result, one key; a re-scan gets a new key. **Community builds this
+  later: it needs a database migration applied by CireSnave before merge and a version from the PM; no date.**
+- **Update in place:** the user pastes the post's URL back to our dashboard; we then show text for `PATCH /posts/:id` (full replace
+  of title, markdown, status and tags). A server-side return-to-dashboard redirect is not in scope (an open-redirect guard would be
+  needed); say if it is wanted.
+- **Tag:** `coderipper` (freeform, slugified, no schema change; at most 5 tags per post).
+- Until the idempotency key exists, a double submit by the user makes two posts; the dashboard shows the post id once pasted back.
+
 ## 7. Build order (each step its own PR; nothing before the PM's go)
 
 1. Redaction pass: the redactor and its tests, then wiring and `--redact` (`2026-10-12-redaction-pass.md` §8 decisions still open).
@@ -175,3 +198,77 @@ the sandbox, never on a developer machine or in this repository's CI.
 - "Heavily sandboxed" is a claim to be earned by §8's fixtures, not asserted here.
 - Findings about a third party's repository are not a concern in v1 B by construction (§5); face A runs on the user's own workflow
   and can name any repository the user's token can read, which the GitHub permission check bounds.
+
+## 10. Scheduling and capacity (CireSnave, 2026-10-12)
+
+> *"we will give priority to those users who have run the least runs within the last month and, second to that, those who have used the
+> least resources.  That way, only the real resource hogs get slowed down or delayed."*
+>
+> *"Runners are on systems like my VPS and my spare PCs at home.  As such, no matter how many runners run in a month, my cost is exactly
+> the same."* (board 187a)
+
+So there is **no per-job money cost and no dollar ceiling**; the limits are **capacity** (CPU, memory, disk, queue length, uptime of
+machines that are not data-centre machines), and **the runners are CireSnave's own machines running strangers' jobs**, so isolation
+matters more, not less (an escape lands on his network). This section replaces the "compute-seconds ordering" wording in §5.
+
+### 10.1 The ordering
+
+A queued job's sort key, smallest first:
+
+1. **runs in the trailing 30 days** for its account (jobs that *started*; a job cancelled before it started does not count; a job
+   re-queued because its runner vanished counts once);
+2. **resource used in the trailing 30 days** for the account (see 10.2);
+3. **submission time** (first in, first out among equals).
+
+The account's two numbers are read **when a runner becomes free**, not when the job was submitted, so a user who has just run twenty jobs
+moves behind a user who has run none, including jobs already waiting. That is the intent of "only the real resource hogs get slowed
+down". The ordering is published (the terms say so).
+
+### 10.2 What "resource" means
+
+Measured by the host, never by the job: **CPU-seconds actually consumed** (the primary number), plus **peak memory x wall-clock
+seconds** and **peak disk**, recorded per job and kept as job metadata. For ordering they are combined into one number with weights
+that reflect which resource is scarce on the runner that ran it (a runner short of memory weights memory); **the weights are tunable
+and are not measured yet** (open: they need a few real jobs on the real machines, the measurement of §8's spike). Two things are
+deliberately **not** in it: the repository's size and the result's severity.
+
+### 10.3 What the ordering does not do
+
+- **It is not a quota.** Nobody is refused for total use; they wait behind lighter users. The per-account **concurrent cap of 2**
+  remains and is stated as a safety limit.
+- **Starvation.** Strict priority can delay a heavy user for as long as lighter users keep arriving, which is what was asked for. The
+  design adds one **recommended** guard, not a ruling: a waiting job's key is improved by the time it has waited (after `{N}` hours it
+  is next), so a job is never starved forever by a stream of lighter ones. Open for CireSnave: yes/no and `{N}` (propose 24).
+- **Gaming.** Many accounts split one person's usage; login is required and one person one account is a term, but the real control is
+  the push-access rule (a repository can be scanned only by someone who can push to it).
+
+### 10.4 Capacity limits on his machines
+
+| Limit | Behaviour |
+|---|---|
+| Per-runner CPU, memory, disk | each runner advertises its capacity; a job declares nothing (the host picks the smallest slot the repository's workspace needs, with the caps of §3.5) and is killed at the cap, reported as a gap with the cap named |
+| Queue length | a **global queue ceiling**; past it a new submission is refused with "try again later" and nothing is discarded that was accepted. Capacity, not a user quota |
+| A machine goes away (a home PC sleeps, a VPS reboots) | jobs run under a lease with a heartbeat; a lost job is re-queued whole and counted once; a runner that fails twice is taken out of the pool until a person returns it |
+| Heterogeneous machines | a runner pool, each with a label (VPS, home); a job that needs more than a home PC offers waits for the VPS |
+| Many jobs, one machine | one job per isolated runner VM; per-runner concurrency is set by cores and memory, not by the account cap |
+
+### 10.5 The runners are untrusted-job hosts (stricter than §3)
+
+Because the machines are his own, §3's isolation is a **minimum**, with these added:
+
+- **Hardware-virtualised isolation only** (a microVM or a full VM); a container sharing the host kernel is not enough on a machine
+  that also holds personal files. No job gets a host mount, a GPU, USB or the clipboard.
+- **Network:** the runner hosts sit on a **separate network segment with no route to the home LAN, router or other machines** (a guest
+  VLAN or a VPS-only network); egress is the §3 resolve proxy only, enforced **on the host**, not in the guest.
+- **Nothing else of his lives in the job's reach**: a dedicated OS user or VM host for the runner service, no personal credentials,
+  SSH agent, cloud tokens or password-manager session on a runner host, and no shared folders with the owner's desktop.
+- **Disk:** per-job overlay destroyed after the job; the host's free space is a capacity limit (a job that fills it is killed).
+- **A home PC is a worse host than a VPS** (it also holds the owner's data, it is rebooted, it is on a home connection and a home
+  address). The recommendation is **VPS first for face B**, home PCs only after the segment and VM isolation above are in place and
+  tested with §8's hostile fixtures.
+- Open for CireSnave: whether a home PC will be used at all in v1.
+
+### 10.6 Metrics that must exist before B opens
+
+Queue depth and age, per-account runs and resource over 30 days, per-runner utilisation, jobs killed at a cap by cap, jobs re-queued,
+and runner health. They are what makes "only the hogs wait" checkable; without them the ordering cannot be shown to work.

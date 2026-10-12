@@ -5,6 +5,18 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.6 - 2026-10-12 (proposed)
+
+### Documented
+- **Hosted service: terms of service draft, scheduling, and the community-post route.**
+  `docs/hosted-service/terms-of-service-draft.md` is a plain-language draft of the terms and the takedown/abuse text for scan-by-URL
+  (public repositories the user can push to; a no-network sandbox; results shown and posted by the user), with every legal assumption
+  marked and the contact left as `{CONTACT}`: **a draft for CireSnave's approval, not legal advice and not reviewed by a lawyer.**
+  `docs/superpowers/plans/2026-10-12-hosted-service.md` gains §10 (the queue is ordered by fewest runs in the last month, then least
+  resource used, per CireSnave; capacity limits for runners that are his own VPS and home PCs, with stricter isolation because they
+  are his machines) and §6.1 (route A agreed with the Community lane: the user posts from their own session via a URL-fragment
+  prefill and an idempotency key; no service credential). Nothing is built; no behaviour changes.
+
 ## 0.6.5 - 2026-10-12 (proposed)
 
 ### Documented
