@@ -503,3 +503,68 @@ fn when_everything_is_set_aside_it_is_a_note_and_not_a_finding() {
         result.notes
     );
 }
+
+const PROC_MACRO_MANIFEST: &str = "\
+[package]
+name = \"fixture\"
+version = \"0.1.0\"
+edition = \"2021\"
+
+[lib]
+proc-macro = true
+";
+
+const PROC_MACRO_LIB: &str = "\
+mod helpers;
+
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Hello)]
+pub fn derive_hello(_input: TokenStream) -> TokenStream {
+    helpers::make()
+}
+
+#[proc_macro]
+pub fn shout(input: TokenStream) -> TokenStream {
+    input
+}
+
+#[proc_macro_attribute]
+pub fn tagged(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    item
+}
+";
+
+#[test]
+fn a_proc_macro_crate_runs_and_still_reports_its_dead_helper() {
+    // Issue 54: the rewrite turned `pub fn derive_hello` into `pub(crate) fn`, which rustc rejects
+    // ("functions tagged with `#[proc_macro_derive]` must be `pub`"), so every proc-macro crate was
+    // "could not run" (vulkane_derive in the 2026-10-12 sweep). The three entry points stay `pub`;
+    // an ordinary dead helper beside them must still be found.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", PROC_MACRO_MANIFEST),
+        ("src/lib.rs", PROC_MACRO_LIB),
+        (
+            "src/helpers.rs",
+            "pub fn make() -> proc_macro::TokenStream { proc_macro::TokenStream::new() }\npub fn dead_helper() {}\n",
+        ),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(subjects(&findings), vec!["dead_helper"], "{findings:?}");
+}
+
+#[test]
+fn a_proc_macro_crate_with_nothing_dead_is_clean() {
+    // The clean twin of the test above: the same crate with the dead helper removed reports nothing,
+    // so the finding there is the helper's and not an artifact of the macros.
+    let repo = git_repo_with(&[
+        ("Cargo.toml", PROC_MACRO_MANIFEST),
+        ("src/lib.rs", PROC_MACRO_LIB),
+        (
+            "src/helpers.rs",
+            "pub fn make() -> proc_macro::TokenStream { proc_macro::TokenStream::new() }\n",
+        ),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    assert!(findings.is_empty(), "{findings:?}");
+}
