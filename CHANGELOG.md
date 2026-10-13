@@ -5,6 +5,24 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.9 - 2026-10-13 (proposed)
+
+### Fixed
+- **`reachability` no longer says an item "has zero callers" when it has callers that are themselves reported.** After the
+  `pub` downgrade a whole chain lights up: a private helper called only by an unused public function was reported as
+  "`children_of` has zero callers found within this crate" although `eval_recipe` calls it (the 2026-10-12 sweep read 9 of 32
+  sampled findings of this kind). When every item that mentions the candidate is itself a finding of the same run, the
+  summary now reads "`children_of` is reachable only from `eval_recipe`, which has no callers found within this crate" (up to
+  three names, then a count), and the detail says to deal with those first. A candidate nothing mentions, or that anything not
+  reported mentions, keeps the old text. The set of findings, their locations, subjects and severities, and the exit code are
+  unchanged; only the `summary` of such findings (and the `detail`) differ, so a script that matched the old sentence for these
+  items must allow for the new one. A type is not attributed to its own methods (an inherent impl lends its header to them).
+  Two dead items that only call each other (`fn a() { b() }`, `fn b() { a() }`) are said to be reachable only through each
+  other, since "which has no callers" would be false of either. Matching is by identifier, like the rest of the rescue, so a
+  name shared with another item can make the list longer than the truth, and a word that appears only in a string literal that
+  is itself a path, or in `{name}` inside a string, counts as a mention; an `impl` header and a `use ... as` alias are not
+  read, so the list can also be incomplete. Applies to a package with a library (the only case the rescue pass runs).
+
 ## 0.6.8 - 2026-10-13 (proposed)
 
 ### Changed (a loosening: fewer `reachability` findings in a workspace)

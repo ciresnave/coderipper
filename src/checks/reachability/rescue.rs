@@ -36,6 +36,19 @@ pub struct Split {
     /// How many of `rescued` were reached only through `members` (the files of workspace members that
     /// depend on this package), not through this package's own other targets.
     pub rescued_by_members: usize,
+    /// For a kept hit `(file, line, symbol)`: the items that mention it, when every one of them is
+    /// itself a kept hit (so it has no caller that is not also reported dead). Sorted. A hit that is
+    /// mentioned by nothing, or by anything not reported, has no entry.
+    pub only_from: BTreeMap<(String, u32, String), Origin>,
+}
+
+/// What mentions a kept hit, when all of it is reported.
+pub struct Origin {
+    /// The reported items that mention it, sorted.
+    pub from: Vec<String>,
+    /// It also reaches one of them (`fn a() { b() } fn b() { a() }`): there is no root among them, so
+    /// "which has no callers" would be false of each.
+    pub cyclic: bool,
 }
 
 /// `lib_files`: every file the lib compiles (`foreign::lib_module_files`). `foreign`: what this
@@ -64,6 +77,7 @@ pub fn rescue(
         kept: Vec::new(),
         rescued: Vec::new(),
         rescued_by_members: 0,
+        only_from: BTreeMap::new(),
     };
     for hit in hits {
         if own.contains(&hit.symbol) {
@@ -77,6 +91,48 @@ pub fn rescue(
         } else {
             split.kept.push(hit);
         }
+    }
+    let kept_symbols: BTreeSet<String> = split.kept.iter().map(|h| h.symbol.clone()).collect();
+    // symbol -> the reported items that mention it, for every kept symbol that qualifies
+    let mut mentioners: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for symbol in &kept_symbols {
+        let m = graph.mentioned_by(symbol);
+        if !m.is_empty() && m.iter().all(|n| kept_symbols.contains(n)) {
+            mentioners.insert(symbol.clone(), m);
+        }
+    }
+    // item -> the qualifying symbols it mentions (the same relation, the other way round)
+    let mut mentions: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for (symbol, from) in &mentioners {
+        for m in from {
+            mentions
+                .entry(m.as_str())
+                .or_default()
+                .push(symbol.as_str());
+        }
+    }
+    for hit in &split.kept {
+        let Some(from) = mentioners.get(&hit.symbol) else {
+            continue;
+        };
+        // does `hit` reach one of the items that mention it?
+        let mut seen: BTreeSet<&str> = BTreeSet::new();
+        let mut stack = vec![hit.symbol.as_str()];
+        while let Some(at) = stack.pop() {
+            for next in mentions.get(at).into_iter().flatten() {
+                if seen.insert(*next) {
+                    stack.push(*next);
+                }
+            }
+        }
+        let cyclic = from.iter().any(|m| seen.contains(m.as_str()));
+        split.only_from.insert(
+            (hit.file.clone(), hit.line, hit.symbol.clone()),
+            Origin {
+                from: from.iter().cloned().collect(),
+                cyclic,
+            },
+        );
     }
     Ok(split)
 }
@@ -94,6 +150,10 @@ struct TraitImpl {
 struct Graph {
     /// name -> the identifiers inside each item (or macro, or `use` rename) carrying that name.
     items: BTreeMap<String, Vec<BTreeSet<String>>>,
+    /// name -> the identifiers in the item's OWN lines, without the header an inherent impl lends to its
+    /// methods (`items` adds it so a method keeps its type's bounds alive; here it would make a dead
+    /// type look "mentioned by" its own methods).
+    own_text: BTreeMap<String, Vec<BTreeSet<String>>>,
     trait_impls: Vec<TraitImpl>,
     /// Names of the lib's own structs, enums, unions and type aliases.
     types: BTreeSet<String>,
@@ -114,6 +174,16 @@ impl Graph {
         };
         collector.visit_file(&parsed);
         Ok(())
+    }
+
+    /// The names of the items, other than `name` itself, whose own lines mention `name`.
+    fn mentioned_by(&self, name: &str) -> BTreeSet<String> {
+        self.own_text
+            .iter()
+            .filter(|(item, _)| item.as_str() != name)
+            .filter(|(_, bodies)| bodies.iter().any(|ids| ids.contains(name)))
+            .map(|(item, _)| item.clone())
+            .collect()
     }
 
     fn impl_is_live(&self, imp: &TraitImpl, reached: &BTreeSet<String>) -> bool {
@@ -176,6 +246,11 @@ impl Collector<'_> {
 
     fn record(&mut self, ident: &syn::Ident, whole: proc_macro2::Span) {
         let mut idents = self.idents(whole.start().line, whole.end().line);
+        self.graph
+            .own_text
+            .entry(clean(ident))
+            .or_default()
+            .push(idents.clone());
         if let Some(header) = self.inherent_headers.last() {
             idents.extend(header.iter().cloned());
         }
@@ -406,6 +481,90 @@ pub(crate) fn unrelated() -> i32 { 5 }
         (7, "dead_b"),
         (8, "unrelated"),
     ];
+
+    fn only_from_names(split: &Split, symbol: &str) -> Option<Vec<String>> {
+        split
+            .only_from
+            .iter()
+            .find(|((_, _, s), _)| s == symbol)
+            .map(|(_, origin)| origin.from.clone())
+    }
+
+    fn is_cyclic(split: &Split, symbol: &str) -> Option<bool> {
+        split
+            .only_from
+            .iter()
+            .find(|((_, _, s), _)| s == symbol)
+            .map(|(_, origin)| origin.cyclic)
+    }
+
+    #[test]
+    fn items_that_only_call_each_other_are_marked_cyclic_and_a_chain_is_not() {
+        // fn a() { b() } fn b() { a() }: each is "mentioned only by a reported item", but neither is a root.
+        let src = "pub(crate) fn a() { b(); }\npub(crate) fn b() { a(); }\n";
+        let split = run(src, &[(1, "a"), (2, "b")], &[]);
+        assert_eq!(is_cyclic(&split, "a"), Some(true));
+        assert_eq!(is_cyclic(&split, "b"), Some(true));
+
+        // a longer cycle with a tail: entry -> a -> b -> c -> a
+        let src = "pub(crate) fn entry() { a(); }\npub(crate) fn a() { b(); }\npub(crate) fn b() { c(); }\npub(crate) fn c() { a(); }\n";
+        let split = run(src, &[(1, "entry"), (2, "a"), (3, "b"), (4, "c")], &[]);
+        assert_eq!(is_cyclic(&split, "entry"), None, "nothing mentions entry");
+        assert_eq!(is_cyclic(&split, "a"), Some(true));
+        assert_eq!(is_cyclic(&split, "b"), Some(true));
+        assert_eq!(is_cyclic(&split, "c"), Some(true));
+
+        // a plain chain is not a cycle
+        let split = run(CHAIN, &CHAIN_HITS, &["rescued_root"]);
+        assert_eq!(is_cyclic(&split, "dead_b"), Some(false));
+    }
+
+    #[test]
+    fn a_candidate_mentioned_only_by_other_candidates_says_from_which() {
+        let split = run(CHAIN, &CHAIN_HITS, &["rescued_root"]);
+        // dead_b is called only by dead_a, and dead_a is itself reported
+        assert_eq!(
+            only_from_names(&split, "dead_b"),
+            Some(vec!["dead_a".to_string()])
+        );
+        // nothing mentions dead_a or unrelated: they are the roots of what is dead
+        assert_eq!(only_from_names(&split, "dead_a"), None);
+        assert_eq!(only_from_names(&split, "unrelated"), None);
+    }
+
+    #[test]
+    fn a_candidate_is_attributed_only_to_items_that_are_all_reported() {
+        // `shared2` is mentioned by two items and both are reported: it may say so.
+        let src = "pub(crate) fn used() { shared(); }\npub(crate) fn dead() { shared2(); }\npub(crate) fn live2() { shared2(); }\npub(crate) fn shared() {}\npub(crate) fn shared2() {}\n";
+        let split = run(
+            src,
+            &[
+                (1, "used"),
+                (2, "dead"),
+                (3, "live2"),
+                (4, "shared"),
+                (5, "shared2"),
+            ],
+            &["used"],
+        );
+        assert_eq!(
+            only_from_names(&split, "shared2"),
+            Some(vec!["dead".to_string(), "live2".to_string()])
+        );
+        // a mentioner rustc did not report (a live function, say) blocks the claim
+        let src = "pub(crate) fn dead() { helper(); }\nfn caller_rustc_saw_as_live() { helper(); }\npub(crate) fn helper() {}\n";
+        let split = run(src, &[(1, "dead"), (3, "helper")], &[]);
+        assert_eq!(only_from_names(&split, "helper"), None);
+    }
+
+    #[test]
+    fn a_dead_type_is_not_said_to_be_reachable_only_from_its_own_methods() {
+        // An inherent impl's header (the type's name) is lent to its methods so they keep bounds alive; that
+        // must not turn the type into something "reachable only from" the methods.
+        let src = "pub(crate) struct Dead;\nimpl Dead {\n    pub(crate) fn go(&self) {}\n}\n";
+        let split = run(src, &[(1, "Dead"), (3, "go")], &[]);
+        assert_eq!(only_from_names(&split, "Dead"), None);
+    }
 
     #[test]
     fn a_candidate_a_foreign_file_names_is_rescued_and_so_is_everything_it_reaches() {

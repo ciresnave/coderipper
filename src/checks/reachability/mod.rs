@@ -63,6 +63,29 @@ impl ReachabilityCheck {
     }
 }
 
+/// "`x` is reachable only from `a`, which has no callers found within this crate" (at most three
+/// names, then a count).
+fn reachable_only_from(symbol: &str, from: &[String], cyclic: bool) -> String {
+    const SHOWN: usize = 3;
+    let shown: Vec<String> = from.iter().take(SHOWN).map(|n| format!("`{n}`")).collect();
+    let mut names = shown.join(", ");
+    if from.len() > SHOWN {
+        names.push_str(&format!(" and {} more", from.len() - SHOWN));
+    }
+    if cyclic {
+        // The items that call it are themselves reached only through it: "which has no callers" would be
+        // false of each, so say what is true of the group.
+        format!(
+            "`{symbol}` is reachable only from {names}, and those are reachable only through it or each other: \
+             nothing outside that group has callers found within this crate"
+        )
+    } else if from.len() == 1 {
+        format!("`{symbol}` is reachable only from {names}, which has no callers found within this crate")
+    } else {
+        format!("`{symbol}` is reachable only from {names}, none of which has callers found within this crate")
+    }
+}
+
 impl Check for ReachabilityCheck {
     fn id(&self) -> &'static str {
         "reachability"
@@ -142,7 +165,7 @@ impl Check for ReachabilityCheck {
         // far as this check can tell; set them aside, and everything they reach.
         // Items another workspace member that depends on this package names are live too (a member is
         // judged alone, so without this a library's API used by its sibling crates looks dead).
-        let (candidates, set_aside, by_members, dependents) = if has_lib {
+        let (candidates, set_aside, by_members, dependents, only_from) = if has_lib {
             let lib_files = lib_module_files(&wt.root)?;
             let foreign = foreign_identifiers(&wt.root, &lib_files)?;
             let members = dependent_member_identifiers(&wt.root)?;
@@ -158,9 +181,10 @@ impl Check for ReachabilityCheck {
                 split.rescued.len(),
                 split.rescued_by_members,
                 members.names,
+                split.only_from,
             )
         } else {
-            (candidates, 0, 0, Vec::new())
+            (candidates, 0, 0, Vec::new(), Default::default())
         };
         let by_members_note = if by_members == 0 {
             String::new()
@@ -194,25 +218,42 @@ impl Check for ReachabilityCheck {
 
         let findings: Vec<Finding> = candidates
             .into_iter()
-            .map(|hit| Finding {
-                check_id: "reachability".into(),
-                severity: Severity::Medium,
-                confidence: Confidence::Medium,
-                project: project_name.clone(),
-                location: Some(Location {
-                    file: hit.file.clone(),
-                    line: Some(hit.line),
-                }),
-                subject: Some(hit.symbol.clone()),
-                summary: format!("`{}` has zero callers found within this crate", hit.symbol),
-                detail: format!(
-                    "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
-                     `pub(crate)` in a throwaway worktree, so the lint's normal `pub`-exemption doesn't \
-                     hide it. File: {}, line {}.{set_aside_note}",
-                    hit.file, hit.line
-                ),
-                positive_control: Some(positive_control.clone()),
-                member: None,
+            .map(|hit| {
+                // An item only other reported items mention is dead BECAUSE they are: say so, instead of
+                // claiming it has no callers (it has, and they are dead too).
+                let origin = only_from.get(&(hit.file.clone(), hit.line, hit.symbol.clone()));
+                let (summary, origin_note) = match origin {
+                    Some(origin) => (
+                        reachable_only_from(&hit.symbol, &origin.from, origin.cyclic),
+                        " Every item that mentions it is itself reported (matching is by identifier): \
+                         remove or revive those first and this one follows."
+                            .to_string(),
+                    ),
+                    None => (
+                        format!("`{}` has zero callers found within this crate", hit.symbol),
+                        String::new(),
+                    ),
+                };
+                Finding {
+                    check_id: "reachability".into(),
+                    severity: Severity::Medium,
+                    confidence: Confidence::Medium,
+                    project: project_name.clone(),
+                    location: Some(Location {
+                        file: hit.file.clone(),
+                        line: Some(hit.line),
+                    }),
+                    subject: Some(hit.symbol.clone()),
+                    summary,
+                    detail: format!(
+                        "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
+                         `pub(crate)` in a throwaway worktree, so the lint's normal `pub`-exemption doesn't \
+                         hide it. File: {}, line {}.{origin_note}{set_aside_note}",
+                        hit.file, hit.line
+                    ),
+                    positive_control: Some(positive_control.clone()),
+                    member: None,
+                }
             })
             .collect();
 
@@ -230,5 +271,41 @@ impl Check for ReachabilityCheck {
         }
 
         Ok((findings, notes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reachable_only_from;
+
+    fn names(n: usize) -> Vec<String> {
+        (1..=n).map(|i| format!("f{i}")).collect()
+    }
+
+    #[test]
+    fn one_origin_reads_as_a_single_item_without_callers() {
+        assert_eq!(
+            reachable_only_from("x", &names(1), false),
+            "`x` is reachable only from `f1`, which has no callers found within this crate"
+        );
+    }
+
+    #[test]
+    fn several_origins_are_listed_up_to_three_then_counted() {
+        assert_eq!(
+            reachable_only_from("x", &names(3), false),
+            "`x` is reachable only from `f1`, `f2`, `f3`, none of which has callers found within this crate"
+        );
+        assert_eq!(
+            reachable_only_from("x", &names(5), false),
+            "`x` is reachable only from `f1`, `f2`, `f3` and 2 more, none of which has callers found within this crate"
+        );
+    }
+
+    #[test]
+    fn a_cycle_is_not_called_callerless() {
+        let text = reachable_only_from("a", &names(1), true);
+        assert!(text.contains("through it or each other"), "{text}");
+        assert!(!text.contains("which has no callers"), "{text}");
     }
 }
