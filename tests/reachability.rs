@@ -568,3 +568,124 @@ fn a_proc_macro_crate_with_nothing_dead_is_clean() {
     let findings = run_reachability(&repo).unwrap();
     assert!(findings.is_empty(), "{findings:?}");
 }
+
+/// A virtual workspace around the library `engine`:
+/// - `app` depends on it and calls `used_by_app`;
+/// - `mid` depends on it and glob re-exports it; `top` depends on `mid` (not on `engine`) and calls `used_through_mid`;
+/// - `devuser` has `engine` as a dev-dependency and calls `used_by_devuser` from an integration test;
+/// - `loner` depends on nothing, but defines a function with the same NAME as `used_by_loner_name`.
+fn sibling_workspace() -> tempfile::TempDir {
+    let package = |name: &str, deps: &str| {
+        format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n{deps}")
+    };
+    let engine_dep = "\n[dependencies]\nengine = { path = \"../engine\" }\n";
+    let files: Vec<(&str, String)> = vec![
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"engine\", \"app\", \"mid\", \"top\", \"devuser\", \"loner\"]\nresolver = \"2\"\n"
+                .to_string(),
+        ),
+        ("engine/Cargo.toml", package("engine", "")),
+        (
+            "engine/src/lib.rs",
+            "pub fn used_by_app() -> i32 { 1 }\n\
+             pub fn used_through_mid() -> i32 { 2 }\n\
+             pub fn used_by_devuser() -> i32 { 3 }\n\
+             pub fn used_by_loner_name() -> i32 { 4 }\n\
+             pub fn dead_everywhere() -> i32 { 5 }\n"
+                .to_string(),
+        ),
+        ("app/Cargo.toml", package("app", engine_dep)),
+        (
+            "app/src/lib.rs",
+            "pub fn run() -> i32 { engine::used_by_app() }\n".to_string(),
+        ),
+        ("mid/Cargo.toml", package("mid", engine_dep)),
+        ("mid/src/lib.rs", "pub use engine::*;\n".to_string()),
+        (
+            "top/Cargo.toml",
+            package("top", "\n[dependencies]\nmid = { path = \"../mid\" }\n"),
+        ),
+        (
+            "top/src/main.rs",
+            "fn main() { let _ = mid::used_through_mid(); }\n".to_string(),
+        ),
+        (
+            "devuser/Cargo.toml",
+            package(
+                "devuser",
+                "\n[dev-dependencies]\nengine = { path = \"../engine\" }\n",
+            ),
+        ),
+        ("devuser/src/lib.rs", "pub fn nothing() {}\n".to_string()),
+        (
+            "devuser/tests/it.rs",
+            "#[test]\nfn t() { assert_eq!(engine::used_by_devuser(), 3); }\n".to_string(),
+        ),
+        ("loner/Cargo.toml", package("loner", "")),
+        (
+            "loner/src/lib.rs",
+            "pub fn used_by_loner_name() -> i32 { 9 }\n".to_string(),
+        ),
+    ];
+    let borrowed: Vec<(&str, &str)> = files.iter().map(|(n, c)| (*n, c.as_str())).collect();
+    git_repo_with(&borrowed)
+}
+
+fn run_reachability_on_member(
+    repo: &tempfile::TempDir,
+    member: &str,
+) -> anyhow::Result<Vec<coderipper::finding::Finding>> {
+    ReachabilityCheck::new().run(&CheckContext::new(repo.path().join(member)))
+}
+
+#[test]
+fn an_item_a_member_that_depends_on_the_crate_names_is_not_reported() {
+    // Issue (2026-10-12 sweep): a member was judged alone, so a library's API used by its sibling crates
+    // was reported dead (unisql: 8 of 8 sampled findings). Direct dependents, a re-exporting middle member
+    // with a dependent of its own, and a dev-dependency's integration test all count.
+    let repo = sibling_workspace();
+    let findings = run_reachability_on_member(&repo, "engine").unwrap();
+    assert_eq!(
+        subjects(&findings),
+        vec!["dead_everywhere", "used_by_loner_name"],
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn a_member_that_does_not_depend_on_the_crate_rescues_nothing() {
+    // `loner` defines a function with the same name but cannot name engine's: it stays reported.
+    let repo = sibling_workspace();
+    let findings = run_reachability_on_member(&repo, "engine").unwrap();
+    assert!(
+        findings
+            .iter()
+            .any(|f| f.subject.as_deref() == Some("used_by_loner_name")),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn the_finding_says_which_members_set_candidates_aside() {
+    let repo = sibling_workspace();
+    let findings = run_reachability_on_member(&repo, "engine").unwrap();
+    let detail = &findings[0].detail;
+    assert!(detail.contains("workspace member"), "{detail}");
+    // all three rescued candidates were reached only through a member's files
+    assert!(detail.contains(" 3 of them because "), "{detail}");
+    assert!(
+        detail.contains("(the members that do: app, devuser, mid, top)"),
+        "{detail}"
+    );
+    assert!(!detail.contains("loner"), "{detail}");
+}
+
+#[test]
+fn a_member_with_no_dependents_is_reported_exactly_as_before() {
+    // `app` is depended on by nobody: its own API is judged as it always was.
+    let repo = sibling_workspace();
+    let findings = run_reachability_on_member(&repo, "app").unwrap();
+    assert_eq!(subjects(&findings), vec!["run"], "{findings:?}");
+    assert!(!findings[0].detail.contains("workspace member"));
+}

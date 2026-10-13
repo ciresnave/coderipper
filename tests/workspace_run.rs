@@ -526,3 +526,57 @@ fn a_set_aside_note_names_the_member_it_is_about() {
     );
     assert!(out.stderr.contains("beta: reachability:"), "{}", out.stderr);
 }
+
+#[test]
+fn a_workspace_run_does_not_report_what_a_dependent_member_uses() {
+    // The same sibling-aware reading through `--workspace`, where each member is rewritten in the session's checkout.
+    let package = |name: &str, deps: &str| manifest(name, deps);
+    let files: Vec<(&str, String)> = vec![
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"engine\", \"app\"]\nresolver = \"2\"\n".to_string(),
+        ),
+        ("engine/Cargo.toml", package("engine", "")),
+        (
+            "engine/src/lib.rs",
+            "pub fn used_by_app() -> i32 { 1 }\npub fn dead_everywhere() -> i32 { 2 }\n"
+                .to_string(),
+        ),
+        (
+            "app/Cargo.toml",
+            package(
+                "app",
+                "\n[dependencies]\nengine = { path = \"../engine\" }\n",
+            ),
+        ),
+        (
+            "app/src/main.rs",
+            "fn main() { let _ = engine::used_by_app(); }\n".to_string(),
+        ),
+    ];
+    let refs: Vec<(&str, &str)> = files.iter().map(|(a, b)| (*a, b.as_str())).collect();
+    let ws = common::git_repo_with(&refs);
+    let out = run(&[
+        "check",
+        "reachability",
+        "--workspace",
+        "--project",
+        path(ws.path()),
+    ]);
+    assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
+    let lines: Vec<&str> = out
+        .stdout
+        .lines()
+        .filter(|l| l.ends_with("(reachability)"))
+        .collect();
+    assert!(
+        lines.iter().any(|l| l.contains("`dead_everywhere`")),
+        "{}",
+        out.stdout
+    );
+    assert!(
+        !lines.iter().any(|l| l.contains("`used_by_app`")),
+        "{}",
+        out.stdout
+    );
+}

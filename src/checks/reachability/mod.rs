@@ -11,7 +11,11 @@
 //! appearing in an item's source: `macro_rules!` bodies, `use a as b` renames, inherent-impl headers,
 //! trait impls (live with their type), names inside format strings and path-shaped string literals
 //! (`#[serde(default = "f")]`), and every non-lib target the manifest declares, custom paths included.
-//! What it cannot see: items used only by proc-macro or derive output that never spells their name.
+//! **In a workspace**, the members that depend on this package (directly or through other members, by
+//! `path`) count like its own bins and tests: an item one of them names is live, so a library's API used
+//! only by its sibling crates is not reported. A member that does not depend on this package rescues
+//! nothing, and a dependency redirected with `[patch]` or `[replace]` is not seen (cargo metadata gives it no
+//! path). What it cannot see: items used only by proc-macro or derive output that never spells their name.
 //!
 //! **Known limitations, found and confirmed during implementation and review:**
 //! - **`pub` items inside bin targets are not analyzed** when the package also has a library: rustc
@@ -37,7 +41,7 @@ use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::RewrittenWorktree;
 use diagnostics::{collect_dead_code_in, Targets};
-use foreign::{foreign_identifiers, lib_module_files};
+use foreign::{dependent_member_identifiers, foreign_identifiers, lib_module_files};
 use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
 use sentinel::{inject_sentinel, SENTINEL_SYMBOL};
@@ -136,20 +140,48 @@ impl Check for ReachabilityCheck {
             .collect();
         // Items a target the lib build never compiled (bin, test, example, bench) names are live as
         // far as this check can tell; set them aside, and everything they reach.
-        let (candidates, set_aside) = if has_lib {
+        // Items another workspace member that depends on this package names are live too (a member is
+        // judged alone, so without this a library's API used by its sibling crates looks dead).
+        let (candidates, set_aside, by_members, dependents) = if has_lib {
             let lib_files = lib_module_files(&wt.root)?;
             let foreign = foreign_identifiers(&wt.root, &lib_files)?;
-            let split = rescue(candidates, &foreign, &wt.root, &lib_files)?;
-            (split.kept, split.rescued.len())
+            let members = dependent_member_identifiers(&wt.root)?;
+            let split = rescue(
+                candidates,
+                &foreign,
+                &members.identifiers,
+                &wt.root,
+                &lib_files,
+            )?;
+            (
+                split.kept,
+                split.rescued.len(),
+                split.rescued_by_members,
+                members.names,
+            )
         } else {
-            (candidates, 0)
+            (candidates, 0, 0, Vec::new())
+        };
+        let by_members_note = if by_members == 0 {
+            String::new()
+        } else {
+            format!(
+                " {by_members} of them because a workspace member that depends on this crate mentions their name \
+                 (the members that do: {}).",
+                dependents.join(", ")
+            )
+        };
+        let from_members = if dependents.is_empty() {
+            ""
+        } else {
+            ", or a workspace member that depends on it,"
         };
         let set_aside_note = if set_aside == 0 {
             String::new()
         } else {
             format!(
                 " {set_aside} other candidate(s) in this crate were not reported because a file the \
-                 library does not compile (a bin, test, example or bench) mentions their name."
+                 library does not compile (a bin, test, example or bench){from_members} mentions their name.{by_members_note}"
             )
         };
 
@@ -190,10 +222,10 @@ impl Check for ReachabilityCheck {
         let mut notes = Vec::new();
         if findings.is_empty() && set_aside > 0 {
             notes.push(format!(
-                "reachability: {set_aside} dead-code candidate(s) were set aside because a bin, test, example or bench reaches \
-                 them by name; nothing else was found. With a library only the library is built, so an item another target \
-                 uses looks dead to rustc; matching is by identifier, so a dead item that shares a name with something live \
-                 is hidden too"
+                "reachability: {set_aside} dead-code candidate(s) were set aside because a bin, test, example or bench of this \
+                 package{from_members} reaches them by name; nothing else was found. With a \
+                 library only the library is built, so an item another target uses looks dead to rustc; matching is by \
+                 identifier, so a dead item that shares a name with something live is hidden too"
             ));
         }
 
