@@ -17,7 +17,7 @@ Documentation only; no code or behaviour change.
   default-deny network with a proxy-side domain allowlist and per-repository approvals recorded in the report; the host-side agent as
   the attack surface; result integrity for runners the operator does not run; a per-host-class and per-stack launch gate with its
   fixtures; and the measurement spike (CodeRipper's own build: 46 s in a hardware-virtualised Linux guest, 2 min 36 s native on
-  Windows, 3 runs each, caveats in section 9; the emulation arm was attempted and is blocked: no user-mode emulator is registered, see section 9.3). The terms' section 4 now says the network is limited to an allowlist and the report
+  Windows, 3 runs each, caveats in section 9; the emulation arm was attempted, is blocked (no user-mode emulator is registered) and stays unmeasured by ruling, see section 9.3). The terms' section 4 now says the network is limited to an allowlist and the report
   lists approved domains.
 
 ## 0.6.13 - 2026-10-13 (proposed)

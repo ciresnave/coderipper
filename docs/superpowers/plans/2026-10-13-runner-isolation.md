@@ -246,10 +246,16 @@ The PM allowed a pinned image pull. **`rust:latest` for `linux/arm64`** was pull
 holds both platforms under that tag at 4.58 GB). **It cannot run:** `docker run --platform linux/arm64 ... uname -m` fails with
 `exec format error`, because no user-mode emulator (a QEMU `binfmt_misc` handler) is registered in Docker Desktop's VM, and no QEMU
 is installed on the host. Registering one is a change to the shared Docker VM (the usual route is a privileged container that
-installs the handler), which is outside the spike's rules, so **no emulation number exists** and arm C is a **`[HOLD]`** pending a
-decision on that. The sources in section 4 (8x to 12x for general workloads, none for compilation) are all there is until it runs.
+installs the handler), which is outside the spike's rules. **Ruling (the PM, relaying CireSnave, 2026-10-13): skip arm C; emulation
+stays unmeasured**, and shared-state changes such as registering a handler in the shared Docker VM need CireSnave's word, not a
+spike's. **No emulation number exists.** The sources in section 4 (8x to 12x for general workloads, none for compilation) are all there is until it runs.
 The 39x headroom above means that, **for this repository only**, emulation would fit the limit even at a slowdown beyond those
 figures.
+
+**Cleanup:** `docker image rm --platform linux/arm64 rust:latest` was refused ("content will be removed from all images referencing
+this variant", `--force` needed), so the arm64 variant was **left in place**: 2.21 GB on disk (557 MB of content) under
+`rust:latest`. `docker run rust:latest` runs `x86_64`, `rustc 1.99.0`. **A later cleanup, by someone who knows what else references
+that content, can remove it.**
 
 **A side effect to record:** the first `docker pull --platform linux/arm64 rust:latest` briefly made the local tag `rust:latest`
 resolve to arm64 on this shared Docker, so a plain `docker run rust:latest` failed with `exec format error` until the amd64
