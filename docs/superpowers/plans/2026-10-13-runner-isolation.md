@@ -239,14 +239,22 @@ clone, about 4 minutes cold per member by an earlier measurement) are the case t
   it is the middle value and the range is reported.
 - Peak memory was measured two different ways and **must not be compared across arms.**
 
-### 9.3 The emulation arm: on hold
+### 9.3 The emulation arm: attempted, blocked
 
-Arm C needs either an emulated-architecture Linux image with a Rust toolchain (an arm64 `rust` image is about 1.4 GB, pulled over
-the network) or a QEMU installed on the host; the Docker VM here has no user-mode emulation registered (`binfmt_misc` is empty), and
-QEMU is not installed. Both are outside the spike's rules (no network beyond the dependency fetch; no install outside
-`.claude-hooks`), so it is a **`[HOLD]` to the PM** and **no emulation number is given**. The sources in section 4 (8x to 12x for
-general workloads, none for compilation) are all there is until arm C runs. The 39x headroom above means that, **for this
-repository only**, emulation would fit the limit even at a slowdown beyond those figures.
+The PM allowed a pinned image pull. **`rust:latest` for `linux/arm64`** was pulled (index digest
+`sha256:81015672d6939b0265f09adf96d5de125482bb1330106076956b0518e74edc90`; about 2.2 GB added to the local image store, which now
+holds both platforms under that tag at 4.58 GB). **It cannot run:** `docker run --platform linux/arm64 ... uname -m` fails with
+`exec format error`, because no user-mode emulator (a QEMU `binfmt_misc` handler) is registered in Docker Desktop's VM, and no QEMU
+is installed on the host. Registering one is a change to the shared Docker VM (the usual route is a privileged container that
+installs the handler), which is outside the spike's rules, so **no emulation number exists** and arm C is a **`[HOLD]`** pending a
+decision on that. The sources in section 4 (8x to 12x for general workloads, none for compilation) are all there is until it runs.
+The 39x headroom above means that, **for this repository only**, emulation would fit the limit even at a slowdown beyond those
+figures.
+
+**A side effect to record:** the first `docker pull --platform linux/arm64 rust:latest` briefly made the local tag `rust:latest`
+resolve to arm64 on this shared Docker, so a plain `docker run rust:latest` failed with `exec format error` until the amd64
+platform was pulled again (digest unchanged, "up to date"). It runs amd64 again (`rustc 1.99.0`). The cause was pulling a second
+platform under an existing tag; a later spike should pull by digest into a separate repository name.
 
 ## 10. Not known, and decisions that are CireSnave's
 
