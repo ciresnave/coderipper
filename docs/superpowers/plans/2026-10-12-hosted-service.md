@@ -49,7 +49,8 @@ fork gets no `id-token`. So the ingest treats the upload as attacker-controlled 
 The sandbox is the only thing between a stranger's `build.rs` / procedural macro and our infrastructure; the design assumes the
 scanned code is hostile.
 
-1. **One fresh isolated runner per job, destroyed after.** A microVM (Firecracker class) or a gVisor container; never reused between
+1. **One fresh isolated runner per job, destroyed after.** A hardware-virtualised microVM (Firecracker class; see `2026-10-13-runner-isolation.md`, which replaces the earlier
+   "or a gVisor container"); never reused between
    jobs, never shared between accounts. No privileged mode, no nested virtualisation, no host mounts.
 2. **Fetch happens outside the runner's trust.** The host downloads a **pinned-SHA tarball** (never `git clone`: no hooks, no
    submodules, no LFS), with a size cap, rejecting symlinks, absolute paths and `..` entries on extraction. The repository is mounted
@@ -277,6 +278,9 @@ started, and a job re-queued because its runner vanished, count once.
 | Many jobs, one machine | one job per isolated runner VM; per-runner concurrency is set by cores and memory, not by the account cap |
 
 ### 10.5 The runners are untrusted-job hosts (stricter than §3)
+
+> **Superseded in part, 2026-10-13:** isolation stack, network policy, the host agent, result integrity and the launch gate are now
+> specified in `2026-10-13-runner-isolation.md`. The bullets below remain as the original statement.
 
 Because the machines are his own, §3's isolation is a **minimum**, with these added:
 

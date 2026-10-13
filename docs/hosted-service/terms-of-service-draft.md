@@ -178,8 +178,9 @@ may not be free to republish.
 - **Your job may run on a machine run by someone other than `{OPERATOR_NAME}`**, a runner provider we have admitted to our pool. That
   machine sees the repository and runs its build scripts. **Only public repositories are accepted**, so the runner sees the repository as it is published (a public repository can still hold
   things its owner did not mean to share); the result says which runner ran the job.
-- **Dependencies are fetched from the public crate registry before the build; the build itself runs with no network access.** A build
-  script that needs the network fails, and the report says so: it is a gap, not a pass.
+- **The network is limited to an allowlist.** Dependencies are fetched from the public crate registry before the build; the build
+  itself has no network, except for any domains approved for that repository, **which the report lists**. A build that needs
+  another address fails, and the report says so: it is a gap, not a pass.
 - **Limits.** Each job has a maximum run time of `{MAX_RUNTIME_MINUTES}` minutes by default (you can change it on your account where the service
   allows it, up to `{MAX_RUNTIME_CEILING_MINUTES}` where one is set), and caps on memory, disk and processes. A job that reaches a cap is stopped, and the report says
   which cap and that the check did not complete. These limits protect the machine the job runs on; they are not a limit on how many
@@ -339,20 +340,16 @@ stored in a note and not in the text; no CodeRipper code handles an address, so 
 contract: a rule that cannot run is listed); putting sandbox requirements in the terms (they are in the design); treating "no network"
 as unclear (v2 states the resolve step, which the design already has).
 
-**For the design, not the terms (not done here):** the design's section 10.5 says hardware virtualisation only, never a shared-kernel
-container, on a machine that also holds personal files. CireSnave's 2026-10-13 ruling is containers for v1, and (same day) home PCs are
-**in** v1 as runner hosts. That makes 10.5's conditions requirements for the runner image and its host documentation, not options: no
-route to the home LAN, no personal credentials on the host, egress limited by the host. An image cannot enforce the host's network
-segmentation, so the runner documentation must say it is the host owner's duty and the runner should refuse to register without
-an attestation that it was done. These terms say "isolated runner" and name no technology. The design needs a reconciliation before Face B opens: a hardened
-container runtime (a user-space kernel such as gVisor, or rootless with a seccomp profile, no capabilities and resource limits) on a
-host with no route to a home LAN is closer to the design's intent than a plain container, and a home PC is the worse host. Also for the
-design: the self-registering runner image (runners admitted to a pool, each result naming its runner), the intake interface that
-carries the authorisation record, the result-and-metadata interface the site serves, and the installer/config that renders this
-template.
+**Runner isolation (superseded 2026-10-13).** The container-first v1 stance and the reconciliation note that stood here are replaced
+by `docs/superpowers/plans/2026-10-13-runner-isolation.md`: CireSnave ruled that the guest is a complete virtual machine with no
+reach into the host beyond what the job strictly needs, and that **a hardware-virtualised microVM is accepted** (plain containers are
+not admitted; emulation is a measured fallback). The network is default-deny with a domain allowlist and per-repository approvals.
+These terms still say "isolated runner" and name no technology. Also for the design: the self-registering runner image, the intake
+interface that carries the authorisation record, the result-and-metadata interface the site serves, and the installer/config that
+renders this template.
 
 **Launch gate (a third review, 2026-10-13, and CireSnave's home-PC ruling).** Face B does not open on any host class until the
-hostile fixtures of the design's section 8 have been run against that class and passed. Home PCs are in v1 as runner hosts
+hostile fixtures of the runner-isolation design's section 8 have been run against that class **and that isolation stack** and passed. Home PCs are in v1 as runner hosts
 (CireSnave, 2026-10-13) **on that condition**; a host that cannot pass is not used, and the terms' "isolated runner" is then not
 claimed for it.
 

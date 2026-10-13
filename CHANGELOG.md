@@ -5,6 +5,20 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.14 - 2026-10-13 (proposed)
+
+Documentation only; no code or behaviour change.
+
+### Added
+- **Design: runner isolation** (`docs/superpowers/plans/2026-10-13-runner-isolation.md`, nothing built, nothing measured). Replaces
+  the container-first v1 stance: a hardware-virtualised microVM is the required isolation (plain containers not admitted,
+  emulation a measured fallback); requirements R1-R10; a threat model; a comparison of container, gVisor, Firecracker, Cloud
+  Hypervisor, QEMU/KVM, Hyper-V, Windows Sandbox, WSL2 and emulation with the evidence for each and what is not known; a
+  default-deny network with a proxy-side domain allowlist and per-repository approvals recorded in the report; the host-side agent as
+  the attack surface; result integrity for runners the operator does not run; a per-host-class and per-stack launch gate with its
+  fixtures; and a proposed measurement spike. The terms' section 4 now says the network is limited to an allowlist and the report
+  lists approved domains.
+
 ## 0.6.13 - 2026-10-13 (proposed)
 
 Documentation only; no code or behaviour change.
