@@ -32,8 +32,9 @@ or "none: render fails" missing. Defaults are CodeRipper's; an operator may chan
 | `{MIN_AGE}` | minimum age and who may open an account | **required** |
 | `{LIABILITY_CAP}` | the cap in Part B section 9. Must not be so low that it removes any reason to take care (Part D): a floor of the greater of what the user paid in the last 12 months and a stated sum is a judgement, not a rule of law | none: render fails |
 | `{MAX_RUNTIME_MINUTES}` | default limit on one job's run time | 30 |
-| `{QUEUE_STEP_MINUTES}` | how often waiting jobs are lowered in weight (section 7); each step lowers a weight by one second per second waited | 10 |
-| `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to (optional: the operator's own configuration may simply allow any value) | operator's choice |
+| `{QUEUE_STEP_MINUTES}` | how often waiting jobs are lowered in weight (section 7). Each step lowers every waiting weight by `QUEUE_STEP_MINUTES x 60`, so a weight falls one second per second waited; a weight never goes below 0 | 10 |
+| `{DMCA_AGENT}` | the designated agent registered with the Copyright Office (name, address, email). **Optional**: if set, section 10's copyright notice and reply procedure renders; if unset it does not, and the operator has no statutory safe harbour (A.2 item 5) | none |
+| `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to. Optional: if unset, section 4's parenthesis drops "up to ..." and says only that the user may change it where the service allows | operator's choice |
 | `{RESULT_RETENTION_DAYS}` / `{RESULT_RETENTION_MAX_DAYS}` | how long the **operator's site** keeps a result, and the most a user may set. CodeRipper hands the result over and enforces none of this | operator's choice (no CodeRipper default) |
 | `{JOB_METADATA_RETENTION_DAYS}` | how long the operator's site keeps job metadata after the result expires | operator's choice (a site that orders its queue by the last 30 days needs at least that) |
 | `{BACKUP_EXPIRY_DAYS}` | how long a deleted result may survive in backups. **Set it only if the backups can keep the promise**: immutable or provider-default backups may not be deletable on a day count, and the sentence should then say "at the next backup rotation" | operator's choice; if the operator keeps none, the sentence is dropped |
@@ -57,11 +58,18 @@ written into this file or into the repository.
 4. **Be the contact.** Takedown, copyright and abuse reports about a service go to whoever runs it. If you use a site other than ours,
    write to that site, not to the CodeRipper authors.
 5. **Own the copyright question** (A.4 item 5). The site stores and serves the report, so a copyright complaint is the operator's, not
-   CodeRipper's (CireSnave, 2026-10-13). Whether to register a designated agent and run a counter-notice flow is the operator's call.
-   This draft gives a notice-and-takedown process that is a start, not a statement that the operator has safe-harbour status anywhere.
+   CodeRipper's (CireSnave, 2026-10-13). **An operator that wants the statutory safe harbour for
+   material stored at a user's direction must register a designated agent, publish it, run the notice and reply procedure of
+   section 10 and reasonably implement a repeat-infringer policy; one that does none of that has no safe harbour, and section 10's
+   table is then only a courtesy.** Nothing here says an operator has safe-harbour status anywhere.
 6. **Set the runner pool honestly.** Part B section 4 tells users that a job may run on a machine run by someone other than the
    operator. If the operator admits only its own machines, delete that sentence; if it admits others, the result shows which runner ran
-   the job.
+   the job. **An operator that admits other people's runners decides on what terms** (enrolment terms, attestation of the controls in
+   the design's section 10.5, a way to remove a runner) and must not tell users more than it has done: the rendered text promises no
+   contract with a runner provider.
+7. **Publish the vulnerability-reporting route outside the terms** so a researcher can find the scope and the contact without
+   accepting a contract, and **verify a repository owner's request not to be scanned** the way a push is verified, applying it to
+   forks and renames the operator can identify, to queued jobs and to future jobs (existing results are handled by section 10).
 
 ### A.3 Boilerplate: the authorisation the site asks for at intake
 
@@ -76,7 +84,8 @@ the site, which is the only party that knows them.
 > right of anyone else. If you are not sure, do not continue.
 
 The user must take a **positive step** (a button or box labelled as agreeing, with a visible link to the full terms, not a notice
-below the fold or a bare "continue"). The site records the user, the repository, the commit, the time and the version of this text.
+below the fold or a bare "continue"). The site records the user, the repository and its owner or organisation, the immutable commit, the time, and the version (or a
+hash) of the rendered terms shown, and no more personal data than that.
 
 ### A.4 Legal assumptions nobody qualified has checked
 
@@ -92,6 +101,21 @@ below the fold or a bare "continue"). The site records the user, the repository,
 | 8 | Running untrusted jobs on a runner host does not breach its provider's terms (a VPS provider's or a home internet provider's). | Runner locations would have to change. |
 | 9 | A user's intake statement is a meaningful record that the user, not the operator, vouched for the right to scan. | The operator carries the whole risk of an unauthorised scan. |
 | 10 | The user's promise to compensate the operator (section 9) is enforceable. It is limited to **third-party claims caused by the user's own breach or lack of right**, and excludes the operator's own fault. No Arizona authority was found on a consumer's indemnity; a broader clause would risk being held unconscionable (Part D). | The operator carries more of its own risk. |
+
+### A.5 What the renderer and the service must check (design; nothing is built)
+
+A rendered template is only as true as the service behind it. A service must **not start accepting jobs** while any of these fails:
+
+1. Every required value is present, and the relationships hold: the run-time ceiling is at least the default; the retention
+   ceiling is at least the default; metadata and backup periods are consistent with the retention shown; the queue step is positive.
+2. **Sections follow the configuration:** no community-posting text if `{COMMUNITY_NAME}` is unset; no external-runner sentence if
+   the pool is the operator's own; no backup sentence if there are no backups; no copyright procedure if `{DMCA_AGENT}` is unset.
+3. No `{PLACEHOLDER}` remains in the rendered text; the exact rendered text is stored and versioned, and the version a user accepted
+   is recorded (A.3).
+4. Each promise has an owner and a way to see it holds: retention and expiry (the cleanup worker is running), backup removal,
+   source cleanup after success, failure, timeout and forced kill, takedown response times, the queue's published rule.
+5. Golden tests render a minimal operator, one with external runners, one without backups, and invalid or contradictory
+   configurations (which must fail).
 
 ## Part B. The terms, as rendered
 
@@ -119,7 +143,7 @@ responsible for a decision to merge, ship or rely on one.
   in section 7, a suspension, or any other limit of the service. Accounts for an organisation, and automation that follows these
   terms, are fine.
 
-### 3. What you may submit (Face B)
+### 3. What you may submit, and what you give us
 
 You may submit a repository only if **all** of these are true:
 
@@ -138,17 +162,23 @@ permission to fetch, copy, compile, execute and analyse the submitted repository
 report, to run and protect the service, and to deal with abuse. We do not use a repository for anything else, such as training a model or
 advertising.
 
+**Face A uploads.** A Face A upload is a result, not a repository. You give `{OPERATOR_NAME}` a limited permission to receive,
+check, store, display to the people you choose, and delete the result and its metadata, and to handle security and abuse; nothing
+more. You must have the right to upload it: a result can name files and identifiers from a repository you may run CodeRipper on but
+may not be free to republish.
+
 ### 4. What we do with a submission
 
-- We fetch the repository at one commit and run CodeRipper in a fresh, isolated runner. The runner is destroyed after the job; a job
+- We fetch the repository at one commit and run CodeRipper in a fresh, isolated runner. The runner (the disposable environment the job ran in) is destroyed after the job, while the report and job metadata are kept
+  (section 8); a job
   that does not end is killed (see "Limits" below) and the runner destroyed then.
 - **Your job may run on a machine run by someone other than `{OPERATOR_NAME}`**, a runner provider we have admitted to our pool. That
-  machine sees the repository and runs its build scripts. **Only public repositories are accepted, so what the runner sees is
-  already public**; the result says which runner ran the job.
+  machine sees the repository and runs its build scripts. **Only public repositories are accepted**, so the runner sees the repository as it is published (a public repository can still hold
+  things its owner did not mean to share); the result says which runner ran the job.
 - **Dependencies are fetched from the public crate registry before the build; the build itself runs with no network access.** A build
   script that needs the network fails, and the report says so: it is a gap, not a pass.
-- **Limits.** Each job has a maximum run time of `{MAX_RUNTIME_MINUTES}` minutes by default (you can set it higher on your account, up to
-  `{MAX_RUNTIME_CEILING_MINUTES}`), and caps on memory, disk and processes. A job that reaches a cap is stopped, and the report says
+- **Limits.** Each job has a maximum run time of `{MAX_RUNTIME_MINUTES}` minutes by default (you can change it on your account where the service
+  allows it, up to `{MAX_RUNTIME_CEILING_MINUTES}` where one is set), and caps on memory, disk and processes. A job that reaches a cap is stopped, and the report says
   which cap and that the check did not complete. These limits protect the machine the job runs on; they are not a limit on how many
   jobs you may run.
 - We do not keep the repository's source after the job. We keep the report and the job metadata (section 8).
@@ -172,7 +202,7 @@ Do not:
 
 **Security research.** We want to hear about weaknesses; see section 10. Testing the sandbox's isolation from inside a job is welcome
 only by arrangement: write to `{CONTACT}` first and we will tell you what is in scope. If you find something by accident, stop, do not
-use it, do not look at other users' data and tell us. Without an arrangement, an attempt to escape the sandbox is a breach of these
+use it, do not look at other users' data and tell us. Without an arrangement, an intentional attempt to escape the sandbox is a breach of these
 terms. `[ASSUMPTION 3]`
 
 ### 6. Results and what you may do with them
@@ -201,8 +231,8 @@ be published.
 
 Three different things are promised separately.
 
-- **Who can see a result.** You choose, per result. Nothing is public unless you make it public. A link to a result is not meant to be
-  guessable, and results are not for search engines.
+- **Who can see a result.** You choose, per result. Nothing is public unless you make it public. A result you make public can be opened by
+  anyone who has its link, a link is not a password, and we ask search engines not to index results, which they may not honour.
 - **How long it is kept.** `{RESULT_RETENTION_DAYS}` days by default; you can set a different default on your account, up to
   `{RESULT_RETENTION_MAX_DAYS}` days. After that the result is deleted from our active systems and its link says "expired".
 - **What deletion means.** A result you delete, or that expires, is removed from our active systems promptly; copies in backups are
@@ -211,7 +241,7 @@ Three different things are promised separately.
 
 **What we store about a job.** Your account; the repository and commit; the report; and **job metadata that CodeRipper produces with the
 report**: when it ran, which rules ran, which runner, run time, CPU, memory and disk use, and the outcome. Metadata is kept
-`{JOB_METADATA_RETENTION_DAYS}` days after the result expires so that the queue ordering and abuse handling can work. We do not keep the
+`{JOB_METADATA_RETENTION_DAYS}` days after the result expires or is deleted, whichever comes first, so that the queue ordering and abuse handling can work. We do not keep the
 repository's source after the job. What our site records about your visits (addresses, sessions) is described in our
 privacy notice (`{PRIVACY_POLICY_URL}`), not here. `[ASSUMPTION 7]`
 
@@ -239,16 +269,29 @@ The authors of CodeRipper, the software we use, are not a party to these terms a
 
 ### 10. Takedown, abuse and vulnerability reports
 
-Write to **`{CONTACT}`** and say which of these it is. These are separate because they need different things from us.
+Write to **`{CONTACT}`** and say which of these it is. These are separate because they need different things from us. **Times
+below run from when we receive a report that identifies the result.**
 
 | You are reporting | Send us | We do |
 |---|---|---|
-| **A copyright complaint**: a result contains material you own that you did not allow | the result link; the work and where it is; your name and contact; a statement that you believe the use is unauthorised and that your notice is accurate | hide the result within `{TAKEDOWN_RESPONSE_HOURS}` hours; tell the submitting account and give it the notice; consider any reply from the account and restore the result if it shows a right to use it |
+| **A copyright complaint**: a result contains material you own that you did not allow | a notice with the elements listed below the table (signature, the work, the result, your contact, and the two statements) | hide the result within `{TAKEDOWN_RESPONSE_HOURS}` hours; tell the submitting account and give it the notice; consider any reply from the account and restore the result if it shows a right to use it |
 | **A request to remove a result about your repository, or naming you** (not a copyright claim) | the result link and how you are connected to the repository | restrict it while we look; hide it within `{TAKEDOWN_RESPONSE_HOURS}` hours if you are connected to the repository and it should not be public; tell the account. We keep the right not to remove a finding that is true and relevant. If you own a repository, you may ask us not to scan it again |
 | **Personal data or a confidential matter in a report** | the result link and what it exposes | restrict it at once, then delete it from active systems |
 | **A secret in a report** | the result link | restrict it at once, then delete it; **rotate the secret yourself: a secret shown in a report is exposed** |
 | **Someone is using our runners to attack or mine** | the time and the address or account you saw | suspend the account, kill its jobs, keep the job metadata, tell you what we can |
 | **A weakness in the sandbox, a runner or the service** | what you found and how to reproduce it | acknowledge within `{VULN_ACK_DAYS}` days, fix it as soon as we can, and credit you if you want. An acknowledgement is not a fix date |
+
+**Copyright notices and replies (rendered only where `{DMCA_AGENT}` is set; send to `{DMCA_AGENT}`).** A notice must be in writing
+and contain: (1) a physical or electronic signature of a person authorised to act for the owner of the right; (2) the work claimed to
+be infringed; (3) the result, with enough to find it; (4) how to contact you; (5) a statement that you believe in good faith that the
+use is not authorised by the owner, its agent or the law; and (6) a statement that the notice is accurate and, **under penalty of
+perjury**, that you are authorised to act for the owner. Knowingly misrepresenting that material is infringing, or that it was
+removed by mistake, can make the person liable for damages. When we hide a result we tell the account. **The account may reply** in
+writing with: its signature; the result and where it was; a statement under penalty of perjury that it believes in good faith the
+result was hidden by mistake or misidentification; and its name, address and telephone number, its consent to the jurisdiction of
+the federal court for its district, and its agreement to accept service from the person who gave the notice. We pass the reply to
+the person who sent the notice and tell them we will restore the result in not less than 10 and not more than 14 business days,
+unless they tell us first that they have started a court action against the account.
 
 A result reported in these ways may be hidden or restricted without warning. Where an account is repeatedly the subject of valid
 complaints we warn, suspend or end the account. A person whose result was hidden may ask why at `{CONTACT}`. We keep a record of each
@@ -263,7 +306,7 @@ account at any time; its results are deleted as in section 8, and posts you publ
 
 ### 12. Changes, law and contact
 
-We may change these terms. A change that affects you is announced on the service before it applies, applies to jobs submitted after
+We may change these terms. A change that affects you is announced on the service, and by email where we have your address, before it applies, applies to jobs submitted after
 it, and if you do not accept it you may stop using the service and delete your account. These terms are governed by
 `{GOVERNING_LAW}`, and, to the extent the law allows, disputes are heard in `{VENUE}`; where the law gives you the right to go
 to a court elsewhere, that right stays. If a part is found unenforceable, the rest stands. Contact: `{CONTACT}`.
@@ -300,7 +343,12 @@ design: the self-registering runner image (runners admitted to a pool, each resu
 carries the authorisation record, the result-and-metadata interface the site serves, and the installer/config that renders this
 template.
 
-## Part D. Arizona and federal check of the liability and compensation clauses (web research, 2026-10-13; not legal advice)
+**Launch gate (a third review, 2026-10-13, and CireSnave's home-PC ruling).** Face B does not open on any host class until the
+hostile fixtures of the design's section 8 have been run against that class and passed. Home PCs are in v1 as runner hosts
+(CireSnave, 2026-10-13) **on that condition**; a host that cannot pass is not used, and the terms' "isolated runner" is then not
+claimed for it.
+
+## Part D. Preliminary legal research and unresolved questions (web research, 2026-10-13; not legal advice; no lawyer)
 
 CireSnave asked that the liability and compensation clauses be checked against Arizona and federal law, saying that a clause that is not
 enforceable is not helpful. **This was desk research from case summaries and a few primary pages, by an AI agent, with no lawyer**. It
@@ -309,36 +357,39 @@ against a court-listing page (CourtListener or a reporter index): volume, page, 
 opinion (*Phelps*) or from case summaries (the others); the full text of *Ocotillo*, *Sirek*, *Salt River Project* and *Maxwell* was not
 read.**
 
-**Found, and used in section 9**
+**Found, and used in section 9.** Each item carries a status: *[statute text read]*, *[constitutional text, summary read]*,
+*[case law, opinion read]*, *[case law, summary read]*, *[secondary source]* or *[drafting judgment]*. **None is an enforceability
+finding.** What the research did not settle is listed after.
 
-- **A cap on liability is enforceable in Arizona if it is not against public policy.** *1800 Ocotillo, LLC v. WLB Group, Inc.*, 219 Ariz. 200,
+
+- **A cap on liability is enforceable in Arizona if it is not against public policy.** *[case law, summary read]* *1800 Ocotillo, LLC v. WLB Group, Inc.*, 219 Ariz. 200,
   196 P.3d 222 (Ariz. 2008): a clause capping a surveyor's negligence liability at its fees was held enforceable, not against public policy, and
   *not* subject to the constitutional rule that assumption of risk is a jury question. The court distinguished a cap from a clause that
   removes liability altogether, and said a cap could be set **so low that it removes the incentive to take care**; it found no such
   problem there. That is why `{LIABILITY_CAP}` has no CodeRipper default and carries a warning. (That case was a commercial contract
   between businesses; a consumer setting is not decided by it.)
-- **A clause that removes one's own liability for negligence is disfavoured and read narrowly.** *Salt River Project Agric. Improvement
+- **A clause that removes one's own liability for negligence is disfavoured and read narrowly.** *[case law, summary read]* *Salt River Project Agric. Improvement
   & Power Dist. v. Westinghouse Elec. Corp.*, 143 Ariz. 368, 694 P.2d 198 (1984), and *Sirek v. Fairfield Snowbowl, Inc.*, 166 Ariz. 183,
   800 P.2d 1291 (App. 1990): the intent must be spelled out, clearly and explicitly (*Sirek*, 166 Ariz. at 187), so that the signer is
   alerted to giving up a right. *Phelps* cites *Salt River Project* and does not overrule it (read in the opinion, 2026-10-13).
   Section 9 therefore says plainly what it excludes, and does not try to exclude more than the law allows.
-- ***Phelps v. Firebird Raceway, Inc.*, 210 Ariz. 403, 111 P.3d 1003 (2005):** an *express contractual assumption of risk* is a question of fact for a
+- ***Phelps v. Firebird Raceway, Inc.*, 210 Ariz. 403, 111 P.3d 1003 (2005):** *[case law, opinion read]* an *express contractual assumption of risk* is a question of fact for a
   jury under Art. 18, section 5 of the Arizona Constitution. So a broad release a user "assumes the risk of" can be put to a jury and
   cannot be relied on as a rule. Section 9 is a cap and an exclusion of kinds of loss, not an assumption-of-risk release.
-- **Death and personal injury.** Arizona Const. Art. 2, section 31 bars laws limiting damages for death or injury, and Art. 18, section 6
+- **Death and personal injury.** *[constitutional text, summary read]* Arizona Const. Art. 2, section 31 bars laws limiting damages for death or injury, and Art. 18, section 6
   protects the right of action for injury from being abrogated. A software scan is unlikely to cause either, but the carve-out is there
   so the clause does not claim what the constitution forbids.
-- **Fraud, wilful misconduct and gross negligence** are carved out as a conservative default. No Arizona authority was found on
+- **Fraud, wilful misconduct and gross negligence** *[drafting judgment]* are carved out as a conservative default. No Arizona authority was found on
   gross negligence in a limitation clause.
-- **Compensation (indemnity).** Arizona enforces indemnity clauses, reads them strictly, and requires a clear statement before one covers
+- **Compensation (indemnity).** *[case law, secondary source; drafting judgment]* Arizona enforces indemnity clauses, reads them strictly, and requires a clear statement before one covers
   the indemnitee's own negligence (*Salt River Project*, above, as summarised by secondary sources; no decision is cited for the
   second half beyond that). The clause in section 9 therefore covers third-party claims arising from the **user's** act and
   expressly **excludes our own fault**. Unconscionability in Arizona (*Maxwell v. Fidelity Fin. Servs., Inc.*, 184 Ariz. 82, 907 P.2d 51 (1995))
   can be shown by substantive unconscionability alone, which a one-sided clause invites; narrowing the clause is the protection.
-- **Assent.** Courts across the country enforce a clickwrap (a positive agreement step with the terms linked) and refuse a browsewrap
+- **Assent.** *[case law; general principle]* Courts across the country enforce a clickwrap (a positive agreement step with the terms linked) and refuse a browsewrap
   that gives no notice (*Specht v. Netscape Communications Corp.*, 306 F.3d 17 (2d Cir. 2002), decided 2002-10-01). The intake boilerplate therefore requires a positive step
   and a visible link, and the site records the text version.
-- **Federal copyright.** To keep the safe harbour for material stored at a user's direction, 17 U.S.C. section 512(c) requires a
+- **Federal copyright.** *[statute text read]* To keep the safe harbour for material stored at a user's direction, 17 U.S.C. section 512(c) requires a
   designated agent (name, address, phone and email) given to the Copyright Office and published on the service's website, and section
   512(i)(1)(A) a repeat-infringer policy that is "adopted and reasonably implemented" and that the provider tells its users about
   (statute text read on 2026-10-13). Section 10 and Part A.2 item 5 put this on the operator. The statute lets the Register charge a

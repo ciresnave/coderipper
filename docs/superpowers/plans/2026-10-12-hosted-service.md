@@ -233,8 +233,11 @@ weight = recent_use(account) + k * expected_run(job) + site_adjustment(job)
    get a negative one). CodeRipper applies it and has no opinion about it. Per-site, so a site that does not use it passes 0.
 
 **Aging.** Every `N` minutes (default **10**) the weight of **every waiting job** is lowered by `step` (default **N x 60**, so a job's
-weight falls by one second for each second it waits) and the queue is re-sorted. Weight is not allowed below 0; equal weights run in
-submission order. Why this reaches everyone: a *new* job enters at its full weight, so a waiting job that has been discounted for long
+weight falls by one second for each second it waits) and the queue is re-sorted. A weight is never below 0 (**including at submission**, so a site's large negative adjustment ends at 0); equal weights run
+in submission order. **Termination:** a job's weight reaches 0 after at most its initial weight in seconds, and from then on only
+jobs submitted *earlier* run before it, so a finite queue is all that remains: no stream of later jobs, however light or however
+favoured by a site, holds it back longer. **Restart-safe:** store each job's initial weight and submission time and derive the
+current weight (`max(0, initial - waited)`) from them, so a scheduler restart loses nothing. Why this reaches everyone: a *new* job enters at its full weight, so a waiting job that has been discounted for long
 enough is lighter than any newcomer of ordinary size. The longest a job can be held back by later arrivals is about its own weight
 (a heavy user with five hours of recent use waits at most about five hours behind newcomers; never "forever"). Lowering every waiting
 job by the same amount does not change their order **relative to each other**, only relative to jobs that arrive later, and that is
@@ -254,9 +257,10 @@ started, and a job re-queued because its runner vanished, count once.
 ### 10.3 What the ordering does not do
 
 - **It is not a quota.** Nobody is refused for total use; they wait behind lighter jobs.
-- **A site adjustment can starve.** A site that gives its paying customers a large negative number can hold free jobs back for as long
-  as it likes: aging bounds the delay by the job's weight, not by the adjustment. That is the site's own queue and its own choice;
-  the terms say that the site may adjust priority.
+- **A site adjustment cannot starve a job, but it can add delay.** A negative adjustment on paying customers' jobs cannot hold a
+  free job back past that job's own weight (the floor at 0 and the tie-break by submission time). A large *positive* adjustment on a
+  job makes its weight, and so its worst-case wait, large: that is the site's own queue and its own choice, and the terms say the
+  site may adjust priority and that the rule, including that such an adjustment exists, is published.
 - **Estimates can be wrong.** A job that runs longer than its estimate is not penalised after the fact; it is killed at the run-time
   limit and the limit is named in the report. The weight uses the estimate only to order.
 - **Gaming.** Many accounts split one person's usage; login is required and the terms forbid it, but the real control is the
