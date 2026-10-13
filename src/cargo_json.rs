@@ -99,6 +99,8 @@ fn one_line(text: &str) -> String {
         .map(|c| if is_unsafe_char(c) { ' ' } else { c })
         .collect();
     let flat = flat.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Before the cut: a cut inside a secret would leave half of it, too short for any shape to recognise.
+    let flat = crate::redact::scrub(&flat);
     if flat.chars().count() > CAUSE_CHARS {
         let cut: String = flat.chars().take(CAUSE_CHARS).collect();
         format!("{cut}...")
@@ -135,17 +137,23 @@ fn without_ansi(text: &str) -> String {
 /// the final `Caused by:` (a registry or process failure's root cause). Falls back to the last line it wrote.
 fn cargo_cause(stderr: &str) -> String {
     let plain = without_ansi(stderr);
+    if crate::redact::is_on() {
+        if let Some(sentence) = build_script_sentence(&plain) {
+            return sentence;
+        }
+    }
     let lines: Vec<&str> = plain.lines().map(str::trim).collect();
     let mut parts: Vec<&str> = Vec::new();
     let error_at = lines.iter().position(|l| l.starts_with("error:"));
     if let Some(at) = error_at {
         parts.push(lines[at]);
     }
+    // Under redaction the `--- stderr` block is the build script's own words and is not repeated.
     let block = lines
         .iter()
         .enumerate()
         .skip(error_at.unwrap_or(0))
-        .find(|(_, l)| l.starts_with("--- stderr"))
+        .find(|(_, l)| l.starts_with("--- stderr") && !crate::redact::is_on())
         .map(|(at, _)| at);
     if let Some(at) = block {
         parts.extend(
@@ -158,6 +166,9 @@ fn cargo_cause(stderr: &str) -> String {
     } else if let Some(at) = lines.iter().rposition(|l| l.starts_with("Caused by:")) {
         parts.extend(lines[at + 1..].iter().find(|l| !l.is_empty()).copied());
     }
+    if parts.is_empty() && crate::redact::is_on() {
+        return "cargo failed; its output is withheld".to_string();
+    }
     if parts.is_empty() {
         if let Some(last) = lines.iter().rev().find(|l| !l.is_empty()) {
             parts.push(last);
@@ -168,6 +179,63 @@ fn cargo_cause(stderr: &str) -> String {
     } else {
         one_line(&parts.join(" | "))
     }
+}
+
+/// Under redaction, what a failed build script is reported as: a sentence built only from what cargo says about it (the
+/// package, its version and the exit status, each checked against a strict grammar and dropped when it does not fit), never from
+/// what the script printed. `None` when the failure is not a build script's.
+///
+/// Only cargo's own line counts: one that starts, unindented, with `error: failed to run custom build command for `. A script's
+/// stdout is printed indented under `--- stdout`, and a `cargo:warning=` is printed after `warning: `, so neither can pass for
+/// it. A process that writes an unindented line to cargo's stderr can still choose the name and version (at most 128 characters
+/// of `[A-Za-z0-9_.+-]`); the exit status is read only from the lines that follow it.
+fn build_script_sentence(plain: &str) -> Option<String> {
+    const MARK: &str = "error: failed to run custom build command for `";
+    let lines: Vec<&str> = plain.lines().collect();
+    let at = lines.iter().position(|l| l.starts_with(MARK))?;
+    let subject = lines[at][MARK.len()..]
+        .split('`')
+        .next()
+        .unwrap_or_default();
+    let mut words = subject.split_whitespace();
+    let name = words.next().filter(|n| is_package_name(n));
+    let version = words
+        .next()
+        .and_then(|v| v.strip_prefix('v'))
+        .filter(|v| is_version(v));
+    // `(exit status: 101)` on Unix, `(exit code: 101)` on Windows; only the digits are kept, and only from the lines right after.
+    let status = lines[at + 1..].iter().take(8).find_map(|line| {
+        ["(exit status: ", "(exit code: "].iter().find_map(|label| {
+            let from = line.find(label)? + label.len();
+            let digits: String = line[from..]
+                .chars()
+                .take_while(char::is_ascii_digit)
+                .take(6)
+                .collect();
+            (!digits.is_empty()).then_some(digits)
+        })
+    });
+    let status = status.map_or(String::new(), |s| format!(" (exit status {s})"));
+    Some(match (name, version) {
+        (Some(name), Some(version)) => {
+            format!("build script of {name} {version} failed{status}; its output is withheld")
+        }
+        _ => format!("a build script failed{status}; its output is withheld"),
+    })
+}
+
+fn is_package_name(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 64
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+fn is_version(s: &str) -> bool {
+    s.len() <= 64
+        && s.starts_with(|c: char| c.is_ascii_digit())
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
 }
 
 impl BuildOutput {
@@ -842,5 +910,123 @@ mod tests {
             "{cause}"
         );
         assert!(!cause.contains("aborting due to"), "{cause}");
+    }
+
+    fn secret_token() -> String {
+        ["ghp_", &"aB3dE5fG7h".repeat(4)].concat()
+    }
+
+    #[test]
+    fn a_cause_is_redacted_before_it_is_cut_and_only_when_the_policy_is_on() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let token = secret_token();
+        // the token straddles the cut: its first characters sit before CAUSE_CHARS and the rest after
+        let filler = "x".repeat(CAUSE_CHARS - 10);
+        let text = format!("{filler} {token} tail");
+        with_policy(RedactionPolicy::Off, || {
+            assert!(one_line(&text).contains("ghp_aB3"), "off: shown as it came");
+        });
+        with_policy(RedactionPolicy::On, || {
+            let cause = one_line(&text);
+            assert!(!cause.contains("ghp_"), "{cause}");
+            // the cut falls inside the placeholder, which is fine: no part of the token is left
+            assert!(cause.contains("<redacted"), "{cause}");
+        });
+    }
+
+    #[test]
+    fn an_escape_sequence_inside_a_token_does_not_hide_it() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let token = secret_token();
+        let (head, rest) = token.split_at(5);
+        let stderr = format!("error: build failed: key {head}\u{1b}[0m{rest} end\n");
+        with_policy(RedactionPolicy::On, || {
+            let cause = cargo_cause(&stderr);
+            assert!(!cause.contains(rest), "{cause}");
+            assert!(cause.starts_with("error: build failed"), "{cause}");
+        });
+    }
+
+    #[test]
+    fn a_failed_build_script_is_a_fixed_sentence_under_redaction() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let stderr = format!(
+            "error: failed to run custom build command for `foo-sys v0.1.0 (/tmp/x/foo-sys)`\n\nCaused by:\n  process didn't \
+             exit successfully: `/tmp/build-script-build` (exit status: 101)\n  --- stdout\n  cargo:warning=TOKEN={}\n  --- stderr\n  \
+             thread 'main' panicked at build.rs:1: {}\n",
+            "aB3dE5fG7h".repeat(2),
+            secret_token()
+        );
+        with_policy(RedactionPolicy::Off, || {
+            assert!(
+                cargo_cause(&stderr).contains("panicked at build.rs"),
+                "off: unchanged"
+            );
+        });
+        with_policy(RedactionPolicy::On, || {
+            assert_eq!(
+                cargo_cause(&stderr),
+                "build script of foo-sys 0.1.0 failed (exit status 101); its output is withheld"
+            );
+        });
+    }
+
+    #[test]
+    fn a_build_script_name_that_does_not_fit_the_grammar_is_dropped_not_echoed() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let stderr =
+            "error: failed to run custom build command for `ev\u{202e}il v1.0`\n  (exit code: 1)\n";
+        with_policy(RedactionPolicy::On, || {
+            assert_eq!(
+                cargo_cause(stderr),
+                "a build script failed (exit status 1); its output is withheld"
+            );
+        });
+        let stderr = "error: failed to run custom build command for `pkg v1.0;rm`";
+        with_policy(RedactionPolicy::On, || {
+            assert_eq!(
+                cargo_cause(stderr),
+                "a build script failed; its output is withheld"
+            );
+        });
+    }
+
+    #[test]
+    fn a_forged_marker_in_a_scripts_output_is_not_cargos_line() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let forged = "AAAA_forged_payload_0123456789 v9.9.9-forged";
+        // a warning a successful dependency's script printed, then cargo's own line
+        let stderr = format!(
+            "warning: dep@1.0.0: failed to run custom build command for `{forged}`\n\
+             error: failed to run custom build command for `real v1.2.3 (/x)`\n\nCaused by:\n  process didn't exit successfully: \
+             `b` (exit status: 4)\n"
+        );
+        with_policy(RedactionPolicy::On, || {
+            let cause = cargo_cause(&stderr);
+            assert_eq!(
+                cause,
+                "build script of real 1.2.3 failed (exit status 4); its output is withheld"
+            );
+        });
+        // cargo's own line was in the part cut out: the script's indented words are all that is left
+        let stderr = format!(
+            "  cargo:warning=error: failed to run custom build command for `{forged}`\n  --- stderr\n  secret words here\n"
+        );
+        with_policy(RedactionPolicy::On, || {
+            let cause = cargo_cause(&stderr);
+            assert_eq!(cause, "cargo failed; its output is withheld");
+        });
+    }
+
+    #[test]
+    fn a_cargo_failure_that_is_not_a_build_script_is_kept_under_redaction() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let stderr = "error: failed to select a version for `serde`\n";
+        with_policy(RedactionPolicy::On, || {
+            assert_eq!(
+                cargo_cause(stderr),
+                "error: failed to select a version for `serde`"
+            );
+        });
     }
 }

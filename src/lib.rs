@@ -230,7 +230,7 @@ pub fn run_workspace_in_with_tools(
     only_check_id: Option<&str>,
     on_member: &mut dyn FnMut(&str, usize, usize),
 ) -> WorkspaceRun {
-    run_workspace_over_in(
+    let mut run = run_workspace_over_in(
         profile,
         tools,
         &registered_checks(),
@@ -238,7 +238,9 @@ pub fn run_workspace_in_with_tools(
         tier,
         only_check_id,
         on_member,
-    )
+    );
+    redact::finish(&mut run.result);
+    run
 }
 
 fn run_workspace_over_in(
@@ -455,7 +457,7 @@ pub fn run_checks_in_with_tools(
     tier: Tier,
     only_check_id: Option<&str>,
 ) -> RunResult {
-    run_checks_over_in(
+    let mut result = run_checks_over_in(
         profile,
         tools,
         &registered_checks(),
@@ -463,7 +465,9 @@ pub fn run_checks_in_with_tools(
         tier,
         only_check_id,
         UnitFilter::Any,
-    )
+    );
+    redact::finish(&mut result);
+    result
 }
 
 /// Runs the checks you pass, the way [`run_checks`] runs the built-in ones: through the host, not by calling
@@ -524,7 +528,9 @@ pub fn run_checks_with(
     tier: Tier,
     only_check_id: Option<&str>,
 ) -> RunResult {
-    run_checks_over(checks, ctx, tier, only_check_id, UnitFilter::Any)
+    let mut result = run_checks_over(checks, ctx, tier, only_check_id, UnitFilter::Any);
+    redact::finish(&mut result);
+    result
 }
 
 /// Why this list of checks and this `only_check_id` cannot be run, if they cannot: a named check that does not exist
@@ -968,6 +974,17 @@ fn run_module_over(
 /// It asks for every rule the module's hello claims, at `tier`. Choosing rules by tier and unit needs the rule catalog,
 /// which is not built yet.
 pub fn run_module(
+    module: &dyn module::Module,
+    ctx: &CheckContext,
+    tier: Tier,
+    limits: module::Limits,
+) -> RunResult {
+    let mut result = run_module_unredacted(module, ctx, tier, limits);
+    redact::finish(&mut result);
+    result
+}
+
+fn run_module_unredacted(
     module: &dyn module::Module,
     ctx: &CheckContext,
     tier: Tier,

@@ -115,3 +115,64 @@ fn a_waived_finding_names_its_place_too() {
         .unwrap_or_else(|| panic!("no waived line: {out}"));
     assert!(line.contains(" at src/main.rs:1 "), "{line}");
 }
+
+/// A fake secret, assembled at run time: this repository's own CI runs a secret scanner over it.
+fn fake_token() -> String {
+    ["ghp_", &"aB3dE5fG7h".repeat(4)].concat()
+}
+
+#[test]
+fn redact_withholds_what_a_failed_build_script_printed_and_names_the_failure() {
+    let token = fake_token();
+    let build_rs = format!(
+        "fn main() {{ println!(\"cargo:warning=TOKEN={token}\"); eprintln!(\"login https://bot:{token}@registry.example/\"); \
+         std::process::exit(7); }}\n"
+    );
+    let repo = common::git_repo_with(&[
+        ("Cargo.toml", BUILD_RS_MANIFEST),
+        ("build.rs", &build_rs),
+        ("src/lib.rs", "pub fn f() {}\n"),
+    ]);
+    // the control: without the flag the script's own words are what a developer sees
+    let (code, _out, err) = run(&["check", "reachability"], repo.path());
+    assert_eq!(code, 3, "{err}");
+    assert!(err.contains("registry.example"), "off: {err}");
+
+    let (code, out, err) = run(&["check", "reachability", "--redact"], repo.path());
+    assert_eq!(code, 3, "redaction must not change the exit code: {err}");
+    assert!(
+        err.contains(
+            "build script of fixture 0.1.0 failed (exit status 7); its output is withheld"
+        ),
+        "{err}"
+    );
+    for text in [&out, &err] {
+        assert!(
+            !text.contains(&token),
+            "the token reached the output: {text}"
+        );
+        assert!(
+            !text.contains("aB3dE5fG7h"),
+            "part of the token reached the output: {text}"
+        );
+        assert!(
+            !text.contains("registry.example"),
+            "the script's words reached the output: {text}"
+        );
+    }
+}
+
+#[test]
+fn redact_removes_a_secret_a_compiler_message_quotes_and_keeps_the_error() {
+    let token = fake_token();
+    let lib_rs = format!("compile_error!(\"set API_KEY={token} first\");\n");
+    let repo = common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", &lib_rs)]);
+    let (code, _out, err) = run(&["check", "unused-return-values", "--redact"], repo.path());
+    assert_eq!(code, 3, "{err}");
+    assert!(err.contains("Cause:"), "{err}");
+    assert!(err.contains("set API_KEY=<redacted>"), "{err}");
+    assert!(
+        !err.contains(&token) && !err.contains("aB3dE5fG7h"),
+        "{err}"
+    );
+}

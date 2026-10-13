@@ -141,6 +141,13 @@ struct RunOpts {
     /// A tools lock to use instead of the one built into this binary.
     #[arg(long)]
     tools_lock: Option<PathBuf>,
+    /// Remove known secret shapes (URL passwords, `KEY=value` for token/secret/password keys, `Authorization` headers, well-known
+    /// token prefixes, private-key blocks) from what builds and tools wrote and this run prints, and withhold a failed build
+    /// script's own output and the stderr of a tool or module that crashed. Off by default: on your own machine that output is
+    /// yours. It removes known shapes only; it does not promise that no secret remains, and a compiler message that quotes your
+    /// source is shown with its known shapes removed, not withheld.
+    #[arg(long)]
+    redact: bool,
 }
 
 #[derive(Subcommand)]
@@ -269,7 +276,7 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     let result = dispatch(cli, from_env);
     // What the builds did, once, whichever way the run ended.
     if let Some(text) = crate::build_cache::render_stats(&crate::build_cache::take_stats()) {
-        eprintln!("{text}");
+        eprintln!("{}", crate::redact::scrub(&text));
     }
     ExitCode::from(match result {
         Ok(code) => code,
@@ -593,10 +600,14 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                 coverage,
                 install_tools,
                 tools_lock,
+                redact,
             },
         tier,
         only_check_id,
     } = args;
+    if redact {
+        crate::redact::set_policy(crate::redact::RedactionPolicy::On);
+    }
     let tools = tool_env(install_tools, tools_lock.as_deref())?;
     if let Some(id) = &only_check_id {
         let checks = crate::registered_checks();

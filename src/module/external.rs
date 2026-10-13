@@ -100,8 +100,13 @@ impl Module for ExternalModule {
             anyhow::bail!("{}: {}", failure.kind, failure.detail);
         }
         let text = run.lines.join("\n");
-        let hello: Hello = serde_json::from_str(&text)
-            .map_err(|e| anyhow::anyhow!("the hello is not readable ({e}): {text}"))?;
+        let hello: Hello = serde_json::from_str(&text).map_err(|e| {
+            if crate::redact::is_on() {
+                anyhow::anyhow!("the hello is not readable ({e}); the module's output is withheld")
+            } else {
+                anyhow::anyhow!("the hello is not readable ({e}): {text}")
+            }
+        })?;
         if let Some(problem) = hello.problem() {
             anyhow::bail!("{problem}");
         }
@@ -167,7 +172,7 @@ impl Module for ExternalModule {
 
 /// A line of module output, cut short for an error message.
 fn clip(line: &str) -> String {
-    line.chars().take(200).collect()
+    crate::redact::scrub(line).chars().take(200).collect()
 }
 
 /// What running a child produced.
@@ -316,6 +321,9 @@ pub(super) fn run_child_accepting(
     let with_stderr = |what: String, text: String| {
         if text.is_empty() {
             what
+        } else if crate::redact::is_on() {
+            // What a stranger's module wrote is not repeated: the exit status above says it failed, and that is all.
+            format!("{what}; its stderr is withheld")
         } else {
             format!("{what}; stderr: {text}")
         }

@@ -5,6 +5,34 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.11 - 2026-10-13 (proposed)
+
+### Added
+- **`--redact` (and `coderipper::redact::set_policy(RedactionPolicy::On)`): third-party output is redacted on its way out.**
+  Step 2 of the redaction pass designed in `docs/superpowers/plans/2026-10-12-redaction-pass.md`; **off by default, so no run's
+  output changes unless it is asked for.** With it on:
+  - a failed build script is reported as a fixed sentence built from what cargo says about it, never from what the script
+    printed: `build script of foo-sys 0.1.0 failed (exit status 101); its output is withheld` (the package, its version and the
+    exit status are each checked against a strict grammar and dropped when they do not fit);
+  - the stderr of an external module or of a delegated tool that crashed is not repeated: `...; its stderr is withheld` after
+    the exit status; a module's unreadable hello is not echoed either;
+  - every other third-party string that reaches a message (a compiler error's text, a note, the stderr a delegated tool wrote on
+    an exit that was not a failure, a line of a tool's report) goes through `redact::text` **before** its length cut, so a cut
+    cannot leave half a secret; `redact::text` also removes ANSI escapes and zero-width characters first, so a secret split by one
+    cannot hide;
+  - the whole `RunResult` (errors, notes, each finding's summary, detail, project, subject, member, positive control and location
+    file, each waiver's reason) goes through it once more at the end of each library run function, and one note says how many
+    placeholders the result holds, counted from the result itself.
+  A result built or deserialised elsewhere is covered by the new `RunResult::redact()`.
+  Redaction never changes an exit code, a finding's existence or an error's existence. It removes known keys and shapes only
+  (see 0.6.10): **a secret with no recognisable key or shape is not removed, and no output is called clean.** The policy is a
+  process-wide setting (set it once at start-up), as the build cache's configuration is.
+  Not done: a compiler message that quotes the project's own source (`compile_error!`, `include_str!`) is redacted, never
+  withheld; a build script's name and version are shown as cargo's line gave them (a process that writes an unindented
+  `error: failed to run custom build command for ...` line to cargo's stderr can choose them, within a strict character set); a
+  path that contains a user name is not touched; `conformance` has no `--redact`; the hosted service's own scratch-prefix
+  stripping and its escaping on render are the hosted front end's.
+
 ## 0.6.10 - 2026-10-13 (proposed)
 
 ### Added

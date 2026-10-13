@@ -126,7 +126,10 @@ fn parse_report(text: &str) -> Result<Vec<Hit>, String> {
     let report: Report = serde_json::from_str(text).map_err(|e| {
         format!(
             "the report is not an osv-scanner result ({e}): {}",
-            text.chars().take(200).collect::<String>()
+            crate::redact::scrub(text)
+                .chars()
+                .take(200)
+                .collect::<String>()
         )
     })?;
     let mut hits = Vec::new();
@@ -193,6 +196,8 @@ pub(super) fn clean(text: &str, max: usize) -> String {
         .map(|c| if c.is_control() { ' ' } else { c })
         .collect();
     let flat = flat.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Before the cut: a cut inside a secret would leave half of it.
+    let flat = crate::redact::scrub(&flat);
     if flat.chars().count() > max {
         format!("{}...", flat.chars().take(max).collect::<String>())
     } else {
