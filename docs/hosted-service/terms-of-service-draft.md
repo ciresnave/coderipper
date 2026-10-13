@@ -30,9 +30,9 @@ first five missing. Defaults are CodeRipper's; an operator may change them.
 | `{MIN_AGE}` | minimum age and who may open an account | **required** |
 | `{LIABILITY_CAP}` | the cap in Part B section 9 | none: render fails |
 | `{MAX_RUNTIME_MINUTES}` | default limit on one job's run time | 30 |
-| `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to | operator's choice; propose 120 |
-| `{RESULT_RETENTION_DAYS}` / `{RESULT_RETENTION_MAX_DAYS}` | default and ceiling for how long a result is kept | 30 / 365 |
-| `{JOB_METADATA_RETENTION_DAYS}` | how long job metadata is kept after the result expires | 90 (never less than 30: the queue ordering reads 30 days) |
+| `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to (optional: the operator's own configuration may simply allow any value) | operator's choice |
+| `{RESULT_RETENTION_DAYS}` / `{RESULT_RETENTION_MAX_DAYS}` | how long the **operator's site** keeps a result, and the most a user may set. CodeRipper hands the result over and enforces none of this | operator's choice (no CodeRipper default) |
+| `{JOB_METADATA_RETENTION_DAYS}` | how long the operator's site keeps job metadata after the result expires | operator's choice (a site that orders its queue by the last 30 days needs at least that) |
 | `{BACKUP_EXPIRY_DAYS}` | how long a deleted result may survive in backups | operator's choice; if the operator keeps none, the sentence is dropped |
 | `{TAKEDOWN_RESPONSE_HOURS}` | time to hide a reported result | operator's choice |
 | `{VULN_ACK_DAYS}` | time to acknowledge a vulnerability report | operator's choice |
@@ -50,8 +50,9 @@ written into this file or into the repository.
    requests: it takes a job and a repository and returns a result and metadata.
 3. **Be the contact.** Takedown, copyright and abuse reports about a service go to whoever runs it. If you use a site other than ours,
    write to that site, not to the CodeRipper authors.
-4. **Decide the copyright question** (A.4 item 5): whether to register a designated agent and run a counter-notice flow. This draft
-   gives a notice-and-takedown process that is a start, not a statement that the operator has safe-harbour status anywhere.
+4. **Own the copyright question** (A.4 item 5). The site stores and serves the report, so a copyright complaint is the operator's, not
+   CodeRipper's (CireSnave, 2026-10-13). Whether to register a designated agent and run a counter-notice flow is the operator's call.
+   This draft gives a notice-and-takedown process that is a start, not a statement that the operator has safe-harbour status anywhere.
 5. **Set the runner pool honestly.** Part B section 4 tells users that a job may run on a machine run by someone other than the
    operator. If the operator admits only its own machines, delete that sentence; if it admits others, the result shows which runner ran
    the job.
@@ -82,6 +83,7 @@ The site records the user, the repository, the commit, the time and the version 
 | 6 | The warranty disclaimer and liability limit in section 9 are enforceable where users live. | Local consumer law may override them. |
 | 7 | The retention in section 8 is compatible with privacy law where users live. | A fuller privacy notice, a lawful-basis statement and a data-subject-request process would be needed. |
 | 8 | Running untrusted jobs on a runner host does not breach its provider's terms (a VPS provider's or a home internet provider's). | Runner locations would have to change. |
+| 10 | A promise by the user to compensate the operator (section 9), and a clause saying the CodeRipper authors are not a party, hold where users live. Individuals' indemnities are often unenforceable in practice and some places refuse them for consumers. | The operator carries more of its own risk. |
 | 9 | A user's intake statement is a meaningful record that the user, not the operator, vouched for the right to scan. | The operator carries the whole risk of an unauthorised scan. |
 
 ## Part B. The terms, as rendered
@@ -212,7 +214,9 @@ infrastructure.
 
 To the extent the law allows, we exclude liability for indirect or consequential loss, for loss of data, profit or business, and for loss
 arising from your reliance on a report. **Our total liability to you for everything arising from the service is limited to
-`{LIABILITY_CAP}`.** Nothing in these terms excludes or limits liability that the law does not allow to be excluded or limited, and
+`{LIABILITY_CAP}`.** You are responsible for what you submit and publish, and, to the extent the law allows, you will compensate us for
+loss, claims and costs that arise from your submission or from your breach of these terms. The authors of CodeRipper, the software
+we use, are not a party to these terms and are not responsible for this service; `{OPERATOR_NAME}` alone runs it. Nothing in these terms excludes or limits liability that the law does not allow to be excluded or limited, and
 nothing takes away rights you have by law that cannot be waived. `[ASSUMPTION 4]` `[ASSUMPTION 6]`
 
 ### 10. Takedown, abuse and vulnerability reports
@@ -266,8 +270,11 @@ contract: a rule that cannot run is listed); putting sandbox requirements in the
 as unclear (v2 states the resolve step, which the design already has).
 
 **For the design, not the terms (not done here):** the design's section 10.5 says hardware virtualisation only, never a shared-kernel
-container, on a machine that also holds personal files. CireSnave's 2026-10-13 ruling is containers for v1, on a VPS or a home PC, to be
-decided. These terms say "isolated runner" and name no technology. The design needs a reconciliation before Face B opens: a hardened
+container, on a machine that also holds personal files. CireSnave's 2026-10-13 ruling is containers for v1, and (same day) home PCs are
+**in** v1 as runner hosts. That makes 10.5's conditions requirements for the runner image and its host documentation, not options: no
+route to the home LAN, no personal credentials on the host, egress limited by the host. An image cannot enforce the host's network
+segmentation, so the runner documentation must say it is the host owner's duty and the runner should refuse to register without
+an attestation that it was done. These terms say "isolated runner" and name no technology. The design needs a reconciliation before Face B opens: a hardened
 container runtime (a user-space kernel such as gVisor, or rootless with a seccomp profile, no capabilities and resource limits) on a
 host with no route to a home LAN is closer to the design's intent than a plain container, and a home PC is the worse host. Also for the
 design: the self-registering runner image (runners admitted to a pool, each result naming its runner), the intake interface that
