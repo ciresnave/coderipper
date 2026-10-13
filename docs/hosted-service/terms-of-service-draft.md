@@ -295,22 +295,25 @@ template.
 
 CireSnave asked that the liability and compensation clauses be checked against Arizona and federal law, saying that a clause that is not
 enforceable is not helpful. **This was desk research from case summaries and a few primary pages, by an AI agent, with no lawyer**. It
-found what follows and it found gaps; the gaps are listed. Cases are named by citation, not by link, so that no link goes stale. **The reporter citations for *Salt River Project*, *Sirek*
-and *Phelps* are from memory and were not re-checked against the reports; verify them before anyone relies on them.**
+found what follows and it found gaps; the gaps are listed. Cases are named by citation, not by link, so that no link goes stale. **Every case citation below was checked on 2026-10-13
+against a court-listing page (CourtListener or a reporter index): volume, page, court and date. The holdings were read from the
+opinion (*Phelps*) or from case summaries (the others); the full text of *Ocotillo*, *Sirek*, *Salt River Project* and *Maxwell* was not
+read.**
 
 **Found, and used in section 9**
 
-- **A cap on liability is enforceable in Arizona if it is not against public policy.** *1800 Ocotillo, LLC v. WLB Group, Inc.*, 196 P.3d
-  222 (Ariz. 2008): a clause capping a surveyor's negligence liability at its fees was held enforceable, not against public policy, and
+- **A cap on liability is enforceable in Arizona if it is not against public policy.** *1800 Ocotillo, LLC v. WLB Group, Inc.*, 219 Ariz. 200,
+  196 P.3d 222 (Ariz. 2008): a clause capping a surveyor's negligence liability at its fees was held enforceable, not against public policy, and
   *not* subject to the constitutional rule that assumption of risk is a jury question. The court distinguished a cap from a clause that
   removes liability altogether, and said a cap could be set **so low that it removes the incentive to take care**; it found no such
   problem there. That is why `{LIABILITY_CAP}` has no CodeRipper default and carries a warning. (That case was a commercial contract
   between businesses; a consumer setting is not decided by it.)
 - **A clause that removes one's own liability for negligence is disfavoured and read narrowly.** *Salt River Project Agric. Improvement
-  & Power Dist. v. Westinghouse Elec. Corp.*, 143 Ariz. 368 (1984) (abrogated on another ground by *Phelps*), and *Sirek v. Fairfield
-  Snowbowl, Inc.*, 166 Ariz. 183 (App. 1990): the intent must be spelled out, clearly, so that the signer is alerted to giving up a right.
+  & Power Dist. v. Westinghouse Elec. Corp.*, 143 Ariz. 368, 694 P.2d 198 (1984), and *Sirek v. Fairfield Snowbowl, Inc.*, 166 Ariz. 183,
+  800 P.2d 1291 (App. 1990): the intent must be spelled out, clearly and explicitly (*Sirek*, 166 Ariz. at 187), so that the signer is
+  alerted to giving up a right. *Phelps* cites *Salt River Project* and does not overrule it (read in the opinion, 2026-10-13).
   Section 9 therefore says plainly what it excludes, and does not try to exclude more than the law allows.
-- ***Phelps v. Firebird Raceway, Inc.*, 210 Ariz. 403 (2005):** an *express contractual assumption of risk* is a question of fact for a
+- ***Phelps v. Firebird Raceway, Inc.*, 210 Ariz. 403, 111 P.3d 1003 (2005):** an *express contractual assumption of risk* is a question of fact for a
   jury under Art. 18, section 5 of the Arizona Constitution. So a broad release a user "assumes the risk of" can be put to a jury and
   cannot be relied on as a rule. Section 9 is a cap and an exclusion of kinds of loss, not an assumption-of-risk release.
 - **Death and personal injury.** Arizona Const. Art. 2, section 31 bars laws limiting damages for death or injury, and Art. 18, section 6
@@ -319,17 +322,18 @@ and *Phelps* are from memory and were not re-checked against the reports; verify
 - **Fraud, wilful misconduct and gross negligence** are carved out as a conservative default. No Arizona authority was found on
   gross negligence in a limitation clause.
 - **Compensation (indemnity).** Arizona enforces indemnity clauses, reads them strictly, and requires a clear statement before one covers
-  the indemnitee's own negligence (*Salt River Project*, above; a 2017 Court of Appeals decision on a professional-services contract
-  was reported to hold the same). The clause in section 9 therefore covers third-party claims arising from the **user's** act and
-  expressly **excludes our own fault**. Unconscionability in Arizona (*Maxwell v. Fidelity Fin. Servs., Inc.*, 184 Ariz. 82 (1995))
+  the indemnitee's own negligence (*Salt River Project*, above, as summarised by secondary sources; no decision is cited for the
+  second half beyond that). The clause in section 9 therefore covers third-party claims arising from the **user's** act and
+  expressly **excludes our own fault**. Unconscionability in Arizona (*Maxwell v. Fidelity Fin. Servs., Inc.*, 184 Ariz. 82, 907 P.2d 51 (1995))
   can be shown by substantive unconscionability alone, which a one-sided clause invites; narrowing the clause is the protection.
 - **Assent.** Courts across the country enforce a clickwrap (a positive agreement step with the terms linked) and refuse a browsewrap
-  that gives no notice (*Specht v. Netscape*, 306 F.3d 17 (2d Cir. 2002)). The intake boilerplate therefore requires a positive step
+  that gives no notice (*Specht v. Netscape Communications Corp.*, 306 F.3d 17 (2d Cir. 2002), decided 2002-10-01). The intake boilerplate therefore requires a positive step
   and a visible link, and the site records the text version.
 - **Federal copyright.** To keep the safe harbour for material stored at a user's direction, 17 U.S.C. section 512(c) requires a
-  designated agent filed with the Copyright Office and published on the site (renewed every three years), and section 512(i) a
-  repeat-infringer policy that is reasonably implemented. Section 10 and Part A.2 item 4 put this on the operator. **The filing fee and
-  current renewal terms were not verified.**
+  designated agent (name, address, phone and email) given to the Copyright Office and published on the service's website, and section
+  512(i)(1)(A) a repeat-infringer policy that is "adopted and reasonably implemented" and that the provider tells its users about
+  (statute text read on 2026-10-13). Section 10 and Part A.2 item 4 put this on the operator. The statute lets the Register charge a
+  fee for the directory; **the amount and any renewal period set by the Copyright Office's own rules were not verified.**
 
 **Not found, so not relied on**
 
