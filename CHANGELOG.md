@@ -5,6 +5,23 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.8 - 2026-10-13 (proposed)
+
+### Changed (a loosening: fewer `reachability` findings in a workspace)
+- **`reachability` counts what the workspace members that depend on a package use.** A member was judged alone, so a library's
+  API that only its sibling crates call was reported as having "zero callers" (the 2026-10-12 sweep read 32 findings in four
+  repositories: 9 were live through another member or through trait dispatch, all 8 sampled from `unisql` among them). The
+  check now also reads every `.rs` file of the members that depend on the package under test, directly or through other
+  members, by `path` dependency of any kind (normal, dev, build), and does not report an item one of those files names. A member
+  that does not depend on the package rescues nothing, and a dependent's library counts as well as its bins and tests, so an
+  item a middle crate re-exports to a third is still seen. **A run that reported such items now reports fewer findings (and a
+  `--deny` run that failed only on them now passes).**
+- The note on a finding says how many candidates were set aside only because of a member, and lists the members that
+  depend on the package.
+- Matching stays by identifier, as for bins and tests, so it can hide a dead item that shares a name with something a dependent
+  member names (it does not report a live item as dead). A dependency redirected with `[patch]` or `[replace]` is not seen
+  (cargo metadata gives it no path), so a member that reaches the package that way rescues nothing.
+
 ## 0.6.7 - 2026-10-13 (proposed)
 
 ### Fixed

@@ -33,12 +33,18 @@ use syn::visit::Visit;
 pub struct Split {
     pub kept: Vec<DeadCodeHit>,
     pub rescued: Vec<DeadCodeHit>,
+    /// How many of `rescued` were reached only through `members` (the files of workspace members that
+    /// depend on this package), not through this package's own other targets.
+    pub rescued_by_members: usize,
 }
 
-/// `lib_files`: every file the lib compiles (`foreign::lib_module_files`).
+/// `lib_files`: every file the lib compiles (`foreign::lib_module_files`). `foreign`: what this
+/// package's own other targets mention. `members`: what the workspace members that depend on this
+/// package mention (`foreign::dependent_member_identifiers`); empty outside a workspace.
 pub fn rescue(
     hits: Vec<DeadCodeHit>,
     foreign: &BTreeSet<String>,
+    members: &BTreeSet<String>,
     root: &Path,
     lib_files: &BTreeSet<String>,
 ) -> anyhow::Result<Split> {
@@ -46,14 +52,27 @@ pub fn rescue(
     for rel in lib_files {
         graph.add_file(root, rel)?;
     }
-    let reachable = graph.reachable_from(foreign);
+    let own = graph.reachable_from(foreign);
+    let with_members = if members.is_empty() {
+        None
+    } else {
+        let seeds: BTreeSet<String> = foreign.union(members).cloned().collect();
+        Some(graph.reachable_from(&seeds))
+    };
 
     let mut split = Split {
         kept: Vec::new(),
         rescued: Vec::new(),
+        rescued_by_members: 0,
     };
     for hit in hits {
-        if reachable.contains(&hit.symbol) {
+        if own.contains(&hit.symbol) {
+            split.rescued.push(hit);
+        } else if with_members
+            .as_ref()
+            .is_some_and(|reached| reached.contains(&hit.symbol))
+        {
+            split.rescued_by_members += 1;
             split.rescued.push(hit);
         } else {
             split.kept.push(hit);
@@ -365,7 +384,7 @@ mod tests {
     fn run(source: &str, hits: &[(u32, &str)], seeds: &[&str]) -> Split {
         let (tmp, files) = lib(source);
         let hits = hits.iter().map(|(l, n)| hit("src/lib.rs", *l, n)).collect();
-        rescue(hits, &foreign(seeds), tmp.path(), &files).unwrap()
+        rescue(hits, &foreign(seeds), &BTreeSet::new(), tmp.path(), &files).unwrap()
     }
 
     const CHAIN: &str = "\

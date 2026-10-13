@@ -98,16 +98,16 @@ fn reachability_on_a_member_reports_that_package_only() {
 }
 
 #[test]
-fn a_project_scope_check_does_not_count_a_sibling_members_use() {
-    // `used_by_b` is called by member b, but this check's scope is one package: for `a` it has zero
-    // callers. (Whether another crate in the portfolio uses a pub item is the portfolio-scope pass.)
+fn reachability_does_not_report_what_a_member_that_depends_on_the_package_uses() {
+    // `used_by_b` is called by member b, which depends on `a`. Before 0.6.8 the check's scope was one package
+    // and it was reported for `a`; it now reads the members that depend on the package. `dead_in_a` is named
+    // by nobody and is still reported. (Whether a crate OUTSIDE the workspace uses a pub item is the
+    // portfolio-scope pass.)
     let repo = workspace_repo(&[]);
     let a = run(&ReachabilityCheck::new(), &repo.path().join("a")).unwrap();
-    assert!(
-        subjects(&a).contains(&"used_by_b".to_string()),
-        "{:?}",
-        subjects(&a)
-    );
+    let found = subjects(&a);
+    assert!(!found.contains(&"used_by_b".to_string()), "{found:?}");
+    assert!(found.contains(&"dead_in_a".to_string()), "{found:?}");
 }
 
 #[test]

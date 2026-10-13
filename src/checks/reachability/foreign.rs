@@ -142,6 +142,14 @@ pub fn foreign_identifiers(
     root: &Path,
     lib_files: &BTreeSet<String>,
 ) -> anyhow::Result<BTreeSet<String>> {
+    let files = package_files(root, &non_lib_target_files(root)?)?;
+    identifiers_of(root, files.difference(lib_files))
+}
+
+/// Every `.rs` file of the package at `root` that any of its targets can compile: all of `src/`,
+/// `tests/`, `examples/` and `benches/`, plus the module tree of each target entry in `entries`
+/// (relative to `root`, forward slashes; custom `path = "..."` targets included).
+fn package_files(root: &Path, entries: &[String]) -> anyhow::Result<BTreeSet<String>> {
     let mut files: BTreeSet<String> = BTreeSet::new();
     for top in ["src", "tests", "examples", "benches"] {
         let dir = root.join(top);
@@ -156,21 +164,117 @@ pub fn foreign_identifiers(
             );
         }
     }
-    for entry in non_lib_target_files(root)? {
+    for entry in entries {
         // A target's own module tree; if the entry cannot be parsed, its own text still counts.
-        match module_files_from(root, &entry) {
+        match module_files_from(root, entry) {
             Ok(tree) => files.extend(tree),
             Err(_) => {
-                files.insert(entry);
+                files.insert(entry.clone());
+            }
+        }
+    }
+    Ok(files)
+}
+
+fn identifiers_of<'a>(
+    root: &Path,
+    files: impl IntoIterator<Item = &'a String>,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut out = BTreeSet::new();
+    for rel in files {
+        let bytes = std::fs::read(root.join(rel))?;
+        out.extend(identifiers_in(&String::from_utf8_lossy(&bytes)));
+    }
+    Ok(out)
+}
+
+/// The workspace members that can name the package's items, and what they mention.
+#[derive(Default)]
+pub struct DependentMembers {
+    /// Every identifier any of those members' files mention (lossy, like [`foreign_identifiers`]).
+    pub identifiers: BTreeSet<String>,
+    /// Their package names, sorted.
+    pub names: Vec<String>,
+}
+
+/// Every identifier mentioned by the OTHER workspace members that depend on the package at `root`,
+/// directly or through other members (`path` dependencies of any kind: normal, dev, build). Only those
+/// can name this package's items, so a sibling that does not depend on it rescues nothing. All of a
+/// member's targets count (its library, bins, tests, examples, benches), because a member's library
+/// can re-export an item to a third member. Name-based like the rest of the rescue, so it can only
+/// over-rescue. A package that is not in a workspace with other members yields nothing.
+pub fn dependent_member_identifiers(root: &Path) -> anyhow::Result<DependentMembers> {
+    let metadata = cargo_metadata(root)?;
+    let root = root.canonicalize()?;
+    let packages: Vec<&serde_json::Value> = metadata["packages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .collect();
+    let dir_of = |p: &serde_json::Value| -> Option<std::path::PathBuf> {
+        Path::new(p["manifest_path"].as_str()?)
+            .parent()?
+            .canonicalize()
+            .ok()
+    };
+    let Some(me) = packages
+        .iter()
+        .position(|p| dir_of(p).is_some_and(|d| d == root))
+    else {
+        return Ok(DependentMembers::default());
+    };
+    let index_by_name: std::collections::BTreeMap<&str, usize> = packages
+        .iter()
+        .enumerate()
+        .filter_map(|(i, p)| Some((p["name"].as_str()?, i)))
+        .collect();
+
+    // dependents[i] = the members that depend on member i by path.
+    let mut dependents: Vec<Vec<usize>> = vec![Vec::new(); packages.len()];
+    for (i, package) in packages.iter().enumerate() {
+        for dep in package["dependencies"].as_array().into_iter().flatten() {
+            let (Some(name), false) = (dep["name"].as_str(), dep["path"].is_null()) else {
+                continue;
+            };
+            if let Some(&target) = index_by_name.get(name) {
+                dependents[target].push(i);
+            }
+        }
+    }
+    let mut seen = vec![false; packages.len()];
+    let mut queue = vec![me];
+    seen[me] = true;
+    while let Some(i) = queue.pop() {
+        for &d in &dependents[i] {
+            if !seen[d] {
+                seen[d] = true;
+                queue.push(d);
             }
         }
     }
 
-    let mut out = BTreeSet::new();
-    for rel in files.difference(lib_files) {
-        let bytes = std::fs::read(root.join(rel))?;
-        out.extend(identifiers_in(&String::from_utf8_lossy(&bytes)));
+    let mut out = DependentMembers::default();
+    for (i, package) in packages.iter().enumerate() {
+        if i == me || !seen[i] {
+            continue;
+        }
+        // A dependent that cannot be read must not silently shrink the rescue set (a live item would be
+        // reported dead): fail the run instead.
+        let Some(dir) = dir_of(package) else {
+            anyhow::bail!(
+                "cannot read the directory of workspace member {}",
+                package["name"].as_str().unwrap_or("?")
+            );
+        };
+        let entries = target_entries(package, &dir, true);
+        let files = package_files(&dir, &entries)?;
+        out.identifiers.extend(identifiers_of(&dir, &files)?);
+        if let Some(name) = package["name"].as_str() {
+            out.names.push(name.to_string());
+        }
     }
+    out.names.sort();
+    out.names.dedup();
     Ok(out)
 }
 
@@ -178,6 +282,17 @@ pub fn foreign_identifiers(
 /// examples, benches, the build script), relative to `root` with forward slashes, as cargo itself
 /// reports them (so custom `path = "..."` entries are found).
 fn non_lib_target_files(root: &Path) -> anyhow::Result<Vec<String>> {
+    let metadata = cargo_metadata(root)?;
+    let root = root.canonicalize()?;
+    let mut out = Vec::new();
+    for package in metadata["packages"].as_array().into_iter().flatten() {
+        out.extend(target_entries(package, &root, false));
+    }
+    Ok(out)
+}
+
+/// `cargo metadata --no-deps` for the package at `root`: every member of its workspace.
+fn cargo_metadata(root: &Path) -> anyhow::Result<serde_json::Value> {
     let output = std::process::Command::new("cargo")
         .args(["metadata", "--no-deps", "--format-version", "1"])
         .current_dir(root)
@@ -187,33 +302,35 @@ fn non_lib_target_files(root: &Path) -> anyhow::Result<Vec<String>> {
         "cargo metadata failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    let root = root.canonicalize()?;
+    Ok(serde_json::from_slice(&output.stdout)?)
+}
+
+/// The `src_path` of the targets of one metadata `package` that lie under `dir` (canonical), relative
+/// to it with forward slashes; the library kinds only when `include_lib`. A target whose file is
+/// missing or outside `dir` is skipped, not an error.
+fn target_entries(package: &serde_json::Value, dir: &Path, include_lib: bool) -> Vec<String> {
     let mut out = Vec::new();
-    for package in metadata["packages"].as_array().into_iter().flatten() {
-        for target in package["targets"].as_array().into_iter().flatten() {
-            let is_lib = target["kind"].as_array().into_iter().flatten().any(|k| {
-                matches!(
-                    k.as_str(),
-                    Some("lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro")
-                )
-            });
-            let Some(src_path) = target["src_path"].as_str() else {
-                continue;
-            };
-            if is_lib {
-                continue;
-            }
-            // A target whose file is missing or outside the package is skipped, not an error.
-            let rel = Path::new(src_path).canonicalize().ok().and_then(|p| {
-                p.strip_prefix(&root)
-                    .ok()
-                    .map(|r| r.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
-            });
-            out.extend(rel);
+    for target in package["targets"].as_array().into_iter().flatten() {
+        let is_lib = target["kind"].as_array().into_iter().flatten().any(|k| {
+            matches!(
+                k.as_str(),
+                Some("lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro")
+            )
+        });
+        let Some(src_path) = target["src_path"].as_str() else {
+            continue;
+        };
+        if is_lib && !include_lib {
+            continue;
         }
+        let rel = Path::new(src_path).canonicalize().ok().and_then(|p| {
+            p.strip_prefix(dir)
+                .ok()
+                .map(|r| r.to_string_lossy().replace(std::path::MAIN_SEPARATOR, "/"))
+        });
+        out.extend(rel);
     }
-    Ok(out)
+    out
 }
 
 /// Identifiers in `source`. Lexed, so comments and string literals do not count; if the text does

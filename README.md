@@ -157,7 +157,8 @@ root that is itself a package. A virtual workspace root is refused with the list
 The whole repository is checked out in a throwaway worktree (so path dependencies resolve) but only the
 member is rewritten and built, findings carry paths relative to the member, and `.coderipper.toml` is read
 from the member's directory. The checks are project-scope: a `pub` item used only by a sibling member has no
-callers within this package. Dependencies are built once and reused (see "Build cache" below).
+callers within this package. `reachability` is the exception: it also reads the members that depend on this package
+(directly or through other members, by `path`) and does not report an item one of them names. Dependencies are built once and reused (see "Build cache" below).
 
 ### `--workspace`: every member in one command
 
