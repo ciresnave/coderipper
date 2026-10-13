@@ -1,6 +1,7 @@
 # Redaction pass for echoed third-party output — Design
 
-> **Status: design only; nothing is built.** Requested by the PM on 2026-10-12 as the precondition named in the 0.6.2 audit (D5) for the
+> **Status: built in two steps (0.6.10: `redact::text`; 0.6.11: the policy, the sinks, `--redact`).** The text below is the
+> design as written on 2026-10-12; where the build differs, the CHANGELOG entry for 0.6.11 says how. Requested by the PM on 2026-10-12 as the precondition named in the 0.6.2 audit (D5) for the
 > hosted service (`2026-10-04-three-faces.md` §3). Facts below are read from `main` at `3f649d1` (0.6.3); each names the file so it can be
 > re-checked.
 

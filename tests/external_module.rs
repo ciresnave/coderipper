@@ -113,6 +113,14 @@ fn fake_module(sub: &str, args: &[String]) {
             eprintln!("fake module: out of cheese");
             std::process::exit(3);
         }
+        "crash-secret" => {
+            say(finding(first));
+            eprintln!(
+                "fake module: login https://bot:{}@registry.example/ failed",
+                ["hunter2", "hunter2hunter2"].concat()
+            );
+            std::process::exit(3);
+        }
         "hang" => sleep_forever(),
         "hang-child" => {
             let dir = flag(args, "--dir").expect("--dir");
@@ -293,6 +301,34 @@ fn a_module_that_crashes_is_an_error_naming_the_exit_and_stderr() {
     // the rules never got a result, so none is clean; the finding it printed first is kept, flagged by the error
     assert_error(&result, "r1 failed to run");
     assert_error(&result, "r2 failed to run");
+}
+
+fn under_redaction_a_crashing_modules_stderr_is_withheld_but_the_crash_is_not() {
+    use coderipper::redact::{set_policy, RedactionPolicy};
+    let secret = ["hunter2", "hunter2hunter2"].concat();
+    // the control, with the policy off: the stderr is what the error carries
+    let shown = run_default("crash-secret");
+    assert_error(&shown, "registry.example");
+
+    struct Off;
+    impl Drop for Off {
+        fn drop(&mut self) {
+            set_policy(RedactionPolicy::Off);
+        }
+    }
+    set_policy(RedactionPolicy::On);
+    let result = {
+        let _restore = Off;
+        run_default("crash-secret")
+    };
+    assert_error(&result, "module_crashed");
+    assert_error(&result, "its stderr is withheld");
+    assert_error(&result, "r1 failed to run");
+    let all = result.errors.join("\n");
+    assert!(
+        !all.contains(&secret) && !all.contains("registry.example"),
+        "{all}"
+    );
 }
 
 fn a_module_that_hangs_is_killed_and_ends_as_a_timeout() {
@@ -532,6 +568,10 @@ fn run_tests(args: &[String]) -> ExitCode {
         (
             "a_module_that_crashes_is_an_error_naming_the_exit_and_stderr",
             a_module_that_crashes_is_an_error_naming_the_exit_and_stderr,
+        ),
+        (
+            "under_redaction_a_crashing_modules_stderr_is_withheld_but_the_crash_is_not",
+            under_redaction_a_crashing_modules_stderr_is_withheld_but_the_crash_is_not,
         ),
         (
             "a_module_that_hangs_is_killed_and_ends_as_a_timeout",

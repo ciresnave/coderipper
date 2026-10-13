@@ -17,8 +17,9 @@
 //!   false negative publishes a secret. It does try not to hide a developer's own diagnostics: `crate::auth::Claims`,
 //!   `src/session.rs:12:5` and rustc's ``expected token: `;` `` are left alone.
 //! - **The count is an upper bound on values:** one value that two rules both recognise (`password=https://u:p@h`) counts twice.
-//! - **Order matters to its caller.** Apply it to text that has already had ANSI escapes, control and bidirectional characters
-//!   removed (so an escape sequence cannot split a pattern) and *before* any length cut (so a cut cannot leave half a secret).
+//! - **It removes ANSI escape sequences and invisible characters itself** (zero-width spaces and joiners, soft hyphens, directional
+//!   marks, the byte-order mark), so a secret split by one cannot hide; other control characters are the caller's to clean.
+//! - **Order matters to its caller.** Apply it *before* any length cut (so a cut cannot leave half a secret).
 //!
 //! Known gaps, stated so nobody relies on more than is here: a multi-parameter `Digest` header keeps its later parameters; a
 //! short word after `Bearer`/`Basic` (under 16 characters, or under 32 with no digit) is taken to be English; a password in a
@@ -29,19 +30,210 @@
 /// What every removed value is replaced by.
 pub const REDACTED: &str = "<redacted>";
 
+/// Whether third-party text is redacted on its way out of a run.
+///
+/// Third-party text is what a build script, a tool or the compiler wrote about the project being checked: a build failure's
+/// `Cause:`, an external module's stderr, a delegated tool's stderr, a rule's notes. On a developer's own machine that text is
+/// the developer's, so the default is [`RedactionPolicy::Off`]; a service that shows it to someone else sets
+/// [`RedactionPolicy::On`] with [`set_policy`] (the CLI's `--redact` does).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
+pub enum RedactionPolicy {
+    /// Third-party text is shown as it came. The default.
+    #[default]
+    Off,
+    /// Known secret shapes are removed from third-party text ([`text`]); the output of a build script that failed and the
+    /// stderr of an external module are withheld outright and replaced by a sentence built from facts CodeRipper knows (the
+    /// package, its version and the exit status). Redaction never changes an exit code, and a run that failed still says so.
+    On,
+}
+
+/// The process-wide policy: 0 is [`RedactionPolicy::Off`], 1 is [`RedactionPolicy::On`].
+static POLICY: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
+#[cfg(test)]
+thread_local! {
+    /// A per-thread override of the policy, for in-crate tests (see [`with_policy`]).
+    static OVERRIDE: std::cell::Cell<Option<RedactionPolicy>> = const { std::cell::Cell::new(None) };
+}
+
+/// Sets the policy for this process. Call it once at start-up, before any run: it applies to every run that follows, on every
+/// thread. The library's own run functions ([`crate::run_checks_in_with_tools`], [`crate::run_workspace_in_with_tools`],
+/// [`crate::run_checks_with`], [`crate::run_module`]) apply it to the whole [`crate::RunResult`] they return; a result you
+/// build or deserialise yourself is covered by [`crate::RunResult::redact`].
+pub fn set_policy(policy: RedactionPolicy) {
+    let value = u8::from(policy == RedactionPolicy::On);
+    POLICY.store(value, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// The policy in force: [`RedactionPolicy::Off`] until [`set_policy`] says otherwise.
+#[must_use]
+pub fn policy() -> RedactionPolicy {
+    if let Some(over) = test_override() {
+        return over;
+    }
+    match POLICY.load(std::sync::atomic::Ordering::SeqCst) {
+        0 => RedactionPolicy::Off,
+        _ => RedactionPolicy::On,
+    }
+}
+
+#[cfg(test)]
+fn test_override() -> Option<RedactionPolicy> {
+    OVERRIDE.with(std::cell::Cell::get)
+}
+
+#[cfg(not(test))]
+fn test_override() -> Option<RedactionPolicy> {
+    None
+}
+
+/// Runs `f` with `policy` in force **on this thread only**, restoring the previous override afterwards (also when `f`
+/// panics). For in-crate tests, which run in parallel threads and so cannot use the process-wide setting.
+#[cfg(test)]
+pub(crate) fn with_policy<T>(policy: RedactionPolicy, f: impl FnOnce() -> T) -> T {
+    struct Restore(Option<RedactionPolicy>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            OVERRIDE.with(|o| o.set(self.0));
+        }
+    }
+    let _restore = Restore(OVERRIDE.with(|o| o.replace(Some(policy))));
+    f()
+}
+
+/// Whether the policy is [`RedactionPolicy::On`].
+pub(crate) fn is_on() -> bool {
+    policy() == RedactionPolicy::On
+}
+
+/// `s` as it may be shown under the policy in force: unchanged when it is off, otherwise [`text`] of it. Call it on text that
+/// has been cleaned of control characters and *before* a length cut, so a cut cannot leave half a secret.
+pub(crate) fn scrub(s: &str) -> String {
+    if !is_on() {
+        return s.to_string();
+    }
+    text(s).0
+}
+
+/// The start of the note that says how many values a result had redacted; an existing one is replaced, never repeated.
+const NOTE_MARKER: &str = "value(s) were redacted from third-party output";
+
+impl crate::RunResult {
+    /// Replaces known secret shapes (see [`text`]) in every string of this result that third-party output can reach: `errors`,
+    /// `notes`, each finding's `summary`, `detail`, `subject`, `member`, `project` and `positive_control` and its location's
+    /// file, and each waiver's `reason`. Returns how many values this call replaced.
+    ///
+    /// When the result holds any [`REDACTED`] placeholder afterwards (this call's, or the run's own sinks' under
+    /// [`RedactionPolicy::On`]), one note says how many, counted from the result itself, so it is right for each result however
+    /// many runs share the process. **No note does not mean nothing was redacted from the run's raw output**: a run whose
+    /// policy was off was never redacted. It changes neither the number of findings nor the errors' existence, so the exit code a
+    /// caller derives from the result is the same. Idempotent: a second call replaces nothing and leaves the result as it was.
+    ///
+    /// The library's run functions call it themselves under [`RedactionPolicy::On`]; call it on a result you deserialised or
+    /// assembled yourself before you show it.
+    pub fn redact(&mut self) -> usize {
+        self.notes.retain(|n| !n.contains(NOTE_MARKER));
+        let mut replaced = 0;
+        let mut placeholders = 0;
+        let mut fix = |s: &mut String| {
+            let (out, n) = text(s);
+            if n > 0 {
+                *s = out;
+                replaced += n;
+            }
+            placeholders += s.matches(REDACTED).count();
+        };
+        self.errors.iter_mut().for_each(&mut fix);
+        self.notes.iter_mut().for_each(&mut fix);
+        for waived in &mut self.waived {
+            fix(&mut waived.reason);
+        }
+        let findings = self
+            .findings
+            .iter_mut()
+            .chain(self.waived.iter_mut().map(|w| &mut w.finding));
+        for finding in findings {
+            fix(&mut finding.summary);
+            fix(&mut finding.detail);
+            fix(&mut finding.project);
+            if let Some(location) = &mut finding.location {
+                fix(&mut location.file);
+            }
+            let optional = [
+                &mut finding.subject,
+                &mut finding.member,
+                &mut finding.positive_control,
+            ];
+            for value in optional.into_iter().flatten() {
+                fix(value);
+            }
+        }
+        if placeholders > 0 {
+            self.notes.push(format!(
+                "{placeholders} {NOTE_MARKER} (known secret shapes and keys only; this does not mean no secret remains)"
+            ));
+        }
+        replaced
+    }
+}
+
+/// Applies [`crate::RunResult::redact`] when the policy is on. What the library's public run functions end with.
+pub(crate) fn finish(result: &mut crate::RunResult) {
+    if is_on() {
+        result.redact();
+    }
+}
+
 /// `input` with every recognised credential replaced by [`REDACTED`], and how many replacements were made.
 ///
 /// See the [module documentation](self) for what is recognised and what is not. Text that is already redacted counts nothing.
 #[must_use]
 pub fn text(input: &str) -> (String, usize) {
     let mut count = 0;
-    let s = private_key_blocks(input, &mut count);
+    let cleaned = without_invisible(input);
+    let s = private_key_blocks(&cleaned, &mut count);
     let s = url_userinfo(&s, &mut count);
     let s = authorization_headers(&s, &mut count);
     let s = keyed_values(&s, &mut count);
     let s = spaced_entropy_values(&s, &mut count);
     let s = token_shapes(&s, &mut count);
     (s, count)
+}
+
+/// `input` without ANSI escape sequences and without the characters that render as nothing (soft hyphen, zero-width space and
+/// joiners, directional marks, word joiner, byte-order mark): a secret split by one of them reads as whole to a person and as
+/// two halves to a pattern.
+fn without_invisible(input: &str) -> String {
+    let invisible = |c: char| {
+        matches!(
+            c,
+            '\u{00AD}' | '\u{200B}'..='\u{200F}' | '\u{2060}' | '\u{FEFF}'
+        )
+    };
+    if !input.contains(['\u{1b}', '\u{00AD}', '\u{2060}', '\u{FEFF}'])
+        && !input.chars().any(invisible)
+    {
+        return input.to_string();
+    }
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                // parameters and intermediates, then one final byte in `@`..=`~`
+                for next in chars.by_ref() {
+                    if ('@'..='~').contains(&next) {
+                        break;
+                    }
+                }
+            }
+        } else if !invisible(c) {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// Names that, as a substring of a key with its separators removed and case folded, mark the key's value as a secret.
@@ -957,6 +1149,156 @@ mod tests {
             started.elapsed() < std::time::Duration::from_secs(60),
             "took {:?}",
             started.elapsed()
+        );
+    }
+
+    fn fake_finding(summary: &str, detail: &str) -> crate::finding::Finding {
+        crate::finding::Finding::new(
+            "rule-x",
+            crate::finding::Severity::Low,
+            crate::finding::Confidence::High,
+            "proj",
+            summary,
+            detail,
+        )
+    }
+
+    #[test]
+    fn the_policy_is_off_until_it_is_set_and_scrub_follows_it() {
+        let secret = join(&["TOKEN=", &tail(20)]);
+        with_policy(RedactionPolicy::Off, || {
+            assert_eq!(scrub(&secret), secret);
+        });
+        with_policy(RedactionPolicy::On, || {
+            assert_eq!(scrub(&secret), "TOKEN=<redacted>");
+        });
+        assert_eq!(RedactionPolicy::default(), RedactionPolicy::Off);
+    }
+
+    #[test]
+    fn a_result_is_redacted_in_every_field_third_party_text_can_reach() {
+        let secret = join(&["ghp_", &tail(36)]);
+        let keyed = join(&["password=", &tail(20)]);
+        let mut finding = fake_finding(&format!("saw {secret}"), &format!("detail {keyed}"));
+        finding.subject = Some(format!("subject {secret}"));
+        finding.member = Some(format!("member {keyed}"));
+        finding.positive_control = Some(format!("control {secret}"));
+        let waived = crate::finding::Waived {
+            finding: fake_finding(&format!("waived {secret}"), "plain"),
+            reason: format!("reason {keyed}"),
+        };
+        let mut result = crate::RunResult::new(
+            vec![finding],
+            vec![format!("error {secret}"), "plain error".to_string()],
+        );
+        result.notes.push(format!("note {keyed}"));
+        result.waived.push(waived);
+
+        let n = result.redact();
+        assert_eq!(n, 9);
+        let all = format!("{result:?}");
+        assert!(!all.contains(&secret), "{all}");
+        assert!(!all.contains(&tail(20)), "{all}");
+        // what is not a secret stays, and so does the existence of every error and finding
+        assert_eq!(result.errors.len(), 2);
+        assert_eq!(result.errors[1], "plain error");
+        assert_eq!(result.findings.len(), 1);
+        assert_eq!(result.waived.len(), 1);
+        assert_eq!(result.findings[0].check_id, "rule-x");
+        assert!(result
+            .notes
+            .last()
+            .unwrap()
+            .starts_with("9 value(s) were redacted"));
+
+        // idempotent: a second pass replaces nothing, and the result (note included, once) is as it was
+        let before = format!("{result:?}");
+        assert_eq!(result.redact(), 0);
+        assert_eq!(format!("{result:?}"), before);
+        assert_eq!(
+            result
+                .notes
+                .iter()
+                .filter(|n| n.contains(NOTE_MARKER))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_secret_split_by_an_escape_or_a_zero_width_character_is_still_removed() {
+        let rest = tail(36);
+        for split in ["\u{1b}[0m", "\u{200b}", "\u{feff}", "\u{ad}"] {
+            let (out, n) = text(&format!("saw ghp_{split}{rest} end"));
+            assert_eq!(out, "saw <redacted> end", "split: {split:?}");
+            assert_eq!(n, 1);
+        }
+        let mut result =
+            crate::RunResult::new(Vec::new(), vec![format!("error ghp_\u{1b}[31m{rest}")]);
+        result.redact();
+        assert!(!result.errors[0].contains(&rest), "{:?}", result.errors);
+    }
+
+    #[test]
+    fn a_locations_file_and_a_projects_name_are_redacted_too() {
+        let token = join(&["ghp_", &tail(36)]);
+        let mut finding = fake_finding("s", "d");
+        finding.location = Some(crate::finding::Location::new(
+            format!("dir/{token}.txt"),
+            None,
+        ));
+        finding.project = format!("proj-{token}");
+        let mut result = crate::RunResult::new(vec![finding], Vec::new());
+        assert_eq!(result.redact(), 2);
+        let all = format!("{result:?}");
+        assert!(!all.contains(&tail(20)), "{all}");
+    }
+
+    #[test]
+    fn a_clean_result_is_left_alone_and_gets_no_note() {
+        let mut result = crate::RunResult::new(vec![fake_finding("ok", "fine")], Vec::new());
+        assert_eq!(result.redact(), 0);
+        assert!(result.notes.is_empty());
+    }
+
+    #[test]
+    fn the_run_functions_apply_the_policy_themselves() {
+        let secret = join(&["TOKEN=", &tail(20)]);
+        struct Noisy(String);
+        impl crate::check::Check for Noisy {
+            fn id(&self) -> &'static str {
+                "noisy"
+            }
+            fn network(&self) -> crate::check::Network {
+                crate::check::Network::LocalOnly
+            }
+            fn run(
+                &self,
+                _ctx: &crate::check::CheckContext,
+            ) -> anyhow::Result<Vec<crate::finding::Finding>> {
+                anyhow::bail!("failed: {}", self.0)
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = crate::check::CheckContext::new(dir.path());
+        let checks: Vec<Box<dyn crate::check::Check>> = vec![Box::new(Noisy(secret.clone()))];
+        let run = |policy| {
+            with_policy(policy, || {
+                crate::run_checks_with(&checks, &ctx, crate::check::Tier::Fast, None)
+            })
+        };
+        let off = run(RedactionPolicy::Off);
+        assert!(
+            off.errors.iter().any(|e| e.contains(&secret)),
+            "{:?}",
+            off.errors
+        );
+        let on = run(RedactionPolicy::On);
+        assert!(!on.errors.is_empty(), "the failure must still be reported");
+        assert!(
+            on.errors.iter().all(|e| !e.contains(&tail(20))),
+            "{:?}",
+            on.errors
         );
     }
 }

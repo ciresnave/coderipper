@@ -51,7 +51,10 @@ fn parse_report(text: &str) -> Result<Vec<Leak>, String> {
     serde_json::from_str::<Vec<Leak>>(text).map_err(|e| {
         format!(
             "the report is not a JSON array of gitleaks findings ({e}): {}",
-            text.chars().take(200).collect::<String>()
+            crate::redact::scrub(text)
+                .chars()
+                .take(200)
+                .collect::<String>()
         )
     })
 }

@@ -226,7 +226,10 @@ fn parse_report(text: &str) -> Result<Vec<Hit>, String> {
     let entries: Vec<Entry> = serde_json::from_str(text).map_err(|e| {
         format!(
             "the report is not a zizmor result ({e}): {}",
-            text.chars().take(200).collect::<String>()
+            crate::redact::scrub(text)
+                .chars()
+                .take(200)
+                .collect::<String>()
         )
     })?;
     let mut hits = Vec::new();

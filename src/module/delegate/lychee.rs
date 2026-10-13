@@ -168,7 +168,10 @@ fn parse_report(text: &str) -> Result<Links, String> {
     let report: Report = serde_json::from_str(text).map_err(|e| {
         format!(
             "the report is not a lychee result ({e}): {}",
-            text.chars().take(200).collect::<String>()
+            crate::redact::scrub(text)
+                .chars()
+                .take(200)
+                .collect::<String>()
         )
     })?;
     let listed: u64 = report.error_map.values().map(|v| v.len() as u64).sum();

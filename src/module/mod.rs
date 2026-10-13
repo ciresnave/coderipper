@@ -292,6 +292,8 @@ fn clean_note(line: &str) -> String {
             }
         })
         .collect();
+    // Before the cut: a cut inside a secret would leave half of it, too short for any shape to recognise.
+    let flat = crate::redact::scrub(&flat);
     if flat.chars().count() > MAX_NOTE_CHARS {
         let cut: String = flat.chars().take(MAX_NOTE_CHARS).collect();
         format!("{cut}...")
@@ -744,5 +746,19 @@ mod note_tests {
     fn a_skipped_or_errored_rules_detail_is_not_read_as_notes() {
         let result = RuleResult::error("a", ErrorKind::Internal, "boom");
         assert!(judge(result, Vec::new(), true).notes.is_empty());
+    }
+
+    #[test]
+    fn a_note_is_redacted_before_it_is_cut_when_the_policy_is_on() {
+        use crate::redact::{with_policy, RedactionPolicy};
+        let token = ["ghp_", &"aB3dE5fG7h".repeat(4)].concat();
+        let line = format!("{} {token} tail", "x".repeat(MAX_NOTE_CHARS - 10));
+        with_policy(RedactionPolicy::Off, || {
+            assert!(clean_note(&line).contains("ghp_aB3"));
+        });
+        with_policy(RedactionPolicy::On, || {
+            let note = clean_note(&line);
+            assert!(!note.contains("ghp_"), "{note}");
+        });
     }
 }

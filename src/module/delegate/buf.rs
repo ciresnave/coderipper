@@ -574,7 +574,10 @@ fn parse_report(
         let v: Violation = serde_json::from_str(line).map_err(|e| {
             format!(
                 "an output line is not a buf violation ({e}): {}",
-                line.chars().take(200).collect::<String>()
+                crate::redact::scrub(line)
+                    .chars()
+                    .take(200)
+                    .collect::<String>()
             )
         })?;
         let from_top = match &v.path {
