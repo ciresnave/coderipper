@@ -5,6 +5,20 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.7 - 2026-10-13 (proposed)
+
+### Fixed
+- **`reachability` runs on a procedural-macro crate (issue 54).** The check downgrades every top-level `pub` to `pub(crate)`
+  to see what nothing uses, and it did that to `#[proc_macro]`, `#[proc_macro_derive(..)]` and `#[proc_macro_attribute]`
+  functions too; rustc requires those to stay `pub` ("functions tagged with `#[proc_macro_derive]` must be `pub`"), so every
+  proc-macro crate was "could not run" with exit 3 (found on `vulkane_derive` in the 2026-10-12 portfolio sweep). The three entry
+  points now stay `pub`; every other `pub` item in the crate is still downgraded, so a dead helper next to them is still
+  reported. A crate with a proc-macro member that exited 3 only for this reason now runs. The attribute is recognised line by
+  line: on its own line, stacked with other attributes, `//` or `/* */` comments, doc comments or blank lines, spread over
+  several lines, or followed by the item on the same line; an attribute written inside `cfg_attr` is not (that crate still exits
+  3). An attribute whose brackets never balance is given up on at the next line starting with `pub ` or `#[`.
+  `unused-return-values` and `unused-parameters` were run on a minimal proc-macro crate and were not affected.
+
 ## 0.6.6 - 2026-10-12 (proposed)
 
 ### Documented
