@@ -67,6 +67,8 @@ written into this file or into the repository.
    the job. **An operator that admits other people's runners decides on what terms** (enrolment terms, attestation of the controls in
    the design's section 10.5, a way to remove a runner) and must not tell users more than it has done: the rendered text promises no
    contract with a runner provider.
+8. **Check consumer-protection law where your users live** before rendering section 9, and consider limiting the service to places
+   you have checked (in `{MIN_AGE}`'s eligibility text). This draft was checked against Arizona and federal law only (Part D).
 7. **Publish the vulnerability-reporting route outside the terms** so a researcher can find the scope and the contact without
    accepting a contract, and **verify a repository owner's request not to be scanned** the way a push is verified, applying it to
    forks and renames the operator can identify, to queued jobs and to future jobs (existing results are handled by section 10).
@@ -99,6 +101,7 @@ hash) of the rendered terms shown, and no more personal data than that.
 | 6 | The warranty disclaimer and the liability cap in section 9 are enforceable under Arizona and federal law and where users live. Checked in Part D; not settled. | A cap below what a court accepts, or a clause it refuses, falls away; the carve-outs in section 9 are what keeps the rest. |
 | 7 | The retention in section 8 is compatible with privacy law where users live. | A fuller privacy notice, a lawful-basis statement and a data-subject-request process would be needed. |
 | 8 | Running untrusted jobs on a runner host does not breach its provider's terms (a VPS provider's or a home internet provider's). | Runner locations would have to change. |
+| 11 | The cap and the compensation clause (section 9) hold for users outside Arizona. **Not checked.** The research behind them (Part D) is about Arizona and the federal courts only; consumer-protection and unfair-terms rules elsewhere (for example in the EU and the UK, which were not researched here) may void a cap or a compensation clause for a consumer. | The clauses fall away for those users, and the operator carries that risk; each stands or falls alone (section 12). |
 | 9 | A user's intake statement is a meaningful record that the user, not the operator, vouched for the right to scan. | The operator carries the whole risk of an unauthorised scan. |
 | 10 | The user's promise to compensate the operator (section 9) is enforceable. It is limited to **third-party claims caused by the user's own breach or lack of right**, and excludes the operator's own fault. No Arizona authority was found on a consumer's indemnity; a broader clause would risk being held unconscionable (Part D). | The operator carries more of its own risk. |
 
@@ -202,7 +205,9 @@ Do not:
 
 **Security research.** We want to hear about weaknesses; see section 10. Testing the sandbox's isolation from inside a job is welcome
 only by arrangement: write to `{CONTACT}` first and we will tell you what is in scope. If you find something by accident, stop, do not
-use it, do not look at other users' data and tell us. Without an arrangement, an intentional attempt to escape the sandbox is a breach of these
+use it, do not look at other users' data and tell us. **If you do those things and report it promptly to `{CONTACT}`, we will
+take no action against your account for the discovery**; that is a promise about what we do, not about anyone else or about the
+law. Deliberate testing still needs an arrangement first. Without an arrangement, an intentional attempt to escape the sandbox is a breach of these
 terms. `[ASSUMPTION 3]`
 
 ### 6. Results and what you may do with them
@@ -232,7 +237,7 @@ be published.
 Three different things are promised separately.
 
 - **Who can see a result.** You choose, per result. Nothing is public unless you make it public. A result you make public can be opened by
-  anyone who has its link, a link is not a password, and we ask search engines not to index results, which they may not honour.
+  anyone who has its link; a link is not a password. We ask search engines not to index results, but they may not honour that.
 - **How long it is kept.** `{RESULT_RETENTION_DAYS}` days by default; you can set a different default on your account, up to
   `{RESULT_RETENTION_MAX_DAYS}` days. After that the result is deleted from our active systems and its link says "expired".
 - **What deletion means.** A result you delete, or that expires, is removed from our active systems promptly; copies in backups are
@@ -275,7 +280,7 @@ below run from when we receive a report that identifies the result.**
 | You are reporting | Send us | We do |
 |---|---|---|
 | **A copyright complaint**: a result contains material you own that you did not allow | a notice with the elements listed below the table (signature, the work, the result, your contact, and the two statements) | hide the result within `{TAKEDOWN_RESPONSE_HOURS}` hours; tell the submitting account and give it the notice; consider any reply from the account and restore the result if it shows a right to use it |
-| **A request to remove a result about your repository, or naming you** (not a copyright claim) | the result link and how you are connected to the repository | restrict it while we look; hide it within `{TAKEDOWN_RESPONSE_HOURS}` hours if you are connected to the repository and it should not be public; tell the account. We keep the right not to remove a finding that is true and relevant. If you own a repository, you may ask us not to scan it again |
+| **A request to remove a result about your repository, or naming you** (not a copyright claim) | the result link and how you are connected to the repository | restrict it while we look; hide it within `{TAKEDOWN_RESPONSE_HOURS}` hours if you are connected to the repository and it should not be public; tell the account (see the note below the table on what hiding means). If you own a repository, you may ask us not to scan it again |
 | **Personal data or a confidential matter in a report** | the result link and what it exposes | restrict it at once, then delete it from active systems |
 | **A secret in a report** | the result link | restrict it at once, then delete it; **rotate the secret yourself: a secret shown in a report is exposed** |
 | **Someone is using our runners to attack or mine** | the time and the address or account you saw | suspend the account, kill its jobs, keep the job metadata, tell you what we can |
@@ -293,7 +298,9 @@ the federal court for its district, and its agreement to accept service from the
 the person who sent the notice and tell them we will restore the result in not less than 10 and not more than 14 business days,
 unless they tell us first that they have started a court action against the account.
 
-A result reported in these ways may be hidden or restricted without warning. Where an account is repeatedly the subject of valid
+A result reported in these ways may be hidden or restricted without warning, while we look. **Hiding is not a decision that the
+complaint is right.** For a complaint that is not a copyright claim we keep the right to restore the result, or not to remove it,
+when the finding is true and relevant and nothing in it needs protecting (a secret, personal data). Where an account is repeatedly the subject of valid
 complaints we warn, suspend or end the account. A person whose result was hidden may ask why at `{CONTACT}`. We keep a record of each
 request and what we did. If you use a service run by someone else, write to them, not to the CodeRipper authors. `[ASSUMPTION 5]`
 
@@ -309,7 +316,8 @@ account at any time; its results are deleted as in section 8, and posts you publ
 We may change these terms. A change that affects you is announced on the service, and by email where we have your address, before it applies, applies to jobs submitted after
 it, and if you do not accept it you may stop using the service and delete your account. These terms are governed by
 `{GOVERNING_LAW}`, and, to the extent the law allows, disputes are heard in `{VENUE}`; where the law gives you the right to go
-to a court elsewhere, that right stays. If a part is found unenforceable, the rest stands. Contact: `{CONTACT}`.
+to a court elsewhere, that right stays. If a part is found unenforceable, the rest stands: **each clause, and each limit and exclusion in section 9, stands or falls on its
+own.** Contact: `{CONTACT}`.
 
 ## Part C. What the two reviews of v1 changed (not rendered)
 
