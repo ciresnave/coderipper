@@ -5,6 +5,23 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.12 - 2026-10-13 (proposed)
+
+Documentation only; no code or behaviour change.
+
+### Changed
+- **Hosted service: the terms of service are now a template each hosting site renders (v2), and the queue ordering is a weight
+  with aging.** `docs/hosted-service/terms-of-service-draft.md` is rewritten after CireSnave's 2026-10-13 answers and two outside
+  reviews of v1: the operator (the site that hosts a CodeRipper service) fills in `{OPERATOR_NAME}`, `{CONTACT}`,
+  `{GOVERNING_LAW}`, `{MIN_AGE}`, `{LIABILITY_CAP}` and its own retention values; an intake authorisation text with `{repository}`
+  and `{username}`; a processing licence; run-time (30 minutes by default) and resource limits; third-party runners disclosed;
+  takedown, privacy, secret, abuse and vulnerability reports as separate processes; a narrow compensation clause that excludes the
+  operator's own fault; copyright complaints and retention are the hosting site's, not CodeRipper's. Part D records an Arizona and
+  federal desk check of the liability and compensation clauses, with what it found and what it did not. **Not legal advice; no
+  lawyer has reviewed it.** `docs/superpowers/plans/2026-10-12-hosted-service.md` section 10 replaces "fewest runs, then least
+  resource" with a weight (recent wall-clock use, expected run time, a site adjustment) that is lowered every N minutes (default
+  10) while a job waits, so a heavy job is delayed but not delayed forever. Nothing is built.
+
 ## 0.6.11 - 2026-10-13 (proposed)
 
 ### Added
