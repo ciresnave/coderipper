@@ -5,6 +5,28 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.10 - 2026-10-13 (proposed)
+
+### Added
+- **`coderipper::redact`: a function that removes known secret shapes from third-party text** (`redact::text(&str) -> (String,
+  usize)`, and `redact::REDACTED`). It is the first of two steps of the redaction pass designed in
+  `docs/superpowers/plans/2026-10-12-redaction-pass.md`; **nothing calls it yet**, so no output of any run changes. The second
+  step wires it into the sinks (a build failure's `Cause:`, an external module's stderr, a delegated tool's stderr, notes) behind
+  a `--redact` policy that is off for local runs and on in the hosted service.
+  It replaces: the userinfo of a URL (`scheme://user:password@host`, also when the password holds `/`, `?` or `#`); the value
+  after a key whose name contains `token`, `secret`, `password`, `passwd`, `pwd`, `apikey`, `credential`, `privatekey`,
+  `session` or `cookie`, or has `auth`, `oauth`, `authkey` as a whole segment (`KEY=value`, `KEY: value`, `"key": "value"`,
+  also with escaped quotes); the credential of an `Authorization:` header (plain or quoted, as in JSON), and of a bare
+  `Bearer`/`Basic` word that looks like a token (16+ characters with a digit, or 32+); a `PRIVATE KEY` block (also a PGP block,
+  and a block whose start was cut off); a 32+ character word that follows such a key with no separator; and a short list of
+  token shapes (GitHub, AWS access key ids, npm, crates.io, Slack). **It removes known keys and shapes only: a secret with no
+  recognisable key or shape is not found, and the output is never "clean".** It over-redacts on purpose (`tokenizer=bpe` loses
+  `bpe`, `ssh://git@host` loses `git`, an unlisted `Authorization` scheme loses two words) but leaves a developer's diagnostics
+  alone (`crate::auth::Claims`, `src/session.rs:12:5`, ``expected token: `;` ``). It is idempotent. The count it returns is an
+  upper bound on values (a value two rules both recognise counts twice). Known gaps: a multi-parameter `Digest` header keeps
+  its later parameters; `--password hunter2` (a flag, a space) is not seen unless the word is long; a URL password that
+  starts with a digit and holds `/`, `?` or `#` reads as a port. It does not remove paths that contain a user name.
+
 ## 0.6.9 - 2026-10-13 (proposed)
 
 ### Fixed
