@@ -67,9 +67,9 @@ written into this file or into the repository.
    the job. **An operator that admits other people's runners decides on what terms** (enrolment terms, attestation of the controls in
    the design's section 10.5, a way to remove a runner) and must not tell users more than it has done: the rendered text promises no
    contract with a runner provider.
-8. **Check consumer-protection law where your users live** before rendering section 9, and consider limiting the service to places
+7. **Check consumer-protection law where your users live** before rendering section 9, and consider limiting the service to places
    you have checked (in `{MIN_AGE}`'s eligibility text). This draft was checked against Arizona and federal law only (Part D).
-7. **Publish the vulnerability-reporting route outside the terms** so a researcher can find the scope and the contact without
+8. **Publish the vulnerability-reporting route outside the terms** so a researcher can find the scope and the contact without
    accepting a contract, and **verify a repository owner's request not to be scanned** the way a push is verified, applying it to
    forks and renames the operator can identify, to queued jobs and to future jobs (existing results are handled by section 10).
 
