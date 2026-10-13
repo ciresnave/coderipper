@@ -11,7 +11,7 @@
 > its users deal with. The CodeRipper authors are not a party to the operator's terms and receive no complaints about an operator's
 > service. Each operator remains responsible for checking that the text suits its own situation and law.
 >
-> **Layout.** Part A (template values and operator duties) and Part C (review notes) are for people and are **not rendered**. Part B is
+> **Layout.** Part A (template values and operator duties), Part C (review notes) and Part D (the Arizona and federal check) are for people and are **not rendered**. Part B is
 > the user-facing text; its `{VALUES}` are filled in when it is rendered. `[ASSUMPTION n]` marks a legal assumption nobody qualified has
 > checked; they are listed in Part A.4 and are removed from the rendered text.
 
@@ -28,8 +28,9 @@ first five missing. Defaults are CodeRipper's; an operator may change them.
 | `{CONTACT}` | where takedown, abuse, privacy and vulnerability reports go | **required** |
 | `{GOVERNING_LAW}` | governing law and venue | **required** |
 | `{MIN_AGE}` | minimum age and who may open an account | **required** |
-| `{LIABILITY_CAP}` | the cap in Part B section 9 | none: render fails |
+| `{LIABILITY_CAP}` | the cap in Part B section 9. Must not be so low that it removes any reason to take care (Part D): a floor of the greater of what the user paid in the last 12 months and a stated sum is a judgement, not a rule of law | none: render fails |
 | `{MAX_RUNTIME_MINUTES}` | default limit on one job's run time | 30 |
+| `{QUEUE_STEP_MINUTES}` | how often waiting jobs are lowered in weight (section 7); each step lowers a weight by one second per second waited | 10 |
 | `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to (optional: the operator's own configuration may simply allow any value) | operator's choice |
 | `{RESULT_RETENTION_DAYS}` / `{RESULT_RETENTION_MAX_DAYS}` | how long the **operator's site** keeps a result, and the most a user may set. CodeRipper hands the result over and enforces none of this | operator's choice (no CodeRipper default) |
 | `{JOB_METADATA_RETENTION_DAYS}` | how long the operator's site keeps job metadata after the result expires | operator's choice (a site that orders its queue by the last 30 days needs at least that) |
@@ -69,7 +70,8 @@ the site, which is the only party that knows them.
 > scripts and procedural macros on a machine that is not yours; and (d) submitting it breaks no law, no agreement binding you and no
 > right of anyone else. If you are not sure, do not continue.
 
-The site records the user, the repository, the commit, the time and the version of this text.
+The user must take a **positive step** (a button or box labelled as agreeing, with a visible link to the full terms, not a notice
+below the fold or a bare "continue"). The site records the user, the repository, the commit, the time and the version of this text.
 
 ### A.4 Legal assumptions nobody qualified has checked
 
@@ -80,11 +82,11 @@ The site records the user, the repository, the commit, the time and the version 
 | 3 | Running a repository's build scripts in an isolated runner, at the request of someone who has stated that they may ask, is not unauthorised access. | The service could not run build-time code (Face A only). |
 | 4 | Calling the service a processor of user-requested jobs does not by itself settle who is liable for what a repository's code does in a sandbox. **It is not relied on**: the sandbox, the limits and the abuse policy are what the operator relies on. | Liability and insurance would have to be answered first. |
 | 5 | A notice-and-takedown process like section 10 is adequate for a service that stores findings and not the repository's content. Whether the US DMCA, the EU DSA or another regime applies to a given operator is unknown. | A designated agent and a counter-notice flow would be needed. |
-| 6 | The warranty disclaimer and liability limit in section 9 are enforceable where users live. | Local consumer law may override them. |
+| 6 | The warranty disclaimer and the liability cap in section 9 are enforceable under Arizona and federal law and where users live. Checked in Part D; not settled. | A cap below what a court accepts, or a clause it refuses, falls away; the carve-outs in section 9 are what keeps the rest. |
 | 7 | The retention in section 8 is compatible with privacy law where users live. | A fuller privacy notice, a lawful-basis statement and a data-subject-request process would be needed. |
 | 8 | Running untrusted jobs on a runner host does not breach its provider's terms (a VPS provider's or a home internet provider's). | Runner locations would have to change. |
 | 9 | A user's intake statement is a meaningful record that the user, not the operator, vouched for the right to scan. | The operator carries the whole risk of an unauthorised scan. |
-| 10 | A promise by the user to compensate the operator (section 9), and a clause saying the CodeRipper authors are not a party, hold where users live. Individuals' indemnities are often unenforceable in practice and some places refuse them for consumers. | The operator carries more of its own risk. |
+| 10 | The user's promise to compensate the operator (section 9) is enforceable. It is limited to **third-party claims caused by the user's own breach or lack of right**, and excludes the operator's own fault. No Arizona authority was found on a consumer's indemnity; a broader clause would risk being held unconscionable (Part D). | The operator carries more of its own risk. |
 
 ## Part B. The terms, as rendered
 
@@ -174,10 +176,12 @@ If a report exposes a secret or personal data, tell us at `{CONTACT}` (section 1
 
 ### 7. Fair use and the queue
 
-We do not set a quota on how much you use in total. When the runners are busy, jobs are ordered **first by the number of jobs the
-account has started in the last 30 days (fewest first), second by the resource its jobs used in that time (least first)**, then by when
-the job was submitted. Jobs that you cancelled before they started, or that we re-ran because a runner vanished, are not counted
-against you twice. Each account may have **at most two jobs running at once**: a safety limit for the machines, not a cap on total use.
+We do not set a quota on how much you use in total. When the runners are busy, each job is given a **weight** when you submit it, and
+the lightest weight runs first. The weight is made of three things: how much run time your account has used recently (including jobs
+you have waiting), how long the job is expected to take (so that a 20-minute job waits behind 30-second ones), and an adjustment that
+`{OPERATOR_NAME}` may apply as it sees fit, for example to give paying customers priority. **While a job waits, its weight is lowered
+every `{QUEUE_STEP_MINUTES}` minutes**, so a heavy job is delayed but not delayed forever. Each account may have **at most two jobs
+running at once**: a safety limit for the machines, not a cap on total use.
 
 The ordering is a best effort, not a guarantee of when a job runs. When the queue is full we refuse a new job and ask you to try later.
 **A job we have accepted** (it is in the queue) is retried on another runner if its runner fails, a bounded number of times; if we
@@ -212,12 +216,18 @@ The service and its reports are provided **as they are**. We do not promise that
 safe, that a job will complete, or that the service will be available. We may change or end features, rules, supported languages and
 infrastructure.
 
-To the extent the law allows, we exclude liability for indirect or consequential loss, for loss of data, profit or business, and for loss
-arising from your reliance on a report. **Our total liability to you for everything arising from the service is limited to
-`{LIABILITY_CAP}`.** You are responsible for what you submit and publish, and, to the extent the law allows, you will compensate us for
-loss, claims and costs that arise from your submission or from your breach of these terms. The authors of CodeRipper, the software
-we use, are not a party to these terms and are not responsible for this service; `{OPERATOR_NAME}` alone runs it. Nothing in these terms excludes or limits liability that the law does not allow to be excluded or limited, and
-nothing takes away rights you have by law that cannot be waived. `[ASSUMPTION 4]` `[ASSUMPTION 6]`
+To the extent the law allows, we exclude liability for indirect or consequential loss, for loss of data, profit or business, and for
+loss arising from your reliance on a report. **Our total liability to you for everything arising from the service is limited to
+`{LIABILITY_CAP}`.** This does not exclude or limit liability for death or personal injury, for fraud, for wilful misconduct or gross
+negligence, or for anything else the law does not allow to be excluded or limited, and it takes away no right you have by law that
+cannot be waived. `[ASSUMPTION 4]` `[ASSUMPTION 6]`
+
+**Your responsibility.** You are responsible for what you submit and publish. If someone other than you brings a claim against us
+because you submitted a repository you had no right to submit, or because you broke these terms, you will compensate us for the loss
+and the reasonable costs of dealing with that claim, **except to the extent our own fault caused it**. `[ASSUMPTION 10]`
+
+The authors of CodeRipper, the software we use, are not a party to these terms and are not responsible for this service;
+`{OPERATOR_NAME}` alone runs it.
 
 ### 10. Takedown, abuse and vulnerability reports
 
@@ -280,3 +290,56 @@ host with no route to a home LAN is closer to the design's intent than a plain c
 design: the self-registering runner image (runners admitted to a pool, each result naming its runner), the intake interface that
 carries the authorisation record, the result-and-metadata interface the site serves, and the installer/config that renders this
 template.
+
+## Part D. Arizona and federal check of the liability and compensation clauses (web research, 2026-10-13; not legal advice)
+
+CireSnave asked that the liability and compensation clauses be checked against Arizona and federal law, saying that a clause that is not
+enforceable is not helpful. **This was desk research from case summaries and a few primary pages, by an AI agent, with no lawyer**. It
+found what follows and it found gaps; the gaps are listed. Cases are named by citation, not by link, so that no link goes stale. **The reporter citations for *Salt River Project*, *Sirek*
+and *Phelps* are from memory and were not re-checked against the reports; verify them before anyone relies on them.**
+
+**Found, and used in section 9**
+
+- **A cap on liability is enforceable in Arizona if it is not against public policy.** *1800 Ocotillo, LLC v. WLB Group, Inc.*, 196 P.3d
+  222 (Ariz. 2008): a clause capping a surveyor's negligence liability at its fees was held enforceable, not against public policy, and
+  *not* subject to the constitutional rule that assumption of risk is a jury question. The court distinguished a cap from a clause that
+  removes liability altogether, and said a cap could be set **so low that it removes the incentive to take care**; it found no such
+  problem there. That is why `{LIABILITY_CAP}` has no CodeRipper default and carries a warning. (That case was a commercial contract
+  between businesses; a consumer setting is not decided by it.)
+- **A clause that removes one's own liability for negligence is disfavoured and read narrowly.** *Salt River Project Agric. Improvement
+  & Power Dist. v. Westinghouse Elec. Corp.*, 143 Ariz. 368 (1984) (abrogated on another ground by *Phelps*), and *Sirek v. Fairfield
+  Snowbowl, Inc.*, 166 Ariz. 183 (App. 1990): the intent must be spelled out, clearly, so that the signer is alerted to giving up a right.
+  Section 9 therefore says plainly what it excludes, and does not try to exclude more than the law allows.
+- ***Phelps v. Firebird Raceway, Inc.*, 210 Ariz. 403 (2005):** an *express contractual assumption of risk* is a question of fact for a
+  jury under Art. 18, section 5 of the Arizona Constitution. So a broad release a user "assumes the risk of" can be put to a jury and
+  cannot be relied on as a rule. Section 9 is a cap and an exclusion of kinds of loss, not an assumption-of-risk release.
+- **Death and personal injury.** Arizona Const. Art. 2, section 31 bars laws limiting damages for death or injury, and Art. 18, section 6
+  protects the right of action for injury from being abrogated. A software scan is unlikely to cause either, but the carve-out is there
+  so the clause does not claim what the constitution forbids.
+- **Fraud, wilful misconduct and gross negligence** are carved out as a conservative default. No Arizona authority was found on
+  gross negligence in a limitation clause.
+- **Compensation (indemnity).** Arizona enforces indemnity clauses, reads them strictly, and requires a clear statement before one covers
+  the indemnitee's own negligence (*Salt River Project*, above; a 2017 Court of Appeals decision on a professional-services contract
+  was reported to hold the same). The clause in section 9 therefore covers third-party claims arising from the **user's** act and
+  expressly **excludes our own fault**. Unconscionability in Arizona (*Maxwell v. Fidelity Fin. Servs., Inc.*, 184 Ariz. 82 (1995))
+  can be shown by substantive unconscionability alone, which a one-sided clause invites; narrowing the clause is the protection.
+- **Assent.** Courts across the country enforce a clickwrap (a positive agreement step with the terms linked) and refuse a browsewrap
+  that gives no notice (*Specht v. Netscape*, 306 F.3d 17 (2d Cir. 2002)). The intake boilerplate therefore requires a positive step
+  and a visible link, and the site records the text version.
+- **Federal copyright.** To keep the safe harbour for material stored at a user's direction, 17 U.S.C. section 512(c) requires a
+  designated agent filed with the Copyright Office and published on the site (renewed every three years), and section 512(i) a
+  repeat-infringer policy that is reasonably implemented. Section 10 and Part A.2 item 4 put this on the operator. **The filing fee and
+  current renewal terms were not verified.**
+
+**Not found, so not relied on**
+
+- Arizona authority on a **consumer's** indemnity of a service operator, and on gross negligence in a limitation clause.
+- The text of Arizona's electronic-transactions statute (A.R.S. 44-7001 ff.) and an Arizona decision on clickwrap assent. The general rule
+  above is national.
+- Whether a free service's **nominal** cap is accepted. *Ocotillo* warns against one that removes the incentive; no number was found.
+- Anything about the laws of the places users live. Section 9 ends with "or anything else the law does not allow", which is a
+  fallback, not a check.
+- Minors: Arizona's age of majority is 18, and a contract with a minor may be avoided by the minor. This is why `{MIN_AGE}` is required.
+
+**Bottom line.** The cap, the exclusions of kinds of loss, the narrow compensation clause and the carve-outs are drafted to stay inside
+what these sources say Arizona enforces. They are a reasoned best effort, not a guarantee, and the gaps above are genuine.

@@ -103,7 +103,7 @@ errors, the redaction count and the policy that applied), built from the library
 |---|---|
 | Anonymous abuse | **Login required** (his #4). `auth-framework` when ready; until then GitHub OAuth, which is also what answers "can this user push to this repository" |
 | Scanning someone else's repo and posting it | **v1 B scans only a public repository the logged-in user can push to**, verified through the GitHub API at submit time (PM, 2026-10-12). Private repositories use face A on their own CI |
-| One account starving the rest | **Fair share, not a cap** (his #3 and his scheduling ruling of 2026-10-12): fewest runs in the last month first, then least resource used; see §10. Global backpressure on queue depth is a capacity limit, not a quota |
+| One account starving the rest | **Fair share, not a cap** (his #3 and his scheduling ruling of 2026-10-12): a weight from recent use, expected run time and a site adjustment, lowered while a job waits (CireSnave 2026-10-13); see §10. Global backpressure on queue depth is a capacity limit, not a quota |
 | One account occupying every runner | **Per-account concurrent-job cap of 2.** A safety measure on parallelism, not a quota on total use; stated as such in the user-facing docs (PM, 2026-10-12). Any change is CireSnave's, because it sits beside "no limit" |
 | Outbound attacks from our runners | no egress during build (§3.3); the resolve proxy allows crates.io only |
 | Mining / pegged CPU | bounded by wall clock; flagged when CPU is saturated with no cargo progress; repeated timeouts deprioritise the account and can suspend it |
@@ -211,36 +211,56 @@ So there is **no per-job money cost and no dollar ceiling**; the limits are **ca
 machines that are not data-centre machines), and **the runners are CireSnave's own machines running strangers' jobs**, so isolation
 matters more, not less (an escape lands on his network). This section replaces the "compute-seconds ordering" wording in §5.
 
-### 10.1 The ordering
+### 10.1 The ordering: a weight, lowered while a job waits (CireSnave, 2026-10-13)
 
-A queued job's sort key, smallest first:
+> Replaces the "fewest runs, then least resource" ordering above after CireSnave's 2026-10-13 answer: *"I'm fine with big jobs being
+> pushed off but not pushed off forever."* A fixed "after N hours it goes next" rule was **not** what he asked for.
 
-1. **runs in the trailing 30 days** for its account (jobs that *started*; a job cancelled before it started does not count; a job
-   re-queued because its runner vanished counts once);
-2. **resource used in the trailing 30 days** for the account (see 10.2);
-3. **submission time** (first in, first out among equals).
+Every job gets a **weight when it is submitted**; the **lightest weight runs next**. Weights are in seconds of run time, so they can be
+read at a glance:
 
-The account's two numbers are read **when a runner becomes free**, not when the job was submitted, so a user who has just run twenty jobs
-moves behind a user who has run none, including jobs already waiting. That is the intent of "only the real resource hogs get slowed
-down". The ordering is published (the terms say so).
+```
+weight = recent_use(account) + k * expected_run(job) + site_adjustment(job)
+```
 
-### 10.2 What "resource" means
+1. **`recent_use(account)`**: wall-clock seconds the account's jobs have used in the trailing window (default 30 days), **plus the
+   expected run time of its jobs that are queued or running now**. Without the second part a burst of fifty submissions at once would
+   all be weighed against an empty history.
+2. **`expected_run(job)`** (`k` default 1): the job's expected wall-clock seconds, so a 20-minute job waits behind 30-second jobs.
+   Taken from the last run of the same repository when there is one, otherwise from a size estimate of its workspace, and never more
+   than the job's run-time limit (30 minutes by default, section 3.5).
+3. **`site_adjustment(job)`**: a signed number the **hosting site** passes with the job, to use as it likes (a paying customer's jobs
+   get a negative one). CodeRipper applies it and has no opinion about it. Per-site, so a site that does not use it passes 0.
 
-Measured by the host, never by the job: **CPU-seconds actually consumed** (the primary number), plus **peak memory x wall-clock
-seconds** and **peak disk**, recorded per job and kept as job metadata. For ordering they are combined into one number with weights
-that reflect which resource is scarce on the runner that ran it (a runner short of memory weights memory); **the weights are tunable
-and are not measured yet** (open: they need a few real jobs on the real machines, the measurement of §8's spike). Two things are
-deliberately **not** in it: the repository's size and the result's severity.
+**Aging.** Every `N` minutes (default **10**) the weight of **every waiting job** is lowered by `step` (default **N x 60**, so a job's
+weight falls by one second for each second it waits) and the queue is re-sorted. Weight is not allowed below 0; equal weights run in
+submission order. Why this reaches everyone: a *new* job enters at its full weight, so a waiting job that has been discounted for long
+enough is lighter than any newcomer of ordinary size. The longest a job can be held back by later arrivals is about its own weight
+(a heavy user with five hours of recent use waits at most about five hours behind newcomers; never "forever"). Lowering every waiting
+job by the same amount does not change their order **relative to each other**, only relative to jobs that arrive later, and that is
+the intent.
+
+**Configuration** (the same mechanism as the other limits): `N`, `step`, `k`, the trailing window, and the run-time limit. Defaults
+above. Nothing here is a quota: nobody is refused for total use. The per-account **cap of 2 concurrent jobs** remains as a machine
+safety limit.
+
+### 10.2 What "recent use" measures
+
+**Wall-clock seconds the job held a runner**, measured by the host, never by the job. (CPU time, peak memory and peak disk are still
+recorded per job as metadata and as the base for the caps in 10.4, but they are not in the weight: CireSnave asked for wall-clock
+time.) Two things are deliberately **not** in it: the repository's size as such and the result's severity. A job cancelled before it
+started, and a job re-queued because its runner vanished, count once.
 
 ### 10.3 What the ordering does not do
 
-- **It is not a quota.** Nobody is refused for total use; they wait behind lighter users. The per-account **concurrent cap of 2**
-  remains and is stated as a safety limit.
-- **Starvation.** Strict priority can delay a heavy user for as long as lighter users keep arriving, which is what was asked for. The
-  design adds one **recommended** guard, not a ruling: a waiting job's key is improved by the time it has waited (after `{N}` hours it
-  is next), so a job is never starved forever by a stream of lighter ones. Open for CireSnave: yes/no and `{N}` (propose 24).
-- **Gaming.** Many accounts split one person's usage; login is required and one person one account is a term, but the real control is
-  the push-access rule (a repository can be scanned only by someone who can push to it).
+- **It is not a quota.** Nobody is refused for total use; they wait behind lighter jobs.
+- **A site adjustment can starve.** A site that gives its paying customers a large negative number can hold free jobs back for as long
+  as it likes: aging bounds the delay by the job's weight, not by the adjustment. That is the site's own queue and its own choice;
+  the terms say that the site may adjust priority.
+- **Estimates can be wrong.** A job that runs longer than its estimate is not penalised after the fact; it is killed at the run-time
+  limit and the limit is named in the report. The weight uses the estimate only to order.
+- **Gaming.** Many accounts split one person's usage; login is required and the terms forbid it, but the real control is the
+  push-access rule and the site's authorisation record.
 
 ### 10.4 Capacity limits on his machines
 
@@ -270,5 +290,5 @@ Because the machines are his own, §3's isolation is a **minimum**, with these a
 
 ### 10.6 Metrics that must exist before B opens
 
-Queue depth and age, per-account runs and resource over 30 days, per-runner utilisation, jobs killed at a cap by cap, jobs re-queued,
+Queue depth and age, per-account weight inputs (recent use, estimates against actuals), per-runner utilisation, jobs killed at a cap by cap, jobs re-queued,
 and runner health. They are what makes "only the hogs wait" checkable; without them the ordering cannot be shown to work.
