@@ -83,8 +83,8 @@ The site records the user, the repository, the commit, the time and the version 
 | 6 | The warranty disclaimer and liability limit in section 9 are enforceable where users live. | Local consumer law may override them. |
 | 7 | The retention in section 8 is compatible with privacy law where users live. | A fuller privacy notice, a lawful-basis statement and a data-subject-request process would be needed. |
 | 8 | Running untrusted jobs on a runner host does not breach its provider's terms (a VPS provider's or a home internet provider's). | Runner locations would have to change. |
-| 10 | A promise by the user to compensate the operator (section 9), and a clause saying the CodeRipper authors are not a party, hold where users live. Individuals' indemnities are often unenforceable in practice and some places refuse them for consumers. | The operator carries more of its own risk. |
 | 9 | A user's intake statement is a meaningful record that the user, not the operator, vouched for the right to scan. | The operator carries the whole risk of an unauthorised scan. |
+| 10 | A promise by the user to compensate the operator (section 9), and a clause saying the CodeRipper authors are not a party, hold where users live. Individuals' indemnities are often unenforceable in practice and some places refuse them for consumers. | The operator carries more of its own risk. |
 
 ## Part B. The terms, as rendered
 
