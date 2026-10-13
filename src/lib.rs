@@ -72,6 +72,7 @@ pub mod finding;
 pub mod github;
 pub mod module;
 pub(crate) mod package;
+pub mod redact;
 pub(crate) mod session;
 pub(crate) mod suppression;
 pub mod tools;
