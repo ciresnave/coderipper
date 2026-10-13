@@ -689,3 +689,75 @@ fn a_member_with_no_dependents_is_reported_exactly_as_before() {
     assert_eq!(subjects(&findings), vec!["run"], "{findings:?}");
     assert!(!findings[0].detail.contains("workspace member"));
 }
+
+fn summary_of<'a>(findings: &'a [coderipper::finding::Finding], subject: &str) -> &'a str {
+    findings
+        .iter()
+        .find(|f| f.subject.as_deref() == Some(subject))
+        .unwrap_or_else(|| panic!("no finding for {subject}: {findings:?}"))
+        .summary
+        .as_str()
+}
+
+#[test]
+fn a_helper_only_a_dead_item_calls_says_so_instead_of_claiming_it_has_no_callers() {
+    // Audit of 2026-10-12: `children_of` was reported as having "zero callers" although `eval_recipe` calls it;
+    // `eval_recipe` is what has none. The claim must name the item the helper hangs from.
+    let lib = "pub fn entry() -> i32 { helper() + other() }
+fn helper() -> i32 { deeper() }
+fn other() -> i32 { 2 }
+fn deeper() -> i32 { 1 }
+pub fn standalone() {}
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", lib)]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(
+        subjects(&findings),
+        vec!["deeper", "entry", "helper", "other", "standalone"],
+        "{findings:?}"
+    );
+    // the roots of what is dead keep the plain claim
+    assert!(summary_of(&findings, "entry").contains("zero callers"));
+    assert!(summary_of(&findings, "standalone").contains("zero callers"));
+    // what hangs from them says where
+    assert!(
+        summary_of(&findings, "helper").contains("reachable only from `entry`"),
+        "{findings:?}"
+    );
+    assert!(summary_of(&findings, "other").contains("reachable only from `entry`"));
+    assert!(summary_of(&findings, "deeper").contains("reachable only from `helper`"));
+    assert!(!summary_of(&findings, "helper").contains("zero callers"));
+}
+
+#[test]
+fn a_dead_type_keeps_the_plain_claim_even_though_its_methods_mention_it() {
+    // An inherent impl's header lends the type's name to its methods; the type is not "reachable only from" them.
+    let lib = "pub struct Dead;
+impl Dead {
+    pub fn go(&self) {}
+}
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", lib)]);
+    let findings = run_reachability(&repo).unwrap();
+    assert!(
+        summary_of(&findings, "Dead").contains("zero callers"),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn two_dead_functions_that_only_call_each_other_are_not_called_callerless() {
+    // `a` calls `b` and `b` calls `a`: each has a caller, and neither is reachable from outside the pair.
+    let lib = "pub fn a() { b(); }
+fn b() { a(); }
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", lib)]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(subjects(&findings), vec!["a", "b"], "{findings:?}");
+    for subject in ["a", "b"] {
+        let summary = summary_of(&findings, subject);
+        assert!(summary.contains("through it or each other"), "{summary}");
+        assert!(!summary.contains("zero callers"), "{summary}");
+        assert!(!summary.contains("which has no callers"), "{summary}");
+    }
+}
