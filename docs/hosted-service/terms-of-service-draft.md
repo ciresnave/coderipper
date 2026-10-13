@@ -19,14 +19,16 @@
 
 ### A.1 Values the renderer fills in
 
-CodeRipper's hosted-service package takes these from a configuration file or from its installer, and refuses to render with any of the
-first five missing. Defaults are CodeRipper's; an operator may change them.
+CodeRipper's hosted-service package takes these from a configuration file or from its installer, and refuses to render with any value marked **required**
+or "none: render fails" missing. Defaults are CodeRipper's; an operator may change them.
 
 | Value | Meaning | Default |
 |---|---|---|
 | `{OPERATOR_NAME}` | who "we" is: the legal person or site that runs this service | **required** |
 | `{CONTACT}` | where takedown, abuse, privacy and vulnerability reports go | **required** |
-| `{GOVERNING_LAW}` | governing law and venue | **required** |
+| `{GOVERNING_LAW}` | the law that governs the terms (for example, "the State of Arizona") | **required** |
+| `{VENUE}` | where a dispute is heard (for example, "the state or federal courts located in Maricopa County, Arizona") | **required** |
+| `{PRIVACY_POLICY_URL}` | the operator's own privacy notice, linked from sections 2 and 8 | **required** |
 | `{MIN_AGE}` | minimum age and who may open an account | **required** |
 | `{LIABILITY_CAP}` | the cap in Part B section 9. Must not be so low that it removes any reason to take care (Part D): a floor of the greater of what the user paid in the last 12 months and a stated sum is a judgement, not a rule of law | none: render fails |
 | `{MAX_RUNTIME_MINUTES}` | default limit on one job's run time | 30 |
@@ -34,7 +36,7 @@ first five missing. Defaults are CodeRipper's; an operator may change them.
 | `{MAX_RUNTIME_CEILING_MINUTES}` | the most a user may set it to (optional: the operator's own configuration may simply allow any value) | operator's choice |
 | `{RESULT_RETENTION_DAYS}` / `{RESULT_RETENTION_MAX_DAYS}` | how long the **operator's site** keeps a result, and the most a user may set. CodeRipper hands the result over and enforces none of this | operator's choice (no CodeRipper default) |
 | `{JOB_METADATA_RETENTION_DAYS}` | how long the operator's site keeps job metadata after the result expires | operator's choice (a site that orders its queue by the last 30 days needs at least that) |
-| `{BACKUP_EXPIRY_DAYS}` | how long a deleted result may survive in backups | operator's choice; if the operator keeps none, the sentence is dropped |
+| `{BACKUP_EXPIRY_DAYS}` | how long a deleted result may survive in backups. **Set it only if the backups can keep the promise**: immutable or provider-default backups may not be deletable on a day count, and the sentence should then say "at the next backup rotation" | operator's choice; if the operator keeps none, the sentence is dropped |
 | `{TAKEDOWN_RESPONSE_HOURS}` | time to hide a reported result | operator's choice |
 | `{VULN_ACK_DAYS}` | time to acknowledge a vulnerability report | operator's choice |
 | `{COMMUNITY_NAME}` | the community the service can prepare posts for, if any | none (the section is dropped) |
@@ -49,12 +51,15 @@ written into this file or into the repository.
 2. **Publish a privacy notice of its own.** What CodeRipper produces is listed in Part B section 8. What the operator's *site* logs
    (addresses, sessions, cookies) is the operator's own matter and is not described here, because CodeRipper's code does not handle
    requests: it takes a job and a repository and returns a result and metadata.
-3. **Be the contact.** Takedown, copyright and abuse reports about a service go to whoever runs it. If you use a site other than ours,
+3. **Check the promises against the infrastructure** before rendering: that backups can be deleted within
+   `{BACKUP_EXPIRY_DAYS}` (immutable backups often cannot), that the queue adjustment is published, and that a privacy notice
+   exists at `{PRIVACY_POLICY_URL}`. A term the operator cannot keep is a breach of contract by the operator.
+4. **Be the contact.** Takedown, copyright and abuse reports about a service go to whoever runs it. If you use a site other than ours,
    write to that site, not to the CodeRipper authors.
-4. **Own the copyright question** (A.4 item 5). The site stores and serves the report, so a copyright complaint is the operator's, not
+5. **Own the copyright question** (A.4 item 5). The site stores and serves the report, so a copyright complaint is the operator's, not
    CodeRipper's (CireSnave, 2026-10-13). Whether to register a designated agent and run a counter-notice flow is the operator's call.
    This draft gives a notice-and-takedown process that is a start, not a statement that the operator has safe-harbour status anywhere.
-5. **Set the runner pool honestly.** Part B section 4 tells users that a job may run on a machine run by someone other than the
+6. **Set the runner pool honestly.** Part B section 4 tells users that a job may run on a machine run by someone other than the
    operator. If the operator admits only its own machines, delete that sentence; if it admits others, the result shows which runner ran
    the job.
 
@@ -107,7 +112,8 @@ responsible for a decision to merge, ship or rely on one.
 
 ### 2. Your account
 
-- You need an account and must be logged in. You must meet these requirements to open one: `{MIN_AGE}`.
+- You need an account and must be logged in. You must meet these requirements to open one: `{MIN_AGE}`. How we handle your
+  account details is in our privacy notice (`{PRIVACY_POLICY_URL}`).
 - You are responsible for what your account submits.
 - You may not use more than one account, an identity other than your own, or automated submissions to get around the queue ordering
   in section 7, a suspension, or any other limit of the service. Accounts for an organisation, and automation that follows these
@@ -137,7 +143,8 @@ advertising.
 - We fetch the repository at one commit and run CodeRipper in a fresh, isolated runner. The runner is destroyed after the job; a job
   that does not end is killed (see "Limits" below) and the runner destroyed then.
 - **Your job may run on a machine run by someone other than `{OPERATOR_NAME}`**, a runner provider we have admitted to our pool. That
-  machine sees the repository (public) and runs its build scripts. The result says which runner ran the job.
+  machine sees the repository and runs its build scripts. **Only public repositories are accepted, so what the runner sees is
+  already public**; the result says which runner ran the job.
 - **Dependencies are fetched from the public crate registry before the build; the build itself runs with no network access.** A build
   script that needs the network fails, and the report says so: it is a gap, not a pass.
 - **Limits.** Each job has a maximum run time of `{MAX_RUNTIME_MINUTES}` minutes by default (you can set it higher on your account, up to
@@ -179,7 +186,8 @@ If a report exposes a secret or personal data, tell us at `{CONTACT}` (section 1
 We do not set a quota on how much you use in total. When the runners are busy, each job is given a **weight** when you submit it, and
 the lightest weight runs first. The weight is made of three things: how much run time your account has used recently (including jobs
 you have waiting), how long the job is expected to take (so that a 20-minute job waits behind 30-second ones), and an adjustment that
-`{OPERATOR_NAME}` may apply as it sees fit, for example to give paying customers priority. **While a job waits, its weight is lowered
+`{OPERATOR_NAME}` may apply, for example to give paying customers priority; the ordering rule, **including that such an
+adjustment exists**, is published. **While a job waits, its weight is lowered
 every `{QUEUE_STEP_MINUTES}` minutes**, so a heavy job is delayed but not delayed forever. Each account may have **at most two jobs
 running at once**: a safety limit for the machines, not a cap on total use.
 
@@ -198,14 +206,14 @@ Three different things are promised separately.
 - **How long it is kept.** `{RESULT_RETENTION_DAYS}` days by default; you can set a different default on your account, up to
   `{RESULT_RETENTION_MAX_DAYS}` days. After that the result is deleted from our active systems and its link says "expired".
 - **What deletion means.** A result you delete, or that expires, is removed from our active systems promptly; copies in backups are
-  gone within `{BACKUP_EXPIRY_DAYS}` days. Making a result private does not take back a copy someone already has, and a post you
+  removed within `{BACKUP_EXPIRY_DAYS}` days (or at the next backup rotation, where the operator says so). Making a result private does not take back a copy someone already has, and a post you
   published elsewhere is not removed when the result expires (you may delete it yourself).
 
 **What we store about a job.** Your account; the repository and commit; the report; and **job metadata that CodeRipper produces with the
 report**: when it ran, which rules ran, which runner, run time, CPU, memory and disk use, and the outcome. Metadata is kept
 `{JOB_METADATA_RETENTION_DAYS}` days after the result expires so that the queue ordering and abuse handling can work. We do not keep the
-repository's source after the job. What our site records about your visits (addresses, sessions) is described in our privacy notice,
-not here. `[ASSUMPTION 7]`
+repository's source after the job. What our site records about your visits (addresses, sessions) is described in our
+privacy notice (`{PRIVACY_POLICY_URL}`), not here. `[ASSUMPTION 7]`
 
 **Community posts.** If `{COMMUNITY_NAME}` offers it, the service prepares a summary for you to post; you publish it, and it stays
 under your control.
@@ -224,7 +232,7 @@ cannot be waived. `[ASSUMPTION 4]` `[ASSUMPTION 6]`
 
 **Your responsibility.** You are responsible for what you submit and publish. If someone other than you brings a claim against us
 because you submitted a repository you had no right to submit, or because you broke these terms, you will compensate us for the loss
-and the reasonable costs of dealing with that claim, **except to the extent our own fault caused it**. `[ASSUMPTION 10]`
+and the reasonable costs of dealing with that claim, **except to the extent our negligence, wilful misconduct or breach of these terms caused it**. `[ASSUMPTION 10]`
 
 The authors of CodeRipper, the software we use, are not a party to these terms and are not responsible for this service;
 `{OPERATOR_NAME}` alone runs it.
@@ -235,7 +243,7 @@ Write to **`{CONTACT}`** and say which of these it is. These are separate becaus
 
 | You are reporting | Send us | We do |
 |---|---|---|
-| **A copyright complaint**: a result contains material you own that you did not allow | the result link; the work and where it is; your name and contact; a statement that you believe the use is unauthorised and that your notice is accurate | hide the result within `{TAKEDOWN_RESPONSE_HOURS}` hours; tell the submitting account and give it the notice; restore it if the account shows a right to use it |
+| **A copyright complaint**: a result contains material you own that you did not allow | the result link; the work and where it is; your name and contact; a statement that you believe the use is unauthorised and that your notice is accurate | hide the result within `{TAKEDOWN_RESPONSE_HOURS}` hours; tell the submitting account and give it the notice; consider any reply from the account and restore the result if it shows a right to use it |
 | **A request to remove a result about your repository, or naming you** (not a copyright claim) | the result link and how you are connected to the repository | restrict it while we look; hide it within `{TAKEDOWN_RESPONSE_HOURS}` hours if you are connected to the repository and it should not be public; tell the account. We keep the right not to remove a finding that is true and relevant. If you own a repository, you may ask us not to scan it again |
 | **Personal data or a confidential matter in a report** | the result link and what it exposes | restrict it at once, then delete it from active systems |
 | **A secret in a report** | the result link | restrict it at once, then delete it; **rotate the secret yourself: a secret shown in a report is exposed** |
@@ -257,7 +265,8 @@ account at any time; its results are deleted as in section 8, and posts you publ
 
 We may change these terms. A change that affects you is announced on the service before it applies, applies to jobs submitted after
 it, and if you do not accept it you may stop using the service and delete your account. These terms are governed by
-`{GOVERNING_LAW}`. If a part is found unenforceable, the rest stands. Contact: `{CONTACT}`.
+`{GOVERNING_LAW}`, and, to the extent the law allows, disputes are heard in `{VENUE}`; where the law gives you the right to go
+to a court elsewhere, that right stays. If a part is found unenforceable, the rest stands. Contact: `{CONTACT}`.
 
 ## Part C. What the two reviews of v1 changed (not rendered)
 
@@ -332,7 +341,7 @@ read.**
 - **Federal copyright.** To keep the safe harbour for material stored at a user's direction, 17 U.S.C. section 512(c) requires a
   designated agent (name, address, phone and email) given to the Copyright Office and published on the service's website, and section
   512(i)(1)(A) a repeat-infringer policy that is "adopted and reasonably implemented" and that the provider tells its users about
-  (statute text read on 2026-10-13). Section 10 and Part A.2 item 4 put this on the operator. The statute lets the Register charge a
+  (statute text read on 2026-10-13). Section 10 and Part A.2 item 5 put this on the operator. The statute lets the Register charge a
   fee for the directory; **the amount and any renewal period set by the Copyright Office's own rules were not verified.**
 
 **Not found, so not relied on**
