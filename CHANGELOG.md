@@ -5,6 +5,18 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.13 - 2026-10-13 (proposed)
+
+Documentation only; no code or behaviour change.
+
+### Added
+- **Design: configuration layers** (`docs/superpowers/plans/2026-10-13-configuration-layers.md`, nothing built). One file name,
+  `.coderipper.toml`, searched in `/etc/coderipper/`, `/etc/` and the home directory and combined; after those the repository's
+  file (restricted to an allowlist of keys: `[[allow]]`, `[[tracks]]`, `[buf]`, `profile`; every other key warns and is skipped,
+  an unknown key is an error); after that the environment variables; command-line flags last. Limits are ceilings combined by
+  minimum and are enforced from outside the job's container. `[[allow]]`/`[[tracks]]` in a wider file are applied with a warning
+  and marked in the report. Requested by CireSnave, 2026-10-13.
+
 ## 0.6.12 - 2026-10-13 (proposed)
 
 Documentation only; no code or behaviour change.
