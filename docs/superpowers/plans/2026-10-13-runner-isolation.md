@@ -1,6 +1,6 @@
 # Runner isolation for the hosted service: requirements, threat model, stack comparison (design)
 
-> **Status: design only; nothing is built and nothing has been measured.** Written 2026-10-13 after CireSnave's rulings of the same
+> **Status: design only; nothing is built. Two of the three spike arms have been measured (section 9); the emulation arm has not.** Written 2026-10-13 after CireSnave's rulings of the same
 > day, relayed by the PM. It **replaces the container-first v1 stance** of the earlier notes (ToS Part C; `2026-10-12-hosted-service.md`
 > section 10.5 now points here). Where a fact was read from a primary page it says so; where it comes from a search summary it says
 > that; where it is not known it is listed in section 10.
@@ -19,8 +19,8 @@ Read together: the guest is **a complete virtual machine with its own kernel and
 needs**, and a **hardware-virtualised microVM is accepted as that**. Literal CPU emulation (no hardware virtualisation) stays in as a
 **measured fallback**, because it is the strongest boundary and the slowest. Plain containers are not admitted.
 
-The measurement spike in section 9 is **proposed**; the PM relayed that it was approved, and I have not started it (it uses the shared
-machine's disk and CPU and may need a hypervisor tool installed) until it is confirmed in this session.
+The measurement spike (section 9) was approved by CireSnave, relayed by the PM, and CireSnave confirmed in session that the PM's word
+is his. Two arms were run on 2026-10-13; the **emulation arm is on hold** (section 9).
 
 ## 2. Requirements
 
@@ -202,38 +202,60 @@ Firecracker*; *Windows 11 Pro + Hyper-V VM*); a change of any of the three is a 
 Each fixture is mutation-checked (the mutation that should make it fail is applied and confirmed to), and results are kept with the
 host class and the date.
 
-## 9. A measurement spike (proposed)
+## 9. The measurement spike (run 2026-10-13: two arms; the emulation arm is on hold)
 
 **Purpose:** the choice between hardware-virtualised microVM and emulation must rest on a number: does a representative Rust build
 fit inside the 30-minute default under each?
 
-**Proposed method (not started):**
+**Subject:** CodeRipper at `a1e8732` (0.6.11): `cargo build --release --locked --offline` from an empty `target`, dependencies
+already fetched (84 crates compiled, the last being `coderipper`, including build scripts and procedural macros of its dependencies).
+`CARGO_INCREMENTAL=0`, no `RUSTC_WRAPPER`.
 
-- **Subject:** one representative build with build scripts and procedural macros: CodeRipper itself at a pinned commit, `cargo build
-  --release --locked` from an empty target directory, dependencies already fetched (the fetch is timed separately).
-- **Three arms:**
-  1. a **native** build on this box (Windows 11 Pro, AMD Ryzen 9 7940HX, hypervisor present, hardware virtualisation enabled in
-     firmware, read 2026-10-13), as the reference;
-  2. the same commit built **in a hardware-virtualised Linux guest** (Hyper-V on this box; and KVM where a Linux host is available);
-  3. the same commit built **under software emulation** (QEMU TCG, no acceleration).
-- **Measure:** wall-clock time, peak guest memory, peak disk (the target directory and the base image), and **whether the 30-minute
-  default holds**; five runs each, report the median and range; record host, hypervisor, guest OS and kernel, vCPU count and memory.
-- **Caveats stated up front:** this box has no bare-metal Linux, so arm 1 is **Windows native**, a *reference* for the Windows
-  toolchain and not a like-for-like baseline for the Linux guest; a Linux-on-KVM figure needs a Linux host (the VPS); and an
-  emulated Linux guest on a Windows host is a worst case for emulation.
-- **Rules (from the PM):** measurement only; no hosted-service code; no runner image shipped; nothing left running; throwaway images
-  and caches in a scratch directory and deleted after; **stop at 20 GB free on `C:`** (47.9 GB free when read, 2026-10-13); no
-  network beyond the dependency fetch; **a tool that cannot be installed under `.claude-hooks` is a `[HOLD]`**, not a workaround.
-- **Facts this box already gives (read, not measured):** hardware virtualisation is enabled and a hypervisor is present, so arm 2 is
-  possible without a firmware change; the hypervisor and Windows Sandbox are available on Windows 11 Pro.
+### 9.1 Results
+
+| Arm | Where it ran | Runs (wall-clock) | Median | Peak memory | `target` size |
+|---|---|---|---|---|---|
+| **A. Native Windows** (MSVC toolchain, `rustc 1.98.1`) | this box: Windows 11 Pro, AMD Ryzen 9 7940HX, 16 cores / 32 threads, 63 GB, hypervisor present | 155.6 s, 165.2 s, 138.1 s | **155.6 s** (138.1 to 165.2) | 874, 904, 891 MB (sampled sum of the build's process-tree working sets, 1 s) | 0.31 GB |
+| **B. Hardware-virtualised Linux guest** (`rustc 1.99.0`, Linux 6.18.33.1-microsoft-standard-WSL2, 32 vCPU, 32 GB) | a throwaway container in Docker Desktop's WSL2 utility VM on the Microsoft hypervisor, same box | 46.7 s, 46.1 s, 44.3 s | **46.1 s** (44.3 to 46.7) | 1537 to 1613 MB (peak cgroup `memory.current`, which **includes page cache**: an upper bound, not a resident-set figure) | 0.23 GB |
+| **C. Software emulation** (QEMU TCG, no hardware acceleration) | **not run** | - | - | - | - |
+
+`cargo fetch --locked` took 5.7 s in the guest (the registry index was already cached, so it is **not** a representative fetch time).
+
+**Does the 30-minute default hold?** Yes, with wide margin, for this repository: 46 s in the hardware-virtualised guest (about 39
+times under the limit) and 2 min 36 s native on Windows. **That is one mid-size build; larger workspaces (the 43-member `fuel`
+clone, about 4 minutes cold per member by an earlier measurement) are the case that matters, and none was run here.**
+
+### 9.2 What the numbers do not say
+
+- **They are not a like-for-like virtualisation-overhead measurement.** There is no bare-metal Linux on this box, so there is no
+  native-Linux arm to set arm B against. Arm A (Windows MSVC, Windows filesystem, antivirus in the path) is a different operating
+  system and toolchain; **its being 3.4 times slower than the Linux guest says nothing about virtualisation cost**. The overhead of
+  hardware virtualisation (typically a small percentage for CPU-bound work, **not measured here**) is unmeasured.
+- Arm B is a **container inside a shared VM**, a proxy for the speed of a hardware-virtualised guest, **not** a microVM and not an
+  admitted isolation stack. Docker Desktop's VM also ran other lanes' containers, and other lanes' work shared the host CPU
+  (host CPU before each native run: 19.5%, 16.3%, 10%; the guest runs were not sampled). Variance from that is in the ranges above.
+- **Toolchains differ** (1.98.1 vs 1.99.0) and so do the `target` sizes.
+- **Three runs per arm, not five.** The first native run follows a `docker run rustc -V` I issued by mistake while it was building;
+  it is the middle value and the range is reported.
+- Peak memory was measured two different ways and **must not be compared across arms.**
+
+### 9.3 The emulation arm: on hold
+
+Arm C needs either an emulated-architecture Linux image with a Rust toolchain (an arm64 `rust` image is about 1.4 GB, pulled over
+the network) or a QEMU installed on the host; the Docker VM here has no user-mode emulation registered (`binfmt_misc` is empty), and
+QEMU is not installed. Both are outside the spike's rules (no network beyond the dependency fetch; no install outside
+`.claude-hooks`), so it is a **`[HOLD]` to the PM** and **no emulation number is given**. The sources in section 4 (8x to 12x for
+general workloads, none for compilation) are all there is until arm C runs. The 39x headroom above means that, **for this
+repository only**, emulation would fit the limit even at a slowdown beyond those figures.
 
 ## 10. Not known, and decisions that are CireSnave's
 
-- **The compile-time slowdown under TCG** is unmeasured (sources give 8x to 12x for general workloads; none for a Rust build).
+- **The compile-time slowdown under TCG** is unmeasured (section 9.3).
+- **Hardware-virtualisation overhead against bare-metal Linux** is unmeasured: this box has none (section 9.2); the VPS would.
 - **How a default-deny network policy is enforced on a Windows host** with a Hyper-V VM (switch rules or a host-side proxy) is not
   verified; the fixtures decide.
 - **Whether nested KVM in WSL2** works on a given home PC and is acceptable is untested.
 - **Whether a Firecracker-class VMM can run on the VPS** depends on the VPS exposing KVM (nested virtualisation on many VPS
   providers is off); not checked. If it does not, the VPS needs a provider that does, or it cannot be a Face B host.
-- **For CireSnave:** (1) whether the spike runs now; (2) the spot-check rate for non-operator runners; (3) whether a Windows home PC
+- **For CireSnave:** (1) whether arm C (emulation) may use the network or an install; (2) the spot-check rate for non-operator runners; (3) whether a Windows home PC
   is a v1 runner host only after a class passes the fixtures (this document's position) or not at all in v1.

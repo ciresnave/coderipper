@@ -16,7 +16,8 @@ Documentation only; no code or behaviour change.
   Hypervisor, QEMU/KVM, Hyper-V, Windows Sandbox, WSL2 and emulation with the evidence for each and what is not known; a
   default-deny network with a proxy-side domain allowlist and per-repository approvals recorded in the report; the host-side agent as
   the attack surface; result integrity for runners the operator does not run; a per-host-class and per-stack launch gate with its
-  fixtures; and a proposed measurement spike. The terms' section 4 now says the network is limited to an allowlist and the report
+  fixtures; and the measurement spike (CodeRipper's own build: 46 s in a hardware-virtualised Linux guest, 2 min 36 s native on
+  Windows, 3 runs each, caveats in section 9; the emulation arm is on hold). The terms' section 4 now says the network is limited to an allowlist and the report
   lists approved domains.
 
 ## 0.6.13 - 2026-10-13 (proposed)
