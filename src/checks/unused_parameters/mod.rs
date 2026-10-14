@@ -20,6 +20,8 @@
 //!   is one sentinel per target root (`src/lib.rs`, `src/main.rs`, `src/bin/*`), since each target is
 //!   its own crate. Targets with a custom `path = ...` in `Cargo.toml` are not found and so are not
 //!   protected.
+//! - Only `src/` is read for parameter sites: an unused parameter in `tests/`, `examples/` or `benches/` is built (and
+//!   rustc warns) but is not reported, the same boundary `unused-return-values` documents.
 //! - A finding's `subject` is qualified by INLINE `mod {}` blocks, the impl's type (generic arguments
 //!   are not part of it: `impl W<u8>` and `impl W<u16>` share `W`), and enclosing functions. The
 //!   file is part of an allowlist entry's identity, so the file tree does not need to be.

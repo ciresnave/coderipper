@@ -99,7 +99,12 @@ pub fn classify<'a>(
         }
         // rustc never reports `deprecated` for a function's use of ITSELF, but does report
         // `unused_must_use` for it. Drop both so a recursive call is not an ignored caller.
-        if span.file == def.file && (def.line..=def.last_line).contains(&span.line) {
+        // The bounds are exact, columns included: a caller on the callee's own line (`fn f() -> i32 { 1 } fn g() { f(); }`)
+        // is not recursion.
+        if span.file == def.file
+            && (def.line, def.column) <= (span.line, span.column)
+            && (span.line, span.column) <= (def.last_line, def.last_column)
+        {
             continue;
         }
         // An import is not a call site, but rustc reports `deprecated` at every imported name.
@@ -147,6 +152,8 @@ mod tests {
             name: format!("f{id}"),
             line,
             last_line,
+            column: 1,
+            last_column: u32::MAX,
         }
     }
 
