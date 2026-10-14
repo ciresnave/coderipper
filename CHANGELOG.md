@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.19 - 2026-10-14 (proposed)
+
+### Added
+- **CodeRipper runs on its own source in CI** (the `coderipper` job of `ci.yml`: `coderipper fast --deny medium`), as every Rust
+  repository of the portfolio is meant to (ROADMAP item 7; the PM approved `--deny medium` and the default profile). The first
+  run read 12 findings, 4 of them Medium or worse; each is dispositioned, none by configuring a path out of the analyser:
+  - `set_cache_config`'s `bool` ("false if a configuration was already set") was discarded by the command line: it now says so on
+    stderr and keeps the earlier configuration, instead of ignoring it (behaviour change only in a process that configured the
+    cache before the command line did, which no command-line run does);
+  - three are waived in the new `.coderipper.toml` with their reasons (`run_checks_in`, a public entry point with no in-crate
+    caller; `augment`, a recursion whose result the top call reads from a table; `with_session`, generic over a closure that
+    returns nothing). The 8 Low findings are printed and do not fail the job.
+
 ## 0.6.18 - 2026-10-14 (proposed)
 
 ### Added

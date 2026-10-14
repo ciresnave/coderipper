@@ -274,7 +274,10 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     };
     let from_env = crate::build_cache::config_from_env(&|k| std::env::var(k).ok());
     if let Some(config) = from_env.clone() {
-        crate::build_cache::set_cache_config(config);
+        // `false`: a library caller in this process configured the cache first, and that configuration stays.
+        if !crate::build_cache::set_cache_config(config) {
+            eprintln!("coderipper: the build cache was already configured in this process; keeping that configuration");
+        }
     }
 
     let result = dispatch(cli, from_env);

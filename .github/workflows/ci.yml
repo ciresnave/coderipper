@@ -48,6 +48,17 @@ jobs:
       - name: cargo test
         run: cargo test --no-fail-fast
 
+  # CodeRipper on itself, as every Rust repository of the portfolio is meant to run it (ROADMAP item 7). `--deny medium` fails the
+  # job on a Medium or worse finding that no `[[allow]]` entry in `.coderipper.toml` waives; Low and Info are printed.
+  coderipper:
+    name: CodeRipper on its own source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: coderipper fast --deny medium
+        run: cargo run --quiet --bin coderipper -- fast --deny medium --project .
+
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
     name: Docs build clean, library builds without the cli feature
