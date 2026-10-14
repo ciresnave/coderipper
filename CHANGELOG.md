@@ -14,7 +14,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
   too long` for each directory of the path, gitleaks logs each warning as an error and stops reading, and the wrapper (correctly)
   reported "gitleaks did not read the history", so the rule was a failure (exit 3), never a result. The tool's own `git` is now run
   with `core.longpaths=true`, set through git's environment configuration (`GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_0`,
-  `GIT_CONFIG_VALUE_0`): neither the repository's nor the user's config is read or written. With it the same repository scans 1
+  `GIT_CONFIG_VALUE_0`): neither the repository's nor the user's config file is modified (the user's global config is still read, as before; git older than 2.31 ignores these variables and the scan fails loudly as it did). With it the same repository scans 1
   commit and reports what it holds (the seeded secret is found, in a new test against the real tool). No other tool is changed: only
   gitleaks was observed to fail this way.
 
