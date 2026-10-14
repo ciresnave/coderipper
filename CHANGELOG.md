@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.26 - 2026-10-14 (proposed)
+
+### Changed
+- **This repository's workflows declare `permissions: contents: read`** at the top of `ci.yml`, `coverage.yml` and `live-tools.yml`
+  (the 11 SUP-008 `excessive-permissions` findings of the 2026-10-14 portfolio sweep; the actions were already pinned by #68). No job
+  needs more: none writes to the repository, comments or uses an OIDC token. No code changed.
+
 ## 0.6.25 - 2026-10-14 (proposed)
 
 ### Changed (a loosening: fewer DOC-009 findings)

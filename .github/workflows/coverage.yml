@@ -17,6 +17,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# the token gets read access to the repository and nothing else; a job that needs more raises it for itself
+permissions:
+  contents: read
+
 jobs:
   coverage:
     name: Coverage (llvm-cov, ubuntu-latest)
