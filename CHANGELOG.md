@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.16 - 2026-10-14 (proposed)
+
+### Fixed
+- **`reachability` runs on a procedural-macro crate whose entry point is written inside `cfg_attr` (the remainder of issue 54).**
+  0.6.7 kept `#[proc_macro]`, `#[proc_macro_derive(..)]` and `#[proc_macro_attribute]` functions `pub` but did not read an
+  attribute written as `#[cfg_attr(<predicate>, proc_macro_derive(..))]`, so that crate still exited 3. The three names are now
+  recognised after the predicate of a `cfg_attr`, on one line or spread over several (strings and `//` comments are skipped; the
+  predicate itself is not read, because `proc_macro` is also a cfg name). The rewrite cannot evaluate the predicate, so a function
+  whose attribute applies only under some cfg is kept `pub` in every build: that can hide a dead item in such a function, never
+  report a live one. Every other `pub` item in the crate is still downgraded. This supersedes the 0.6.7 sentence that says an
+  attribute inside `cfg_attr` is not recognised (that entry now points here).
+- No backport branch: published 0.6.9, 0.6.11 and 0.6.14 already carry the 0.6.7 fix, and the line is pre-1.0 (users take the newest
+  0.6.x), so this ships in the next 0.6.x publish.
+
 ## 0.6.15 - 2026-10-14 (proposed)
 
 Documentation only; no code or behaviour change.
@@ -156,7 +170,7 @@ Documentation only; no code or behaviour change.
   reported. A crate with a proc-macro member that exited 3 only for this reason now runs. The attribute is recognised line by
   line: on its own line, stacked with other attributes, `//` or `/* */` comments, doc comments or blank lines, spread over
   several lines, or followed by the item on the same line; an attribute written inside `cfg_attr` is not (that crate still exits
-  3). An attribute whose brackets never balance is given up on at the next line starting with `pub ` or `#[`.
+  3; **fixed in 0.6.16**). An attribute whose brackets never balance is given up on at the next line starting with `pub ` or `#[`.
   `unused-return-values` and `unused-parameters` were run on a minimal proc-macro crate and were not affected.
 
 ## 0.6.6 - 2026-10-12 (proposed)

@@ -569,6 +569,32 @@ fn a_proc_macro_crate_with_nothing_dead_is_clean() {
     assert!(findings.is_empty(), "{findings:?}");
 }
 
+#[test]
+fn a_proc_macro_written_inside_cfg_attr_runs_and_still_reports_its_dead_helper() {
+    // The remainder of issue 54: 0.6.7 did not recognise the attribute inside `cfg_attr`, so a crate
+    // that wrote its entry point that way was still "could not run" (exit 3).
+    let lib = "\
+mod helpers;
+
+use proc_macro::TokenStream;
+
+#[cfg_attr(not(test), proc_macro_derive(Hello))]
+pub fn derive_hello(_input: TokenStream) -> TokenStream {
+    helpers::make()
+}
+";
+    let repo = git_repo_with(&[
+        ("Cargo.toml", PROC_MACRO_MANIFEST),
+        ("src/lib.rs", lib),
+        (
+            "src/helpers.rs",
+            "pub fn make() -> proc_macro::TokenStream { proc_macro::TokenStream::new() }\npub fn dead_helper() {}\n",
+        ),
+    ]);
+    let findings = run_reachability(&repo).unwrap();
+    assert_eq!(subjects(&findings), vec!["dead_helper"], "{findings:?}");
+}
+
 /// A virtual workspace around the library `engine`:
 /// - `app` depends on it and calls `used_by_app`;
 /// - `mid` depends on it and glob re-exports it; `top` depends on `mid` (not on `engine`) and calls `used_through_mid`;

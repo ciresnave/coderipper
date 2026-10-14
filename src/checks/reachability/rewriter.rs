@@ -37,10 +37,13 @@ pub fn rewrite_pub_to_pub_crate(source: &str) -> String {
 /// over several lines (brackets inside string literals and after `//` do not count), and code after
 /// the attribute's closing bracket on the same line (then the armed attribute is spent on that line,
 /// never on a later item). An attribute that never closes (unbalanced brackets) is given up on at the
-/// next line that starts with `pub ` or `#[`, so one odd line cannot hide the rest of a file. Not
-/// handled: the attribute inside a `cfg_attr`.
+/// next line that starts with `pub ` or `#[`, so one odd line cannot hide the rest of a file. An
+/// attribute written inside `cfg_attr(<predicate>, ..)` counts too, whether or not the predicate
+/// holds: the rewrite cannot evaluate it, and keeping one function `pub` only costs a finding.
 #[derive(Default)]
 struct ProcMacroGuard {
+    /// The text of a `#[cfg_attr(..` attribute read so far (lines joined by `\n`), until it closes.
+    cfg_attr_text: Option<String>,
     /// Square-bracket depth of an attribute that has not closed yet.
     open_brackets: i32,
     /// A proc-macro attribute was seen and its item line has not arrived.
@@ -73,16 +76,19 @@ impl ProcMacroGuard {
                 if text.starts_with("pub ") || text.starts_with("#[") {
                     // Unbalanced brackets: this cannot be the inside of an attribute.
                     self.open_brackets = 0;
+                    self.cfg_attr_text = None;
                     continue;
                 }
                 match close_attribute(text, self.open_brackets) {
                     Ok(end) => {
                         self.open_brackets = 0;
+                        self.finish_cfg_attr(&text[..end]);
                         text = text[end..].trim_start();
                         continue;
                     }
                     Err(depth) => {
                         self.open_brackets = depth;
+                        self.continue_cfg_attr(text);
                         return false;
                     }
                 }
@@ -91,13 +97,18 @@ impl ProcMacroGuard {
                 if is_proc_macro_attribute(text) {
                     self.armed = true;
                 }
+                let is_cfg_attr = is_cfg_attr(text);
                 match close_attribute(text, 0) {
                     Ok(end) => {
+                        if is_cfg_attr && cfg_attr_names_proc_macro(&text[..end]) {
+                            self.armed = true;
+                        }
                         text = text[end..].trim_start();
                         continue;
                     }
                     Err(depth) => {
                         self.open_brackets = depth;
+                        self.cfg_attr_text = is_cfg_attr.then(|| format!("{text}\n"));
                         return false;
                     }
                 }
@@ -106,6 +117,96 @@ impl ProcMacroGuard {
             return std::mem::take(&mut self.armed);
         }
     }
+}
+
+impl ProcMacroGuard {
+    /// A line of a multi-line `cfg_attr` that has not closed yet.
+    fn continue_cfg_attr(&mut self, text: &str) {
+        if let Some(buf) = &mut self.cfg_attr_text {
+            buf.push_str(text);
+            buf.push('\n');
+        }
+    }
+
+    /// The last line of a multi-line `cfg_attr` (`text` ends at its closing bracket).
+    fn finish_cfg_attr(&mut self, text: &str) {
+        if let Some(mut buf) = self.cfg_attr_text.take() {
+            buf.push_str(text);
+            if cfg_attr_names_proc_macro(&buf) {
+                self.armed = true;
+            }
+        }
+    }
+}
+
+/// `#[cfg_attr(` (spaces allowed around the name and the bracket).
+fn is_cfg_attr(trimmed: &str) -> bool {
+    let Some(inner) = trimmed.strip_prefix("#[") else {
+        return false;
+    };
+    inner
+        .trim_start()
+        .strip_prefix("cfg_attr")
+        .is_some_and(|rest| rest.trim_start().starts_with('('))
+}
+
+/// True when a `cfg_attr(<predicate>, <attr>, ..)` attribute applies a procedural-macro attribute:
+/// one of the three names, as a whole identifier, outside string literals and `//` comments, and
+/// after the first top-level comma (the predicate is not an attribute, and `proc_macro` is also a
+/// real cfg name).
+fn cfg_attr_names_proc_macro(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    let mut depth = 0i32;
+    let mut past_predicate = false;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'(' | b'[' => {
+                depth += 1;
+                i += 1;
+            }
+            b')' | b']' => {
+                depth -= 1;
+                i += 1;
+            }
+            b',' => {
+                // The attribute's own argument list is the first parenthesis after `cfg_attr`, at
+                // depth 2 counting the `#[` bracket.
+                if depth == 2 {
+                    past_predicate = true;
+                }
+                i += 1;
+            }
+            c if c.is_ascii_alphabetic() || c == b'_' => {
+                let start = i;
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                    i += 1;
+                }
+                if past_predicate
+                    && matches!(
+                        &text[start..i],
+                        "proc_macro" | "proc_macro_derive" | "proc_macro_attribute"
+                    )
+                {
+                    return true;
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    false
 }
 
 /// Scans `text` for the `]` that closes an attribute whose bracket depth is `depth` at its start.
@@ -366,6 +467,71 @@ mod tests {
             let src = format!("pub {kw} x;\n");
             let want = format!("pub(crate) {kw} x;\n");
             assert_eq!(rewrite_pub_to_pub_crate(&src), want, "keyword {kw}");
+        }
+    }
+
+    #[test]
+    fn a_proc_macro_attribute_inside_cfg_attr_stays_pub() {
+        // Issue 54 remainder: the entry point written as `cfg_attr(<cfg>, proc_macro_derive(..))` still
+        // has to stay `pub` whenever the cfg holds, and the rewrite cannot know whether it does.
+        for attr in [
+            "#[cfg_attr(feature = \"x\", proc_macro_derive(Hello))]",
+            "#[cfg_attr(all(a, b), proc_macro)]",
+            "#[cfg_attr(not(test), proc_macro_attribute)]",
+            "  #[ cfg_attr ( unix , proc_macro_derive ( Hello , attributes ( h ) ) ) ]",
+            "#[cfg_attr(x, inline, proc_macro_derive(Hello))]",
+            "#[cfg_attr(x, cfg_attr(y, proc_macro))]",
+        ] {
+            let src = format!(
+                "{attr}
+pub fn entry(i: TokenStream) -> TokenStream {{ i }}
+"
+            );
+            assert_eq!(rewrite_pub_to_pub_crate(&src), src, "case: {attr:?}");
+        }
+    }
+
+    #[test]
+    fn a_cfg_attr_proc_macro_attribute_can_span_lines() {
+        let src = "#[cfg_attr(
+    feature = \"derive\", // proc_macro_attribute
+    proc_macro_derive(Hello)
+)]
+pub fn entry(i: TokenStream) -> TokenStream { i }
+pub fn helper() {}
+";
+        let want = "#[cfg_attr(
+    feature = \"derive\", // proc_macro_attribute
+    proc_macro_derive(Hello)
+)]
+pub fn entry(i: TokenStream) -> TokenStream { i }
+pub(crate) fn helper() {}
+";
+        assert_eq!(rewrite_pub_to_pub_crate(src), want);
+    }
+
+    #[test]
+    fn a_cfg_attr_that_does_not_name_a_proc_macro_attribute_does_not_protect() {
+        // The word in the predicate (`proc_macro` is a real cfg), in a string or in a comment is not
+        // an attribute the item carries.
+        for attr in [
+            "#[cfg_attr(proc_macro, derive(Debug))]",
+            "#[cfg_attr(feature = \"proc_macro\", inline)]",
+            "#[cfg_attr(unix, doc = \"proc_macro_derive\")]",
+            "#[cfg_attr(unix, inline)] // proc_macro",
+            "#[cfg_attr(unix, my_proc_macro)]",
+        ] {
+            let src = format!(
+                "{attr}
+pub fn f() {{}}
+"
+            );
+            let want = format!(
+                "{attr}
+pub(crate) fn f() {{}}
+"
+            );
+            assert_eq!(rewrite_pub_to_pub_crate(&src), want, "case: {attr:?}");
         }
     }
 }
