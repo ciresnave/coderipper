@@ -316,7 +316,7 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
         Consent::Granted,
         &fake,
     ));
-    resolve(&present.env, "gitleaks");
+    let _ = resolve(&present.env, "gitleaks");
     let described = present.describe().unwrap();
     let proof = |id: &str| {
         described

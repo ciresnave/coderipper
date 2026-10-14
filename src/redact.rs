@@ -185,7 +185,7 @@ impl crate::RunResult {
 /// Applies [`crate::RunResult::redact`] when the policy is on. What the library's public run functions end with.
 pub(crate) fn finish(result: &mut crate::RunResult) {
     if is_on() {
-        result.redact();
+        let _ = result.redact();
     }
 }
 
@@ -1241,7 +1241,7 @@ mod tests {
         }
         let mut result =
             crate::RunResult::new(Vec::new(), vec![format!("error ghp_\u{1b}[31m{rest}")]);
-        result.redact();
+        let _ = result.redact();
         assert!(!result.errors[0].contains(&rest), "{:?}", result.errors);
     }
 

@@ -62,7 +62,7 @@ fn a_valid_lock_parses_and_finds_its_entry() {
 
 #[test]
 fn the_embedded_lock_parses() {
-    ToolsLock::embedded();
+    let _ = ToolsLock::embedded();
 }
 
 #[test]

@@ -6,6 +6,22 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.28 - 2026-10-14 (proposed)
+
+CodeRipper's own run on itself, part 2: the eight `unused-return-values` findings and the three standing waivers (decision 180).
+
+### Fixed
+- **`unused-return-values` no longer tracks a function that hands back its closure's result** (`fn with<T>(f: impl FnOnce() -> T) -> T`,
+  also `F: FnOnce() -> T` and `where` forms, `&dyn Fn(..) -> T`, `Box<dyn FnOnce() -> T>`). `T` is whatever the closure returns, so a
+  caller whose closure returns nothing discards nothing; the three scoped helpers in this repository (`with_session`, `with_config`,
+  `with_policy`) were reported for it. `fn id<T>(t: T) -> T` and `fn make<T: Default>() -> T` are still tracked. Seen in the
+  `unused-return-values` clean fixture.
+- **This repository's own code:** the remaining findings were call sites that discard a value on purpose; each is now `let _ = ...`,
+  the form the check defines as a deliberate discard (`redact`, `resolve`, `embedded`, `apply`, `fake_repo_dir`, the session test
+  `build`, and `augment` in `conformance.rs`).
+- **`.coderipper.toml` holds no `[[allow]]` waiver any more:** `augment` and `with_session` are fixed in code and by the rule above;
+  `run_checks_in` is declared in `[reachability] public_api` (its reason is printed with the finding).
+
 ## 0.6.27 - 2026-10-14 (proposed)
 
 CodeRipper's own run on itself (CireSnave, decision 180: "If our testing tool doesn't pass its own tests, that's the first thing to fix"):

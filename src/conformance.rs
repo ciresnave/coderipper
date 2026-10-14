@@ -454,7 +454,8 @@ fn assign(expect: &[Expect], found: &[(String, Option<u32>)]) -> Vec<Option<usiz
     let mut owner: Vec<Option<usize>> = vec![None; found.len()];
     for e in 0..expect.len() {
         let mut seen = vec![false; found.len()];
-        augment(e, expect, found, &mut owner, &mut seen);
+        // the boolean is for the recursion (`free` above); the top-level call reads `owner`, which is the result
+        let _ = augment(e, expect, found, &mut owner, &mut seen);
     }
     let mut result = vec![None; expect.len()];
     for (f, e) in owner.iter().enumerate() {
