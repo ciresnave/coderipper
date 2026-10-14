@@ -6,6 +6,17 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.23 - 2026-10-14 (proposed)
+
+### Added
+- **`[reachability] public_api` in `.coderipper.toml`** (ROADMAP item 6(a), option B as ruled by the PM). A list of `{ file, symbol?,
+  reason }` entries declaring what a library intends as public API; `file` is a path or glob (`*`, `?`, `**`). Matching
+  `reachability` findings do not fail the run and are printed as `[declared-public/<severity>]` (not hidden, reason shown); JSON
+  `waived` items carry `"declared_public": true` (the new field `Waived::declared_public` is `false` and omitted for ordinary
+  waivers). An entry that matches nothing warns, by name, as an `allowlist` Info finding. The repository's own file may set it
+  (`[reachability]` joins the list of keys a repository may set); a wide file may too, with the same warning and
+  `(declared by <file>)` as for `[[allow]]`, and is not judged stale there. `reason` is required and an unknown key is an error.
+
 ## 0.6.22 - 2026-10-14 (proposed)
 
 ### Changed (a loosening: fewer `reachability` findings in a workspace that uses `[patch]` or `[replace]`)

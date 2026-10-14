@@ -146,3 +146,78 @@ fn a_malformed_allowlist_is_an_error_but_does_not_swallow_the_findings() {
         1
     );
 }
+
+const RA: &str = "reachability";
+
+/// A library whose public API has no consumer: `src/api.rs` holds two items, `src/other.rs` one.
+fn library_with_unconsumed_api(config: &str) -> tempfile::TempDir {
+    git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "pub mod api;\npub mod other;\npub fn used() {}\n",
+        ),
+        ("src/api.rs", "pub fn one() {}\npub fn two() {}\n"),
+        ("src/other.rs", "pub fn three() {}\n"),
+        ("src/main.rs", "fn main() { fixture::used(); }\n"),
+        (".coderipper.toml", config),
+    ])
+}
+
+#[test]
+fn a_declared_public_api_is_reported_as_declared_and_does_not_fail_the_run() {
+    let repo = library_with_unconsumed_api(
+        "[reachability]\npublic_api = [{ file = \"src/api.rs\", reason = \"consumed by downstream crates\" }]\n",
+    );
+    let result = run_one(&repo, RA);
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    let kept: Vec<_> = result
+        .findings
+        .iter()
+        .filter(|f| f.check_id == RA)
+        .map(|f| f.subject.clone().unwrap())
+        .collect();
+    assert_eq!(kept, vec!["three"], "{:?}", result.findings);
+    let declared: Vec<_> = result
+        .waived
+        .iter()
+        .filter(|w| w.declared_public)
+        .map(|w| w.finding.subject.clone().unwrap())
+        .collect();
+    assert_eq!(declared, vec!["one", "two"], "{:?}", result.waived);
+    assert_eq!(result.waived[0].reason, "consumed by downstream crates");
+    assert!(stale(&result.findings).is_empty(), "{:?}", result.findings);
+}
+
+#[test]
+fn a_public_api_glob_that_matches_nothing_warns() {
+    let repo = library_with_unconsumed_api(
+        "[reachability]\npublic_api = [{ file = \"src/nope/**\", reason = \"was here once\" }]\n",
+    );
+    let result = run_one(&repo, RA);
+    let stale = stale(&result.findings);
+    assert_eq!(stale.len(), 1, "{:?}", result.findings);
+    assert!(
+        stale[0].summary.contains("public_api"),
+        "{}",
+        stale[0].summary
+    );
+    assert!(stale[0].clone().validate().is_ok());
+}
+
+#[test]
+fn a_public_api_entry_without_a_reason_or_with_an_unknown_key_is_an_error() {
+    for bad in [
+        "[reachability]\npublic_api = [{ file = \"src/api.rs\" }]\n",
+        "[reachability]\npublic_api = [{ file = \"src/api.rs\", reason = \"r\", why = \"x\" }]\n",
+        "[reachability]\npublic_apis = []\n",
+    ] {
+        let repo = library_with_unconsumed_api(bad);
+        let result = run_one(&repo, RA);
+        assert!(
+            result.errors.iter().any(|e| e.contains("allowlist")),
+            "{bad}: {:?}",
+            result.errors
+        );
+    }
+}

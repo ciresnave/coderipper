@@ -19,7 +19,7 @@
 //! that never calls it sees no wide file at all, so a library run is exactly as hermetic as before.
 #![cfg_attr(not(feature = "cli"), allow(dead_code))]
 
-use crate::allowlist::{AllowEntry, BufSettings, TrackEntry};
+use crate::allowlist::{AllowEntry, BufSettings, ReachabilitySettings, TrackEntry};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -29,7 +29,8 @@ pub(crate) const FILE_NAME: &str = ".coderipper.toml";
 
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
-pub(crate) const REPOSITORY_MAY_SET: &str = "[[allow]], [[tracks]], [buf] and profile";
+pub(crate) const REPOSITORY_MAY_SET: &str =
+    "[[allow]], [[tracks]], [buf], [reachability] and profile";
 
 const PROFILES: &[&str] = &["classic", "extended"];
 const DENY_LEVELS: &[&str] = &["none", "info", "low", "medium", "high", "critical"];
@@ -53,6 +54,9 @@ pub(crate) struct ConfigFile {
     pub tracks: Vec<TrackEntry>,
     #[serde(default)]
     pub buf: Option<BufSettings>,
+    /// `[reachability] public_api`: declared public API (see [`crate::allowlist::PublicApiEntry`]).
+    #[serde(default)]
+    pub reachability: Option<ReachabilitySettings>,
     /// A default for `--profile`.
     pub profile: Option<String>,
     /// A default for `--deny`.
