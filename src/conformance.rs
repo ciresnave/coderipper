@@ -12,6 +12,7 @@
 //!
 //! ```toml
 //! needs_network = false      # optional: the rule needs the network; unproven unless the run allows it
+//! origin = "https://github.com/acme/widgets"   # optional: the fixture's repository gets this `origin` remote
 //! [[expect]]
 //! rule = "version-consistency"
 //! file = "c/Cargo.toml"
@@ -161,6 +162,9 @@ struct Expect {
 struct ExpectFile {
     #[serde(default)]
     needs_network: bool,
+    /// The URL of an `origin` remote to give the fixture's repository, for a rule that asks which forge repository it is in.
+    #[serde(default)]
+    origin: Option<String>,
     #[serde(default)]
     expect: Vec<Expect>,
 }
@@ -336,6 +340,16 @@ fn judge_one(
     copy_fixture(dir, project.path())?;
     git_commit_all(project.path())
         .with_context(|| format!("{name}: could not make the fixture a git repository"))?;
+    if let Some(url) = &expect.origin {
+        let output = git_command(project.path())
+            .args(["remote", "add", "origin", url])
+            .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "{name}: could not add the origin remote {url}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
     let ctx = CheckContext::new(project.path().to_path_buf());
     let request = Request::new(
         &ctx,

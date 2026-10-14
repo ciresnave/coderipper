@@ -1,0 +1,6 @@
+needs_network = true
+origin = "https://github.com/acme/unprotected"
+
+[[expect]]
+rule = "ci-protection-presence"
+file = "github:branch-protection"
