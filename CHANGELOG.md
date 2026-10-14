@@ -5,6 +5,16 @@ a breaking change changes the major version, and before 1.0 the major is the sec
 to crates.io on 2026-10-12** (the PM read `yanked=false` back); 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.15 - 2026-10-14 (proposed)
+
+Documentation only; no code or behaviour change.
+
+### Added
+- **`ROADMAP.md`: where CodeRipper should go, in order, and who consumes it** (the PM's request; the PM edits it). Nine items,
+  from the remainder of issue 54 (a proc-macro entry point written inside `cfg_attr` still exits 3) through the triage that gates
+  the all-rules-by-default breaking release, to the hosted service, which waits for CireSnave's go. It records what a search of the
+  portfolio's tracked CI files found: no repository runs CodeRipper in its CI yet, this one included.
+
 ## 0.6.14 - 2026-10-13 (proposed)
 
 Documentation only; no code or behaviour change.
