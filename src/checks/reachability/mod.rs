@@ -27,6 +27,9 @@
 //! - **A function called only from a `#[test]`** is not rescued from `dead_code` by rustc (confirmed
 //!   empirically, many independent fresh builds) -- "a test counts as reachability" (the design
 //!   doc's stated intent) is not delivered for this case.
+//! - **The `pub` downgrade is line-based**: a `pub` that does not begin its line (after the outer attributes written on it) is
+//!   not downgraded, so a second item written after another on one line (`pub fn a() {} pub fn b() {}`), and a `pub` and its
+//!   keyword split across two lines, keep rustc's `pub` exemption and are not reported. `rustfmt` writes neither.
 //! - **Analysis is HEAD-only**: uncommitted edits in the real working tree aren't seen (a property of
 //!   using a git worktree, not a bug).
 //! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's

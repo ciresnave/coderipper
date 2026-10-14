@@ -6,6 +6,29 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.32 - 2026-10-14 (proposed)
+
+Planted variants for `reachability` (the false-negative control of decision 180, completing the Rust checks).
+
+### Fixed
+Three spellings of a dead `pub` item that the line-based `pub` -> `pub(crate)` downgrade did not see, so rustc's `pub` exemption hid
+them and the check reported nothing (a false negative; no live item was ever reported dead by these):
+- **`pub union`.** `union` was not a declaring keyword; the union stayed `pub`, and what was reported instead was its two never-read
+  fields. The union is now downgraded and reported by its own name.
+- **An outer attribute on the item's own line** (`#[derive(Debug)] pub struct S;`, `#[inline] pub fn f() {}`). The line began with
+  `#[`, not `pub`, so it was never downgraded. Leading attributes on the line are now skipped (a proc-macro entry point is still
+  left `pub` by the guard, which runs first).
+- **A tab after `pub`** (`pub<TAB>fn f() {}`); only a space was recognised.
+
+### Documented
+- The downgrade is line-based: a second item on a line after another (`pub fn a() {} pub fn b() {}`) and a `pub` separated from its
+  keyword by a line break stay exempt and are not reported. `rustfmt` writes neither. Listed with the other known limitations.
+
+### Added (tests only)
+- `tests/reachability_variants.rs` (10 cases: every function qualifier, the item kinds (struct, enum, alias, const, static, trait, module, union), a union, a method in an impl, a one-line
+  module, attributes and whitespace before `pub`, every way an item is live: path, rename, glob, const expression, type position,
+  bound; and the items the compiler keeps for the linker or the author) and four unit tests in the rewriter.
+
 ## 0.6.31 - 2026-10-14 (proposed)
 
 A seeded defect and clean twin for `ci-protection-presence`, the one rule that had none (it asks GitHub, which a fixture cannot make answer).
