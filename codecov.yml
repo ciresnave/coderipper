@@ -10,3 +10,9 @@ coverage:
     patch:
       default:
         informational: true
+
+# The conformance fixtures are seeded defects and their clean twins, run as projects of their own by `coderipper conformance`;
+# the two directories named `vendor` are fixture content for SUP-011, not code this repository vendors.
+ignore:
+  - "conformance/SUP-011/clean/vendor"
+  - "conformance/SUP-011/defective/vendor"

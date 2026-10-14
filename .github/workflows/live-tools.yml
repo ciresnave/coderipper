@@ -26,4 +26,4 @@ jobs:
         uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Run the delegated-rule tests, including the live-database canary
-        run: cargo test --test delegated_osv --test delegated_gitleaks --test delegated_lychee -- --include-ignored
+        run: cargo test --locked --test delegated_osv --test delegated_gitleaks --test delegated_lychee -- --include-ignored

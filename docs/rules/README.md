@@ -18,7 +18,7 @@ Informed by the owner's knowledge base v2 and written in CodeRipper's own words;
 | ERR | [err.md](err.md) | Error handling and failure semantics | Each failure has an owner, a kind and context | moderate to strong | V0 V1 V2 |
 | COR | [cor.md](cor.md) | Correctness, contracts and specifications | Behaviour is stated precisely instead of only sampled | moderate; strong when specs execute | V2 V4 V5 |
 | TST | [tst.md](tst.md) | Test quality | A test suite should catch faults, not only touch lines | strong (mutation testing, diff coverage) | V1 V2 |
-| CON | [con.md](con.md) | Concurrency and resource safety | Concurrency and resource lifetimes are deliberate, bounded, owned | moderate; varies by language | V0 V1 V2 |
+| CON | [concurrency.md](concurrency.md) | Concurrency and resource safety | Concurrency and resource lifetimes are deliberate, bounded, owned | moderate; varies by language | V0 V1 V2 |
 | REL | [rel.md](rel.md) | Reliability and resilience | Expect parts to fail; every retry or queue has a price | moderate | V1 V2 V4 |
 | SEC | [sec.md](sec.md) | Security | Untrusted input crosses named boundaries; privileges stay minimal | ingest scanners; semantic review for logic flaws | V1 V2 V4 V5 |
 | SUP | [sup.md](sup.md) | Dependencies and supply chain | Using someone else's code is a trust decision | very strong; integrate existing tools | V0 |

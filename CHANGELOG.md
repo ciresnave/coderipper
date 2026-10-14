@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.27 - 2026-10-14 (proposed)
+
+CodeRipper's own run on itself (CireSnave, decision 180: "If our testing tool doesn't pass its own tests, that's the first thing to fix"):
+the findings of `coderipper sweep --profile extended --deny info` on `main@1087468` that were true, fixed.
+
+### Fixed
+- **`git worktree add failed` names git's reason** (issue 75). The checkout the reachability and return-value checks analyse is made with
+  `git worktree add`; a failure used to be the bare sentence, so a CI flake carried no cause. The error now includes git's first lines.
+- **This repository's own findings (no code change):** `.github/CODEOWNERS` (WSP-001); `--locked` on the nine `cargo` commands of
+  `ci.yml` and `live-tools.yml` that lacked it (SUP-001); the `docs/rules/README.md` link `con.md` to the file that exists,
+  `concurrency.md` (DOC-010; `con` is a reserved Windows device name); `rustls` 0.23.45 to 0.23.46 in `Cargo.lock` (SUP-002,
+  RUSTSEC-2026-0346 to 0349); the two fixture `vendor` directories named in `codecov.yml` (SUP-011).
+
 ## 0.6.26 - 2026-10-14 (proposed)
 
 ### Changed
