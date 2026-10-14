@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.22 - 2026-10-14 (proposed)
+
+### Changed (a loosening: fewer `reachability` findings in a workspace that uses `[patch]` or `[replace]`)
+- **`reachability` sees a dependent that reaches the package through `[patch]` or `[replace]`** (ROADMAP item 6(b); the 0.6.8
+  limit). `cargo metadata --no-deps` gives a dependency written `engine = "0.1"` no `path`, so a member redirected to the
+  workspace copy by the root manifest's `[patch.<source>]` or `[replace]` table rescued nothing. The root manifest is now read
+  and an entry whose `path` is a workspace member's directory makes that member's dependents count, exactly as a `path`
+  dependency does. **A run that reported such items now reports fewer findings.** Not seen, as before: a patch through a
+  git source, to a directory outside the workspace, or set in `.cargo/config.toml`.
+- **Not changed: ROADMAP item 6(a)** (an intended public API with no in-repo consumer is still reported). Every `pub` item of a
+  library is public API by definition, and the check exists to find the ones nothing uses, so no signal in the source separates
+  "intended for outside users" from "dead"; any rule that did (a `pub use` at the root, a doc comment) would hide real dead items.
+  The answer stays the reasoned per-file `[[allow]]` waiver in README "Waiving a finding". Whether a project should declare its
+  published surface (a `[reachability] public_api` list) is a design question for the PM, not built here.
+
 ## 0.6.21 - 2026-10-14 (proposed)
 
 ### Added

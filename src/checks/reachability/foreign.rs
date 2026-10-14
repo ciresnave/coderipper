@@ -229,13 +229,21 @@ pub fn dependent_member_identifiers(root: &Path) -> anyhow::Result<DependentMemb
         .filter_map(|(i, p)| Some((p["name"].as_str()?, i)))
         .collect();
 
-    // dependents[i] = the members that depend on member i by path.
+    // A dependency written with a version and redirected to a workspace member by the workspace
+    // root's `[patch]` or `[replace]` table has no `path` in `cargo metadata --no-deps`, so it is
+    // recovered from the manifest.
+    let redirected = redirected_members(&metadata, &packages, &dir_of);
+
+    // dependents[i] = the members that depend on member i by path (or by a patch to its directory).
     let mut dependents: Vec<Vec<usize>> = vec![Vec::new(); packages.len()];
     for (i, package) in packages.iter().enumerate() {
         for dep in package["dependencies"].as_array().into_iter().flatten() {
-            let (Some(name), false) = (dep["name"].as_str(), dep["path"].is_null()) else {
+            let Some(name) = dep["name"].as_str() else {
                 continue;
             };
+            if dep["path"].is_null() && !redirected.contains(name) {
+                continue;
+            }
             if let Some(&target) = index_by_name.get(name) {
                 dependents[target].push(i);
             }
@@ -276,6 +284,57 @@ pub fn dependent_member_identifiers(root: &Path) -> anyhow::Result<DependentMemb
     out.names.sort();
     out.names.dedup();
     Ok(out)
+}
+
+/// Names of the workspace members that the workspace root manifest's `[patch.*]` or `[replace]` table
+/// redirects to the member's own directory by `path`. Only these dependencies are recovered: a patch to
+/// a git source, to a path outside the workspace, or in a `.cargo/config.toml` is not seen (a dependent
+/// that reaches the package that way still rescues nothing, as before).
+fn redirected_members(
+    metadata: &serde_json::Value,
+    packages: &[&serde_json::Value],
+    dir_of: &dyn Fn(&serde_json::Value) -> Option<std::path::PathBuf>,
+) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let Some(workspace_root) = metadata["workspace_root"].as_str() else {
+        return out;
+    };
+    let workspace_root = Path::new(workspace_root);
+    let Ok(text) = std::fs::read_to_string(workspace_root.join("Cargo.toml")) else {
+        return out;
+    };
+    let Ok(manifest) = text.parse::<toml::Table>() else {
+        return out;
+    };
+    for relative in patched_paths(&manifest) {
+        let Ok(target) = workspace_root.join(relative).canonicalize() else {
+            continue;
+        };
+        for package in packages {
+            if dir_of(package).is_some_and(|d| d == target) {
+                if let Some(name) = package["name"].as_str() {
+                    out.insert(name.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The `path` of every entry in a manifest's `[patch.<source>]` and `[replace]` tables, as written.
+fn patched_paths(manifest: &toml::Table) -> Vec<String> {
+    let mut tables: Vec<&toml::Table> = Vec::new();
+    if let Some(patch) = manifest.get("patch").and_then(|v| v.as_table()) {
+        tables.extend(patch.values().filter_map(|v| v.as_table()));
+    }
+    if let Some(replace) = manifest.get("replace").and_then(|v| v.as_table()) {
+        tables.push(replace);
+    }
+    tables
+        .into_iter()
+        .flat_map(|t| t.values())
+        .filter_map(|entry| entry.as_table()?.get("path")?.as_str().map(str::to_string))
+        .collect()
 }
 
 /// `src_path` of every target of the package at `root` that is not the library (bins, tests,
@@ -597,6 +656,26 @@ mod tests {
             assert!(found.contains(name), "{name} should be foreign: {found:?}");
         }
         assert!(!found.contains("lib_only"));
+    }
+
+    #[test]
+    fn patch_and_replace_tables_yield_their_paths_and_nothing_else() {
+        let manifest: toml::Table = r#"
+            [patch.crates-io]
+            a = { path = "crates/a" }
+            b = { git = "https://example.invalid/b" }
+            [patch."https://example.invalid/index"]
+            c = { path = "../c", package = "real-c" }
+            [replace]
+            "d:0.1.0" = { path = "crates/d" }
+            [dependencies]
+            e = { path = "crates/e" }
+        "#
+        .parse()
+        .unwrap();
+        let mut paths = patched_paths(&manifest);
+        paths.sort();
+        assert_eq!(paths, vec!["../c", "crates/a", "crates/d"]);
     }
 
     #[test]

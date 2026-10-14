@@ -787,3 +787,73 @@ fn b() { a(); }
         assert!(!summary.contains("which has no callers"), "{summary}");
     }
 }
+
+/// `engine` plus `app`, which names engine by VERSION and is redirected to the workspace copy by the
+/// root manifest's `patch_table` (cargo metadata --no-deps gives such a dependency no path).
+fn patched_workspace(patch_table: &str) -> tempfile::TempDir {
+    let files: Vec<(&str, String)> = vec![
+        (
+            "Cargo.toml",
+            format!(
+                "[workspace]
+members = [\"engine\", \"app\"]
+resolver = \"2\"
+
+{patch_table}"
+            ),
+        ),
+        (
+            "engine/Cargo.toml",
+            "[package]
+name = \"engine\"
+version = \"0.1.0\"
+edition = \"2021\"
+"
+            .to_string(),
+        ),
+        (
+            "engine/src/lib.rs",
+            "pub fn used_by_app() -> i32 { 1 }
+pub fn dead_everywhere() -> i32 { 2 }
+"
+            .to_string(),
+        ),
+        (
+            "app/Cargo.toml",
+            "[package]
+name = \"app\"
+version = \"0.1.0\"
+edition = \"2021\"
+
+[dependencies]
+engine = \"0.1\"
+"
+            .to_string(),
+        ),
+        (
+            "app/src/lib.rs",
+            "pub fn run() -> i32 { engine::used_by_app() }
+"
+            .to_string(),
+        ),
+    ];
+    let borrowed: Vec<(&str, &str)> = files.iter().map(|(n, c)| (*n, c.as_str())).collect();
+    git_repo_with(&borrowed)
+}
+
+#[test]
+fn a_dependent_reaching_the_crate_through_a_patch_table_rescues() {
+    // ROADMAP item 6(b): `[patch.crates-io]` redirects `engine = "0.1"` to the workspace copy.
+    let repo = patched_workspace(
+        "[patch.crates-io]
+engine = { path = \"engine\" }
+",
+    );
+    let findings = run_reachability_on_member(&repo, "engine").unwrap();
+    assert_eq!(subjects(&findings), vec!["dead_everywhere"], "{findings:?}");
+    assert!(
+        findings[0].detail.contains("(the members that do: app)"),
+        "{}",
+        findings[0].detail
+    );
+}
