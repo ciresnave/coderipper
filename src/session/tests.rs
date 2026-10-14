@@ -234,7 +234,7 @@ fn a_restored_member_is_never_served_as_its_rewritten_self() {
             {
                 let guard = analyse(repo.path(), "c", "rewritten_marker");
                 assert!(guard.root.starts_with(session.checkout()), "not in place");
-                build(&guard);
+                let _ = build(&guard);
                 assert!(
                     artifact_has(cache.path(), "sc", "rewritten_marker"),
                     "positive control: c's artifact built during its own analysis contains the marker"
@@ -405,7 +405,7 @@ fn assert_lock_rewrite_does_not_poison(prefix: &str) {
             let guard =
                 RewrittenWorktree::create_with(&member, adding("rewritten_marker")).unwrap();
             assert!(guard.root.starts_with(session.checkout()), "not in place");
-            build(&guard);
+            let _ = build(&guard);
             let status = git_out(
                 session.checkout(),
                 &["status", "--porcelain", "--untracked-files=no"],
@@ -598,7 +598,7 @@ fn the_session_target_is_outside_the_checkout_when_the_cache_is_busy() {
         with_session(&session, || {
             let guard = analyse(repo.path(), "c", "rewritten_marker");
             assert!(guard.root.starts_with(session.checkout()), "not in place");
-            build(&guard);
+            let _ = build(&guard);
             let mut built = Vec::new();
             rlibs(session.target(), &mut built);
             assert!(
@@ -642,7 +642,7 @@ fn the_session_target_is_the_same_slot_a_project_run_uses() {
             with_session(&session, || {
                 let guard = RewrittenWorktree::create_with(repo.path(), adding("m1")).unwrap();
                 assert!(guard.root.starts_with(session.checkout()), "not in place");
-                build(&guard);
+                let _ = build(&guard);
             });
         } // the session ends: its lock is released
         let guard = RewrittenWorktree::create_with(repo.path(), adding("m2")).unwrap();
@@ -675,7 +675,7 @@ fn an_overlapping_run_cannot_poison_the_session() {
             {
                 let guard = analyse(repo.path(), "a", "m_first");
                 assert!(guard.root.starts_with(session.checkout()), "not in place");
-                build(&guard);
+                let _ = build(&guard);
             }
 
             let other_config = config(cache.path(), 300);
@@ -701,7 +701,7 @@ fn an_overlapping_run_cannot_poison_the_session() {
 
             {
                 let guard = analyse(repo.path(), "a", "m_second");
-                build(&guard);
+                let _ = build(&guard);
             }
             assert!(
                 !artifact_has(cache.path(), "sc", "rewritten_by_other_run"),

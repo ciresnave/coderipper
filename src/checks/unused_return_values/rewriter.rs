@@ -197,7 +197,56 @@ fn is_eligible(attrs: &[syn::Attribute], sig: &syn::Signature) -> bool {
     if has_skip_attr {
         return false;
     }
-    returns_a_value_worth_tracking(&sig.output)
+    returns_a_value_worth_tracking(&sig.output) && !returns_its_closures_result(sig)
+}
+
+/// `fn with<T>(f: impl FnOnce() -> T) -> T`: the value is whatever the closure returns, so a caller whose closure returns
+/// nothing discards nothing (found by CodeRipper's own run on itself: `with_session`, `with_config`, `with_policy`). Only a
+/// return type that is a bare type parameter named as the output of one of the signature's `Fn*` bounds is exempt; `fn id<T>(t: T) -> T`
+/// is still tracked.
+fn returns_its_closures_result(sig: &syn::Signature) -> bool {
+    let syn::ReturnType::Type(_, ty) = &sig.output else {
+        return false;
+    };
+    let syn::Type::Path(p) = ty.as_ref() else {
+        return false;
+    };
+    let Some(ident) = p.path.get_ident() else {
+        return false;
+    };
+    if p.qself.is_some() || !sig.generics.type_params().any(|t| t.ident == *ident) {
+        return false;
+    }
+    struct Finder<'a> {
+        ident: &'a syn::Ident,
+        found: bool,
+    }
+    impl<'ast> Visit<'ast> for Finder<'_> {
+        fn visit_trait_bound(&mut self, bound: &'ast syn::TraitBound) {
+            if let Some(last) = bound.path.segments.last() {
+                if matches!(last.ident.to_string().as_str(), "Fn" | "FnMut" | "FnOnce") {
+                    if let syn::PathArguments::Parenthesized(args) = &last.arguments {
+                        if let syn::ReturnType::Type(_, out) = &args.output {
+                            if matches!(out.as_ref(), syn::Type::Path(o) if o.path.is_ident(self.ident))
+                            {
+                                self.found = true;
+                            }
+                        }
+                    }
+                }
+            }
+            syn::visit::visit_trait_bound(self, bound);
+        }
+    }
+    let mut finder = Finder {
+        ident,
+        found: false,
+    };
+    finder.visit_generics(&sig.generics);
+    for input in &sig.inputs {
+        finder.visit_fn_arg(input);
+    }
+    finder.found
 }
 
 /// No `->`, `-> ()`, `-> !`, a `Result` (rustc already warns on ignoring it by default) and
@@ -329,6 +378,44 @@ mod tests {
             let out = run(src);
             assert_eq!(out.source, src, "should be untouched: {src:?}");
             assert!(out.tags.is_empty(), "no tag expected: {src:?}");
+        }
+    }
+
+    #[test]
+    fn a_function_that_hands_back_its_closures_result_is_not_tracked() {
+        // CodeRipper's own run on itself (2026-10-14): `with_session<T>(s, f: impl FnOnce() -> T) -> T` was reported as
+        // "return value discarded at every call site", but T is whatever the closure returns, `()` at those sites.
+        let cases = [
+            "fn with<T>(f: impl FnOnce() -> T) -> T { f() }
+",
+            "fn with<T, F: FnOnce() -> T>(f: F) -> T { f() }
+",
+            "fn with<T, F>(f: F) -> T where F: FnMut(i32) -> T { f(1) }
+",
+            "fn with<'a, T>(x: &'a str, f: &dyn Fn(&str) -> T) -> T { f(x) }
+",
+            "fn with<T>(f: Box<dyn FnOnce() -> T>) -> T { f() }
+",
+        ];
+        for src in cases {
+            let out = run(src);
+            assert_eq!(out.source, src, "should be untouched: {src:?}");
+            assert!(out.tags.is_empty(), "no tag expected: {src:?}");
+        }
+    }
+
+    #[test]
+    fn a_generic_return_that_is_not_a_closures_result_is_still_tracked() {
+        let cases = [
+            "fn id<T>(t: T) -> T { t }
+",
+            "fn make<T: Default>() -> T { T::default() }
+",
+            "fn first<T, F: Fn() -> i32>(f: F, t: T) -> T { let _ = f(); t }
+",
+        ];
+        for src in cases {
+            assert_eq!(run(src).tags.len(), 1, "should be tracked: {src:?}");
         }
     }
 

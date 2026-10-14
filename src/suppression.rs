@@ -433,7 +433,7 @@ mod tests {
         let second = ONE.replace("\"why\"", "\"second\"");
         let al = allowlist(&format!("{ONE}\n{second}"));
         let mut s = Suppression::new(&al);
-        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let _ = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         let waived = s.take_waived();
         assert_eq!(waived.len(), 1, "one finding is waived once");
         assert_eq!(waived[0].reason, "why");
@@ -443,7 +443,7 @@ mod tests {
     fn a_waived_finding_is_kept_whole_with_the_entrys_reason() {
         let al = allowlist(ONE);
         let mut s = Suppression::new(&al);
-        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let _ = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         let waived = s.take_waived();
         assert_eq!(waived.len(), 1);
         assert_eq!(waived[0].reason, "why");
@@ -470,7 +470,7 @@ mod tests {
     fn two_entries_for_the_same_finding_both_count_as_matched() {
         let al = allowlist(&format!("{ONE}\n{ONE}"));
         let mut s = Suppression::new(&al);
-        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let _ = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         s.mark_completed("a", 1);
         assert!(s.stale_findings(&["a"], "p").is_empty());
     }
@@ -506,7 +506,7 @@ public_api = [
     fn an_ordinary_waiver_is_not_declared_public() {
         let al = allowlist(ONE);
         let mut s = Suppression::new(&al);
-        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        let _ = s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         assert!(!s.take_waived()[0].declared_public);
     }
 
@@ -514,7 +514,7 @@ public_api = [
     fn a_public_api_entry_that_matches_nothing_warns_by_name() {
         let al = allowlist(PUBLIC);
         let mut s = Suppression::new(&al);
-        s.apply(vec![finding("reachability", "src/api/mod.rs", Some("f"))]);
+        let _ = s.apply(vec![finding("reachability", "src/api/mod.rs", Some("f"))]);
         s.mark_completed("reachability", 1);
         let stale = s.stale_findings(&["reachability"], "p");
         assert_eq!(stale.len(), 1, "{stale:?}");

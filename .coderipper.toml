@@ -1,20 +1,7 @@
-# Waivers for CodeRipper's own run on itself (`coderipper fast --deny medium`, the `coderipper` job of ci.yml). Each says why;
-# a finding is waived, not hidden: it is still printed with its reason.
+# CodeRipper's own run on itself (`coderipper fast --deny medium`, the `coderipper` job of ci.yml). No finding is waived here: the
+# one entry declares a public entry point, and is still printed with its reason.
 
-[[allow]]
-check = "reachability"
-file = "src/lib.rs"
-symbol = "run_checks_in"
-reason = "The library's public entry point for a run under a profile (documented, in the semver promise); its callers are other programs, which a project-scope check cannot see."
-
-[[allow]]
-check = "unused-return-values"
-file = "src/conformance.rs"
-symbol = "augment"
-reason = "The recursion uses the boolean at its own call site; the top-level call reads the `owner` table it filled, which is the result."
-
-[[allow]]
-check = "unused-return-values"
-file = "src/session.rs"
-symbol = "with_session"
-reason = "Generic over the closure's return type: every caller passes a closure that returns nothing, so there is no value to use."
+[reachability]
+public_api = [
+  { file = "src/lib.rs", symbol = "run_checks_in", reason = "The library's public entry point for a run under a profile (documented, in the semver promise); its callers are other programs, which a project-scope check cannot see." },
+]

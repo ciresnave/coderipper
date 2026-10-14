@@ -255,8 +255,8 @@ fn prune_refuses_a_directory_without_the_marker() {
 #[test]
 fn status_lists_each_repository_directory_with_its_size() {
     let root = fake_root();
-    fake_repo_dir(root.path(), "tc", "a", 400, 3000);
-    fake_repo_dir(root.path(), "tc", "b", 900, 10);
+    let _ = fake_repo_dir(root.path(), "tc", "a", 400, 3000);
+    let _ = fake_repo_dir(root.path(), "tc", "b", 900, 10);
     let mut listed = status(root.path()).unwrap();
     listed.sort_by_key(|d| d.bytes);
     assert_eq!(listed.len(), 2);
