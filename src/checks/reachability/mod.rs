@@ -14,8 +14,9 @@
 //! **In a workspace**, the members that depend on this package (directly or through other members, by
 //! `path`) count like its own bins and tests: an item one of them names is live, so a library's API used
 //! only by its sibling crates is not reported. A member that does not depend on this package rescues
-//! nothing, and a dependency redirected with `[patch]` or `[replace]` is not seen (cargo metadata gives it no
-//! path). What it cannot see: items used only by proc-macro or derive output that never spells their name.
+//! nothing. A dependency redirected to a member's directory by the workspace root manifest's `[patch]` or
+//! `[replace]` table counts as a `path` dependency; one redirected through a git source, a directory outside
+//! the workspace or a `.cargo/config.toml` is not seen. What it cannot see: items used only by proc-macro or derive output that never spells their name.
 //!
 //! **Known limitations, found and confirmed during implementation and review:**
 //! - **`pub` items inside bin targets are not analyzed** when the package also has a library: rustc
