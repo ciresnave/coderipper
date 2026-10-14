@@ -225,9 +225,10 @@ pub(crate) fn load_wide(
 
 static WIDE: OnceLock<Vec<Layer>> = OnceLock::new();
 
-/// Installs the wide files for this process. Returns false when some were installed already (the first stay).
-pub(crate) fn install(layers: Vec<Layer>) -> bool {
-    WIDE.set(layers).is_ok()
+/// Installs the wide files for this process. When some were installed already the first stay: the command-line program calls
+/// this once, before anything reads them.
+pub(crate) fn install(layers: Vec<Layer>) {
+    WIDE.get_or_init(|| layers);
 }
 
 /// The wide files of this process, weakest first; none unless the command-line program installed some.
