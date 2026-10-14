@@ -7,7 +7,7 @@
 //! the point).
 
 const KEYWORDS: &[&str] = &[
-    "fn", "struct", "enum", "trait", "const", "static", "type", "mod", "use",
+    "fn", "struct", "enum", "union", "trait", "const", "static", "type", "mod", "use",
 ];
 
 pub fn rewrite_pub_to_pub_crate(source: &str) -> String {
@@ -266,15 +266,30 @@ fn rewrite_line(line: &str) -> String {
     let indent_len = line.len() - line.trim_start().len();
     let (indent, rest) = line.split_at(indent_len);
 
-    let Some(after_pub) = rest.strip_prefix("pub ") else {
+    // Outer attributes written on the item's own line (`#[derive(Debug)] pub struct S;`) come first.
+    let mut attrs_len = 0;
+    while rest[attrs_len..].starts_with("#[") {
+        let Ok(end) = close_attribute(&rest[attrs_len..], 0) else {
+            break;
+        };
+        attrs_len += end;
+        attrs_len += rest[attrs_len..].len() - rest[attrs_len..].trim_start().len();
+    }
+    let (attrs, rest) = rest.split_at(attrs_len);
+
+    // `pub` then whitespace of any kind (a tab is as good as a space); `pub(crate)` has none and is left alone.
+    let Some(after_pub) = rest
+        .strip_prefix("pub")
+        .filter(|after| after.starts_with(char::is_whitespace))
+    else {
         return line.to_string();
     };
     // Already scoped (`pub(crate)`, `pub(super)`, `pub(in ...)`) -- leave alone. `after_pub` starts
     // right after "pub ", so a scoped visibility shows up as "(...)" here, and `pub(...)` with no
     // space (e.g. "pub(crate)") never matched the "pub " prefix at all.
 
-    if KEYWORDS.contains(&next_declaring_keyword(after_pub)) {
-        format!("{indent}pub(crate) {after_pub}")
+    if KEYWORDS.contains(&next_declaring_keyword(after_pub.trim_start())) {
+        format!("{indent}{attrs}pub(crate){after_pub}")
     } else {
         line.to_string()
     }
@@ -362,6 +377,50 @@ mod tests {
         for (src, want) in cases {
             assert_eq!(rewrite_pub_to_pub_crate(src), want, "case: {src:?}");
         }
+    }
+
+    #[test]
+    fn a_union_is_downgraded() {
+        assert_eq!(
+            rewrite_pub_to_pub_crate("pub union U { a: u32 }\n"),
+            "pub(crate) union U { a: u32 }\n"
+        );
+    }
+
+    #[test]
+    fn attributes_on_the_items_own_line_do_not_hide_its_pub() {
+        let cases = [
+            (
+                "#[derive(Debug)] pub struct S;\n",
+                "#[derive(Debug)] pub(crate) struct S;\n",
+            ),
+            (
+                "  #[inline] #[must_use] pub fn f() {}\n",
+                "  #[inline] #[must_use] pub(crate) fn f() {}\n",
+            ),
+            (
+                "#[doc = \"a ] b\"] pub fn f() {}\n",
+                "#[doc = \"a ] b\"] pub(crate) fn f() {}\n",
+            ),
+            // An attribute that does not close on the line is not guessed at.
+            ("#[cfg(any(\n", "#[cfg(any(\n"),
+        ];
+        for (src, want) in cases {
+            assert_eq!(rewrite_pub_to_pub_crate(src), want, "case: {src:?}");
+        }
+    }
+
+    #[test]
+    fn any_whitespace_after_pub_counts() {
+        assert_eq!(
+            rewrite_pub_to_pub_crate("pub\tfn f() {}\n"),
+            "pub(crate)\tfn f() {}\n"
+        );
+        assert_eq!(
+            rewrite_pub_to_pub_crate("pub  fn f() {}\n"),
+            "pub(crate)  fn f() {}\n"
+        );
+        assert_eq!(rewrite_pub_to_pub_crate("pub_fn();\n"), "pub_fn();\n");
     }
 
     #[test]
