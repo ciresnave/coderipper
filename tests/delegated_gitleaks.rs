@@ -502,9 +502,12 @@ fn commit_a_very_long_path(dir: &Path) {
     let blob = std::process::Command::new("git")
         .args(["hash-object", "-w", "--stdin"])
         .current_dir(dir)
+        .env("GIT_CONFIG_GLOBAL", "")
+        .env("GIT_CONFIG_NOSYSTEM", "1")
         .stdin(std::process::Stdio::null())
         .output()
         .unwrap();
+    assert!(blob.status.success(), "{blob:?}");
     let hash = String::from_utf8(blob.stdout).unwrap().trim().to_string();
     git(
         dir,
