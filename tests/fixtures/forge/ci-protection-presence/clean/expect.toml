@@ -1,0 +1,2 @@
+needs_network = true
+origin = "https://github.com/acme/protected"

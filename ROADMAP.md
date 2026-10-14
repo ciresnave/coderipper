@@ -12,7 +12,7 @@ request; the PM owns priorities, so this is the lane's proposal and the PM edits
 - **Rules that run.** Five native Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`,
   `ci-protection-presence`); five language-neutral native rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); six rules run by
   a pinned third-party tool through the delegation framework (SEC-002 gitleaks, SUP-002 and SEC-006 osv-scanner, DOC-010 lychee,
-  SUP-008 zizmor, API-006 buf). Every rule except `ci-protection-presence` has a seeded defect and a clean twin under `conformance/` (it needs a forge; no fixture yet).
+  SUP-008 zizmor, API-006 buf). Every rule except `ci-protection-presence` has a seeded defect and a clean twin under `conformance/` (it needs a forge: its pair is `tests/fixtures/forge/` run by `tests/ci_protection_fixture.rs` over a stub forge, so the built-in module does not claim it as `proof`).
 - **Not built.** The TypeScript and Python modules (multi-language P4, P5), the remaining 96 unscheduled native rules, the
   and every hosted-service component (the configuration layers, designed in `2026-10-13-configuration-layers.md`, were built in 0.6.21).
 - **The default ruleset is still the five classic checks.** CireSnave's ruling (board 144) is that the default becomes all rules,

@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.31 - 2026-10-14 (proposed)
+
+A seeded defect and clean twin for `ci-protection-presence`, the one rule that had none (it asks GitHub, which a fixture cannot make answer).
+
+### Added
+- **Conformance fixtures may name an `origin`** (`origin = "<url>"` in `expect.toml`): the runner gives the fixture's repository that
+  remote, for a rule that asks which forge repository it is in. Nothing else changes for a fixture without the key.
+- `tests/fixtures/forge/ci-protection-presence/{defective,clean}` and `tests/ci_protection_fixture.rs`: the pair is run through the
+  conformance runner and the Rust module over a stub `Github` that answers, from the real response shapes, for `acme/unprotected`
+  (enforces nothing: reported at `github:branch-protection`) and `acme/protected` (three required contexts: clean). Controls: the same
+  fixtures fail when the stub answers the other way round, and a fixture with no `origin` is `Errored`, never proven.
+- The Rust module does NOT claim `proof` for this rule: a real run of those fixtures would ask the real GitHub about repositories that
+  do not exist. The rule is exercised end to end by the test, not earned as a claim.
+
 ## 0.6.30 - 2026-10-14 (proposed)
 
 Planted variants for the Rust checks (the false-negative control of decision 180, continued from 0.6.29).
