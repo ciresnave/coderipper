@@ -26,7 +26,7 @@ would make it stop.
 
 | # | Item | Why now | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **Proc-macro crates under `cfg_attr`** (the remainder of issue 54). 0.6.7 keeps `#[proc_macro*]` entry points `pub`, but an attribute written inside `cfg_attr(..., proc_macro_derive(..))` is not recognised and that crate still exits 3. | A crate that exits 3 cannot go clean under "all rules"; issue 54 found it in 1 of the 23 repositories measured on 2026-10-12. | small | nothing |
+| 1 | **DONE in 0.6.16 (proposed): proc-macro crates under `cfg_attr`** (the remainder of issue 54). 0.6.7 kept `#[proc_macro*]` entry points `pub`, but an attribute written inside `cfg_attr(..., proc_macro_derive(..))` was not recognised and that crate still exited 3. | A crate that exits 3 cannot go clean under "all rules"; issue 54 found it in 1 of the 23 repositories measured on 2026-10-12. | small | nothing |
 | 2 | **Backport of item 1 and of the 0.6.7 fix.** Published 0.6.9, 0.6.11 and 0.6.14 already carry 0.6.7; only 0.6.3 lacks it. There are no release branches and the line is pre-1.0 (users take the newest 0.6.x), so no backport branch is cut: the answer is "publish the item 1 fix in the next 0.6.x". | The portfolio rule is to backport when it is not a lot of work. | none | the PM's `cargo publish` |
 | 3 | **Triage WSP-001, DOC-009 and SUP-008 across the portfolio** (report-only for this lane: the per-repository fixes belong to the lanes that own those repositories). Produce one list per rule: true defect, rule too strict, waiver with a reason. | It gates the breaking release (item 4). | medium, mostly other lanes | the other lanes |
 | 4 | **All rules by default (breaking, 0.7.0).** | CireSnave's ruling; the 2026-10-13 sweep says not ready. | small once 3 is done | item 3 |
@@ -36,7 +36,7 @@ would make it stop.
 | 8 | **TypeScript module (multi-language P4), then Python (P5), then the install policy (P6).** The estimates are in the programme plan: 9-22 and 8-21 lane-days, both unmeasured. | The portfolio's websites and tools are TypeScript; Rust-only coverage leaves them as gaps. | large | items 3-5 (so a module is not built on a default that is about to change) |
 | 9 | **Hosted service.** Result document and intake interface first (design), then the build. | CireSnave's stated plan for ThinkersJournal.com; the design is complete enough to price. | large | **CireSnave's separate go** |
 
-Items 1, 2 and 7 are this lane's to start now. Item 3 needs the PM to route the other lanes. Item 9 waits and is not worked.
+Item 1 is done; items 2 and 7 are this lane's to start now. Item 3 needs the PM to route the other lanes. Item 9 waits and is not worked.
 
 ## Who consumes it, and who should
 
