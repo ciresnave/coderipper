@@ -197,3 +197,106 @@ fn json_names_a_failed_verdict_and_its_reasons() {
         "{value}"
     );
 }
+
+/// The unused-parameters fixtures, with the defective project replaced by one that does not compile and says so with a message
+/// that quotes a secret-shaped value: the rule cannot run, and the reason is third-party text (the build's own words).
+fn fixtures_whose_defective_project_quotes_a_secret() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    let source = fixtures().join("unused-parameters");
+    for kind in ["defective", "clean"] {
+        for file in ["Cargo.toml", "src/lib.rs", "expect.toml"] {
+            let to = dir.path().join("unused-parameters").join(kind).join(file);
+            std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+            std::fs::copy(source.join(kind).join(file), to).unwrap();
+        }
+    }
+    std::fs::write(
+        dir.path().join("unused-parameters/defective/src/lib.rs"),
+        "compile_error!(\"set API_KEY=hunter2hunter2hunter2xyz\");\n",
+    )
+    .unwrap();
+    dir
+}
+
+#[test]
+fn without_redact_a_reason_may_quote_the_build_as_it_was_written() {
+    // The control for the test below: the secret-shaped value does reach the output when redaction is not asked for.
+    let dir = fixtures_whose_defective_project_quotes_a_secret();
+    let out = coderipper()
+        .args(["conformance", "--rule", "unused-parameters", "--fixtures"])
+        .arg(dir.path())
+        .assert()
+        .code(3)
+        .get_output()
+        .clone();
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(text.contains("hunter2hunter2hunter2xyz"), "{text}");
+}
+
+#[test]
+fn redact_removes_a_secret_a_reason_quotes_and_does_not_change_the_exit_code() {
+    let dir = fixtures_whose_defective_project_quotes_a_secret();
+    for format in ["human", "json"] {
+        let out = coderipper()
+            .args([
+                "conformance",
+                "--rule",
+                "unused-parameters",
+                "--redact",
+                "--message-format",
+                format,
+                "--fixtures",
+            ])
+            .arg(dir.path())
+            .assert()
+            .code(3)
+            .get_output()
+            .clone();
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(
+            !text.contains("hunter2hunter2hunter2xyz"),
+            "{format}: {text}"
+        );
+        assert!(text.contains("API_KEY=<redacted"), "{format}: {text}");
+    }
+}
+
+#[test]
+fn redact_also_covers_an_error_that_stops_the_whole_run() {
+    // An unreadable `expect.toml`: the parse error quotes the line it stopped at, which is the fixture's own text.
+    let dir = fixtures_whose_defective_project_quotes_a_secret();
+    std::fs::write(
+        dir.path().join("unused-parameters/defective/expect.toml"),
+        "API_KEY=hunter2hunter2hunter2xyz\n",
+    )
+    .unwrap();
+    let run = |redact: bool| {
+        let mut cmd = coderipper();
+        cmd.args(["conformance", "--rule", "unused-parameters"]);
+        if redact {
+            cmd.arg("--redact");
+        }
+        let out = cmd.arg("--fixtures").arg(dir.path()).assert().code(3);
+        let out = out.get_output();
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
+    };
+    let plain = run(false);
+    assert!(
+        plain.contains("hunter2hunter2hunter2xyz"),
+        "control: {plain}"
+    );
+    let redacted = run(true);
+    assert!(!redacted.contains("hunter2hunter2hunter2xyz"), "{redacted}");
+}

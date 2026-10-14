@@ -202,6 +202,10 @@ enum Command {
         /// How to write the verdicts to stdout: `human` (default) or `json` (one `coderipper-conformance` object per rule).
         #[arg(long, value_enum, default_value = "human")]
         message_format: MessageFormat,
+        /// Remove known secret shapes from what builds and tools wrote and the reasons print, as `--redact` does for `check`.
+        /// Off by default; it removes known shapes only and changes no verdict and no exit code.
+        #[arg(long)]
+        redact: bool,
     },
     /// Inspect or trim the build cache (the persistent target directory the checks build in).
     Cache {
@@ -281,7 +285,8 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     ExitCode::from(match result {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("coderipper: {e:#}");
+            // A fixture's own text can reach an error (a `toml` parse error quotes the line); a no-op unless `--redact`.
+            eprintln!("coderipper: {}", crate::redact::scrub(&format!("{e:#}")));
             if e.is::<UsageError>() {
                 EXIT_USAGE
             } else {
@@ -503,6 +508,9 @@ fn conformance_command(
         if require_proven && proof.verdict != Verdict::Proven {
             failed = true;
         }
+        // A reason can carry what a fixture's build or tool wrote; most are already cleaned where they were made, and this is
+        // the last place a reason passes (a no-op unless `--redact`).
+        let notes: Vec<String> = notes.iter().map(|n| crate::redact::scrub(n)).collect();
         match message_format {
             MessageFormat::Human => {
                 println!("{}: {word}", proof.rule);
@@ -570,15 +578,21 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             tools_lock,
             require_proven,
             message_format,
-        } => conformance_command(
-            &module,
-            rule,
-            fixtures,
-            network,
-            tool_env(install_tools, tools_lock.as_deref())?,
-            require_proven,
-            message_format,
-        ),
+            redact,
+        } => {
+            if redact {
+                crate::redact::set_policy(crate::redact::RedactionPolicy::On);
+            }
+            conformance_command(
+                &module,
+                rule,
+                fixtures,
+                network,
+                tool_env(install_tools, tools_lock.as_deref())?,
+                require_proven,
+                message_format,
+            )
+        }
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Tools { action } => tools_command(action),
         Command::Serve { port } => {
