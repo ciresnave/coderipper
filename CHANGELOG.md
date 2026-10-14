@@ -6,6 +6,27 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.30 - 2026-10-14 (proposed)
+
+Planted variants for the Rust checks (the false-negative control of decision 180, continued from 0.6.29).
+
+### Fixed
+- **`unused-return-values` mistook a caller on its callee's own line for a recursive call.** A call is dropped as recursion when
+  it lies inside the callee's own span, which was compared by line only, so `fn callee() -> i32 { 1 } fn caller() { callee(); }`
+  lost the discarded call and the function was not reported. The span is now bounded by column as well (in the rewritten source,
+  where the tag attributes shift every later column on the line); a genuinely recursive call is still dropped.
+
+### Documented
+- **`unused-parameters` reads parameter sites from `src/` only.** An unused parameter in `tests/`, `examples/` or `benches/` is
+  built and rustc warns, but it is not reported, the boundary `unused-return-values` already documented. Pinned by a test; widening
+  it is a product decision, not made here.
+
+### Added (tests only)
+- `tests/unused_parameters_variants.rs` (8 cases: every function spelling, inherent-impl spelling, nesting and `cfg`, shadowing,
+  every way of reading a parameter, allow/expect at every level, trait-impl shapes, target scope) and
+  `tests/unused_return_values_variants.rs` (5 cases). `version-consistency` already had a case per documented shape and
+  `reachability` was not covered by this pass. Every case passed when written except the two named above.
+
 ## 0.6.29 - 2026-10-14 (proposed)
 
 CodeRipper's own run on itself, part 3: planted variants for the five language-neutral rules (the false-negative control of decision 180).

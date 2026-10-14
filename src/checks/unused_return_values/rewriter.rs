@@ -21,6 +21,13 @@ pub struct FnTag {
     pub line: u32,
     /// 1-based last line of the function's body (== `line` for a bodiless trait method).
     pub last_line: u32,
+    /// 1-based character column of the function's name, in the REWRITTEN source (the tag attributes are inserted on the
+    /// same line, so rustc's columns are not the original file's).
+    pub column: u32,
+    /// 1-based character column of the last character of the body (of the name for a bodiless trait method), in the
+    /// rewritten source. With `column` it bounds the function exactly, so a caller on the callee's own line is not
+    /// mistaken for a recursive call.
+    pub last_column: u32,
 }
 
 /// A `use` item's line span (inclusive). rustc reports `deprecated` at every imported name, which
@@ -55,10 +62,29 @@ pub fn annotate(file: &str, source: &str, next_id: &mut u32) -> anyhow::Result<A
 
     let Annotator {
         mut insertions,
-        tags,
+        mut tags,
         use_ranges,
         ..
     } = visitor;
+    // Every insertion lands on the line it annotates, so the columns of everything after it on that line move right.
+    let shift = |line: u32, column: u32, inclusive: bool| -> u32 {
+        column
+            + insertions
+                .iter()
+                .filter(|i| {
+                    i.at.line == line as usize
+                        && (i.at.column < column as usize
+                            || (inclusive && i.at.column == column as usize))
+                })
+                .map(|i| i.text.chars().count() as u32)
+                .sum::<u32>()
+    };
+    for tag in &mut tags {
+        // `column` is 0-based start of the name (an insertion at the very same column precedes it); `last_column` is the
+        // 0-based exclusive end of the body, which is the 1-based column of its last character
+        tag.column = shift(tag.line, tag.column, true) + 1;
+        tag.last_column = shift(tag.last_line, tag.last_column, false);
+    }
     Ok(Annotated {
         source: apply_insertions(source, &mut insertions),
         tags,
@@ -115,7 +141,7 @@ impl Annotator<'_> {
         attrs: &[syn::Attribute],
         vis: &syn::Visibility,
         sig: &syn::Signature,
-        last_line: u32,
+        last: LineColumn,
     ) {
         if !is_eligible(attrs, sig) {
             return;
@@ -137,21 +163,24 @@ impl Annotator<'_> {
             file: self.file.to_string(),
             name: sig.ident.to_string(),
             line: sig.ident.span().start().line as u32,
-            last_line,
+            last_line: last.line as u32,
+            // original, 0-based; `annotate` moves both into rewritten coordinates once every insertion is known
+            column: sig.ident.span().start().column as u32,
+            last_column: last.column as u32,
         });
     }
 }
 
 impl<'ast> Visit<'ast> for Annotator<'_> {
     fn visit_item_fn(&mut self, f: &'ast syn::ItemFn) {
-        let last = f.block.brace_token.span.close().end().line as u32;
+        let last = f.block.brace_token.span.close().end();
         self.consider(&f.attrs, &f.vis, &f.sig, last);
         syn::visit::visit_item_fn(self, f);
     }
 
     fn visit_impl_item_fn(&mut self, f: &'ast syn::ImplItemFn) {
         if f.modifiers.defaultness.is_none() {
-            let last = f.block.brace_token.span.close().end().line as u32;
+            let last = f.block.brace_token.span.close().end();
             self.consider(&f.attrs, &f.vis, &f.sig, last);
         }
         syn::visit::visit_impl_item_fn(self, f);
@@ -159,8 +188,8 @@ impl<'ast> Visit<'ast> for Annotator<'_> {
 
     fn visit_trait_item_fn(&mut self, f: &'ast syn::TraitItemFn) {
         let last = match &f.default {
-            Some(block) => block.brace_token.span.close().end().line as u32,
-            None => f.sig.ident.span().start().line as u32,
+            Some(block) => block.brace_token.span.close().end(),
+            None => f.sig.ident.span().end(),
         };
         self.consider(&f.attrs, &syn::Visibility::Inherited, &f.sig, last);
         syn::visit::visit_trait_item_fn(self, f);
@@ -303,6 +332,20 @@ mod tests {
         assert_eq!(out.source, format!("{TAG0}pub fn a() -> i32 {{ 1 }}\n"));
         assert_eq!(out.tags.len(), 1);
         assert_eq!((out.tags[0].name.as_str(), out.tags[0].line), ("a", 1));
+    }
+
+    #[test]
+    fn columns_are_in_the_rewritten_source_and_bound_the_function_exactly() {
+        // two functions on one line: the second is shifted by BOTH tags, and the first ends before the second begins
+        let out = run("fn a() -> i32 { 1 } fn b() -> i32 { 2 }
+");
+        let tag = TAG0.len() as u32;
+        let (a, b) = (&out.tags[0], &out.tags[1]);
+        // `a` is at column 4 of the original, so 4 + one tag; its body `{ 1 }` ends at original column 19
+        assert_eq!((a.column, a.last_column), (4 + tag, 19 + tag));
+        // `b` is at original column 24 and both tags precede it on the line
+        assert_eq!((b.column, b.last_column), (24 + 2 * tag, 39 + 2 * tag));
+        assert!(a.last_column < b.column);
     }
 
     #[test]
