@@ -15,6 +15,11 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
   "`conformance` has no `--redact`" limit of 0.6.11. Tested with a fixture whose defective project fails to build with a message
   that quotes `API_KEY=<value>`: the value is in the output without the flag (the control) and is not with it, and the exit code
   is 3 either way.
+- **Under `--redact`, an error that stops a whole run is redacted too**, for every subcommand that has the switch: the final
+  `coderipper: <error>` line (a fixture's unreadable `expect.toml`, whose parse error quotes the line it stopped at) went to
+  stderr as it came, and now goes through the same redaction. Without the switch nothing changes.
+  Not covered: a caller of the library's `conformance::run` gets the verdict strings as they were made; only the command line
+  redacts them.
 
 ## 0.6.17 - 2026-10-14 (proposed)
 

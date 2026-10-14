@@ -268,3 +268,35 @@ fn redact_removes_a_secret_a_reason_quotes_and_does_not_change_the_exit_code() {
         assert!(text.contains("API_KEY=<redacted"), "{format}: {text}");
     }
 }
+
+#[test]
+fn redact_also_covers_an_error_that_stops_the_whole_run() {
+    // An unreadable `expect.toml`: the parse error quotes the line it stopped at, which is the fixture's own text.
+    let dir = fixtures_whose_defective_project_quotes_a_secret();
+    std::fs::write(
+        dir.path().join("unused-parameters/defective/expect.toml"),
+        "API_KEY=hunter2hunter2hunter2xyz\n",
+    )
+    .unwrap();
+    let run = |redact: bool| {
+        let mut cmd = coderipper();
+        cmd.args(["conformance", "--rule", "unused-parameters"]);
+        if redact {
+            cmd.arg("--redact");
+        }
+        let out = cmd.arg("--fixtures").arg(dir.path()).assert().code(3);
+        let out = out.get_output();
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
+    };
+    let plain = run(false);
+    assert!(
+        plain.contains("hunter2hunter2hunter2xyz"),
+        "control: {plain}"
+    );
+    let redacted = run(true);
+    assert!(!redacted.contains("hunter2hunter2hunter2xyz"), "{redacted}");
+}

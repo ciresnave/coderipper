@@ -285,7 +285,8 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     ExitCode::from(match result {
         Ok(code) => code,
         Err(e) => {
-            eprintln!("coderipper: {e:#}");
+            // A fixture's own text can reach an error (a `toml` parse error quotes the line); a no-op unless `--redact`.
+            eprintln!("coderipper: {}", crate::redact::scrub(&format!("{e:#}")));
             if e.is::<UsageError>() {
                 EXIT_USAGE
             } else {
@@ -451,12 +452,8 @@ fn conformance_command(
     tools: crate::tools::ToolEnv,
     require_proven: bool,
     message_format: MessageFormat,
-    redact: bool,
 ) -> anyhow::Result<u8> {
     use crate::conformance::{run, Options, Verdict};
-    if redact {
-        crate::redact::set_policy(crate::redact::RedactionPolicy::On);
-    }
     if !matches!(module, "rust" | "neutral" | "delegated") {
         return Err(UsageError(format!(
             "no module named \"{module}\"; the built-in modules are \"rust\", \"neutral\" and \"delegated\""
@@ -582,16 +579,20 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             require_proven,
             message_format,
             redact,
-        } => conformance_command(
-            &module,
-            rule,
-            fixtures,
-            network,
-            tool_env(install_tools, tools_lock.as_deref())?,
-            require_proven,
-            message_format,
-            redact,
-        ),
+        } => {
+            if redact {
+                crate::redact::set_policy(crate::redact::RedactionPolicy::On);
+            }
+            conformance_command(
+                &module,
+                rule,
+                fixtures,
+                network,
+                tool_env(install_tools, tools_lock.as_deref())?,
+                require_proven,
+                message_format,
+            )
+        }
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Tools { action } => tools_command(action),
         Command::Serve { port } => {
