@@ -12,7 +12,7 @@ request; the PM owns priorities, so this is the lane's proposal and the PM edits
 - **Rules that run.** Five native Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`,
   `ci-protection-presence`); five language-neutral native rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); six rules run by
   a pinned third-party tool through the delegation framework (SEC-002 gitleaks, SUP-002 and SEC-006 osv-scanner, DOC-010 lychee,
-  SUP-008 zizmor, API-006 buf). Each rule has a seeded defect and a clean twin under `conformance/`.
+  SUP-008 zizmor, API-006 buf). Every rule except `ci-protection-presence` has a seeded defect and a clean twin under `conformance/` (it needs a forge; no fixture yet).
 - **Not built.** The TypeScript and Python modules (multi-language P4, P5), the remaining 96 unscheduled native rules, the
   configuration layers (designed, `2026-10-13-configuration-layers.md`), and every hosted-service component.
 - **The default ruleset is still the five classic checks.** CireSnave's ruling (board 144) is that the default becomes all rules,
@@ -26,7 +26,7 @@ would make it stop.
 
 | # | Item | Why now | Size | Blocked by |
 |---|---|---|---|---|
-| 1 | **Proc-macro crates under `cfg_attr`** (the remainder of issue 54). 0.6.7 keeps `#[proc_macro*]` entry points `pub`, but an attribute written inside `cfg_attr(..., proc_macro_derive(..))` is not recognised and that crate still exits 3. | A crate that exits 3 cannot go clean under "all rules"; the sweep found one proc-macro member in 23 repositories. | small | nothing |
+| 1 | **Proc-macro crates under `cfg_attr`** (the remainder of issue 54). 0.6.7 keeps `#[proc_macro*]` entry points `pub`, but an attribute written inside `cfg_attr(..., proc_macro_derive(..))` is not recognised and that crate still exits 3. | A crate that exits 3 cannot go clean under "all rules"; issue 54 found it in 1 of the 23 repositories measured on 2026-10-12. | small | nothing |
 | 2 | **Backport of item 1 and of the 0.6.7 fix.** Published 0.6.9, 0.6.11 and 0.6.14 already carry 0.6.7; only 0.6.3 lacks it. There are no release branches and the line is pre-1.0 (users take the newest 0.6.x), so no backport branch is cut: the answer is "publish the item 1 fix in the next 0.6.x". | The portfolio rule is to backport when it is not a lot of work. | none | the PM's `cargo publish` |
 | 3 | **Triage WSP-001, DOC-009 and SUP-008 across the portfolio** (report-only for this lane: the per-repository fixes belong to the lanes that own those repositories). Produce one list per rule: true defect, rule too strict, waiver with a reason. | It gates the breaking release (item 4). | medium, mostly other lanes | the other lanes |
 | 4 | **All rules by default (breaking, 0.7.0).** | CireSnave's ruling; the 2026-10-13 sweep says not ready. | small once 3 is done | item 3 |
