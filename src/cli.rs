@@ -202,6 +202,10 @@ enum Command {
         /// How to write the verdicts to stdout: `human` (default) or `json` (one `coderipper-conformance` object per rule).
         #[arg(long, value_enum, default_value = "human")]
         message_format: MessageFormat,
+        /// Remove known secret shapes from what builds and tools wrote and the reasons print, as `--redact` does for `check`.
+        /// Off by default; it removes known shapes only and changes no verdict and no exit code.
+        #[arg(long)]
+        redact: bool,
     },
     /// Inspect or trim the build cache (the persistent target directory the checks build in).
     Cache {
@@ -447,8 +451,12 @@ fn conformance_command(
     tools: crate::tools::ToolEnv,
     require_proven: bool,
     message_format: MessageFormat,
+    redact: bool,
 ) -> anyhow::Result<u8> {
     use crate::conformance::{run, Options, Verdict};
+    if redact {
+        crate::redact::set_policy(crate::redact::RedactionPolicy::On);
+    }
     if !matches!(module, "rust" | "neutral" | "delegated") {
         return Err(UsageError(format!(
             "no module named \"{module}\"; the built-in modules are \"rust\", \"neutral\" and \"delegated\""
@@ -503,6 +511,9 @@ fn conformance_command(
         if require_proven && proof.verdict != Verdict::Proven {
             failed = true;
         }
+        // A reason can carry what a fixture's build or tool wrote; most are already cleaned where they were made, and this is
+        // the last place a reason passes (a no-op unless `--redact`).
+        let notes: Vec<String> = notes.iter().map(|n| crate::redact::scrub(n)).collect();
         match message_format {
             MessageFormat::Human => {
                 println!("{}: {word}", proof.rule);
@@ -570,6 +581,7 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             tools_lock,
             require_proven,
             message_format,
+            redact,
         } => conformance_command(
             &module,
             rule,
@@ -578,6 +590,7 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             tool_env(install_tools, tools_lock.as_deref())?,
             require_proven,
             message_format,
+            redact,
         ),
         Command::Cache { action } => cache_command(action, cache_config),
         Command::Tools { action } => tools_command(action),
