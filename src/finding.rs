@@ -150,6 +150,10 @@ pub struct Waived {
     /// it was not the repository's own file: a waiver nobody in the repository reviewed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    /// True when the entry was a `[reachability] public_api` declaration (this item is intended public API of the project), not
+    /// an ordinary `[[allow]]` waiver. Printed as "declared public", never hidden.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub declared_public: bool,
 }
 
 /// Why a finding was refused. `#[non_exhaustive]`, and so is each variant: match with `..`.

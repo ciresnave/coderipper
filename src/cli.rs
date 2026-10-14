@@ -427,6 +427,18 @@ fn report_wide_configuration(layers: &[crate::config::Layer], settings: &crate::
                 layer.path.display()
             );
         }
+        let p = layer
+            .file
+            .reachability
+            .as_ref()
+            .map_or(0, |r| r.public_api.len());
+        if p > 0 {
+            let noun = if p == 1 { "entry" } else { "entries" };
+            eprintln!(
+                "coderipper: warning: {} holds {p} [reachability] public_api {noun}; what a project declares public belongs in that project's .coderipper.toml, where it is reviewed with the code. Applied anyway: an item declared here is printed with this file's name.",
+                layer.path.display()
+            );
+        }
     }
     for limit in &settings.limits {
         eprintln!(
@@ -909,7 +921,12 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             for w in &result.waived {
                 let f = &w.finding;
                 println!(
-                    "[waived/{:?}] {} — {}{} ({}) -- reason: {}",
+                    "[{}/{:?}] {} — {}{} ({}) -- reason: {}",
+                    if w.declared_public {
+                        "declared-public"
+                    } else {
+                        "waived"
+                    },
                     f.severity,
                     f.member.as_deref().unwrap_or(&f.project),
                     f.summary,
@@ -923,7 +940,14 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 );
                 // a waiver from a wide file is one nobody in the repository reviewed: say which file
                 if let Some(source) = &w.source {
-                    println!("  (waived by {source})");
+                    println!(
+                        "  ({} by {source})",
+                        if w.declared_public {
+                            "declared"
+                        } else {
+                            "waived"
+                        }
+                    );
                 }
             }
             for f in &result.findings {

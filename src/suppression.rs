@@ -52,14 +52,21 @@ impl<'a> Suppression<'a> {
             for (i, entry) in self.allowlist.entries().iter().enumerate() {
                 if names_finding(entry, &f) {
                     self.matched[i] = true;
-                    reason.get_or_insert_with(|| (entry.reason.clone(), entry.source.clone()));
+                    reason.get_or_insert_with(|| {
+                        (
+                            entry.reason.clone(),
+                            entry.source.clone(),
+                            entry.declared_public,
+                        )
+                    });
                 }
             }
             match reason {
-                Some((reason, source)) => self.waived.push(Waived {
+                Some((reason, source, declared_public)) => self.waived.push(Waived {
                     finding: f,
                     reason,
                     source,
+                    declared_public,
                 }),
                 None => kept.push(f),
             }
@@ -97,8 +104,13 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
     let Some(location) = f.location.as_ref() else {
         return false;
     };
+    let file_matches = if entry.declared_public {
+        glob_match(&normalize_entry_path(&entry.file), &location.file)
+    } else {
+        location.file == normalize_entry_path(&entry.file)
+    };
     entry.check == f.check_id
-        && location.file == normalize_entry_path(&entry.file)
+        && file_matches
         && entry
             .symbol
             .as_deref()
@@ -106,6 +118,37 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
         && entry
             .lines
             .is_none_or(|range| location.line.is_some_and(|line| range.contains(line)))
+}
+
+/// Glob match of a `/`-separated path: `*` and `?` stay inside one path component, a component that is exactly `**` matches
+/// any number of components (none included). Case is not folded, as for plain paths.
+fn glob_match(pattern: &str, path: &str) -> bool {
+    fn component(p: &[char], s: &[char]) -> bool {
+        match (p.first(), s.first()) {
+            (None, None) => true,
+            (Some('*'), _) => component(&p[1..], s) || (!s.is_empty() && component(p, &s[1..])),
+            (Some('?'), Some(_)) => component(&p[1..], &s[1..]),
+            (Some(a), Some(b)) if a == b => component(&p[1..], &s[1..]),
+            _ => false,
+        }
+    }
+    fn walk(p: &[&str], s: &[&str]) -> bool {
+        match p.split_first() {
+            None => s.is_empty(),
+            Some((&"**", rest)) => (0..=s.len()).any(|skip| walk(rest, &s[skip..])),
+            Some((head, rest)) => match s.split_first() {
+                Some((first, tail)) => {
+                    let h: Vec<char> = head.chars().collect();
+                    let f: Vec<char> = first.chars().collect();
+                    component(&h, &f) && walk(rest, tail)
+                }
+                None => false,
+            },
+        }
+    }
+    let p: Vec<&str> = pattern.split('/').collect();
+    let s: Vec<&str> = path.split('/').collect();
+    walk(&p, &s)
 }
 
 /// What an entry names, for messages: the symbol when it gives one, else its lines, else just the file.
@@ -146,6 +189,25 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
 }
 
 fn stale(entry: &AllowEntry, raw_count: usize, project: &str) -> Finding {
+    if entry.declared_public {
+        return Finding {
+            summary: format!(
+                "`[reachability] public_api` entry for {} in `{}` matched nothing this run -- its path or symbol may be gone",
+                target(entry),
+                entry.file
+            ),
+            detail: format!(
+                "This declaration was written because: \"{}\". No `reachability` finding this run is in a file matching `{}` (and the symbol, when given), \
+                 so it declares nothing. Fix the path or symbol if it is misspelt, remove it if the API is gone, or keep it if it is \
+                 written for items that are not reported today.",
+                entry.reason, entry.file
+            ),
+            positive_control: Some(format!(
+                "check `reachability` ran to completion this run and returned {raw_count} raw finding(s) before suppression; none of them matched this entry"
+            )),
+            ..base(entry, project)
+        };
+    }
     Finding {
         summary: format!(
             "allowlist entry for {} in `{}` ({}) suppressed nothing this run -- its cause may be gone",
@@ -411,5 +473,76 @@ mod tests {
         s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
         s.mark_completed("a", 1);
         assert!(s.stale_findings(&["a"], "p").is_empty());
+    }
+
+    const PUBLIC: &str = "[reachability]
+public_api = [
+  { file = \"src/api/**\", reason = \"published API\" },
+  { file = \"src/one.rs\", symbol = \"only_this\", reason = \"one item\" },
+]
+";
+
+    #[test]
+    fn a_declared_public_api_glob_waives_what_it_matches_and_marks_it() {
+        let al = allowlist(PUBLIC);
+        let mut s = Suppression::new(&al);
+        let kept = s.apply(vec![
+            finding("reachability", "src/api/mod.rs", Some("f")),
+            finding("reachability", "src/api/deep/er.rs", Some("g")),
+            finding("reachability", "src/other.rs", Some("h")),
+            finding("reachability", "src/one.rs", Some("only_this")),
+            finding("reachability", "src/one.rs", Some("not_this")),
+            finding("unused-return-values", "src/api/mod.rs", Some("f")),
+        ]);
+        let kept: Vec<_> = kept.iter().map(|f| f.subject.clone().unwrap()).collect();
+        assert_eq!(kept, vec!["h", "not_this", "f"]);
+        let waived = s.take_waived();
+        assert_eq!(waived.len(), 3);
+        assert!(waived.iter().all(|w| w.declared_public), "{waived:?}");
+        assert_eq!(waived[0].reason, "published API");
+    }
+
+    #[test]
+    fn an_ordinary_waiver_is_not_declared_public() {
+        let al = allowlist(ONE);
+        let mut s = Suppression::new(&al);
+        s.apply(vec![finding("a", "src/x.rs", Some("f"))]);
+        assert!(!s.take_waived()[0].declared_public);
+    }
+
+    #[test]
+    fn a_public_api_entry_that_matches_nothing_warns_by_name() {
+        let al = allowlist(PUBLIC);
+        let mut s = Suppression::new(&al);
+        s.apply(vec![finding("reachability", "src/api/mod.rs", Some("f"))]);
+        s.mark_completed("reachability", 1);
+        let stale = s.stale_findings(&["reachability"], "p");
+        assert_eq!(stale.len(), 1, "{stale:?}");
+        assert!(
+            stale[0].summary.contains("public_api"),
+            "{}",
+            stale[0].summary
+        );
+        assert!(
+            stale[0].summary.contains("src/one.rs"),
+            "{}",
+            stale[0].summary
+        );
+    }
+
+    #[test]
+    fn the_glob_star_stays_inside_a_directory_and_double_star_crosses_them() {
+        for (pattern, path, want) in [
+            ("src/*.rs", "src/a.rs", true),
+            ("src/*.rs", "src/sub/a.rs", false),
+            ("src/**", "src/sub/a.rs", true),
+            ("src/**/a.rs", "src/a.rs", true),
+            ("src/**/a.rs", "src/x/y/a.rs", true),
+            ("src/a?.rs", "src/ab.rs", true),
+            ("src/a?.rs", "src/a.rs", false),
+            ("src/api.rs", "src/api_v2.rs", false),
+        ] {
+            assert_eq!(glob_match(pattern, path), want, "{pattern} vs {path}");
+        }
     }
 }

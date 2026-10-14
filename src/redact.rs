@@ -1191,6 +1191,7 @@ mod tests {
             finding: fake_finding(&format!("waived {secret}"), "plain"),
             reason: format!("reason {keyed}"),
             source: None,
+            declared_public: false,
         };
         let mut result = crate::RunResult::new(
             vec![finding],

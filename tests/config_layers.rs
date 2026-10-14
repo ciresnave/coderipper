@@ -315,3 +315,24 @@ fn a_repository_that_is_a_wide_file_is_not_told_its_own_keys_are_skipped() {
         .code(0)
         .stderr(predicate::str::contains("skipped").not());
 }
+
+#[test]
+fn a_home_file_may_declare_public_api_and_says_where_it_came_from() {
+    let home = home_with(
+        "[reachability]\npublic_api = [{ file = \"src/lib.rs\", reason = \"consumed by downstream crates\" }]\n",
+    );
+    let repo = common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/lib.rs", "pub fn api() {}\n"),
+    ]);
+    let file = home.path().join(".coderipper.toml");
+    coderipper(home.path())
+        .args(["check", "reachability", "--project"])
+        .arg(repo.path())
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("[declared-public/"))
+        .stdout(predicate::str::contains("declared by"))
+        .stdout(predicate::str::contains(file.to_str().unwrap()))
+        .stderr(predicate::str::contains("1 [reachability] public_api entr"));
+}

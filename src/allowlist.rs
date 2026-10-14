@@ -42,6 +42,45 @@ pub(crate) struct AllowEntry {
     /// reader, and a file that writes it is an unknown-key error like any other.
     #[serde(skip)]
     pub source: Option<String>,
+    /// Set by the reader for an entry that came from `[reachability] public_api`: `file` is then a glob.
+    #[serde(skip)]
+    pub declared_public: bool,
+}
+
+/// One item of `[reachability] public_api`: the project declares that what `file` (a path or a glob: `*` inside one directory,
+/// `**` across directories, `?`) holds is public API consumed outside this repository, so `reachability` does not fail the run
+/// on it. Unlike an `[[allow]]` entry it is printed as "declared public", and it warns when it matches nothing. `symbol`
+/// narrows it to one item. `reason` is required.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PublicApiEntry {
+    pub file: String,
+    #[serde(default)]
+    pub symbol: Option<String>,
+    pub reason: String,
+}
+
+/// `[reachability]`.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ReachabilitySettings {
+    #[serde(default)]
+    pub public_api: Vec<PublicApiEntry>,
+}
+
+impl PublicApiEntry {
+    /// The suppression entry this declaration is applied as.
+    fn as_entry(&self, source: Option<String>) -> AllowEntry {
+        AllowEntry {
+            check: "reachability".to_string(),
+            file: self.file.clone(),
+            symbol: self.symbol.clone(),
+            lines: None,
+            reason: self.reason.clone(),
+            source,
+            declared_public: true,
+        }
+    }
 }
 
 /// An inclusive range of 1-based line numbers.
@@ -117,7 +156,16 @@ impl Allowlist {
         let path = project_root.join(crate::config::FILE_NAME);
         let mut list = match crate::config::read_file(&path, false)? {
             Some(file) => Self {
-                entries: file.allow,
+                entries: file
+                    .allow
+                    .into_iter()
+                    .chain(
+                        file.reachability
+                            .iter()
+                            .flat_map(|r| &r.public_api)
+                            .map(|p| p.as_entry(None)),
+                    )
+                    .collect(),
                 tracks: file.tracks,
                 buf_baseline: file.buf.and_then(|b| b.baseline),
             },
@@ -136,6 +184,14 @@ impl Allowlist {
                     e.source = Some(source.clone());
                     e
                 }));
+            list.entries.extend(
+                layer
+                    .file
+                    .reachability
+                    .iter()
+                    .flat_map(|r| &r.public_api)
+                    .map(|p| p.as_entry(Some(source.clone()))),
+            );
             list.tracks.extend(layer.file.tracks.iter().cloned());
             if let Some(b) = layer.file.buf.as_ref().and_then(|b| b.baseline.clone()) {
                 wide_baseline = Some(b);

@@ -419,6 +419,26 @@ lines = "40-52"       # optional: only findings reported at these lines ("12" or
 reason = "the result is deliberately dropped; see issue 7"
 ```
 
+### Declaring a library's public API (`[reachability] public_api`)
+
+A published library's API has no consumer inside its own repository, so `reachability` reports it. Rather than one `[[allow]]` per
+file, declare the surface once; every entry needs a `reason`:
+
+```toml
+[reachability]
+public_api = [
+  { file = "src/api/**", reason = "published API, consumed by downstream crates" },
+  { file = "src/codec.rs", symbol = "decode", reason = "documented entry point" },
+]
+```
+
+`file` is a path or a glob (`*` and `?` stay inside one directory, `**` crosses directories); `symbol` narrows an entry to one item.
+A matched finding does not fail the run and is **not hidden**: it is printed as `[declared-public/<severity>] ... -- reason: <reason>`
+(in JSON, a `waived` item with `"declared_public": true`). An entry that matches nothing in a run where `reachability` completed is
+reported as an `allowlist` finding saying the path or symbol may be gone. A wide configuration file may hold the key, with the same
+warning and `(declared by <file>)` as for waivers, and a wide entry that matches nothing here is not reported. This declares; it does not
+prove: a dead item under a declared path is declared public too, so keep the globs narrow.
+
 ### Where a waiver, a `tracks` entry and `--deny` are read from
 
 A `.coderipper.toml` is read **from the directory of the package being checked**, and from nowhere else. In a repository with a crate
