@@ -1,7 +1,8 @@
 # Configuration layers: a user/system `.coderipper.toml`, a restricted repo file, environment variables, flags (design)
 
-> **Status: design only, nothing is built.** Written 2026-10-13 from a conversation with CireSnave the same day. It changes no
-> behaviour of any released version. **Open items are in section 9.**
+> **Status: built in 0.6.21 (proposed), except what section 9 and the CHANGELOG list as not built** (the run-time stop at a limit, the
+> dotless spelling in `/etc/coderipper/`, profile pinning). Written 2026-10-13 from a conversation with CireSnave the same day;
+> sections 3 to 8 are what was built, and `README.md` ("Configuration layers") is the user's description. **Open items are in section 9.**
 
 ## 1. What exists now (`origin/main` at `a1e8732`, read from the source, not by running the binary)
 

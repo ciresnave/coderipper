@@ -95,8 +95,75 @@ impl Deny {
     about = "Audits a Rust project for what clippy does not report — run it next to cargo clippy."
 )]
 struct Cli {
+    /// Read exactly this configuration file in place of the system and user files (`/etc/coderipper/.coderipper.toml`,
+    /// `/etc/.coderipper.toml`, `~/.coderipper.toml`). It must exist. The repository's own file is read as always.
+    /// The variable `CODERIPPER_CONFIG` does the same, and `--no-config` outranks it.
+    #[arg(long, global = true, value_name = "PATH")]
+    config: Option<PathBuf>,
+    /// Read none of the system and user configuration files, so the result does not depend on this machine. The repository's
+    /// own `.coderipper.toml` is still read.
+    /// The variable `CODERIPPER_NO_CONFIG` (`1`, `true`, `yes` or `on`) does the same.
+    #[arg(long, global = true)]
+    no_config: bool,
     #[command(subcommand)]
     command: Command,
+}
+
+/// What the configuration layers gave this process, and which of the three options that have a built-in default were written on
+/// the command line (a flag the user typed outranks every file; a default that was merely there does not).
+struct Conf {
+    settings: crate::config::Settings,
+    given: Given,
+}
+
+#[derive(Clone, Copy, Default)]
+struct Given {
+    deny: bool,
+    profile: bool,
+    message_format: bool,
+}
+
+impl Conf {
+    /// The environment variable `key`, else what a configuration file gave for it: the environment always wins.
+    fn lookup(&self, key: &str) -> Option<String> {
+        std::env::var(key)
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| self.settings.env_default(key))
+    }
+
+    fn deny(&self, flag: Deny) -> Deny {
+        match (&self.settings.deny, self.given.deny) {
+            (Some(text), false) => Deny::from_str(text, true).unwrap_or(flag),
+            _ => flag,
+        }
+    }
+
+    fn message_format(&self, flag: MessageFormat) -> MessageFormat {
+        match (&self.settings.message_format, self.given.message_format) {
+            (Some(text), false) => MessageFormat::from_str(text, true).unwrap_or(flag),
+            _ => flag,
+        }
+    }
+
+    /// `--profile`, else the repository's `profile`, else a wide file's, else the built-in default.
+    fn profile(&self, flag: Profile, repository: Option<&str>) -> Profile {
+        if self.given.profile {
+            return flag;
+        }
+        repository
+            .or(self.settings.profile.as_deref())
+            .and_then(|text| Profile::from_str(text, true).ok())
+            .unwrap_or(flag)
+    }
+
+    fn redact(&self, flag: bool) -> bool {
+        flag || self.settings.redact == Some(true)
+    }
+
+    fn install_tools(&self, flag: bool) -> bool {
+        flag || self.settings.install_tools == Some(true)
+    }
 }
 
 /// What the three run subcommands (`fast`, `sweep`, `check`) share.
@@ -272,7 +339,48 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
         Ok(cli) => cli,
         Err(e) => e.exit(),
     };
-    let from_env = crate::build_cache::config_from_env(&|k| std::env::var(k).ok());
+    let on_command_line = |m: &clap::ArgMatches, id: &str| {
+        m.try_contains_id(id).unwrap_or(false)
+            && m.value_source(id) == Some(clap::parser::ValueSource::CommandLine)
+    };
+    if on_command_line(&matches, "config") && on_command_line(&matches, "no_config") {
+        eprintln!("coderipper: --config and --no-config cannot be used together");
+        return ExitCode::from(EXIT_USAGE);
+    }
+    let sub = matches.subcommand().map(|(_, m)| m);
+    let given = Given {
+        deny: sub.is_some_and(|m| on_command_line(m, "deny")),
+        profile: sub.is_some_and(|m| on_command_line(m, "profile")),
+        message_format: sub.is_some_and(|m| on_command_line(m, "message_format")),
+    };
+    // The wide files, read once. A file that cannot be read or parsed stops the run: a result must never come from settings the
+    // reader cannot see.
+    let environment = |k: &str| std::env::var(k).ok();
+    let no_config = cli.no_config
+        || environment("CODERIPPER_NO_CONFIG").is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        });
+    let config_path = cli.config.clone().or_else(|| {
+        environment("CODERIPPER_CONFIG")
+            .filter(|v| !v.trim().is_empty())
+            .map(PathBuf::from)
+    });
+    let layers = match crate::config::load_wide(&environment, config_path.as_deref(), no_config) {
+        Ok(layers) => layers,
+        Err(e) => {
+            eprintln!("coderipper: {e:#}");
+            return ExitCode::from(EXIT_USAGE);
+        }
+    };
+    let mut settings = crate::config::Settings::from_layers(&layers);
+    settings.apply_env_limits(&environment);
+    report_wide_configuration(&layers, &settings);
+    crate::config::install(layers);
+    let conf = Conf { settings, given };
+    let from_env = crate::build_cache::config_from_env(&|k| conf.lookup(k));
     if let Some(config) = from_env.clone() {
         // `false`: a library caller in this process configured the cache first, and that configuration stays.
         if !crate::build_cache::set_cache_config(config) {
@@ -280,7 +388,7 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
         }
     }
 
-    let result = dispatch(cli, from_env);
+    let result = dispatch(cli, from_env, &conf);
     // What the builds did, once, whichever way the run ended.
     if let Some(text) = crate::build_cache::render_stats(&crate::build_cache::take_stats()) {
         eprintln!("{}", crate::redact::scrub(&text));
@@ -299,7 +407,36 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     })
 }
 
-fn tools_command(action: ToolsAction) -> anyhow::Result<u8> {
+/// Says, once and on stderr, which wide files were read, the ceilings in force and (one warning per file) the waivers a wide
+/// file holds: those belong in each repository, where they are reviewed with the code, and they are applied anyway.
+fn report_wide_configuration(layers: &[crate::config::Layer], settings: &crate::config::Settings) {
+    if layers.is_empty() {
+        return;
+    }
+    let files: Vec<String> = layers
+        .iter()
+        .map(|l| l.path.display().to_string())
+        .collect();
+    eprintln!("coderipper: configuration: {}", files.join(", "));
+    for layer in layers {
+        let n = layer.file.allow.len();
+        if n > 0 {
+            let noun = if n == 1 { "entry" } else { "entries" };
+            eprintln!(
+                "coderipper: warning: {} holds {n} [[allow]] {noun}; waivers belong in each repository's .coderipper.toml, where they are reviewed with the code. Applied anyway: a finding waived here is printed with this file's name.",
+                layer.path.display()
+            );
+        }
+    }
+    for limit in &settings.limits {
+        eprintln!(
+            "coderipper: configuration: {} = {} (from {}; the process that runs CodeRipper enforces it)",
+            limit.name, limit.value, limit.source
+        );
+    }
+}
+
+fn tools_command(action: ToolsAction, conf: &Conf) -> anyhow::Result<u8> {
     use crate::tools::{
         current_platform, tools_dir_from_env, Consent, DefaultFetcher, ToolCache, ToolError,
         ToolStatus, ToolsLock,
@@ -310,7 +447,7 @@ fn tools_command(action: ToolsAction) -> anyhow::Result<u8> {
             names,
             install_tools,
             tools_lock,
-        } => (tools_lock, names, Some(install_tools)),
+        } => (tools_lock, names, Some(conf.install_tools(install_tools))),
     };
     let lock = match &lock_path {
         Some(path) => ToolsLock::parse(&std::fs::read_to_string(path).map_err(|e| {
@@ -318,7 +455,7 @@ fn tools_command(action: ToolsAction) -> anyhow::Result<u8> {
         })?)?,
         None => ToolsLock::embedded(),
     };
-    let root = tools_dir_from_env(&|k| std::env::var(k).ok()).ok_or_else(|| {
+    let root = tools_dir_from_env(&|k| conf.lookup(k)).ok_or_else(|| {
         anyhow::anyhow!("no tools directory could be derived; set CODERIPPER_TOOLS_DIR")
     })?;
     let cache = ToolCache::new(root);
@@ -428,13 +565,18 @@ fn cache_command(
 fn tool_env(
     install_tools: bool,
     lock_path: Option<&Path>,
+    conf: &Conf,
 ) -> anyhow::Result<crate::tools::ToolEnv> {
     use crate::tools::{Consent, ToolEnv, ToolsLock};
-    let mut env = ToolEnv::from_environment().consent(if install_tools {
+    let mut env = ToolEnv::from_environment().consent(if conf.install_tools(install_tools) {
         Consent::Granted
     } else {
         Consent::NotGiven
     });
+    // the tools directory a wide file named, when the environment did not
+    if let Some(dir) = crate::tools::tools_dir_from_env(&|k| conf.lookup(k)) {
+        env = env.cache_root(dir);
+    }
     if let Some(path) = lock_path {
         let text = std::fs::read_to_string(path).map_err(|e| {
             UsageError(format!(
@@ -555,23 +697,36 @@ struct RunArgs {
     only_check_id: Option<String>,
 }
 
-fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> anyhow::Result<u8> {
+fn dispatch(
+    cli: Cli,
+    cache_config: Option<crate::build_cache::CacheConfig>,
+    conf: &Conf,
+) -> anyhow::Result<u8> {
     match cli.command {
-        Command::Fast { opts } => run_and_report(RunArgs {
-            opts,
-            tier: Tier::Fast,
-            only_check_id: None,
-        }),
-        Command::Sweep { opts } => run_and_report(RunArgs {
-            opts,
-            tier: Tier::Sweep,
-            only_check_id: None,
-        }),
-        Command::Check { id, opts } => run_and_report(RunArgs {
-            opts,
-            tier: Tier::Fast,
-            only_check_id: Some(id),
-        }),
+        Command::Fast { opts } => run_and_report(
+            RunArgs {
+                opts,
+                tier: Tier::Fast,
+                only_check_id: None,
+            },
+            conf,
+        ),
+        Command::Sweep { opts } => run_and_report(
+            RunArgs {
+                opts,
+                tier: Tier::Sweep,
+                only_check_id: None,
+            },
+            conf,
+        ),
+        Command::Check { id, opts } => run_and_report(
+            RunArgs {
+                opts,
+                tier: Tier::Fast,
+                only_check_id: Some(id),
+            },
+            conf,
+        ),
         Command::Conformance {
             module,
             rule,
@@ -583,7 +738,7 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
             message_format,
             redact,
         } => {
-            if redact {
+            if conf.redact(redact) {
                 crate::redact::set_policy(crate::redact::RedactionPolicy::On);
             }
             conformance_command(
@@ -591,20 +746,20 @@ fn dispatch(cli: Cli, cache_config: Option<crate::build_cache::CacheConfig>) -> 
                 rule,
                 fixtures,
                 network,
-                tool_env(install_tools, tools_lock.as_deref())?,
+                tool_env(install_tools, tools_lock.as_deref(), conf)?,
                 require_proven,
-                message_format,
+                conf.message_format(message_format),
             )
         }
         Command::Cache { action } => cache_command(action, cache_config),
-        Command::Tools { action } => tools_command(action),
+        Command::Tools { action } => tools_command(action, conf),
         Command::Serve { port } => {
             anyhow::bail!("server mode is not implemented yet (port {port} requested)")
         }
     }
 }
 
-fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
+fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let RunArgs {
         opts:
             RunOpts {
@@ -622,10 +777,53 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
         tier,
         only_check_id,
     } = args;
-    if redact {
+    let project = project.unwrap_or(std::env::current_dir()?);
+    let project_root = project
+        .canonicalize()
+        .map(without_verbatim_prefix)
+        .map_err(|e| {
+            UsageError(format!(
+                "cannot read the project {}: {e}",
+                project.display()
+            ))
+        })?;
+    // The repository's own file: its `profile` applies, and any other known key it sets is named and skipped. An error in it
+    // (an unknown key) is reported by the run itself, as an allowlist error.
+    let repository_file = project_root.join(crate::config::FILE_NAME);
+    let repository = crate::config::read_file(&repository_file, false)
+        .ok()
+        .flatten();
+    // a repository at the user's home (or at the file `--config` names): its file is a wide file, whose keys apply as such
+    let is_a_wide_file = std::fs::canonicalize(&repository_file).is_ok_and(|own| {
+        crate::config::wide_layers()
+            .iter()
+            .any(|l| std::fs::canonicalize(&l.path).ok().as_ref() == Some(&own))
+    });
+    if let Some(file) = repository.as_ref().filter(|_| !is_a_wide_file) {
+        let skipped = file.skipped_for_a_repository();
+        if !skipped.is_empty() {
+            eprintln!(
+                "coderipper: warning: {} sets {}, which a repository's file may not set (it may set {}); skipped",
+                repository_file.display(),
+                skipped
+                    .iter()
+                    .map(|k| format!("`{k}`"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                crate::config::REPOSITORY_MAY_SET
+            );
+        }
+    }
+    let deny = conf.deny(deny);
+    let message_format = conf.message_format(message_format);
+    let profile = conf.profile(
+        profile,
+        repository.as_ref().and_then(|f| f.profile.as_deref()),
+    );
+    if conf.redact(redact) {
         crate::redact::set_policy(crate::redact::RedactionPolicy::On);
     }
-    let tools = tool_env(install_tools, tools_lock.as_deref())?;
+    let tools = tool_env(install_tools, tools_lock.as_deref(), conf)?;
     if let Some(id) = &only_check_id {
         let checks = crate::registered_checks();
         let mut known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
@@ -647,16 +845,6 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
             .into());
         }
     }
-    let project = project.unwrap_or(std::env::current_dir()?);
-    let project_root = project
-        .canonicalize()
-        .map(without_verbatim_prefix)
-        .map_err(|e| {
-            UsageError(format!(
-                "cannot read the project {}: {e}",
-                project.display()
-            ))
-        })?;
     let portfolio_root = portfolio_root
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
@@ -733,6 +921,10 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                         .map(|c| if c.is_control() { ' ' } else { c })
                         .collect::<String>()
                 );
+                // a waiver from a wide file is one nobody in the repository reviewed: say which file
+                if let Some(source) = &w.source {
+                    println!("  (waived by {source})");
+                }
             }
             for f in &result.findings {
                 println!(
@@ -766,6 +958,9 @@ fn run_and_report(args: RunArgs) -> anyhow::Result<u8> {
                     .expect("a Finding serializes to an object");
                 object.insert("reason".into(), "coderipper-waived".into());
                 object.insert("waiver_reason".into(), w.reason.clone().into());
+                if let Some(source) = &w.source {
+                    object.insert("waived_by".into(), source.clone().into());
+                }
                 println!("{line}");
             }
             for report in reports.iter().flatten() {

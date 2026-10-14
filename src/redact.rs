@@ -148,6 +148,10 @@ impl crate::RunResult {
         self.notes.iter_mut().for_each(&mut fix);
         for waived in &mut self.waived {
             fix(&mut waived.reason);
+            // the wide file's path (a home directory has the user's name in it)
+            if let Some(source) = &mut waived.source {
+                fix(source);
+            }
         }
         let findings = self
             .findings
@@ -1186,6 +1190,7 @@ mod tests {
         let waived = crate::finding::Waived {
             finding: fake_finding(&format!("waived {secret}"), "plain"),
             reason: format!("reason {keyed}"),
+            source: None,
         };
         let mut result = crate::RunResult::new(
             vec![finding],
