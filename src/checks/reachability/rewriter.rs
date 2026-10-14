@@ -411,6 +411,17 @@ mod tests {
     }
 
     #[test]
+    fn a_proc_macro_entry_point_with_its_attribute_on_the_same_line_stays_pub() {
+        for src in [
+            "#[proc_macro] pub fn f() {}\n",
+            "#[inline] #[proc_macro_derive(X)] pub fn f() {}\n",
+            "#[cfg_attr(x, proc_macro_attribute)] pub fn f() {}\n",
+        ] {
+            assert_eq!(rewrite_pub_to_pub_crate(src), src, "case: {src:?}");
+        }
+    }
+
+    #[test]
     fn any_whitespace_after_pub_counts() {
         assert_eq!(
             rewrite_pub_to_pub_crate("pub\tfn f() {}\n"),

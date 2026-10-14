@@ -25,9 +25,9 @@ them and the check reported nothing (a false negative; no live item was ever rep
   keyword by a line break stay exempt and are not reported. `rustfmt` writes neither. Listed with the other known limitations.
 
 ### Added (tests only)
-- `tests/reachability_variants.rs` (10 cases: every function qualifier, every item kind, a union, a method in an impl, a one-line
+- `tests/reachability_variants.rs` (10 cases: every function qualifier, the item kinds (struct, enum, alias, const, static, trait, module, union), a union, a method in an impl, a one-line
   module, attributes and whitespace before `pub`, every way an item is live: path, rename, glob, const expression, type position,
-  bound; and the items the compiler keeps for the linker or the author) and three unit tests in the rewriter.
+  bound; and the items the compiler keeps for the linker or the author) and four unit tests in the rewriter.
 
 ## 0.6.31 - 2026-10-14 (proposed)
 

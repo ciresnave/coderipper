@@ -107,7 +107,8 @@ pub extern \"C\" fn anchor() { S.live_method(); }
 
 #[test]
 fn a_dead_pub_item_declared_on_one_line_inside_a_module_is_reported() {
-    // Line-based rewrite: `pub` that does not start its line is not downgraded, so rustc exempts it.
+    // The inner `pub` does not start its line, so it is not downgraded itself; it is reported because the enclosing
+    // `pub mod` is, which makes everything in it crate-visible.
     let src = "pub mod m { pub fn dead_in_one_line() {} }\n";
     let got = reported(src);
     assert!(got.contains(&"dead_in_one_line".to_string()), "{got:?}");
