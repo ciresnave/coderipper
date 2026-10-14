@@ -91,7 +91,7 @@ impl Session {
 
         let scratch = tempfile::tempdir()?;
         let checkout = scratch.path().join("wt");
-        let status = git_command(
+        crate::worktree::run_worktree_add(git_command(
             source_repo,
             &[
                 "worktree",
@@ -101,9 +101,7 @@ impl Session {
                 &checkout.to_string_lossy(),
                 "HEAD",
             ],
-        )
-        .status()?;
-        anyhow::ensure!(status.success(), "git worktree add failed");
+        ))?;
 
         let lock_rel = workspace_lock_rel(source_repo)?;
         Ok(Session {

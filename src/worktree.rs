@@ -26,6 +26,28 @@ enum Backing {
     },
 }
 
+/// Runs a prepared `git worktree add` and, when it fails, says why: git's own message is part of the error (issue 75: a
+/// bare "git worktree add failed" left a CI flake with no cause to chase).
+pub(crate) fn run_worktree_add(mut command: Command) -> anyhow::Result<()> {
+    let output = command.output()?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let why: Vec<&str> = stderr
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .take(5)
+        .collect();
+    let why = if why.is_empty() {
+        "git printed nothing".to_string()
+    } else {
+        why.join(" | ")
+    };
+    anyhow::bail!("git worktree add failed ({}): {why}", output.status);
+}
+
 impl RewrittenWorktree {
     /// The source repository (the project directory given to [`Self::create_with`]) this checkout was made
     /// from, as opposed to the throwaway checkout itself. The build cache is keyed by it.
@@ -52,13 +74,12 @@ impl RewrittenWorktree {
         let scratch = tempfile::tempdir()?;
         let wt_path = scratch.path().join("wt");
 
-        let status = Command::new("git")
-            .args(["worktree", "add", "--detach", "-q"])
+        let mut add = Command::new("git");
+        add.args(["worktree", "add", "--detach", "-q"])
             .arg(&wt_path)
             .arg("HEAD")
-            .current_dir(project_root)
-            .status()?;
-        anyhow::ensure!(status.success(), "git worktree add failed");
+            .current_dir(project_root);
+        run_worktree_add(add)?;
 
         // Build the guard BEFORE rewriting: if a rewrite fails, `Drop` still unregisters the
         // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
@@ -180,6 +201,36 @@ mod tests {
 
     fn pub_to_pub_crate(_file: &str, source: &str) -> anyhow::Result<String> {
         Ok(source.replace("pub fn", "pub(crate) fn"))
+    }
+
+    #[test]
+    fn a_failed_worktree_add_carries_gits_own_message() {
+        // issue 75: the error used to be only "git worktree add failed", so a CI flake named no cause. A repository with no
+        // commit has no HEAD to check out: git says why, and the error must say it too.
+        let dir = tempfile::tempdir().unwrap();
+        Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(dir.path())
+            .status()
+            .unwrap();
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[package]
+name = \"fixture\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+        )
+        .unwrap();
+        let err = match RewrittenWorktree::create_with(dir.path(), pub_to_pub_crate) {
+            Ok(_) => panic!("a repository with no commit has no HEAD to check out"),
+            Err(e) => e.to_string(),
+        };
+        assert!(err.contains("git worktree add failed"), "{err}");
+        assert!(
+            err.to_lowercase().contains("fatal") || err.contains("HEAD"),
+            "git's own message is missing: {err}"
+        );
     }
 
     fn init_fixture_repo(dir: &std::path::Path) {

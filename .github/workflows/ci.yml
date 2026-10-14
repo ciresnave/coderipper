@@ -44,13 +44,13 @@ jobs:
         run: cargo fmt --check
 
       - name: cargo clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: cargo build
-        run: cargo build --all-targets
+        run: cargo build --locked --all-targets
 
       - name: cargo test
-        run: cargo test --no-fail-fast
+        run: cargo test --locked --no-fail-fast
 
   # CodeRipper on itself, as every Rust repository of the portfolio is meant to run it (ROADMAP item 7). `--deny medium` fails the
   # job on a Medium or worse finding that no `[[allow]]` entry in `.coderipper.toml` waives; Low and Info are printed.
@@ -61,7 +61,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
       - name: coderipper fast --deny medium
-        run: cargo run --quiet --bin coderipper -- fast --deny medium --project .
+        run: cargo run --locked --quiet --bin coderipper -- fast --deny medium --project .
 
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
@@ -75,12 +75,12 @@ jobs:
         with:
           components: clippy
       - name: cargo doc (a missing doc or a broken link fails)
-        run: cargo doc --no-deps
+        run: cargo doc --locked --no-deps
       - name: the library alone (no clap, no binaries)
         run: |
-          cargo clippy --no-default-features --all-targets -- -D warnings
-          cargo test --no-default-features --lib
-          cargo test --no-default-features --doc
+          cargo clippy --locked --no-default-features --all-targets -- -D warnings
+          cargo test --locked --no-default-features --lib
+          cargo test --locked --no-default-features --doc
 
   msrv:
     name: Builds on the declared minimum Rust version
