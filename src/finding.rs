@@ -146,6 +146,10 @@ pub struct Waived {
     pub finding: Finding,
     /// The entry's `reason`, verbatim.
     pub reason: String,
+    /// The wide configuration file (`~/.coderipper.toml`, `/etc/coderipper/.coderipper.toml`, ...) whose entry waived it, when
+    /// it was not the repository's own file: a waiver nobody in the repository reviewed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
 }
 
 /// Why a finding was refused. `#[non_exhaustive]`, and so is each variant: match with `..`.

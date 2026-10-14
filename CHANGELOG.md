@@ -6,6 +6,31 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.21 - 2026-10-14 (proposed)
+
+### Added
+- **Configuration layers** (ROADMAP item 5; design `docs/superpowers/plans/2026-10-13-configuration-layers.md`). A `.coderipper.toml`
+  is now also read from `/etc/coderipper/`, `/etc/` and the home directory (Windows: `%ProgramData%\coderipper\`, `%ProgramData%\`,
+  `%USERPROFILE%`), weakest first, then the repository's file, then the environment, then flags. Wide files may set defaults for
+  `deny`, `profile`, `message-format`, `redact`, `install-tools`, `[cache]` and `[tools]` (the environment variables keep winning),
+  ceilings under `[limits]` (combined by minimum and reported, not enforced by CodeRipper itself), and `[[allow]]`, `[[tracks]]`,
+  `[buf]`. New flags `--config <path>` / `--no-config` (and `CODERIPPER_CONFIG` / `CODERIPPER_NO_CONFIG`). A run that read a wide
+  file names it on stderr.
+- **A waiver from a wide file** is applied with one stderr warning per file ("waivers belong in each repository"), printed with
+  `(waived by <file>)` (JSON `waived_by`; `Waived::source`), and never reported as a stale entry.
+
+### Changed
+- **The repository's file is restricted to an allowlist** of keys: `[[allow]]`, `[[tracks]]`, `[buf]` and the new `profile`. Every key
+  that is new in this release is wide-file-only, so **no existing repository file changes meaning**; a known key outside the list
+  is skipped with a warning, an unknown key is an error as before.
+
+### Notes
+- Behaviour with no wide file present is unchanged, and a library caller sees no wide file (the command-line program reads them).
+  One difference for a library caller: a repository file that sets a *known* wide-only key (`deny`, `[cache]`, ...) is now
+  accepted and ignored by the library (it was an unknown-key error); the command-line program warns and skips it.
+- Not built from the design yet: the run-time stop at `max_runtime_minutes` (the ceilings are reported), a dotless
+  `/etc/coderipper/coderipper.toml` spelling, and pinning a profile against a repository's choice.
+
 ## 0.6.20 - 2026-10-14 (proposed)
 
 ### Security

@@ -52,11 +52,15 @@ impl<'a> Suppression<'a> {
             for (i, entry) in self.allowlist.entries().iter().enumerate() {
                 if names_finding(entry, &f) {
                     self.matched[i] = true;
-                    reason.get_or_insert_with(|| entry.reason.clone());
+                    reason.get_or_insert_with(|| (entry.reason.clone(), entry.source.clone()));
                 }
             }
             match reason {
-                Some(reason) => self.waived.push(Waived { finding: f, reason }),
+                Some((reason, source)) => self.waived.push(Waived {
+                    finding: f,
+                    reason,
+                    source,
+                }),
                 None => kept.push(f),
             }
         }
@@ -79,6 +83,8 @@ impl<'a> Suppression<'a> {
             }
             if !registered.contains(&entry.check.as_str()) {
                 out.push(unknown_check(entry, registered, project));
+            } else if entry.source.is_some() {
+                // a wide entry that matches nothing here is not stale: it may be written for another repository
             } else if let Some(raw_count) = self.completed.get(&entry.check) {
                 out.push(stale(entry, *raw_count, project));
             }

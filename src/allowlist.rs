@@ -1,30 +1,19 @@
 use serde::Deserialize;
 use std::path::Path;
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AllowlistFile {
-    #[serde(rename = "allow", default)]
-    entries: Vec<AllowEntry>,
-    #[serde(default)]
-    tracks: Vec<TrackEntry>,
-    #[serde(default)]
-    buf: Option<BufSettings>,
-}
-
 /// `[buf]`: how API-006 (`buf breaking`) picks the schema version it compares the working tree with.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct BufSettings {
+pub(crate) struct BufSettings {
     /// A git ref (branch, tag or commit) naming the released schema. Without it the baseline is the merge-base of `HEAD` with
     /// `origin/HEAD`.
-    baseline: Option<String>,
+    pub baseline: Option<String>,
 }
 
 /// A declared relationship, not a suppression: `package` is exempt from the one-version rule because
 /// it works with another project, and must match the version in that project's manifest instead
 /// (`version-consistency`, design doc section 5). `manifest` is relative to the project root.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct TrackEntry {
     pub package: String,
@@ -37,7 +26,7 @@ pub(crate) struct TrackEntry {
 /// `reason`. `check`, `file` and `reason` are required. `symbol` narrows the waiver to the finding about that one symbol, and
 /// `lines` (`"12"` or `"10-20"`, inclusive) to findings reported at those lines; omit both to waive every finding of `check` in
 /// `file`. A finding that names no line is never matched by an entry with `lines`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AllowEntry {
     pub check: String,
@@ -49,6 +38,10 @@ pub(crate) struct AllowEntry {
     /// Required: a missing field fails TOML deserialization, which is what enforces "every
     /// suppression says why". Shown with the waived finding, and in the finding raised when the entry goes stale.
     pub reason: String,
+    /// The wide configuration file this entry came from; `None` for the repository's own file. Not a key: it is set by the
+    /// reader, and a file that writes it is an unknown-key error like any other.
+    #[serde(skip)]
+    pub source: Option<String>,
 }
 
 /// An inclusive range of 1-based line numbers.
@@ -117,18 +110,41 @@ impl Allowlist {
         }
     }
 
+    /// The repository's `.coderipper.toml` (its `[[allow]]`, `[[tracks]]` and `[buf]`; other known keys are not read here:
+    /// `crate::config` says which are skipped), then the entries of the wide files the command-line program installed, each
+    /// marked with its file. A repository's own entry comes first, so its reason is the one shown for a finding both name.
     pub fn load(project_root: &Path) -> anyhow::Result<Self> {
-        let path = project_root.join(".coderipper.toml");
-        if !path.exists() {
-            return Ok(Self::empty());
+        let path = project_root.join(crate::config::FILE_NAME);
+        let mut list = match crate::config::read_file(&path, false)? {
+            Some(file) => Self {
+                entries: file.allow,
+                tracks: file.tracks,
+                buf_baseline: file.buf.and_then(|b| b.baseline),
+            },
+            None => Self::empty(),
+        };
+        let own = std::fs::canonicalize(&path).ok();
+        let mut wide_baseline = None;
+        for layer in crate::config::wide_layers() {
+            // a repository at the user's home directory: its file is the wide file, and is read once
+            if own.is_some() && std::fs::canonicalize(&layer.path).ok() == own {
+                continue;
+            }
+            let source = layer.path.display().to_string();
+            list.entries
+                .extend(layer.file.allow.iter().cloned().map(|mut e| {
+                    e.source = Some(source.clone());
+                    e
+                }));
+            list.tracks.extend(layer.file.tracks.iter().cloned());
+            if let Some(b) = layer.file.buf.as_ref().and_then(|b| b.baseline.clone()) {
+                wide_baseline = Some(b);
+            }
         }
-        let text = std::fs::read_to_string(&path)?;
-        let parsed: AllowlistFile = toml::from_str(&text)?;
-        Ok(Self {
-            entries: parsed.entries,
-            tracks: parsed.tracks,
-            buf_baseline: parsed.buf.and_then(|b| b.baseline),
-        })
+        if list.buf_baseline.is_none() {
+            list.buf_baseline = wide_baseline;
+        }
+        Ok(list)
     }
 
     pub fn entries(&self) -> &[AllowEntry] {

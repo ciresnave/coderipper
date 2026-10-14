@@ -66,6 +66,7 @@ pub mod checks;
 #[cfg(feature = "cli")]
 #[doc(hidden)]
 pub mod cli;
+pub(crate) mod config;
 pub mod conformance;
 pub mod coverage;
 pub mod finding;

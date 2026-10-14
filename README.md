@@ -449,6 +449,71 @@ suppression whose cause has been fixed does not linger. An entry naming a check 
 reported the same way. An entry for a check that failed or did not run in that run is not judged. Both are findings, so
 under the default they fail the run: fix or delete the entry.
 
+## Configuration layers: a user or system file, the repository's file, the environment, flags
+
+One file name, `.coderipper.toml`, is read from several places and combined, **weakest first**:
+
+| # | Layer | May set |
+|---|---|---|
+| 1 | built-in defaults | - |
+| 2 | `/etc/coderipper/.coderipper.toml` (Windows: `%ProgramData%\coderipper\`) | everything |
+| 3 | `/etc/.coderipper.toml` (Windows: `%ProgramData%\`) | everything |
+| 4 | `~/.coderipper.toml` (`HOME`, else `USERPROFILE`) | everything |
+| 5 | the repository's own `.coderipper.toml` (each member's, under `--workspace`) | **only** `[[allow]]`, `[[tracks]]`, `[buf]` and `profile` |
+| 6 | environment variables (`CODERIPPER_CACHE`, `CODERIPPER_CACHE_DIR`, `CODERIPPER_TOOLS_DIR`, ...) | what they always set |
+| 7 | command-line flags | per-invocation values and defaults |
+
+**Every file found is read; the first one found does not hide the rest.** A later layer overrides an earlier one, so a user's file
+overrides `/etc`, the repository's `profile` overrides both, and a flag you type overrides everything. The wide files (2 to 4) are
+read by the command-line program only: a library caller that never asks sees none.
+
+```toml
+# ~/.coderipper.toml: defaults for every command-line option that is a default, and what the environment variables set
+deny = "medium"          # --deny: none | info | low | medium | high | critical
+profile = "extended"     # --profile: classic | extended
+message-format = "human" # --message-format: human | json
+redact = false           # --redact
+install-tools = false    # --install-tools
+
+[cache]                  # CODERIPPER_CACHE=off, _DIR, _MAX_GB, _WAIT_SECS
+enabled = true
+dir = "D:/coderipper-cache"
+max_gb = 20
+wait_secs = 5
+
+[tools]                  # CODERIPPER_TOOLS_DIR
+dir = "D:/coderipper-tools"
+
+[limits]                 # ceilings: see below
+max_runtime_minutes = 30
+```
+
+**The repository's file is an allowlist, and fails closed.** The repository is untrusted input (in a hosted service it is someone
+else's code), so a key that is not on the allowlist is not honoured from it: a *known* key outside the list (`deny`, `redact`,
+`install-tools`, anything under `[cache]`, `[tools]` or `[limits]`) is **skipped with a warning that names the key and the file**
+and the run goes on; an *unknown* key (a typo) is an error, as it always was. That keeps out a repository that points `tools.dir`
+at its own directory so CodeRipper runs its binary, grants itself `install-tools`, turns off `redact`, sets `deny = "none"` or
+raises a limit. `profile` is on the list because it is a statement about the project's own rule set; `deny` is not, because a
+project's CI sets it with a flag.
+
+**Limits are ceilings, combined by minimum.** For every `[limits]` key (`max_runtime_minutes`, `max_memory_mb`, `max_disk_mb`,
+`max_processes`) the effective value is the smallest any layer gave (the files, and `CODERIPPER_MAX_RUNTIME_MINUTES` and so on), so
+a later layer can lower a ceiling and never raise it. CodeRipper **reports** the ceilings in force on stderr and does not itself stop
+at them (yet): whatever runs CodeRipper must enforce them from outside, because a limit read from a file inside the job's own
+container is a request, not a boundary.
+
+**`[[allow]]` and `[[tracks]]` in a wide file** are accepted, and they are the wrong place: a waiver is a statement about one
+repository and belongs in that repository's file, where it is reviewed with the code. Each run says so once on stderr, naming the file
+and the number of entries, and applies them anyway. A finding waived by a wide file is printed with `(waived by <file>)` (JSON:
+`waived_by`), so a reader can tell a waiver nobody in the repository reviewed. A wide entry that matches nothing in this repository is
+**not** reported as stale (it may be written for another repository); an entry in the repository's own file still is.
+
+**Reproducibility.** The same repository must give the same answer on CI and on a laptop, or the report must say why not. Each run
+that read a wide file names it on stderr (`coderipper: configuration: <files>`). `--config <path>` (or `CODERIPPER_CONFIG`) reads
+exactly that file in place of layers 2 to 4, and it must exist; `--no-config` (or `CODERIPPER_NO_CONFIG=1`) reads none of them, and
+is how to check that a result does not depend on the machine. Neither affects the repository's own file. A wide file that cannot be
+read or parsed stops the run with exit 2, naming the file.
+
 ## Why
 
 Found by hand, once, during an unrelated design review: a fully correct, well-tested module in another
