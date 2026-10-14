@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.20 - 2026-10-14 (proposed)
+
+### Security
+- **Every GitHub Action in `ci.yml`, `coverage.yml` and `live-tools.yml` is pinned to a commit SHA** with its tag as a trailing
+  comment (21 `uses:` lines; the PM's pin patch was regenerated on top of 0.6.19 because #67 added a job, and `live-tools.yml`
+  was pinned the same way). This closes the SUP-008 triage finding this lane raised against itself. No code changed.
+
 ## 0.6.19 - 2026-10-14 (proposed)
 
 ### Added
