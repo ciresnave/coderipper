@@ -13,6 +13,8 @@ mod doc005;
 mod doc009;
 mod sup001;
 mod sup011;
+#[cfg(test)]
+mod variants;
 mod wsp001;
 
 use super::{
