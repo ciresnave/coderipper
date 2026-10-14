@@ -493,3 +493,62 @@ fn a_project_in_a_subdirectory_gets_its_own_leaks_named_relative_to_it() {
     let (code, out, err) = run_json(&repo.path().join("other"));
     assert_eq!((code, finding_count(&out)), (0, 0), "{out}\n{err}");
 }
+
+/// Commits a file whose path is longer than Windows' 260-character limit, through git's plumbing (no checkout is made, so the
+/// path never touches the file system).
+fn commit_a_very_long_path(dir: &Path) {
+    let long = format!("{}/f.txt", vec!["d".repeat(40); 7].join("/"));
+    assert!(long.len() > 260, "{}", long.len());
+    let blob = std::process::Command::new("git")
+        .args(["hash-object", "-w", "--stdin"])
+        .current_dir(dir)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    let hash = String::from_utf8(blob.stdout).unwrap().trim().to_string();
+    git(
+        dir,
+        &[
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            &format!("100644,{hash},{long}"),
+        ],
+    );
+    git(dir, &["commit", "-q", "-m", "a path past 260 characters"]);
+}
+
+#[test]
+fn a_path_past_260_characters_does_not_make_the_scan_a_failure() {
+    // Measured with gitleaks 8.30.1 on Windows: git warns "unable to access '<dir>/.gitattributes': Filename too long" for every
+    // directory of such a path, gitleaks logs it as an ERR, and the wrapper (correctly) refused the scan as "did not read the history".
+    // `core.longpaths` set for the tool's own git (through the environment, never the repository's or the user's config) removes it.
+    if offline() {
+        eprintln!("SKIPPED: CODERIPPER_SKIP_NETWORK_TESTS is set");
+        return;
+    }
+    let repo = repo_of("defective");
+    commit_a_very_long_path(repo.path());
+    let assert = coderipper(tools_dir())
+        .args([
+            "check",
+            "SEC-002",
+            "--deny",
+            "none",
+            "--profile",
+            "extended",
+            "--message-format",
+            "json",
+            "--project",
+        ])
+        .arg(repo.path())
+        .assert()
+        .code(0);
+    let out = String::from_utf8_lossy(&assert.get_output().stdout).to_string();
+    let err = String::from_utf8_lossy(&assert.get_output().stderr).to_string();
+    assert!(
+        out.lines().any(|l| l.contains("coderipper-finding")),
+        "the seeded secret was not reported: {out}\nstderr: {err}"
+    );
+    assert!(!err.contains("did not read the history"), "{err}");
+}
