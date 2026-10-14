@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.17 - 2026-10-14 (proposed)
+
+### Fixed
+- **SEC-002 no longer fails a repository that tracks a path longer than 260 characters on Windows.** Measured with gitleaks 8.30.1
+  over a repository whose one commit holds a 292-character path: git warns `unable to access '<directory>/.gitattributes': Filename
+  too long` for each directory of the path, gitleaks logs each warning as an error and stops reading, and the wrapper (correctly)
+  reported "gitleaks did not read the history", so the rule was a failure (exit 3), never a result. The tool's own `git` is now run
+  with `core.longpaths=true`, set through git's environment configuration (`GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_0`,
+  `GIT_CONFIG_VALUE_0`): neither the repository's nor the user's config file is modified (the user's global config is still read, as before; git older than 2.31 ignores these variables and the scan fails loudly as it did). With it the same repository scans 1
+  commit and reports what it holds (the seeded secret is found, in a new test against the real tool). No other tool is changed: only
+  gitleaks was observed to fail this way.
+
 ## 0.6.16 - 2026-10-14 (proposed)
 
 ### Fixed

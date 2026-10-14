@@ -119,6 +119,18 @@ pub(crate) fn run_tool(
     limits: &Limits,
     ok_codes: &[i32],
 ) -> Result<ToolRun, (ErrorKind, String)> {
+    run_tool_with_env(program, args, limits, ok_codes, &[])
+}
+
+/// [`run_tool`] with extra environment variables for the tool (after the allowlisted ones, so they win). For a tool that runs `git`
+/// itself, the variables can carry git configuration without touching the repository's or the user's config files.
+pub(crate) fn run_tool_with_env(
+    program: &Path,
+    args: impl FnOnce(&Path) -> Vec<std::ffi::OsString>,
+    limits: &Limits,
+    ok_codes: &[i32],
+    extra_env: &[(&str, &str)],
+) -> Result<ToolRun, (ErrorKind, String)> {
     let scratch = tempfile::tempdir().map_err(|e| {
         (
             ErrorKind::Internal,
@@ -137,6 +149,9 @@ pub(crate) fn run_tool(
         if let Some(value) = std::env::var_os(key) {
             command.env(key, value);
         }
+    }
+    for (key, value) in extra_env {
+        command.env(key, value);
     }
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(&mut command, 0);

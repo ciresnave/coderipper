@@ -14,7 +14,7 @@
 //! until this module's own fixtures say more (design section 7), and is `Low` for the generic rule, which matches by entropy
 //! near a name and is the one that fires on non-secrets.
 
-use super::{resolve, run_tool, Resolved, Verdict};
+use super::{resolve, run_tool_with_env, Resolved, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::module::{ErrorKind, Request};
 use crate::tools::ToolEnv;
@@ -103,6 +103,16 @@ fn to_finding(leak: &Leak, project: &str) -> Finding {
 /// supplies. (Left alone, gitleaks reads `.gitleaks.toml` and `.gitleaksignore` from the repository it scans, so the project could
 /// silence its own findings; the project's way to suppress a finding is the `.coderipper.toml` allowlist, which is visible.)
 const CONFIG: &str = "[extend]\nuseDefault = true\n";
+
+/// `core.longpaths=true` for the `git` gitleaks runs, through git's environment configuration (not the repository's or the user's
+/// config). Without it Windows git warns "Filename too long" for every directory of a tracked path past 260 characters, gitleaks logs
+/// each warning as an error and stops reading, and the rule could only be reported as a failure. Reading the object database needs
+/// no file-system path, so the setting changes what git says, not what it reads.
+const GIT_LONG_PATHS: &[(&str, &str)] = &[
+    ("GIT_CONFIG_COUNT", "1"),
+    ("GIT_CONFIG_KEY_0", "core.longpaths"),
+    ("GIT_CONFIG_VALUE_0", "true"),
+];
 
 /// The arguments of the scan: history of the repository at `repo`, the report and the configuration in `scratch`, secrets
 /// redacted, exit code not the verdict, and no `gitleaks:allow` comment, `.gitleaksignore` or `.gitleaks.toml` of the repository
@@ -211,7 +221,7 @@ pub(super) fn scan_with(
         );
     };
     let git_dir = PathBuf::from(git_dir);
-    let run = match run_tool(
+    let run = match run_tool_with_env(
         program,
         |scratch| {
             // a failure to write these surfaces as the tool failing to start with them
@@ -221,6 +231,7 @@ pub(super) fn scan_with(
         },
         &request.limits,
         &[],
+        GIT_LONG_PATHS,
     ) {
         Ok(run) => run,
         Err((kind, detail)) => return Verdict::Failed(kind, format!("{TOOL}: {detail}")),
