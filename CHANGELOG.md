@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.25 - 2026-10-14 (proposed)
+
+### Changed (a loosening: fewer DOC-009 findings)
+- **DOC-009 asks for a glossary only from ten documentation pages.** A repository with one to nine `.md` pages under `docs/` or `doc/` and no
+  glossary is now "not applicable" (a coverage gap, never a finding); a glossary that exists is still judged for repeated terms. The
+  2026-10-14 sweep of 27 repositories found nine of DOC-009's 21 findings on one to six pages. Not configurable: a repository that
+  disagrees waives the finding with a reason. The seeded defect under `conformance/DOC-009/defective` now has ten pages.
+
+### Fixed
+- **`coderipper check <RULE>` for a rule that does not apply is no longer "failed to run (no_verdict)" with exit 3.** The host treated a
+  module that skipped every requested rule as having given no verdict; for an in-process module (the language-neutral rules) a skip
+  of the one rule asked for is the answer, "not applicable". An external module that skips everything is still `no_verdict`.
+
 ## 0.6.24 - 2026-10-14 (proposed)
 
 ### Documentation

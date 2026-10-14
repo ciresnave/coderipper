@@ -152,7 +152,8 @@ pub struct Reconciled {
 /// - exactly one rule result per requested rule; a missing one is `no_verdict` (or the run's failure), a duplicate or an
 ///   unrequested one is dropped and recorded as `protocol_mismatch`;
 /// - a rule's `findings` count must equal the finding lines received for it, or the rule is `protocol_mismatch`;
-/// - a skip is only valid as `not_applicable_here`, and a module that skips every requested rule is `no_verdict`;
+/// - a skip is only valid as `not_applicable_here`, and an external module that skips every requested rule is `no_verdict`
+///   (an in-process module is the host's own rules: skipping the one rule asked for is an answer, "not applicable");
 /// - a missing module summary, a failure, or an unreadable line makes the run an error.
 pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
     let requested: Vec<&str> = request.rules.iter().map(String::as_str).collect();
@@ -256,6 +257,7 @@ pub fn reconcile(request: &Request, output: ModuleOutput) -> Reconciled {
         .collect();
 
     if !rules.is_empty()
+        && !output.in_process
         && rules
             .iter()
             .all(|r| matches!(r.status, RuleStatus::Skipped { .. }))
@@ -570,6 +572,18 @@ mod tests {
             in_process: true,
             ..ModuleOutput::from_events(events)
         }
+    }
+
+    #[test]
+    fn an_in_process_module_whose_every_rule_does_not_apply_has_not_failed() {
+        // `coderipper check DOC-009` on a repository with no docs/ asks for one rule and gets "not applicable": that is an
+        // answer (a gap, exit 0), not "failed to run"; only an external module that skips everything is suspect
+        let r = reconcile(
+            &request(&["a"]),
+            in_process(vec![skip("a", Some("not_applicable_here")), summary()]),
+        );
+        assert!(matches!(r.rules[0].status, RuleStatus::Skipped { .. }));
+        assert!(r.run_errors.is_empty() && !r.incomplete);
     }
 
     #[test]
