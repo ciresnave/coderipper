@@ -1,19 +1,23 @@
 //! DOC-009: the project keeps a glossary, and defines each term once.
 //!
-//! **What this judges:** a repository with documentation (at least one tracked `.md` file under `docs/` or `doc/` at the root) must track a
+//! **What this judges:** a repository with documentation (at least [`MIN_PAGES`] tracked `.md` files under `docs/` or `doc/` at the root) must track a
 //! glossary: a file whose name contains `glossary` (any case, any directory). In each glossary, a term (a heading of level two
 //! or deeper, or a line that starts with a bold term) defined twice is reported: two definitions of one word is the deterministic
 //! shape of an inconsistent vocabulary.
 //!
 //! **What it cannot see:** the other half of the rule, that documents and code *use* the glossary's terms the same way, needs
 //! language understanding and is not judged (the rule's own confidence is low). A repository without a `docs/` directory is
-//! `not applicable`; so is one whose documentation sits elsewhere (`packages/x/docs`). A line that starts with a bold word counts as a
+//! `not applicable`; so is one whose documentation sits elsewhere (`packages/x/docs`), and so is one with fewer than [`MIN_PAGES`] pages and no glossary (the 2026-10-14 sweep of 27 repositories found nine of its 21 findings on one to six pages, where a glossary is ceremony). A glossary that exists is judged for repeated terms however few pages there are. A line that starts with a bold word counts as a
 //! term even when it is not one (`**Note:**`), and a `##` line inside a code fence is read as a heading.
 
 use super::{file_name, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
 const ID: &str = "DOC-009";
+
+/// How many documentation pages a repository needs before the missing glossary is a finding. Not configurable: a repository
+/// that disagrees waives the finding with a reason, as for every other rule.
+const MIN_PAGES: usize = 10;
 
 fn is_glossary(path: &str) -> bool {
     file_name(path).to_lowercase().contains("glossary")
@@ -50,6 +54,11 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     let glossaries: Vec<&String> = view.paths().iter().filter(|p| is_glossary(p)).collect();
     if glossaries.is_empty() {
         let docs = view.paths().iter().filter(|p| is_documentation(p)).count();
+        if docs < MIN_PAGES {
+            return Verdict::NotApplicable(format!(
+                "the repository tracks {docs} documentation page(s) under docs/ or doc/, fewer than {MIN_PAGES}, the number at which a missing glossary is a finding"
+            ));
+        }
         return Verdict::Findings(vec![Finding::new(
             ID,
             Severity::Info,
@@ -110,9 +119,57 @@ mod tests {
         }
     }
 
+    /// `n` documentation pages under `docs/`, plus a README.
+    fn pages(n: usize) -> Vec<(String, &'static str)> {
+        let mut files: Vec<(String, &'static str)> = (0..n)
+            .map(|i| (format!("docs/page-{i}.md"), "# Page\n"))
+            .collect();
+        files.push(("README.md".into(), "hi"));
+        files
+    }
+
+    fn judge_pages(files: &[(String, &'static str)]) -> Verdict {
+        let borrowed: Vec<(&str, &str)> = files.iter().map(|(p, t)| (p.as_str(), *t)).collect();
+        judge(&RepoView::from_files(&borrowed))
+    }
+
+    #[test]
+    fn a_handful_of_pages_without_a_glossary_is_not_applicable_not_a_finding() {
+        for n in [1, 2, 9] {
+            match judge_pages(&pages(n)) {
+                Verdict::NotApplicable(why) => assert!(why.contains("fewer than 10"), "{n}: {why}"),
+                Verdict::Findings(f) => panic!("{n} pages: {f:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn ten_pages_without_a_glossary_is_reported() {
+        match judge_pages(&pages(10)) {
+            Verdict::Findings(f) => assert_eq!(f.len(), 1, "{f:?}"),
+            Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
+        }
+    }
+
+    #[test]
+    fn a_glossary_below_the_threshold_is_still_judged_for_repeated_terms() {
+        let mut files = pages(2);
+        files.push((
+            "docs/glossary.md".into(),
+            "## Rule\n\nA check.\n\n## rule\n\nA law.\n",
+        ));
+        match judge_pages(&files) {
+            Verdict::Findings(f) => assert_eq!(f.len(), 1, "{f:?}"),
+            Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
+        }
+    }
+
     #[test]
     fn documentation_without_a_glossary_is_reported() {
-        let found = run(&[("docs/guide.md", "# Guide\n"), ("README.md", "hi")]);
+        let mut files: Vec<(String, &'static str)> = pages(10);
+        files.push(("docs/guide.md".into(), "# Guide\n"));
+        let borrowed: Vec<(&str, &str)> = files.iter().map(|(p, t)| (p.as_str(), *t)).collect();
+        let found = run(&borrowed);
         assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].check_id, "DOC-009");
         assert_eq!(found[0].subject.as_deref(), Some("glossary"));

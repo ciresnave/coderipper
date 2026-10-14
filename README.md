@@ -237,7 +237,7 @@ not run them. `coderipper check SUP-001 --profile extended` runs one.
 | `SUP-001` | an application (a Cargo package with a binary, or a private npm package) whose lockfile is not committed; a GitHub Actions workflow that runs `npm install`, `yarn install` or `cargo build`/`test`/... without the strict mode (`npm ci`, `--frozen-lockfile`/`--immutable`, `--locked`) |
 | `SUP-011` | a vendored directory (`vendor`, `third_party`, `node_modules`, ...) that a tracked analysis configuration (`codecov.yml`, `.codacy.yml`, `sonar-project.properties`, `.eslintignore`, `.deepsource.toml`) does not mention |
 | `DOC-005` | a decision record (markdown in an `adr`, `adrs` or `decisions` directory) with no or an unknown status, or a supersession link that dangles, is not reciprocated, or leaves the old record current |
-| `DOC-009` | a repository with a `docs/` directory but no glossary file; a glossary that defines one term twice |
+| `DOC-009` | a repository with ten or more `.md` pages under `docs/` or `doc/` but no glossary file (fewer pages are "not applicable"); a glossary that defines one term twice |
 | `WSP-001` | a repository with no `CODEOWNERS` file, or one with no default (`*`) owner |
 
 Each rule's reading, and what it cannot see, is in the documentation of its module (`src/module/neutral/`). A rule that does not
