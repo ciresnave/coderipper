@@ -6,6 +6,23 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.29 - 2026-10-14 (proposed)
+
+CodeRipper's own run on itself, part 3: planted variants for the five language-neutral rules (the false-negative control of decision 180).
+Each rule's conformance fixture seeds one shape of its defect, so a rule can be "proven" and still miss a sibling shape.
+
+### Fixed
+- **SUP-001 misread `cargo` with global flags before the subcommand.** `cargo -q build`, `cargo --quiet test`, `cargo -v clippy`,
+  `cargo --color always build`, `cargo -Z unstable-options test`, `cargo --config k=v test` and `cargo +nightly -q build` were not seen
+  (the subcommand was looked for in the first word after `cargo` and an optional `+toolchain`), so a CI step that resolves afresh passed.
+  Seen now; `cargo --locked build` and `cargo -q --locked test` stay clean.
+
+### Added (tests only)
+- `src/module/neutral/variants.rs`: 15 table-driven cases over SUP-001 (every cargo command spelling, lockfile kind and
+  application shape), SUP-011 (every vendor directory name against every analysis configuration), WSP-001 (nine defect shapes, nine
+  clean ones), DOC-009 (glossary names and the term shapes) and DOC-005 (status spellings, supersession both ways). Every other
+  case passed when written; the case that did not is the SUP-001 one above.
+
 ## 0.6.28 - 2026-10-14 (proposed)
 
 CodeRipper's own run on itself, part 2: the eight `unused-return-values` findings and the three standing waivers (decision 180).

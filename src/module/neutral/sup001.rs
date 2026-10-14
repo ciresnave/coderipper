@@ -11,7 +11,8 @@
 //!    build, test, check, clippy, run or doc without `--locked` / `--frozen` (when an application with a tracked `Cargo.lock`
 //!    exists), resolves afresh and so does not fail when lockfile and manifest disagree. One finding per workflow file and tool.
 //!
-//! (`cargo bench` is in that list too, and the `npm install` reading applies only when an npm lockfile is tracked.)
+//! (a `+toolchain` and global flags before the subcommand are skipped: `cargo +nightly -q build`, `cargo --color always test`, and
+//! `--locked` / `--frozen` anywhere on the line before a `--` count; `cargo bench` is in that list too, and the `npm install` reading applies only when an npm lockfile is tracked.)
 //!
 //! **What it cannot see:** other ecosystems (Go's `go.sum`, Python's lockfiles, Gradle) are not judged; a Cargo.toml that does not
 //! parse, or a package.json whose `private` is not the boolean `true`, is not judged; a CI system other than GitHub Actions is not
@@ -245,15 +246,23 @@ fn loose_commands(
                 found.push("yarn");
             }
             Some("cargo") if locked_cargo_application => {
-                let from = if tokens.get(1).is_some_and(|t| t.starts_with('+')) {
-                    2
-                } else {
-                    1
-                };
+                // the subcommand follows an optional `+toolchain` and any global flags (`-q`, `--color always`, `-Z flag`)
+                let mut from = 1;
+                while let Some(token) = tokens.get(from) {
+                    if token.starts_with('+') || (token.starts_with('-') && token.len() > 1) {
+                        from += 1;
+                        // a flag that takes its value as the next word
+                        if matches!(*token, "-Z" | "-C" | "--config" | "--color") {
+                            from += 1;
+                        }
+                    } else {
+                        break;
+                    }
+                }
                 if matches!(
                     tokens.get(from),
                     Some(&"build" | &"test" | &"check" | &"clippy" | &"run" | &"doc" | &"bench")
-                ) && !args(from + 1)
+                ) && !args(1)
                     .iter()
                     .any(|a| matches!(*a, "--locked" | "--frozen"))
                 {
