@@ -73,6 +73,10 @@ impl Check for UnusedParametersCheck {
     }
 
     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+        self.run_noted(ctx).map(|(findings, _)| findings)
+    }
+
+    fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
         let mut sites: Vec<ParamSite> = Vec::new();
         // The rewrite is the identity: this check reads the source, it does not change it.
         let wt = RewrittenWorktree::create_with(&ctx.project_root, |file, source| {
@@ -104,7 +108,7 @@ impl Check for UnusedParametersCheck {
                 proven += 1;
                 continue;
             }
-            if !root_was_built(&build.built_roots, file) {
+            if !root_was_built(&build.built_roots, &wt.root, file) {
                 not_built.push(format!("`{file}` ({})", why_not_built(&wt.root, file)));
                 continue;
             }
@@ -123,11 +127,12 @@ impl Check for UnusedParametersCheck {
              check and no positive control",
             not_built.join(", ")
         );
+        let mut notes: Vec<String> = Vec::new();
         let not_built_note = if not_built.is_empty() {
             String::new()
         } else {
             let note = format!("not checked, target not built: {}", not_built.join(", "));
-            crate::build_cache::note(note.clone());
+            notes.push(note.clone());
             format!("; {note}")
         };
 
@@ -188,15 +193,38 @@ impl Check for UnusedParametersCheck {
             };
             key(a).cmp(&key(b))
         });
-        Ok(findings)
+        Ok((findings, notes))
     }
 }
 
 /// Whether cargo reported a `compiler-artifact` for the target whose root is `file` (package-relative, `src/bin/x.rs`).
-/// `built_roots` holds the absolute paths cargo printed, so this matches on the path's tail.
-fn root_was_built(built_roots: &[String], file: &str) -> bool {
-    let tail = format!("/{file}");
-    built_roots.iter().any(|p| p.ends_with(&tail))
+/// `built_roots` holds the absolute paths cargo printed; `root` is the package directory the sentinel was written under, so
+/// the target is `root/file` exactly (not any built path that merely ends the same way, such as `other/src/main.rs`).
+fn root_was_built(built_roots: &[String], root: &Path, file: &str) -> bool {
+    let want = same_file_key(&root.join(file));
+    built_roots
+        .iter()
+        .any(|p| same_file_key(Path::new(p)) == want)
+}
+
+/// A comparable spelling of a path: canonical when the file exists (resolving `.`, `..`, case and Windows' verbatim
+/// prefix), else its text with forward slashes.
+fn same_file_key(path: &Path) -> String {
+    let resolved = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut key = resolved.to_string_lossy().replace('\\', "/");
+    if let Some(rest) = key.strip_prefix("//?/") {
+        key = rest.to_string();
+    }
+    key
+}
+
+/// `path` without `.` and empty components (`./src//bin/a.rs` is `src/bin/a.rs`), forward slashes.
+fn normalized(path: &str) -> String {
+    path.replace('\\', "/")
+        .split('/')
+        .filter(|c| !c.is_empty() && *c != ".")
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// Why cargo did not build the target whose root is `file`: the `required-features` its `[[bin]]` entry in the manifest
@@ -212,12 +240,14 @@ fn why_not_built(root: &Path, file: &str) -> String {
     for bin in bins.into_iter().flatten() {
         let Some(bin) = bin.as_table() else { continue };
         let name = bin.get("name").and_then(|n| n.as_str());
-        let path = bin
-            .get("path")
-            .and_then(|p| p.as_str())
-            .map(str::to_string)
-            .or_else(|| name.map(|n| format!("src/bin/{n}.rs")));
-        if path.as_deref().map(|p| p.replace('\\', "/")) != Some(file.to_string()) {
+        // With no `path`, cargo looks for `src/bin/<name>.rs` and then `src/bin/<name>/main.rs`.
+        let roots: Vec<String> = match bin.get("path").and_then(|p| p.as_str()) {
+            Some(p) => vec![normalized(p)],
+            None => name
+                .map(|n| vec![format!("src/bin/{n}.rs"), format!("src/bin/{n}/main.rs")])
+                .unwrap_or_default(),
+        };
+        if !roots.iter().any(|r| r == file) {
             continue;
         }
         let features: Vec<&str> = bin

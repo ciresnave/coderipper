@@ -16,6 +16,8 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
   `fuel-capture-fixtures` has `required-features = ["capture"]`). The check now records which target roots cargo built, and says
   `target not built: required-features=[capture]` in the finding's positive control and as a run note for one it did not. A
   built target whose sentinel is missing still fails the run, and so does a run in which no target root was proven.
+  The target is matched by its exact path (not a path with the same tail), the manifest's `./` spellings and the nested
+  `src/bin/<name>/main.rs` layout are understood, and the note is a run note (`run_noted`), not only a process statistic.
 
 ### Added (tests only)
 - Two cases in `tests/unused_parameters.rs`: a gated bin beside a built lib (the message is asserted), and a crate-wide

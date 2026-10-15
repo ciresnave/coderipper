@@ -242,8 +242,86 @@ fn a_crate_wide_allow_in_a_built_bin_still_errors_beside_a_gated_one() {
         ("src/bin/capture.rs", "fn main() {}\n"),
     ]);
     let err = run(&repo).unwrap_err().to_string();
+    // the built lib's own sentinel is the one missing (not the "no root was built" error)
     assert!(
-        err.contains("positive control") && err.contains("src/lib.rs"),
+        err.contains("was not reported by rustc") && err.contains("src/lib.rs"),
         "{err}"
+    );
+    assert!(!err.contains("built none"), "{err}");
+}
+
+fn gated_with(bin_toml: &str) -> String {
+    format!(
+        "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[features]\ncapture = []\n\n[[bin]]\n{bin_toml}required-features = [\"capture\"]\n"
+    )
+}
+
+#[test]
+fn a_gated_bin_is_named_whatever_way_its_manifest_spells_the_path() {
+    // `./src/bin/capture.rs`, and no `path` at all with the nested `src/bin/capture/main.rs` layout.
+    for (manifest, root, file) in [
+        (
+            gated_with("name = \"capture\"\npath = \"./src/bin/capture.rs\"\n"),
+            "src/bin/capture.rs",
+            "fn main() { h(1); }\nfn h(q: i32) {}\n",
+        ),
+        (
+            gated_with("name = \"capture\"\n"),
+            "src/bin/capture/main.rs",
+            "fn main() { h(1); }\nfn h(q: i32) {}\n",
+        ),
+    ] {
+        let repo = git_repo_with(&[
+            ("Cargo.toml", &manifest),
+            ("src/lib.rs", "pub fn f(a: i32, b: i32) -> i32 { a }\n"),
+            (root, file),
+        ]);
+        let findings = run(&repo).unwrap();
+        let control = findings[0].positive_control.as_deref().unwrap();
+        assert!(
+            control.contains("target not built: required-features=[capture]")
+                && control.contains(root),
+            "{root}: {control}"
+        );
+    }
+}
+
+#[test]
+fn a_built_target_with_the_same_path_tail_does_not_stand_in_for_an_unbuilt_root() {
+    // `src/main.rs` is gated and not built; `x/src/main.rs` is built and ends the same way.
+    let manifest = format!(
+        "{}\n[[bin]]\nname = \"other\"\npath = \"x/src/main.rs\"\n",
+        gated_with("name = \"fixture\"\npath = \"src/main.rs\"\n")
+    );
+    let repo = git_repo_with(&[
+        ("Cargo.toml", &manifest),
+        ("src/lib.rs", "pub fn f(a: i32, b: i32) -> i32 { a }\n"),
+        ("src/main.rs", "fn main() {}\n"),
+        ("x/src/main.rs", "fn main() {}\n"),
+    ]);
+    let findings = run(&repo).unwrap();
+    assert_eq!(subjects(&findings), vec!["f::b"]);
+    let control = findings[0].positive_control.as_deref().unwrap();
+    assert!(
+        control.contains("src/main.rs` (target not built: required-features=[capture])"),
+        "{control}"
+    );
+}
+
+#[test]
+fn the_not_built_note_is_a_run_note_not_only_process_statistics() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", GATED_MANIFEST),
+        ("src/lib.rs", "pub fn f(a: i32, b: i32) -> i32 { a }\n"),
+        ("src/bin/capture.rs", "fn main() {}\n"),
+    ]);
+    let (_, notes) = UnusedParametersCheck::new()
+        .run_noted(&CheckContext::new(repo.path().to_path_buf()))
+        .unwrap();
+    assert!(
+        notes
+            .iter()
+            .any(|n| n.contains("target not built") && n.contains("src/bin/capture.rs")),
+        "{notes:?}"
     );
 }
