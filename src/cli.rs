@@ -169,8 +169,9 @@ impl Conf {
 /// What the three run subcommands (`fast`, `sweep`, `check`) share.
 #[derive(clap::Args)]
 struct RunOpts {
-    /// Project to check. Defaults to the current directory. The checks analyse the committed tree (`HEAD`) in a throwaway
-    /// worktree: uncommitted changes are not analysed, and the run says so when there are any.
+    /// Project to check. Defaults to the current directory. `reachability`, `unused-return-values` and `unused-parameters`
+    /// analyse the committed tree (`HEAD`) in a throwaway worktree: uncommitted changes (tracked or untracked) are not analysed by
+    /// them, and the run says so when there are any; `version-consistency` and API-006 read the working tree.
     #[arg(long)]
     project: Option<PathBuf>,
     /// Check every member of the cargo workspace containing the project, not just the project.
@@ -782,12 +783,14 @@ fn dispatch(
     }
 }
 
-/// What to tell the user when `project` has changes git has not committed: the checks read `HEAD` in a throwaway worktree, so
-/// a fix that is only in the working tree changes nothing. `None` when the tree is clean or git cannot say.
+/// What to tell the user when `project` has changes git has not committed (tracked edits or untracked files): `reachability`,
+/// `unused-return-values` and `unused-parameters` read `HEAD` in a throwaway worktree, so a fix that is only in the working
+/// tree changes nothing for them (`version-consistency` and API-006 do read the working tree). `None` when the tree is clean
+/// or git cannot say.
 fn uncommitted_note(project: &Path) -> Option<String> {
     let output = crate::github::git_command(
         project,
-        &["status", "--porcelain", "--untracked-files=no", "--", "."],
+        &["status", "--porcelain", "--untracked-files=all", "--", "."],
     )
     .output()
     .ok()?;
@@ -800,7 +803,7 @@ fn uncommitted_note(project: &Path) -> Option<String> {
         .count();
     (changed > 0).then(|| {
         format!(
-            "{changed} tracked file(s) under {} have uncommitted changes; the checks analyse the committed tree (HEAD) in a throwaway worktree, so those changes are not analysed: commit them to see their effect",
+            "{changed} file(s) under {} have uncommitted changes (tracked edits or untracked files); reachability, unused-return-values and unused-parameters analyse the committed tree (HEAD) in a throwaway worktree, so those changes are not analysed by them: commit them to see their effect (version-consistency and API-006 read the working tree)",
             project.display()
         )
     })
