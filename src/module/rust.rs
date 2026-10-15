@@ -60,7 +60,9 @@ impl Module for RustModule<'_> {
     }
 
     fn check(&self, request: &Request) -> ModuleOutput {
-        let ctx = CheckContext::new(&request.project_root).portfolio_root(&request.portfolio_root);
+        let ctx = CheckContext::new(&request.project_root)
+            .portfolio_root(&request.portfolio_root)
+            .cargo_features(request.cargo_features.clone());
         let mut events = Vec::new();
         let (mut ran, mut errored, mut findings) = (0, 0, 0);
         for rule in &request.rules {

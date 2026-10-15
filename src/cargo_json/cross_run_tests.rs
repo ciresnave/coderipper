@@ -102,14 +102,26 @@ fn a_build_after_another_run_wrote_the_same_unit_is_never_served_that_runs_artif
     let a = checkout(repo.path(), "rewritten_by_a");
     let b = checkout(repo.path(), "rewritten_by_b");
     with_config(config(cache.path()), || {
-        let out_a = build_all_targets(&a.root, Some(a.source_repo()), CAP_LINTS).unwrap();
+        let out_a = build_all_targets(
+            &a.root,
+            Some(a.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        )
+        .unwrap();
         assert!(out_a.success, "A's build failed");
         assert!(
             artifact_has(cache.path(), "rewritten_by_a"),
             "positive control: A's own artifact contains A's marker"
         );
 
-        let out_b = build_all_targets(&b.root, Some(b.source_repo()), CAP_LINTS).unwrap();
+        let out_b = build_all_targets(
+            &b.root,
+            Some(b.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        )
+        .unwrap();
         assert!(out_b.success, "B's build failed");
         let units = lib_units(&out_b);
         assert!(!units.is_empty(), "no lib unit reported: {:?}", out_b.units);
@@ -137,11 +149,23 @@ fn the_same_slot_is_not_shared_across_checks_unsafely() {
     let x = checkout(repo.path(), "rewritten_by_x");
     let y = checkout(repo.path(), "rewritten_by_y");
     with_config(config(cache.path()), || {
-        let out_x = build_lib_only(&x.root, Some(x.source_repo()), CAP_LINTS).unwrap();
+        let out_x = build_lib_only(
+            &x.root,
+            Some(x.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        )
+        .unwrap();
         assert!(out_x.success);
         assert!(artifact_has(cache.path(), "rewritten_by_x"));
 
-        let out_y = build_all_targets(&y.root, Some(y.source_repo()), CAP_LINTS).unwrap();
+        let out_y = build_all_targets(
+            &y.root,
+            Some(y.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        )
+        .unwrap();
         assert!(out_y.success);
         let units = lib_units(&out_y);
         assert!(!units.is_empty(), "{:?}", out_y.units);
@@ -259,7 +283,12 @@ fn an_unstampable_file_makes_the_build_uncached_with_a_note_and_releases_the_loc
     let wt = checkout(repo.path(), "rewritten_by_a");
     with_config(config(cache.path()), || {
         FAIL_ON.with(|f| *f.borrow_mut() = Some("lib.rs".to_string()));
-        let out = build_all_targets(&wt.root, Some(wt.source_repo()), CAP_LINTS);
+        let out = build_all_targets(
+            &wt.root,
+            Some(wt.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        );
         FAIL_ON.with(|f| *f.borrow_mut() = None);
         let out = out.unwrap();
         assert!(out.success, "the fallback build must still succeed");

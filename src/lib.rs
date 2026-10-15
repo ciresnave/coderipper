@@ -301,6 +301,7 @@ fn run_workspace_over_in(
         &CheckContext {
             project_root: root.clone(),
             portfolio_root: ctx.portfolio_root.clone(),
+            cargo_features: ctx.cargo_features.clone(),
         },
         tier,
         only_check_id,
@@ -346,6 +347,7 @@ fn run_workspace_over_in(
                 &CheckContext {
                     project_root: member.dir.clone(),
                     portfolio_root: ctx.portfolio_root.clone(),
+                    cargo_features: ctx.cargo_features.clone(),
                 },
                 tier,
                 only_check_id,
@@ -750,6 +752,7 @@ fn run_below_root(
                 &CheckContext {
                     project_root: workspace.root.clone(),
                     portfolio_root: ctx.portfolio_root.clone(),
+                    cargo_features: ctx.cargo_features.clone(),
                 },
                 tier,
                 only_check_id,
@@ -771,6 +774,7 @@ fn run_below_root(
                     &CheckContext {
                         project_root: member.dir.clone(),
                         portfolio_root: ctx.portfolio_root.clone(),
+                        cargo_features: ctx.cargo_features.clone(),
                     },
                     tier,
                     only_check_id,
@@ -1089,6 +1093,7 @@ mod tests {
         let ctx = CheckContext {
             project_root: tmp.path().to_path_buf(),
             portfolio_root: tmp.path().to_path_buf(),
+            cargo_features: Default::default(),
         };
         let checks: Vec<Box<dyn Check>> = vec![
             Box::new(UnitFake {
@@ -1193,6 +1198,7 @@ mod tests {
         let ctx = CheckContext {
             project_root: tmp.path().to_path_buf(),
             portfolio_root: tmp.path().to_path_buf(),
+            cargo_features: Default::default(),
         };
         run_checks_over(&[Box::new(fake)], &ctx, Tier::Fast, None, UnitFilter::Any)
     }

@@ -91,7 +91,13 @@ fn analyse(repo: &Path, member: &str, marker: &'static str) -> RewrittenWorktree
 }
 
 fn build(guard: &RewrittenWorktree) -> BuildOutput {
-    let out = build_all_targets(&guard.root, Some(guard.source_repo()), CAP_LINTS).unwrap();
+    let out = build_all_targets(
+        &guard.root,
+        Some(guard.source_repo()),
+        CAP_LINTS,
+        &Default::default(),
+    )
+    .unwrap();
     assert!(out.success, "the build failed: {:?}", out.diagnostics.len());
     out
 }
@@ -688,8 +694,13 @@ fn an_overlapping_run_cannot_poison_the_session() {
                     )
                     .unwrap();
                     let started = Instant::now();
-                    let out = build_all_targets(&guard.root, Some(guard.source_repo()), CAP_LINTS)
-                        .unwrap();
+                    let out = build_all_targets(
+                        &guard.root,
+                        Some(guard.source_repo()),
+                        CAP_LINTS,
+                        &Default::default(),
+                    )
+                    .unwrap();
                     (out.cache_note, started.elapsed())
                 })
             })

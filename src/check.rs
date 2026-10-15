@@ -80,6 +80,67 @@ pub struct CheckContext {
     pub project_root: std::path::PathBuf,
     /// Where `Portfolio`-scope checks look for the project's siblings.
     pub portfolio_root: std::path::PathBuf,
+    /// The cargo features the checks that build the crate build it with. The default is cargo's own default: the
+    /// package's default features, none of the optional ones.
+    pub cargo_features: CargoFeatures,
+}
+
+/// Which cargo features a check's build enables: `cargo build --features ... --all-features --no-default-features`.
+/// A target whose `required-features` are not enabled is not built, and so cannot be checked.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
+pub struct CargoFeatures {
+    /// `--features`: the features to enable (`a`, `dep/b`, `pkg/c`).
+    pub features: Vec<String>,
+    /// `--all-features`.
+    pub all_features: bool,
+    /// `--no-default-features`.
+    pub no_default_features: bool,
+}
+
+impl CargoFeatures {
+    /// Whether this is cargo's own default (nothing set), which a wire message leaves out.
+    pub(crate) fn is_default(&self) -> bool {
+        *self == Self::default()
+    }
+
+    /// The features to enable, in addition to the default ones.
+    pub fn with_features<I, S>(mut self, features: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.features.extend(features.into_iter().map(Into::into));
+        self
+    }
+
+    /// Enable every feature of the package.
+    pub fn all_features(mut self) -> Self {
+        self.all_features = true;
+        self
+    }
+
+    /// Do not enable the package's default features.
+    pub fn no_default_features(mut self) -> Self {
+        self.no_default_features = true;
+        self
+    }
+
+    /// The arguments to append to a `cargo build` command line.
+    pub(crate) fn cargo_args(&self) -> Vec<String> {
+        let mut args = Vec::new();
+        if self.all_features {
+            args.push("--all-features".to_string());
+        }
+        if self.no_default_features {
+            args.push("--no-default-features".to_string());
+        }
+        if !self.features.is_empty() {
+            args.push("--features".to_string());
+            args.push(self.features.join(","));
+        }
+        args
+    }
 }
 
 impl CheckContext {
@@ -94,7 +155,14 @@ impl CheckContext {
         Self {
             project_root,
             portfolio_root,
+            cargo_features: CargoFeatures::default(),
         }
+    }
+
+    /// Sets the cargo features the checks that build the crate build it with.
+    pub fn cargo_features(mut self, cargo_features: CargoFeatures) -> Self {
+        self.cargo_features = cargo_features;
+        self
     }
 
     /// Sets where checks that read sibling projects look for them.
@@ -171,5 +239,32 @@ mod tests {
     #[test]
     fn network_required_is_always_sweep_regardless_of_scope() {
         assert_eq!(Network::NetworkRequired.tier(), Tier::Sweep);
+    }
+}
+
+#[cfg(test)]
+mod cargo_features_tests {
+    use super::CargoFeatures;
+
+    #[test]
+    fn the_default_adds_no_arguments() {
+        assert!(CargoFeatures::default().cargo_args().is_empty());
+    }
+
+    #[test]
+    fn each_option_becomes_its_cargo_flag() {
+        let f = CargoFeatures::default()
+            .with_features(["a", "dep/b"])
+            .all_features()
+            .no_default_features();
+        assert_eq!(
+            f.cargo_args(),
+            [
+                "--all-features",
+                "--no-default-features",
+                "--features",
+                "a,dep/b"
+            ]
+        );
     }
 }
