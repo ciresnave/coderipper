@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.35 - 2026-10-15 (proposed)
+
+`--help` and the run say that the committed tree is what is analysed.
+
+### Added
+- `--project`'s help states that the checks analyse the committed tree (`HEAD`) in a throwaway worktree and that uncommitted
+  changes are not analysed.
+- A run over a project with tracked files that have uncommitted changes prints one stderr note with the count, so a fix that
+  is only in the working tree is not mistaken for a check that found no change (found on `fuel`). stdout and JSON are unchanged.
+
+### Added (tests only)
+- `tests/cli_help.rs` (the phrases in `--project`'s own help block) and `tests/cli.rs` (a clean tree has no note, a dirty one
+  names the count).
+
 ## 0.6.34 - 2026-10-15 (proposed)
 
 `--features`, `--all-features` and `--no-default-features` reach the build step.
