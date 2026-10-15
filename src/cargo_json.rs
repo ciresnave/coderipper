@@ -48,6 +48,10 @@ pub(crate) struct BuildOutput {
     pub success: bool,
     /// The first and last of cargo's own stderr (plain text, not rustc JSON): where a failing build script says why.
     pub stderr_tail: String,
+    /// The source file of every target cargo reported a `compiler-artifact` for in THIS package, with forward slashes
+    /// and the path cargo printed (absolute). A target that is not in here was not built (e.g. a bin whose
+    /// `required-features` are not enabled): nothing in it was compiled, so nothing in it can have been reported.
+    pub built_roots: Vec<String>,
     /// Every compilation unit this build reported, fresh or compiled (tests only: nothing in production reads it).
     #[cfg(test)]
     pub units: Vec<UnitReport>,
@@ -283,18 +287,20 @@ struct CargoMessage {
     package_id: Option<String>,
     /// On `compiler-artifact` lines: true when cargo reused the unit instead of compiling it.
     fresh: Option<bool>,
-    #[cfg(test)]
     target: Option<RawTarget>,
     #[cfg(test)]
     profile: Option<RawProfile>,
     message: Option<RawDiagnostic>,
 }
 
-#[cfg(test)]
 #[derive(Deserialize)]
 struct RawTarget {
+    #[cfg_attr(not(test), allow(dead_code))]
     name: String,
+    #[cfg_attr(not(test), allow(dead_code))]
     kind: Vec<String>,
+    #[serde(default)]
+    src_path: String,
 }
 
 #[cfg(test)]
@@ -465,11 +471,27 @@ fn build_with(
         diagnostics: relative_to_package(diagnostics, &prefix),
         success: output.status.success(),
         stderr_tail,
+        built_roots: built_roots(&stdout, &package.id),
         #[cfg(test)]
         units: unit_reports(&stdout),
         #[cfg(test)]
         cache_note,
     })
+}
+
+/// The `src_path` of every target of `package_id` that cargo reported a `compiler-artifact` for, slashes forward, sorted.
+fn built_roots(stdout: &str, package_id: &str) -> Vec<String> {
+    let mut roots: Vec<String> = stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
+        .filter(|m| m.reason == "compiler-artifact" && m.package_id.as_deref() == Some(package_id))
+        .filter_map(|m| m.target)
+        .map(|t| t.src_path.replace('\\', "/"))
+        .filter(|p| !p.is_empty())
+        .collect();
+    roots.sort();
+    roots.dedup();
+    roots
 }
 
 /// Every `compiler-artifact` line as a [`UnitReport`].
@@ -794,6 +816,7 @@ mod tests {
             success: false,
             stderr_tail: String::new(),
             units: vec![],
+            built_roots: vec![],
             cache_note: None,
         };
         assert!(out.is_broken());
@@ -802,6 +825,7 @@ mod tests {
             success: true,
             stderr_tail: String::new(),
             units: vec![],
+            built_roots: vec![],
             cache_note: None,
         };
         assert!(!ok.is_broken());
@@ -902,6 +926,7 @@ mod tests {
             success: false,
             stderr_tail: String::new(),
             units: vec![],
+            built_roots: vec![],
             cache_note: None,
         };
         let cause = out.failure_cause();

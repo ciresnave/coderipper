@@ -203,3 +203,47 @@ fn a_package_with_only_src_bin_targets_is_analyzed() {
     ]);
     assert_eq!(subjects(&run(&repo).unwrap()), vec!["h::q", "k::z"]);
 }
+
+const GATED_MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\
+\n[features]\ncapture = []\n\n[[bin]]\nname = \"capture\"\npath = \"src/bin/capture.rs\"\nrequired-features = [\"capture\"]\n";
+
+#[test]
+fn a_bin_that_is_not_built_for_required_features_is_named_not_blamed_on_the_code() {
+    // The target was never compiled, so its sentinel cannot be reported: that is "target not built", not "the lint is
+    // suppressed crate-wide" (a crate-wide allow below is the control: it must still error).
+    let repo = git_repo_with(&[
+        ("Cargo.toml", GATED_MANIFEST),
+        ("src/lib.rs", "pub fn f(a: i32, b: i32) -> i32 { a }\n"),
+        (
+            "src/bin/capture.rs",
+            "fn main() { h(1); }\nfn h(q: i32) {}\n",
+        ),
+    ]);
+    let findings = run(&repo).unwrap();
+    assert_eq!(subjects(&findings), vec!["f::b"]);
+    let control = findings[0].positive_control.as_deref().unwrap();
+    assert!(
+        control.contains("target not built: required-features=[capture]")
+            && control.contains("src/bin/capture.rs"),
+        "{control}"
+    );
+    // the control line names only the roots it actually proved
+    assert!(
+        !control.contains("injected into `src/bin/capture.rs`"),
+        "{control}"
+    );
+}
+
+#[test]
+fn a_crate_wide_allow_in_a_built_bin_still_errors_beside_a_gated_one() {
+    let repo = git_repo_with(&[
+        ("Cargo.toml", GATED_MANIFEST),
+        ("src/lib.rs", "#![allow(unused)]\npub fn f(a: i32) {}\n"),
+        ("src/bin/capture.rs", "fn main() {}\n"),
+    ]);
+    let err = run(&repo).unwrap_err().to_string();
+    assert!(
+        err.contains("positive control") && err.contains("src/lib.rs"),
+        "{err}"
+    );
+}
