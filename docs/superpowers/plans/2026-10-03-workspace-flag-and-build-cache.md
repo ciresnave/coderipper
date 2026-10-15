@@ -130,13 +130,15 @@ the heavy half. Sum of siblings over all 43 members: 372. **Definition:** these 
 features) computed by `fuelsplit.py`, whose output was not saved. An auditor's count over the *declared* dependencies (`--no-deps`) differs (sum 491 with optional dependencies, 315
 without; fuel-core 23 or 13), so 372 is one definition's number. It feeds only the estimate below, which stays an estimate.
 
+**SUPERSEDED by Task 7 (2026-10-15, `fuel@8cdb33dd`, 45 members): the three checks took 1742 + 1992 + 1334 = 5068 s (about 84 min) in total, inside the "up to about 2 hours" bound below; see ROADMAP.md.** The estimates below are kept as the plan's record and are not current.
+
 **Estimates, not measurements** (a two-point linear model, ~5-6 s of sibling rebuild per sibling per run, each figure a *sum of unit-seconds*, so a wall-time
 upper bound only: `-j 8` ran fuel-core's 113 in-repo unit-seconds in 89.7 s of wall time): the plain cache with a per-member loop costs roughly 35 min of
 sibling rebuilds per check (372 x ~5.7 s) plus ~7 min of members' own compiles, so up to about 2 hours for three checks; with no cache up to about 7 hours
 (43 x 3 x ~200 s cold); with the session checkout the siblings compile **once per distinct flag set and target kind** (at least two: the
 `--cap-lints=warn` set, and the `unused-return-values` set with `--force-warn`, row C; `reachability` builds `--lib` while the others build `--all-targets`, which
 may or may not unify features: unmeasured) plus 129 x ~10 s own compiles. That is a few cold sibling builds, not one, so the earlier "25-30 minutes" was too
-optimistic and is withdrawn. Task 7 re-measures on the first real `--workspace` run and the numbers replace these.
+optimistic and is withdrawn. Task 7 re-measured on the first real `--workspace` run (see the Task 7 results below); those numbers replace these.
 
 ## Where the cache does not help (and what was considered)
 
@@ -485,6 +487,8 @@ which cargo does not offer on stable. Also not examined: filesystems with 1-2 s 
 - [ ] Commit `feat: --workspace runs the project-scope checks over every member`.
 
 ### Task 7: acceptance on `fuel`, measured and reported (not a CI test)
+
+**DONE 2026-10-15 on `fuel@8cdb33dd` (0.19.5), CodeRipper 0.6.32, 45 members (43 publishable + 2 non-publishable fixtures; the plan below says 43 because it was written against `fuel@d1bfe127`).** Results: reachability 469 findings (cold and warm byte-identical; 1742 s cold, 915 s warm), unused-return-values 36 (28 low + 8 medium; 1992 s), unused-parameters 0 (1334 s; its control's target was not built, `required-features`), cache 73.5 GB. **Per-member times: not collected** (whole-workspace runs only). **Per-member parity against `--workspace`: not done** (the PM ruled it unnecessary). Re-run beside another lane's build: not done. The list below is the original acceptance list, kept for the record.
 
 Run on this box, on the real 43-member workspace in a throwaway clone (never the shared checkout), and **report the measurements; do not assert them in the plan**:
 - `check unused-return-values --project fuel/fuel-core`: before (no cache), after (cold cache, then warm). Compare findings to the recorded **reachability 102 / unused-return-values 2** for `fuel-core` (acceptance: identical).
