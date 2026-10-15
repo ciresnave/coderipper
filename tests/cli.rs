@@ -493,3 +493,67 @@ fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_t
         .failure()
         .stderr(predicate::str::contains("not a GitHub repository"));
 }
+
+fn gated_bin_repo() -> tempfile::TempDir {
+    let tmp = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(tmp.path().join("src/bin")).unwrap();
+    std::fs::write(
+        tmp.path().join("Cargo.toml"),
+        "[package]\nname = \"gated\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[features]\ncapture = []\n\n\
+         [[bin]]\nname = \"capture\"\npath = \"src/bin/capture.rs\"\nrequired-features = [\"capture\"]\n",
+    )
+    .unwrap();
+    std::fs::write(tmp.path().join("src/lib.rs"), "pub fn f() {}\n").unwrap();
+    std::fs::write(
+        tmp.path().join("src/bin/capture.rs"),
+        "fn main() { h(1); }\nfn h(q: i32) {}\n",
+    )
+    .unwrap();
+    for args in [
+        vec!["init", "-q"],
+        vec!["add", "-A"],
+        vec![
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+    ] {
+        StdCommand::new("git")
+            .args(args)
+            .current_dir(tmp.path())
+            .status()
+            .unwrap();
+    }
+    tmp
+}
+
+#[test]
+fn features_flags_reach_the_build_so_a_gated_bin_is_checked() {
+    let repo = gated_bin_repo();
+    // the control: without the flag the bin is not built, and the run says so
+    coderipper()
+        .args(["check", "unused-parameters", "--deny", "none", "--project"])
+        .arg(repo.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("parameter `q` of `h`").not())
+        .stderr(predicate::str::contains(
+            "target not built: required-features=[capture]",
+        ));
+    for flag in [vec!["--features", "capture"], vec!["--all-features"]] {
+        coderipper()
+            .args(["check", "unused-parameters", "--deny", "none", "--project"])
+            .arg(repo.path())
+            .args(&flag)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(
+                "parameter `q` of `h` is never used",
+            ));
+    }
+}

@@ -379,8 +379,15 @@ pub(crate) fn build_all_targets(
     root: &Path,
     cache_source: Option<&Path>,
     extra_rustflags: &str,
+    features: &crate::check::CargoFeatures,
 ) -> anyhow::Result<BuildOutput> {
-    build_with(root, cache_source, "--all-targets", extra_rustflags)
+    build_with(
+        root,
+        cache_source,
+        "--all-targets",
+        extra_rustflags,
+        features,
+    )
 }
 
 /// Like [`build_all_targets`] but only the library target: bins, tests, examples and benches are not
@@ -389,8 +396,9 @@ pub(crate) fn build_lib_only(
     root: &Path,
     cache_source: Option<&Path>,
     extra_rustflags: &str,
+    features: &crate::check::CargoFeatures,
 ) -> anyhow::Result<BuildOutput> {
-    build_with(root, cache_source, "--lib", extra_rustflags)
+    build_with(root, cache_source, "--lib", extra_rustflags, features)
 }
 
 /// `cache_source` is the SOURCE repository the throwaway checkout at `root` was made from: the build cache is
@@ -400,6 +408,7 @@ fn build_with(
     cache_source: Option<&Path>,
     target_arg: &str,
     extra_rustflags: &str,
+    features: &crate::check::CargoFeatures,
 ) -> anyhow::Result<BuildOutput> {
     let existing = std::env::var("RUSTFLAGS").unwrap_or_default();
     let (package, prefix) = crate::package::locate(root)?;
@@ -434,6 +443,7 @@ fn build_with(
             target_arg,
             "--message-format=json",
         ])
+        .args(features.cargo_args())
         .current_dir(root)
         // plain text: the cause is read from cargo's stderr, which colour escapes would break
         .env("CARGO_TERM_COLOR", "never")
@@ -738,7 +748,8 @@ mod tests {
             "pub fn a_warn(x: i32) {}\n",
             "pub fn b_warn(y: i32) { a::a_warn(1); }\n",
         );
-        let out = build_all_targets(&ws.path().join("b"), None, CAP_LINTS).unwrap();
+        let out =
+            build_all_targets(&ws.path().join("b"), None, CAP_LINTS, &Default::default()).unwrap();
         let unused: Vec<_> = out
             .diagnostics
             .iter()
@@ -765,7 +776,8 @@ mod tests {
             "pub fn a_broken() { let x: i32 = \"no\"; }\n",
             "pub fn b() {}\n",
         );
-        let out = build_all_targets(&ws.path().join("b"), None, CAP_LINTS).unwrap();
+        let out =
+            build_all_targets(&ws.path().join("b"), None, CAP_LINTS, &Default::default()).unwrap();
         assert!(out.is_broken(), "{:?}", out.diagnostics.len());
     }
 

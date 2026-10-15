@@ -178,6 +178,16 @@ struct RunOpts {
     /// Root of the portfolio, for checks that read sibling projects. Defaults to the parent of `project`.
     #[arg(long)]
     portfolio_root: Option<PathBuf>,
+    /// Cargo features to enable when a check builds the crate, comma-separated (repeatable), as `cargo build --features`.
+    /// A target whose `required-features` are not enabled is not built and so is not checked; the run says which.
+    #[arg(long, value_delimiter = ',')]
+    features: Vec<String>,
+    /// Enable every cargo feature when a check builds the crate, as `cargo build --all-features`.
+    #[arg(long)]
+    all_features: bool,
+    /// Do not enable the default cargo features when a check builds the crate, as `cargo build --no-default-features`.
+    #[arg(long)]
+    no_default_features: bool,
     /// Exit 1 when a finding is at least this severe and no `[[allow]]` entry waives it. The default is `info`: any finding
     /// fails the run. `--deny medium` lets Low and Info findings through; `--deny none` never fails on a finding.
     #[arg(long, value_enum, default_value = "info")]
@@ -778,6 +788,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 project,
                 workspace,
                 portfolio_root,
+                features,
+                all_features,
+                no_default_features,
                 deny,
                 message_format,
                 profile,
@@ -861,7 +874,16 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
 
-    let ctx = CheckContext::new(project_root).portfolio_root(portfolio_root);
+    let mut cargo_features = crate::check::CargoFeatures::default().with_features(features);
+    if all_features {
+        cargo_features = cargo_features.all_features();
+    }
+    if no_default_features {
+        cargo_features = cargo_features.no_default_features();
+    }
+    let ctx = CheckContext::new(project_root)
+        .portfolio_root(portfolio_root)
+        .cargo_features(cargo_features);
 
     let result = if workspace {
         let run = crate::run_workspace_in_with_tools(

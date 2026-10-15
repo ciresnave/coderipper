@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use crate::check::{CheckContext, Tier, Unit};
+use crate::check::{CargoFeatures, CheckContext, Tier, Unit};
 use crate::finding::Finding;
 
 /// The protocol version this host speaks, as `"major.minor"`.
@@ -129,6 +129,10 @@ pub struct Request {
     pub network: bool,
     /// The limits the host enforces.
     pub limits: Limits,
+    /// The cargo features a rule that builds the crate builds it with. Left out of the message when it is cargo's
+    /// default, so a request that sets none is byte-for-byte what it was.
+    #[serde(default, skip_serializing_if = "CargoFeatures::is_default")]
+    pub cargo_features: CargoFeatures,
 }
 
 impl Request {
@@ -169,6 +173,7 @@ impl Request {
             rules,
             network: tier == Tier::Sweep,
             limits,
+            cargo_features: ctx.cargo_features.clone(),
         }
     }
 }

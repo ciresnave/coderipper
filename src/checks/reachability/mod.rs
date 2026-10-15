@@ -125,7 +125,12 @@ impl Check for ReachabilityCheck {
         } else {
             Targets::All
         };
-        let result = collect_dead_code_in(&wt.root, Some(wt.source_repo()), targets)?;
+        let result = collect_dead_code_in(
+            &wt.root,
+            Some(wt.source_repo()),
+            targets,
+            &ctx.cargo_features,
+        )?;
 
         // A real compile error anywhere in the build must never look like a clean result, whatever
         // the sentinel found.
