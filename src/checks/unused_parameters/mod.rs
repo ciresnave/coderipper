@@ -19,7 +19,8 @@
 //!   every parameter, makes the sentinel fail and the run errors instead of reporting clean. There
 //!   is one sentinel per target root (`src/lib.rs`, `src/main.rs`, `src/bin/*`), since each target is
 //!   its own crate. Targets with a custom `path = ...` in `Cargo.toml` are not found and so are not
-//!   protected.
+//!   protected. A target root cargo did not build (a `[[bin]]` whose `required-features` are off) has no crate to
+//!   prove anything about: the control line names it (`target not built: required-features=[...]`) instead of failing.
 //! - Only `src/` is read for parameter sites: an unused parameter in `tests/`, `examples/` or `benches/` is built (and
 //!   rustc warns) but is not reported, the same boundary `unused-return-values` documents.
 //! - A finding's `subject` is qualified by INLINE `mod {}` blocks, the impl's type (generic arguments
@@ -37,6 +38,7 @@ use crate::worktree::RewrittenWorktree;
 use sentinel::{inject_sentinels, SENTINEL_ARG, SENTINEL_FN};
 use sites::{find_param_sites, ParamSite};
 use std::collections::BTreeSet;
+use std::path::Path;
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = "unused-parameters";
@@ -71,6 +73,10 @@ impl Check for UnusedParametersCheck {
     }
 
     fn run(&self, ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
+        self.run_noted(ctx).map(|(findings, _)| findings)
+    }
+
+    fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
         let mut sites: Vec<ParamSite> = Vec::new();
         // The rewrite is the identity: this check reads the source, it does not change it.
         let wt = RewrittenWorktree::create_with(&ctx.project_root, |file, source| {
@@ -89,16 +95,46 @@ impl Check for UnusedParametersCheck {
         );
 
         let hits = unused_variable_hits(&build.diagnostics);
-        // Every target root is its own crate, so each one needs its own proof that the lint is live.
+        // Every target root is its own crate, so each one needs its own proof that the lint is live. A root cargo did
+        // not build (a bin whose `required-features` are off) has no crate to prove anything about: it is named, not
+        // blamed on the code.
+        let mut not_built: Vec<String> = Vec::new();
+        let mut proven = 0usize;
         for file in &sentinel_files {
+            if hits
+                .iter()
+                .any(|h| h.name == SENTINEL_ARG && &h.file == file)
+            {
+                proven += 1;
+                continue;
+            }
+            if !root_was_built(&build.built_roots, &wt.root, file) {
+                not_built.push(format!("`{file}` ({})", why_not_built(&wt.root, file)));
+                continue;
+            }
             anyhow::ensure!(
-                hits.iter().any(|h| h.name == SENTINEL_ARG && &h.file == file),
+                false,
                 "unused-parameters' own per-run positive control (an unused parameter injected into \
                  {file}) was not reported by rustc even though the build reported no errors -- \
                  `unused_variables` is suppressed crate-wide in that target (e.g. #![allow(unused)] \
                  or #![allow(unused_variables)]), so this run's result can't be trusted."
             );
         }
+
+        anyhow::ensure!(
+            proven > 0,
+            "unused-parameters built none of this package's target roots ({}), so there is nothing to \
+             check and no positive control",
+            not_built.join(", ")
+        );
+        let mut notes: Vec<String> = Vec::new();
+        let not_built_note = if not_built.is_empty() {
+            String::new()
+        } else {
+            let note = format!("not checked, target not built: {}", not_built.join(", "));
+            notes.push(note.clone());
+            format!("; {note}")
+        };
 
         let project = ctx
             .project_root
@@ -108,9 +144,10 @@ impl Check for UnusedParametersCheck {
         let positive_control = format!(
             "this run's own sentinel (parameter `{SENTINEL_ARG}` of `{SENTINEL_FN}`, injected into \
              {}) WAS reported by rustc's `unused_variables`, so the lint was live for \
-             this crate in this same build",
+             this crate in this same build{not_built_note}",
             sentinel_files
                 .iter()
+                .filter(|f| !not_built.iter().any(|n| n.starts_with(&format!("`{f}`"))))
                 .map(|f| format!("`{f}`"))
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -156,8 +193,78 @@ impl Check for UnusedParametersCheck {
             };
             key(a).cmp(&key(b))
         });
-        Ok(findings)
+        Ok((findings, notes))
     }
+}
+
+/// Whether cargo reported a `compiler-artifact` for the target whose root is `file` (package-relative, `src/bin/x.rs`).
+/// `built_roots` holds the absolute paths cargo printed; `root` is the package directory the sentinel was written under, so
+/// the target is `root/file` exactly (not any built path that merely ends the same way, such as `other/src/main.rs`).
+fn root_was_built(built_roots: &[String], root: &Path, file: &str) -> bool {
+    let want = same_file_key(&root.join(file));
+    built_roots
+        .iter()
+        .any(|p| same_file_key(Path::new(p)) == want)
+}
+
+/// A comparable spelling of a path: canonical when the file exists (resolving `.`, `..`, case and Windows' verbatim
+/// prefix), else its text with forward slashes.
+fn same_file_key(path: &Path) -> String {
+    let resolved = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut key = resolved.to_string_lossy().replace('\\', "/");
+    if let Some(rest) = key.strip_prefix("//?/") {
+        key = rest.to_string();
+    }
+    key
+}
+
+/// `path` without `.` and empty components (`./src//bin/a.rs` is `src/bin/a.rs`), forward slashes.
+fn normalized(path: &str) -> String {
+    path.replace('\\', "/")
+        .split('/')
+        .filter(|c| !c.is_empty() && *c != ".")
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Why cargo did not build the target whose root is `file`: the `required-features` its `[[bin]]` entry in the manifest
+/// under `root` names, else a plain statement that cargo reported no unit for it.
+fn why_not_built(root: &Path, file: &str) -> String {
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml"))
+        .ok()
+        .and_then(|text| text.parse::<toml::Table>().ok());
+    let bins = manifest
+        .as_ref()
+        .and_then(|m| m.get("bin"))
+        .and_then(|b| b.as_array());
+    for bin in bins.into_iter().flatten() {
+        let Some(bin) = bin.as_table() else { continue };
+        let name = bin.get("name").and_then(|n| n.as_str());
+        // With no `path`, cargo looks for `src/bin/<name>.rs` and then `src/bin/<name>/main.rs`.
+        let roots: Vec<String> = match bin.get("path").and_then(|p| p.as_str()) {
+            Some(p) => vec![normalized(p)],
+            None => name
+                .map(|n| vec![format!("src/bin/{n}.rs"), format!("src/bin/{n}/main.rs")])
+                .unwrap_or_default(),
+        };
+        if !roots.iter().any(|r| r == file) {
+            continue;
+        }
+        let features: Vec<&str> = bin
+            .get("required-features")
+            .and_then(|f| f.as_array())
+            .into_iter()
+            .flatten()
+            .filter_map(|f| f.as_str())
+            .collect();
+        if !features.is_empty() {
+            return format!(
+                "target not built: required-features=[{}]",
+                features.join(", ")
+            );
+        }
+    }
+    "target not built: cargo reported no compilation unit for it".to_string()
 }
 
 /// One `unused_variables` report, de-duplicated (`--all-targets` compiles shared code twice).

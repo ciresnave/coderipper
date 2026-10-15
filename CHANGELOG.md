@@ -6,6 +6,23 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.33 - 2026-10-15 (proposed)
+
+`unused-parameters` names a target cargo did not build instead of blaming the code.
+
+### Fixed
+- **A bin with `required-features` that are off was reported as "`unused_variables` is suppressed crate-wide".** Such a target is never
+  compiled, so its sentinel cannot be reported; the run failed with a cause that was false (found on `fuel`, whose
+  `fuel-capture-fixtures` has `required-features = ["capture"]`). The check now records which target roots cargo built, and says
+  `target not built: required-features=[capture]` in the finding's positive control and as a run note for one it did not. A
+  built target whose sentinel is missing still fails the run, and so does a run in which no target root was proven.
+  The target is matched by its exact path (not a path with the same tail), the manifest's `./` spellings and the nested
+  `src/bin/<name>/main.rs` layout are understood, and the note is a run note (`run_noted`), not only a process statistic.
+
+### Added (tests only)
+- Two cases in `tests/unused_parameters.rs`: a gated bin beside a built lib (the message is asserted), and a crate-wide
+  `allow(unused)` in the built lib beside a gated bin (still an error).
+
 ## 0.6.32 - 2026-10-14 (proposed)
 
 Planted variants for `reachability` (the false-negative control of decision 180, completing the Rust checks).
