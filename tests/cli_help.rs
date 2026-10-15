@@ -66,7 +66,8 @@ fn each_option_of_fast_is_described_by_its_own_text() {
     assert!(
         project.contains("committed tree")
             && project.contains("throwaway")
-            && project.contains("uncommitted"),
+            && project.contains("uncommitted")
+            && project.contains("version-consistency"),
         "{help}"
     );
     assert!(

@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.36 - 2026-10-15 (proposed)
+
+The uncommitted-changes note and `--project`'s help no longer overclaim (review findings on #86).
+
+### Fixed
+- The note counted only tracked edits, so a fix that existed only as an untracked file produced no warning although the
+  worktree checks do not see it; untracked (not ignored) files are now counted.
+- The note and `--project`'s help said "the checks" analyse `HEAD`; only `reachability`, `unused-return-values` and
+  `unused-parameters` do. `version-consistency` and API-006 read the working tree, and both texts now say so.
+
 ## 0.6.35 - 2026-10-15 (proposed)
 
 `--help` and the run say that the committed tree is what is analysed.

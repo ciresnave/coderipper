@@ -578,8 +578,24 @@ fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
         .arg(repo.path())
         .assert()
         .success()
-        .stderr(predicate::str::contains("1 tracked file(s) under"))
+        .stderr(predicate::str::contains("1 file(s) under"))
         .stderr(predicate::str::contains(
             "analyse the committed tree (HEAD) in a throwaway worktree",
+        ))
+        .stderr(predicate::str::contains(
+            "version-consistency and API-006 read the working tree",
         ));
+}
+
+#[test]
+fn an_untracked_file_is_named_in_the_uncommitted_note() {
+    let repo = clean_fixture_repo();
+    std::fs::write(repo.path().join("src/extra.rs"), "pub fn f() {}
+").unwrap();
+    coderipper()
+        .args(["fast", "--project"])
+        .arg(repo.path())
+        .assert()
+        .stderr(predicate::str::contains("1 file(s) under"))
+        .stderr(predicate::str::contains("untracked files"));
 }
