@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.34 - 2026-10-15 (proposed)
+
+`--features`, `--all-features` and `--no-default-features` reach the build step.
+
+### Added
+- The three flags on `fast`, `sweep` and `check` (so on `--workspace` too). A target whose `required-features` are off is not built
+  and so could not be checked; they are appended to the `cargo build -p <package>` of `unused-parameters`, `unused-return-values` and
+  `reachability`. Library: `CheckContext::cargo_features` and the public `CargoFeatures`. The module `Request` carries them
+  (`cargo_features`, left out of the wire message when default). With `--workspace` a named feature must exist on every member
+  (`--all-features` has no such limit).
+
+### Added (tests only)
+- `tests/cargo_features.rs` and `tests/cli.rs::features_flags_reach_the_build_so_a_gated_bin_is_checked`; unit tests of the argument list.
+
 ## 0.6.33 - 2026-10-15 (proposed)
 
 `unused-parameters` names a target cargo did not build instead of blaming the code.
