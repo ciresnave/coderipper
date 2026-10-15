@@ -557,3 +557,29 @@ fn features_flags_reach_the_build_so_a_gated_bin_is_checked() {
             ));
     }
 }
+
+#[test]
+fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
+    let repo = clean_fixture_repo();
+    coderipper()
+        .args(["fast", "--project"])
+        .arg(repo.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("uncommitted").not());
+
+    std::fs::write(
+        repo.path().join("src/main.rs"),
+        "fn main() { let _ = 1; }\n",
+    )
+    .unwrap();
+    coderipper()
+        .args(["fast", "--project"])
+        .arg(repo.path())
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("1 tracked file(s) under"))
+        .stderr(predicate::str::contains(
+            "analyse the committed tree (HEAD) in a throwaway worktree",
+        ));
+}

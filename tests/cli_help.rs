@@ -62,6 +62,13 @@ fn each_option_of_fast_is_described_by_its_own_text() {
         help_for(&help, "--project").contains("Project to check"),
         "{help}"
     );
+    let project = help_for(&help, "--project");
+    assert!(
+        project.contains("committed tree")
+            && project.contains("throwaway")
+            && project.contains("uncommitted"),
+        "{help}"
+    );
     assert!(
         help_for(&help, "--workspace").contains("every member"),
         "{help}"

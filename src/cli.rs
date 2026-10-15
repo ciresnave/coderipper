@@ -169,7 +169,8 @@ impl Conf {
 /// What the three run subcommands (`fast`, `sweep`, `check`) share.
 #[derive(clap::Args)]
 struct RunOpts {
-    /// Project to check. Defaults to the current directory.
+    /// Project to check. Defaults to the current directory. The checks analyse the committed tree (`HEAD`) in a throwaway
+    /// worktree: uncommitted changes are not analysed, and the run says so when there are any.
     #[arg(long)]
     project: Option<PathBuf>,
     /// Check every member of the cargo workspace containing the project, not just the project.
@@ -781,6 +782,30 @@ fn dispatch(
     }
 }
 
+/// What to tell the user when `project` has changes git has not committed: the checks read `HEAD` in a throwaway worktree, so
+/// a fix that is only in the working tree changes nothing. `None` when the tree is clean or git cannot say.
+fn uncommitted_note(project: &Path) -> Option<String> {
+    let output = crate::github::git_command(
+        project,
+        &["status", "--porcelain", "--untracked-files=no", "--", "."],
+    )
+    .output()
+    .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let changed = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .count();
+    (changed > 0).then(|| {
+        format!(
+            "{changed} tracked file(s) under {} have uncommitted changes; the checks analyse the committed tree (HEAD) in a throwaway worktree, so those changes are not analysed: commit them to see their effect",
+            project.display()
+        )
+    })
+}
+
 fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let RunArgs {
         opts:
@@ -874,6 +899,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         .or_else(|| project_root.parent().map(Path::to_path_buf))
         .unwrap_or_else(|| project_root.clone());
 
+    if let Some(note) = uncommitted_note(&project_root) {
+        eprintln!("coderipper: note: {note}");
+    }
     let mut cargo_features = crate::check::CargoFeatures::default().with_features(features);
     if all_features {
         cargo_features = cargo_features.all_features();
