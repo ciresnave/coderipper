@@ -590,8 +590,12 @@ fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
 #[test]
 fn an_untracked_file_is_named_in_the_uncommitted_note() {
     let repo = clean_fixture_repo();
-    std::fs::write(repo.path().join("src/extra.rs"), "pub fn f() {}
-").unwrap();
+    std::fs::write(
+        repo.path().join("src/extra.rs"),
+        "pub fn f() {}
+",
+    )
+    .unwrap();
     coderipper()
         .args(["fast", "--project"])
         .arg(repo.path())
