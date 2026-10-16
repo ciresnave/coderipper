@@ -556,7 +556,10 @@ fn stamp(path: &Path, now: std::time::SystemTime) -> std::io::Result<()> {
             if !perms.readonly() {
                 return Err(e);
             }
-            #[allow(clippy::permissions_set_readonly_false)]
+            #[allow(
+                clippy::permissions_set_readonly_false,
+                reason = "the lint is about Unix mode bits; this clears the Windows read-only attribute so the mtime can be set"
+            )]
             perms.set_readonly(false);
             std::fs::set_permissions(path, perms.clone())?;
             let result = open().and_then(|file| file.set_modified(now));

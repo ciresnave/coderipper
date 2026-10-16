@@ -200,8 +200,8 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     );
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
-    // the four proven Rust checks and the five proven language-neutral rules
-    assert_eq!(rust["covered"], 9);
+    // the four proven Rust checks, the five proven language-neutral rules and lint-suppression (Rust only)
+    assert_eq!(rust["covered"], 10);
     // reachability's claim and the six delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 7);
@@ -279,7 +279,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 9, "{rust}");
+    assert_eq!(rust["covered"], 10, "{rust}");
 }
 
 #[test]

@@ -215,3 +215,29 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "lint-suppression"
+title = "A lint suppression or an ignored test says why"
+domain = "GOV"
+statement = "Every allow attribute that silences a lint, and every ignored test, carries a reason; dead code in particular is deleted, used or gated rather than allowed."
+rationale = "A suppression with no reason is a waiver with no owner: nobody can tell whether it still holds, and the code it hides stays hidden. An ignored test is a test that no longer protects anything where the default suite runs."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "high"
+kb_refs = ["GOV-002"]
+aliases = []
+remediation = "Fix what the lint objects to, delete or use the dead code, or gate it with cfg(test) / cfg(feature); otherwise add reason = \"..\" to the allow, or name where and why an ignored test runs: #[ignore = \"..\"]."
+related = ["GOV-002", "TST-005"]
+lifecycle = "experimental"
+checked_today = "Rust only: each allow attribute (also inside cfg_attr) and each ignore attribute in a tracked .rs file outside a vendored directory has a non-blank reason, read with syn. The count of those that do is printed as a note. Not judged: attributes inside macro bodies, expect attributes, Cargo.toml [lints] tables, other languages."
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]

@@ -125,7 +125,10 @@ fn fake_module(sub: &str, args: &[String]) {
         "hang-child" => {
             let dir = flag(args, "--dir").expect("--dir");
             // deliberately never waited on: the host must kill it, with the rest of the tree
-            #[allow(clippy::zombie_processes)]
+            #[allow(
+                clippy::zombie_processes,
+                reason = "the child is the test: the host must kill it, so it is never waited on"
+            )]
             let child = std::process::Command::new(std::env::current_exe().unwrap())
                 .args(["--mode", "sleep", "describe"])
                 .spawn()

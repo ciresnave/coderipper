@@ -1,0 +1,11 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "lint-suppression"
+file = "src/lib.rs"
+line = 3
+
+[[expect]]
+rule = "lint-suppression"
+file = "src/lib.rs"
+line = 7

@@ -146,3 +146,30 @@ fn the_conformance_command_judges_the_neutral_module() {
         .stdout(predicate::str::contains("SUP-001: proven"))
         .stdout(predicate::str::contains("WSP-001: proven"));
 }
+
+#[test]
+fn lint_suppression_runs_only_under_extended_and_counts_the_attributes_that_say_why() {
+    let src = "#[allow(dead_code)]\nfn unused() {}\n#[allow(unused, reason = \"kept for the plugin ABI\")]\nfn kept() {}\nfn main() {}\n";
+    let repo = common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/main.rs", src)]);
+    // classic: not asked for, so not reported, even with the suppression in the source
+    coderipper(&repo, &["fast"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("lint-suppression").not());
+    coderipper(&repo, &["check", "lint-suppression"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("belongs to --profile extended"));
+    coderipper(
+        &repo,
+        &["check", "lint-suppression", "--profile", "extended"],
+    )
+    .assert()
+    .code(0)
+    .stdout(predicate::str::contains(
+        "allow(dead_code) has no reason at src/main.rs:1 (lint-suppression)",
+    ))
+    .stderr(predicate::str::contains(
+        "1 allow and 0 ignore attribute(s) carry a reason",
+    ));
+}

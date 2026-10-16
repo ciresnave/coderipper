@@ -6,6 +6,30 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.41 - 2026-10-16 (proposed)
+
+A Rust lint suppression or ignored test says why (CireSnave 2026-10-16: *"That same general dislike applies to
+#[allow(dead_code)] as well.  That should also be a last resort."*). Extended profile only; the default set is unchanged.
+
+### Added
+- Rule `lint-suppression` (neutral module, extended profile; catalog record in `rules/gov.toml`, related to GOV-002 and TST-005):
+  a tracked `.rs` file's `#[allow(..)]` / `#![allow(..)]` (also inside `cfg_attr`) or `#[ignore]` with no reason is a Low finding at
+  its line. `allow(lints, reason = "..")` and `#[ignore = ".."]` pass; a comment beside the attribute is not a reason. `dead_code`
+  is named, with the cure (delete, use, or gate with `cfg`). Every attribute that does carry a reason is counted in a run note
+  (`lint-suppression: N allow and M ignore attribute(s) carry a reason and pass`), so the debt stays visible when nothing is
+  reported. Read with `syn`, at `HEAD`; vendored directories are skipped; a file that does not parse is a note. Not read: macro
+  bodies, `#[expect]`, `[lints]` tables, other languages.
+- Planted case both ways: `conformance/lint-suppression/{defective,clean}` (a bare `allow(dead_code)` and a bare `#[ignore]`
+  reported at their lines; the same shapes with reasons, a commented-out attribute and an attribute inside a string reported as
+  nothing), plus unit tests for each shape, `cfg_attr`, blank reasons, `expect`, vendored code and an unparsable file, and a CLI test
+  that classic does not run it.
+
+### Changed
+- CodeRipper's own sweep (`--profile extended --all-features --deny info`) stays exit 0 with the same 4 waived and no new waiver:
+  the four attributes the rule found in this repository (`clippy::permissions_set_readonly_false` twice,
+  `clippy::too_many_arguments`, `clippy::zombie_processes`) now say why.
+- `Verdict::Noted` (internal): a neutral rule can return notes beside its findings.
+
 ## 0.6.40 - 2026-10-16 (proposed)
 
 No `#[allow(dead_code)]` attribute is left in the repository (CireSnave 2026-10-16: *"That same general dislike applies to

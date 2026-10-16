@@ -79,6 +79,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
         "positive control: the triage list has 216 rules"
     );
     triaged.extend(coderipper::registered_checks().iter().map(|c| c.id()));
+    // the one rule that is not a knowledge-base rule and not an original check: the neutral module's lint-suppression
+    triaged.push("lint-suppression");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     in_catalog.sort_unstable();

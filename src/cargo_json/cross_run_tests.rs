@@ -237,7 +237,10 @@ fn freshen_checkout_stamps_a_read_only_file_and_leaves_it_read_only() {
         "its read-only attribute must be put back"
     );
     let mut perms = std::fs::metadata(&p).unwrap().permissions();
-    #[allow(clippy::permissions_set_readonly_false)]
+    #[allow(
+        clippy::permissions_set_readonly_false,
+        reason = "clears the Windows read-only attribute on a temporary file so it can be removed"
+    )]
     perms.set_readonly(false);
     std::fs::set_permissions(&p, perms).unwrap();
 }
