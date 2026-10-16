@@ -22,7 +22,7 @@ CodeRipper's whole extended sweep on itself runs in CI.
   exited 3, "cannot read ciresnave/coderipper from GitHub"), and a personal access token is not to be given to a job. That check
   runs in the PM's sweep under an admin account. Existing functions are unchanged.
 - The sweep job fails when any rule did not run: an unavailable delegated tool is a note, which never changes the exit code, so the
-  job reads the notes on stderr and fails on any that is not the requested `skipped on request` (review finding on #89).
+  job reads the notes on stderr and fails on any `not run: ... is not available` (review finding on #89; the other notes - API-006 without a changed .proto, the skip we asked for, the fixtures count - stay notes).
 
 ## 0.6.38 - 2026-10-15 (proposed)
 

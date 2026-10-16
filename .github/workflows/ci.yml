@@ -82,8 +82,8 @@ jobs:
           code=0
           cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
           cat "$RUNNER_TEMP/sweep.stderr" >&2
-          # A rule whose tool is unavailable is a note, never an exit code: fail the job on any but the one we asked for (--skip-rule), so a green run means every rule ran.
-          if grep '^coderipper: note:' "$RUNNER_TEMP/sweep.stderr" | grep -qv 'skipped on request'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          # A rule whose tool is unavailable is a note, never an exit code: fail the job on any whose tool is not available. Other notes stay notes: API-006 has no baseline without a changed .proto, and the fixtures note is information.
+          if grep '^coderipper: note:.* not run:.* is not available' "$RUNNER_TEMP/sweep.stderr"; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
 
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
