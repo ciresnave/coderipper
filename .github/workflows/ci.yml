@@ -78,7 +78,13 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
       - name: coderipper sweep --profile extended --all-features --deny info
-        run: cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project .
+        run: |
+          code=0
+          cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          cat "$RUNNER_TEMP/sweep.stderr" >&2
+          # A rule whose tool is unavailable is a note, never an exit code: fail the job on any but the one we asked for (--skip-rule), so a green run means every rule ran.
+          if grep '^coderipper: note:' "$RUNNER_TEMP/sweep.stderr" | grep -qv 'skipped on request'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          exit "$code"
 
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
