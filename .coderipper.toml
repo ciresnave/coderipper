@@ -5,3 +5,16 @@
 public_api = [
   { file = "src/lib.rs", symbol = "run_checks_in", reason = "The library's public entry point for a run under a profile (documented, in the semver promise); its callers are other programs, which a project-scope check cannot see." },
 ]
+
+# SEC-002 reads git history, and two commits in it hold a placeholder that gitleaks takes for a secret. HEAD no longer holds either
+# literal; the waiver stays only because the commits do. Owner: the coderipper lane. Remove when the history is rewritten or the
+# commits age out of the scanned window.
+[[allow]]
+check = "SEC-002"
+file = "src/module/delegate/gitleaks.rs"
+reason = "history only: commit 24cb9f1a holds an AWS-key-shaped placeholder in a test (not a credential); HEAD builds it at run time. Owner: coderipper lane. Remove when history is rewritten or the commit ages out."
+
+[[allow]]
+check = "SEC-002"
+file = "src/redact.rs"
+reason = "history only: commit f8c78dbe holds a doc comment naming the private-key BEGIN/END markers on one line (no key body); HEAD words it differently. Owner: coderipper lane. Remove when history is rewritten or the commit ages out."
