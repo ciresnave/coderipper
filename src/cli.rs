@@ -227,6 +227,12 @@ struct RunOpts {
     /// source is shown with its known shapes removed, not withheld.
     #[arg(long)]
     redact: bool,
+    /// Do not run a built-in check, and say why: `--skip-rule ID=WHY` (repeatable; `ID` is a check such as
+    /// `ci-protection-presence`, not a rule of `--profile extended`). The run prints the reason as a note. For a check that cannot
+    /// run where the run is (it needs repository-admin read, say), with the place it does run named in `WHY`; not a way to
+    /// silence a finding, which is an `[[allow]]` entry.
+    #[arg(long = "skip-rule", value_name = "ID=WHY")]
+    skip_rule: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -826,10 +832,22 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 install_tools,
                 tools_lock,
                 redact,
+                skip_rule,
             },
         tier,
         only_check_id,
     } = args;
+    let skip = skip_rule
+        .iter()
+        .map(|s| match s.split_once('=') {
+            Some((id, why)) if !id.trim().is_empty() && !why.trim().is_empty() => {
+                Ok((id.trim().to_string(), why.trim().to_string()))
+            }
+            _ => Err(UsageError(format!(
+                "--skip-rule takes ID=WHY, and a skip says why; got \"{s}\""
+            ))),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let project = project.unwrap_or(std::env::current_dir()?);
     let project_root = project
         .canonicalize()
@@ -917,12 +935,13 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         .cargo_features(cargo_features);
 
     let result = if workspace {
-        let run = crate::run_workspace_in_with_tools(
+        let run = crate::run_workspace_in_with_tools_skipping(
             profile.lib(),
             &tools,
             &ctx,
             tier,
             only_check_id.as_deref(),
+            &skip,
             &mut |name, index, total| eprintln!("coderipper: member {name} ({index}/{total})"),
         );
         eprintln!(
@@ -931,7 +950,14 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         );
         run.result
     } else {
-        crate::run_checks_in_with_tools(profile.lib(), &tools, &ctx, tier, only_check_id.as_deref())
+        crate::run_checks_in_with_tools_skipping(
+            profile.lib(),
+            &tools,
+            &ctx,
+            tier,
+            only_check_id.as_deref(),
+            &skip,
+        )
     };
 
     // A check error outranks a finding: a run that could not judge everything must not look like a complete one

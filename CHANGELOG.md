@@ -6,6 +6,24 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.39 - 2026-10-15 (proposed)
+
+CodeRipper's whole extended sweep on itself runs in CI.
+
+### Added
+- `.github/workflows/ci.yml`: job `coderipper-sweep` runs `sweep --profile extended --all-features --deny info --install-tools`
+  over the repository with its history fetched. Measured on this branch's tree: exit 0, no finding, 4 waived (1 declared public
+  API, 3 history-only SEC-002 placeholders), 17 fixture findings not reported. Not a required check yet; the existing
+  `coderipper` job (`fast --deny medium`, classic) is unchanged.
+- `--skip-rule ID=WHY` (repeatable, on `fast`, `sweep` and `check`) and the library's `run_checks_in_with_tools_skipping` /
+  `run_workspace_in_with_tools_skipping`: a built-in check is not called, and the run carries a note
+  `<ID> not run: skipped on request (<WHY>)`. A name that is no built-in check, and a skip with no reason, are errors. The CI job
+  uses it for `ci-protection-presence` alone: the job's token (`contents: read`) cannot read branch protection (run 38841727909
+  exited 3, "cannot read ciresnave/coderipper from GitHub"), and a personal access token is not to be given to a job. That check
+  runs in the PM's sweep under an admin account. Existing functions are unchanged.
+- The sweep job fails when any rule did not run: an unavailable delegated tool is a note, which never changes the exit code, so the
+  job reads the notes on stderr and fails on any `not run: ... is not available` (review finding on #89; the other notes - API-006 without a changed .proto, the skip we asked for, the fixtures count - stay notes).
+
 ## 0.6.38 - 2026-10-15 (proposed)
 
 The three SEC-002 findings CodeRipper's own sweep reported in `src/` (measured on 0.6.36 at ba87887).

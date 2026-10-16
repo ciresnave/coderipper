@@ -603,3 +603,43 @@ fn an_untracked_file_is_named_in_the_uncommitted_note() {
         .stderr(predicate::str::contains("1 file(s) under"))
         .stderr(predicate::str::contains("untracked files"));
 }
+
+#[test]
+fn skip_rule_runs_a_check_out_with_its_reason_and_refuses_a_typo_or_a_missing_reason() {
+    let repo = clean_fixture_repo(); // no `origin`: ci-protection-presence cannot run here
+    let sweep = |extra: &[&str]| {
+        let mut cmd = coderipper();
+        cmd.args(["sweep", "--deny", "none", "--project"])
+            .arg(repo.path())
+            .args(extra);
+        cmd
+    };
+    // control: without the skip the check runs, cannot, and the run says so
+    sweep(&[]).assert().code(3).stderr(predicate::str::contains(
+        "ci-protection-presence failed to run",
+    ));
+    // with it the check is not called, and the reason is on the run
+    sweep(&["--skip-rule", "ci-protection-presence=needs admin read; the PM sweep runs it"])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains(
+            "ci-protection-presence not run: skipped on request (needs admin read; the PM sweep runs it)",
+        ))
+        .stderr(predicate::str::contains("failed to run").not());
+    // a name that is no built-in check is an error, not a quiet no-op
+    sweep(&["--skip-rule", "ci-protection-presense=why"])
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains(
+            "cannot skip \"ci-protection-presense\"",
+        ));
+    // a skip says why
+    sweep(&["--skip-rule", "ci-protection-presence"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("takes ID=WHY"));
+    sweep(&["--skip-rule", "ci-protection-presence="])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("takes ID=WHY"));
+}
