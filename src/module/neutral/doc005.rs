@@ -348,6 +348,7 @@ mod tests {
     fn run(files: &[(&str, &str)]) -> Vec<Finding> {
         match judge(&RepoView::from_files(files)) {
             Verdict::Findings(f) => f,
+            Verdict::Noted(..) => unreachable!("this rule reports no notes"),
             Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
         }
     }

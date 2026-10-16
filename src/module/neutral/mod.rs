@@ -11,6 +11,7 @@
 
 mod doc005;
 mod doc009;
+mod lint_suppression;
 mod sup001;
 mod sup011;
 #[cfg(test)]
@@ -30,6 +31,8 @@ use std::path::{Path, PathBuf};
 pub(crate) enum Verdict {
     /// It ran; these are its findings (none means the rule is clean).
     Findings(Vec<Finding>),
+    /// As `Findings`, with notes the run prints beside them (they never change the verdict).
+    Noted(Vec<Finding>, Vec<String>),
     /// The rule does not apply to this repository (the reason is shown). A coverage gap, never "clean".
     NotApplicable(String),
 }
@@ -60,6 +63,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "WSP-001",
         judge: wsp001::judge,
+    },
+    Rule {
+        id: "lint-suppression",
+        judge: lint_suppression::judge,
     },
 ];
 
@@ -219,7 +226,14 @@ impl NeutralModule {
 /// JavaScript family); Python, Go and the rest are not read.
 const READS_ONLY: &[(&str, &[&str])] = &[("SUP-001", &["rust", "typescript"])];
 
-const PROVEN: &[&str] = &["SUP-001", "SUP-011", "DOC-005", "DOC-009", "WSP-001"];
+const PROVEN: &[&str] = &[
+    "SUP-001",
+    "SUP-011",
+    "DOC-005",
+    "DOC-009",
+    "WSP-001",
+    "lint-suppression",
+];
 
 impl Module for NeutralModule {
     fn describe(&self) -> anyhow::Result<Hello> {
@@ -296,6 +310,15 @@ impl Module for NeutralModule {
                     events.extend(found.into_iter().map(|f| Event::Finding(Box::new(f))));
                     events.push(Event::RuleResult(RuleResult::ran(rule, count)));
                 }
+                Verdict::Noted(found, notes) => {
+                    summary.rules_ran += 1;
+                    summary.findings += found.len();
+                    let count = found.len();
+                    events.extend(found.into_iter().map(|f| Event::Finding(Box::new(f))));
+                    events.push(Event::RuleResult(RuleResult::ran_noted(
+                        rule, count, &notes,
+                    )));
+                }
                 Verdict::NotApplicable(why) => {
                     summary.rules_skipped += 1;
                     events.push(Event::RuleResult(RuleResult {
@@ -344,7 +367,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 5);
+        assert_eq!(rule_ids().len(), 6);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }

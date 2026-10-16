@@ -40,7 +40,7 @@ enum MessageFormat {
 enum Profile {
     /// The five original checks and exactly the output they have always had (the default).
     Classic,
-    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); the
+    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression); the
     /// rules of the language modules join it as they arrive.
     Extended,
 }

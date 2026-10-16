@@ -14,7 +14,7 @@ enum Got {
 
 fn got(judge: fn(&RepoView) -> Verdict, files: &[(&str, &str)]) -> Got {
     match judge(&RepoView::from_files(files)) {
-        Verdict::Findings(f) => Got::Findings(f.len()),
+        Verdict::Findings(f) | Verdict::Noted(f, _) => Got::Findings(f.len()),
         Verdict::NotApplicable(_) => Got::NotApplicable,
     }
 }

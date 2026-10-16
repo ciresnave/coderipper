@@ -851,7 +851,10 @@ fn run_below_root(
     (result, crates, with_errors)
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "each argument is one independent input of a run; a parameter struct would only rename them"
+)]
 fn run_selected_checks(
     profile: Profile,
     tools: &ToolEnv,

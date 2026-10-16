@@ -115,6 +115,7 @@ mod tests {
     fn run(files: &[(&str, &str)]) -> Vec<Finding> {
         match judge(&RepoView::from_files(files)) {
             Verdict::Findings(f) => f,
+            Verdict::Noted(..) => unreachable!("this rule reports no notes"),
             Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
         }
     }
@@ -137,6 +138,7 @@ mod tests {
     fn a_handful_of_pages_without_a_glossary_is_not_applicable_not_a_finding() {
         for n in [1, 2, 9] {
             match judge_pages(&pages(n)) {
+                Verdict::Noted(..) => unreachable!("this rule reports no notes"),
                 Verdict::NotApplicable(why) => assert!(why.contains("fewer than 10"), "{n}: {why}"),
                 Verdict::Findings(f) => panic!("{n} pages: {f:?}"),
             }
@@ -147,6 +149,7 @@ mod tests {
     fn ten_pages_without_a_glossary_is_reported() {
         match judge_pages(&pages(10)) {
             Verdict::Findings(f) => assert_eq!(f.len(), 1, "{f:?}"),
+            Verdict::Noted(..) => unreachable!("this rule reports no notes"),
             Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
         }
     }
@@ -160,6 +163,7 @@ mod tests {
         ));
         match judge_pages(&files) {
             Verdict::Findings(f) => assert_eq!(f.len(), 1, "{f:?}"),
+            Verdict::Noted(..) => unreachable!("this rule reports no notes"),
             Verdict::NotApplicable(why) => panic!("not applicable: {why}"),
         }
     }

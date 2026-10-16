@@ -239,6 +239,7 @@ not run them. `coderipper check SUP-001 --profile extended` runs one.
 | `DOC-005` | a decision record (markdown in an `adr`, `adrs` or `decisions` directory) with no or an unknown status, or a supersession link that dangles, is not reciprocated, or leaves the old record current |
 | `DOC-009` | a repository with ten or more `.md` pages under `docs/` or `doc/` but no glossary file (fewer pages are "not applicable"); a glossary that defines one term twice |
 | `WSP-001` | a repository with no `CODEOWNERS` file, or one with no default (`*`) owner |
+| `lint-suppression` | a Rust `#[allow(..)]` (also inside `cfg_attr`) or `#[ignore]` with no reason; `dead_code` is named, because the cure is to delete, use or gate the code. `allow(.., reason = "..")` and `#[ignore = ".."]` pass, and the run prints how many carry a reason. Rust only; `#[expect]` and macro bodies are not read. Extended profile only |
 
 Each rule's reading, and what it cannot see, is in the documentation of its module (`src/module/neutral/`). A rule that does not
 apply to a repository (no decision records, no manifest it knows) is reported as not applicable here, never as clean. Files are read
