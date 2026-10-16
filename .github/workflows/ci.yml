@@ -63,6 +63,21 @@ jobs:
       - name: coderipper fast --deny medium
         run: cargo run --locked --quiet --bin coderipper -- fast --deny medium --project .
 
+  # The whole of CodeRipper on itself: every rule of the extended profile, the delegated tools included, the findings of any
+  # severity failing the job (`--deny info`). It is the run the portfolio PM measures, so it stays green. The history is fetched
+  # (SEC-002 reads it, and says "not run" on a shallow clone); the tools are downloaded because without `--install-tools` a rule
+  # whose tool is missing is a gap and the job would pass without having looked. Not a required check (yet).
+  coderipper-sweep:
+    name: CodeRipper sweep (extended, --deny info) on its own repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: coderipper sweep --profile extended --all-features --deny info
+        run: cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --project .
+
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
     name: Docs build clean, library builds without the cli feature

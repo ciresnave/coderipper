@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.39 - 2026-10-15 (proposed)
+
+CodeRipper's whole extended sweep on itself runs in CI.
+
+### Added
+- `.github/workflows/ci.yml`: job `coderipper-sweep` runs `sweep --profile extended --all-features --deny info --install-tools`
+  over the repository with its history fetched. Measured on this branch's tree: exit 0, no finding, 4 waived (1 declared public
+  API, 3 history-only SEC-002 placeholders), 17 fixture findings not reported. Not a required check yet; the existing
+  `coderipper` job (`fast --deny medium`, classic) is unchanged.
+
 ## 0.6.38 - 2026-10-15 (proposed)
 
 The three SEC-002 findings CodeRipper's own sweep reported in `src/` (measured on 0.6.36 at ba87887).
