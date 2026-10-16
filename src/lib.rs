@@ -953,7 +953,7 @@ fn run_module_over(
     errors.extend(reconciled.run_errors);
     if suppression.excluded() > 0 {
         notes.push(format!(
-            "{} finding(s) in this repository's own conformance fixtures (conformance/<rule>/<variant>/, each with an expect.toml)              were not reported: a fixture is defective on purpose",
+            "{} finding(s) in this repository's own conformance fixtures (conformance/<rule>/<variant>/, each with an expect.toml) were not reported: a fixture is defective on purpose",
             suppression.excluded()
         ));
     }
