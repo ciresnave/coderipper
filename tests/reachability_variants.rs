@@ -9,7 +9,10 @@ mod common;
 
 use coderipper::check::{Check, CheckContext};
 use coderipper::checks::reachability::ReachabilityCheck;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 /// The symbols the check reports for a library whose root is `lib_rs`, sorted.
 fn reported(lib_rs: &str) -> Vec<String> {

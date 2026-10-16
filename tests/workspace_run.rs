@@ -4,7 +4,6 @@
 //! Fixtures are tempdir git repositories with tiny crates. Most runs switch the build cache off (the session then builds
 //! in its own temporary target); the payoff test uses a cache directory per run.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

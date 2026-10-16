@@ -6,7 +6,6 @@
 //! coverage gap, never a failure); crates found below the root are checked where they are, and the run says which; and a
 //! crate that is found and cannot be built is still an error, never a skip.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

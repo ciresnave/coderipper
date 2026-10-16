@@ -2,7 +2,6 @@
 //! The language-neutral rules from the command line (multi-language P3, PR 1): they run only under `--profile extended`, in the
 //! same run as the five original checks, with the same allowlist; `classic` is unchanged.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

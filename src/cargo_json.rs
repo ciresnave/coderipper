@@ -295,9 +295,9 @@ struct CargoMessage {
 
 #[derive(Deserialize)]
 struct RawTarget {
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     name: String,
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     kind: Vec<String>,
     #[serde(default)]
     src_path: String,

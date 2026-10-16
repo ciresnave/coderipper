@@ -5,7 +5,6 @@
 //! (or `CODERIPPER_NO_CONFIG` when it has none), so a developer's own file never takes part. (`HOME` is left alone: the build
 //! tools the checks run need it.) Where the search finds the files is a unit test of `config::search_paths`.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

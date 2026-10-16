@@ -5,7 +5,10 @@
 mod common;
 
 use coderipper::coverage::{unchecked_languages, UncheckedLanguage};
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 fn found(files: &[(&str, &str)]) -> Vec<(String, usize)> {
     let repo = git_repo_with(files);

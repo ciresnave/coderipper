@@ -3,7 +3,6 @@
 //! `--message-format json` works), so a tool can read findings without parsing the human text. The golden tests pin the
 //! exact key sets: a field renamed or removed is a breaking change for everyone reading the stream.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

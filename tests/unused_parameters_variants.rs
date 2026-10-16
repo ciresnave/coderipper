@@ -7,7 +7,10 @@ mod common;
 
 use coderipper::check::{Check, CheckContext};
 use coderipper::checks::UnusedParametersCheck;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 fn subjects(files: &[(&str, &str)]) -> Vec<String> {
     let repo = git_repo_with(files);

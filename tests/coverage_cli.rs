@@ -5,7 +5,6 @@
 //! CodeRipper's incomplete implementation and not as a finding about the checked code. The default `classic` profile prints
 //! exactly what it printed before, apart from one stderr line for a language that has no module.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

@@ -3,7 +3,10 @@ mod common;
 use coderipper::check::{Check, CheckContext, Tier};
 use coderipper::checks::UnusedParametersCheck;
 use coderipper::finding::Finding;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 fn run(repo: &tempfile::TempDir) -> anyhow::Result<Vec<Finding>> {
     UnusedParametersCheck::new().run(&CheckContext::new(repo.path().to_path_buf()))

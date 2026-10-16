@@ -6,7 +6,10 @@ mod common;
 use coderipper::check::{Check, CheckContext, Tier};
 use coderipper::checks::{ReachabilityCheck, UnusedParametersCheck, UnusedReturnValuesCheck};
 use coderipper::finding::Finding;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 use std::path::Path;
 
 const WORKSPACE: &str = "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n";

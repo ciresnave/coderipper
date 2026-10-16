@@ -1,4 +1,3 @@
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use coderipper::check::{CargoFeatures, Check, CheckContext};

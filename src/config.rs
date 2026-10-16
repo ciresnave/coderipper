@@ -17,7 +17,6 @@
 //!
 //! The wide files are read once by the command-line program and installed for the process ([`install`]). A library caller
 //! that never calls it sees no wide file at all, so a library run is exactly as hermetic as before.
-#![cfg_attr(not(feature = "cli"), allow(dead_code))]
 
 use crate::allowlist::{AllowEntry, BufSettings, ReachabilitySettings, TrackEntry};
 use serde::Deserialize;
@@ -27,6 +26,7 @@ use std::sync::OnceLock;
 /// The one file name, in every place it is searched.
 pub(crate) const FILE_NAME: &str = ".coderipper.toml";
 
+#[cfg(feature = "cli")]
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
@@ -36,6 +36,7 @@ const PROFILES: &[&str] = &["classic", "extended"];
 const DENY_LEVELS: &[&str] = &["none", "info", "low", "medium", "high", "critical"];
 const MESSAGE_FORMATS: &[&str] = &["human", "json"];
 
+#[cfg(any(feature = "cli", test))]
 /// The limit keys, in the order they are reported.
 const LIMIT_NAMES: &[&str] = &[
     "max_runtime_minutes",
@@ -64,16 +65,39 @@ pub(crate) struct ConfigFile {
     /// A default for `--message-format`.
     #[serde(rename = "message-format")]
     pub message_format: Option<String>,
+    #[cfg(any(feature = "cli", test))]
     /// A default for `--redact`.
     pub redact: Option<bool>,
+    #[cfg(any(feature = "cli", test))]
     /// A default for `--install-tools`.
     #[serde(rename = "install-tools")]
     pub install_tools: Option<bool>,
+    #[cfg(any(feature = "cli", test))]
     pub cache: Option<CacheSection>,
+    #[cfg(any(feature = "cli", test))]
     pub tools: Option<ToolsSection>,
+    #[cfg(any(feature = "cli", test))]
     pub limits: Option<LimitsSection>,
+    /// Without the command-line program the keys only it reads are accepted, whatever their value, and not looked at; any other
+    /// key is still an error. `tests/config_cli_only_keys.rs` pins both builds.
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "redact")]
+    _redact: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "install-tools")]
+    _install_tools: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "cache")]
+    _cache: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "tools")]
+    _tools: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "limits")]
+    _limits: Option<toml::Value>,
 }
 
+#[cfg(any(feature = "cli", test))]
 /// `[cache]`: what `CODERIPPER_CACHE`, `CODERIPPER_CACHE_DIR`, `CODERIPPER_CACHE_MAX_GB` and `CODERIPPER_CACHE_WAIT_SECS` set.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -84,6 +108,7 @@ pub(crate) struct CacheSection {
     pub wait_secs: Option<f64>,
 }
 
+#[cfg(any(feature = "cli", test))]
 /// `[tools]`: what `CODERIPPER_TOOLS_DIR` sets.
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -91,6 +116,7 @@ pub(crate) struct ToolsSection {
     pub dir: Option<String>,
 }
 
+#[cfg(any(feature = "cli", test))]
 /// `[limits]`: ceilings (see the module documentation).
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -101,6 +127,7 @@ pub(crate) struct LimitsSection {
     pub max_processes: Option<u64>,
 }
 
+#[cfg(any(feature = "cli", test))]
 impl LimitsSection {
     fn get(&self, name: &str) -> Option<u64> {
         match name {
@@ -132,6 +159,7 @@ impl ConfigFile {
         Ok(file)
     }
 
+    #[cfg(any(feature = "cli", test))]
     /// The keys this file sets that a repository's file may not (see [`REPOSITORY_MAY_SET`]), by their written names.
     pub(crate) fn skipped_for_a_repository(&self) -> Vec<String> {
         let mut keys: Vec<String> = Vec::new();
@@ -178,6 +206,7 @@ pub(crate) fn read_file(path: &Path, required: bool) -> anyhow::Result<Option<Co
     }
 }
 
+#[cfg(any(feature = "cli", test))]
 /// The places a wide file is looked for, weakest first. `get` is the environment lookup (tests pass their own).
 pub(crate) fn search_paths(get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf> {
     let present = |k: &str| get(k).filter(|v| !v.trim().is_empty());
@@ -198,6 +227,7 @@ pub(crate) fn search_paths(get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf>
     paths
 }
 
+#[cfg(any(feature = "cli", test))]
 /// Reads the wide files. `explicit` (`--config`) is read in place of the search, and must exist; `no_config` reads none.
 pub(crate) fn load_wide(
     get: &dyn Fn(&str) -> Option<String>,
@@ -229,6 +259,7 @@ pub(crate) fn load_wide(
 
 static WIDE: OnceLock<Vec<Layer>> = OnceLock::new();
 
+#[cfg(feature = "cli")]
 /// Installs the wide files for this process. When some were installed already the first stay: the command-line program calls
 /// this once, before anything reads them.
 pub(crate) fn install(layers: Vec<Layer>) {
@@ -240,6 +271,7 @@ pub(crate) fn wide_layers() -> &'static [Layer] {
     WIDE.get().map_or(&[], Vec::as_slice)
 }
 
+#[cfg(any(feature = "cli", test))]
 /// One effective ceiling and the file or variable that gave the lowest value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Limit {
@@ -248,6 +280,7 @@ pub(crate) struct Limit {
     pub source: String,
 }
 
+#[cfg(any(feature = "cli", test))]
 /// The settings the wide files and the environment give, before flags and the repository's file are applied.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct Settings {
@@ -264,6 +297,7 @@ pub(crate) struct Settings {
     pub limits: Vec<Limit>,
 }
 
+#[cfg(any(feature = "cli", test))]
 impl Settings {
     /// Combines `layers`, weakest first: a later layer's value replaces an earlier one's; limits take the minimum.
     pub(crate) fn from_layers(layers: &[Layer]) -> Self {

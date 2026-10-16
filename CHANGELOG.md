@@ -6,6 +6,23 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.40 - 2026-10-16 (proposed)
+
+No `#[allow(dead_code)]` attribute is left in the repository (CireSnave 2026-10-16: *"That same general dislike applies to
+#[allow(dead_code)] as well.  That should also be a last resort."*). 25 removed; none was a last resort.
+
+### Changed
+- Tests: `tests/common/mod.rs` held two helpers and 13 test files allowed dead code because each used a subset. `MANIFEST` is now
+  `tests/common/manifest.rs`, included by the 9 files that use it (`#[path]`); `tests/cli_help.rs` used neither and no longer
+  includes `common`.
+- `src/build_cache`, `src/config.rs`: items only the command-line program uses are `#[cfg(feature = "cli")]` (or
+  `any(feature = "cli", test)` when unit tests use them) instead of allowed. Without the `cli` feature `ConfigFile` accepts the
+  five keys only the CLI reads (`redact`, `install-tools`, `cache`, `tools`, `limits`), whatever their value, and does not look
+  at them; every other unknown key is still an error, and with `cli` behaviour is unchanged. `tests/config_cli_only_keys.rs`
+  pins both builds, and CI runs it without `cli`.
+- `src/cargo_json.rs`: `RawTarget.name` and `.kind` exist only in test builds, the only place they are read.
+- `src/session.rs`: `release_lock_for_test`, called by nothing, is deleted.
+
 ## 0.6.39 - 2026-10-15 (proposed)
 
 CodeRipper's whole extended sweep on itself runs in CI.
