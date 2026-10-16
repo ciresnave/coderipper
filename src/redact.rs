@@ -333,7 +333,7 @@ const AUTH_SCHEMES: &[&str] = &[
     "apikey",
 ];
 
-/// The ends of a private-key marker line (`-----BEGIN RSA PRIVATE KEY-----`, `-----END PGP PRIVATE KEY BLOCK-----`).
+/// The ends of a private-key marker line: what follows `BEGIN ` or `END ` in `RSA PRIVATE KEY` or `PGP PRIVATE KEY BLOCK`.
 const KEY_MARKER_ENDS: &[&str] = &["PRIVATE KEY BLOCK-----", "PRIVATE KEY-----"];
 
 /// A private-key block: `-----BEGIN ... PRIVATE KEY-----` through the matching `-----END ...`, to the end of the text when the

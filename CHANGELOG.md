@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.38 - 2026-10-15 (proposed)
+
+The three SEC-002 findings CodeRipper's own sweep reported in `src/` (measured on 0.6.36 at ba87887).
+
+### Fixed
+- `src/module/delegate/gitleaks.rs` (test) and `src/redact.rs` (a doc comment) no longer hold a key-shaped literal at HEAD: the
+  test joins its placeholder at run time, and the doc comment names the marker without writing it.
+
+### Changed
+- `.coderipper.toml` waives SEC-002 for those two files, with a reason, an owner and a removal condition. The scan reads
+  history, and the two commits that introduced the literals (24cb9f1a, f8c78dbe) stay in it, so editing HEAD cannot clear
+  the finding; none of the three is a secret (a made-up AWS-key-shaped placeholder in a test; a marker line with no key body).
+
 ## 0.6.37 - 2026-10-15 (proposed)
 
 A repository's own conformance fixtures are no longer reported when it is swept (CodeRipper's own `sweep --deny info` exited 1,
