@@ -21,6 +21,8 @@ CodeRipper's whole extended sweep on itself runs in CI.
   uses it for `ci-protection-presence` alone: the job's token (`contents: read`) cannot read branch protection (run 38841727909
   exited 3, "cannot read ciresnave/coderipper from GitHub"), and a personal access token is not to be given to a job. That check
   runs in the PM's sweep under an admin account. Existing functions are unchanged.
+- The sweep job fails when any rule did not run: an unavailable delegated tool is a note, which never changes the exit code, so the
+  job reads the notes on stderr and fails on any that is not the requested `skipped on request` (review finding on #89).
 
 ## 0.6.38 - 2026-10-15 (proposed)
 
