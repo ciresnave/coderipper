@@ -3,7 +3,6 @@
 //! race between tests), and uses `unused-parameters`, which builds the package, so the `cache:` line the CLI
 //! prints on stderr says how many compilation units were reused (`fresh`) and how many were built.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

@@ -38,6 +38,3 @@ fn git(dir: &Path, args: &[&str]) {
         .unwrap();
     assert!(status.success(), "git {args:?} failed");
 }
-
-pub const MANIFEST: &str =
-    "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n";

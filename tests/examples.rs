@@ -1,6 +1,5 @@
 //! The examples are documentation that must keep working: each one is run for real and its output checked.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use std::process::{Command, Output};

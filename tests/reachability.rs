@@ -2,7 +2,10 @@ mod common;
 
 use coderipper::check::{Check, CheckContext};
 use coderipper::checks::reachability::ReachabilityCheck;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 use std::process::Command;
 
 fn fixture_as_a_git_repo() -> tempfile::TempDir {

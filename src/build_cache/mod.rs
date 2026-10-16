@@ -35,7 +35,6 @@ use std::sync::{Mutex, Once, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// A cache root contains this file. Pruning refuses a directory without it.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) const MARKER: &str = ".coderipper-cache";
 const LOCK_FILE: &str = ".coderipper.lock";
 const HOLDER_FILE: &str = ".coderipper.holder";
@@ -131,9 +130,9 @@ pub fn set_cache_config(config: CacheConfig) -> bool {
     CONFIG.set(config).is_ok()
 }
 
+#[cfg(any(feature = "cli", test))]
 /// The cache configuration from the environment, or `None` when the cache is off or no root can be derived.
 /// Takes the lookup as a parameter so every branch is testable without touching the process environment.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn config_from_env(get: &dyn Fn(&str) -> Option<String>) -> Option<CacheConfig> {
     if get("CODERIPPER_CACHE").is_some_and(|v| v.trim().eq_ignore_ascii_case("off")) {
         return None;
@@ -364,7 +363,6 @@ pub(crate) fn acquire(source_repo: &Path) -> CacheChoice {
 
 // ---- size, listing, pruning ----
 
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 #[derive(Debug, Clone)]
 pub(crate) struct RepoDirInfo {
     pub path: PathBuf,
@@ -400,7 +398,6 @@ fn subdirs(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Every `<root>/<toolchain>/<repository>` directory.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn status(root: &Path) -> anyhow::Result<Vec<RepoDirInfo>> {
     anyhow::ensure!(
         root.join(MARKER).is_file(),
@@ -427,7 +424,6 @@ pub(crate) fn status(root: &Path) -> anyhow::Result<Vec<RepoDirInfo>> {
 /// Deletes the least recently used repository directories until the cache is at most `max_bytes`, skipping
 /// a directory another process has locked and the `keep` directory. Returns what it deleted. Refuses a root
 /// without the `MARKER` file.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn prune_to_cap(
     root: &Path,
     max_bytes: u64,
@@ -479,7 +475,6 @@ fn remove_if_unlocked(dir: &Path) -> bool {
 
 // ---- what the builds did, for the one line `main` prints at the end of a run ----
 
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BuildStats {
     pub fresh: u64,
@@ -515,8 +510,8 @@ pub(crate) fn note(text: String) {
     }
 }
 
+#[cfg(feature = "cli")]
 /// Everything recorded so far, resetting the counters.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn take_stats() -> BuildStats {
     STATS
         .lock()
@@ -524,8 +519,8 @@ pub(crate) fn take_stats() -> BuildStats {
         .unwrap_or_default()
 }
 
+#[cfg(any(feature = "cli", test))]
 /// The text `main` prints to stderr, or `None` when nothing was built and nothing needs saying.
-#[cfg_attr(not(feature = "cli"), allow(dead_code))]
 pub(crate) fn render_stats(stats: &BuildStats) -> Option<String> {
     if stats.fresh == 0 && stats.compiled == 0 && stats.notes.is_empty() {
         return None;

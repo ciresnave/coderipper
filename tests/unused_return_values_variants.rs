@@ -7,7 +7,10 @@ mod common;
 
 use coderipper::check::{Check, CheckContext};
 use coderipper::checks::UnusedReturnValuesCheck;
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 /// The functions the check reports, by the name in each finding's summary, over a crate whose root is `src/main.rs`.
 fn reported(main_rs: &str) -> Vec<String> {

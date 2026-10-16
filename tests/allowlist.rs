@@ -6,7 +6,10 @@ mod common;
 use coderipper::check::{CheckContext, Tier};
 use coderipper::finding::{Finding, Severity};
 use coderipper::{run_checks, RunResult};
-use common::{git_repo_with, MANIFEST};
+#[path = "common/manifest.rs"]
+mod manifest;
+use common::git_repo_with;
+use manifest::MANIFEST;
 
 const URV: &str = "unused-return-values";
 

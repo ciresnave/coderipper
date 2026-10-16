@@ -3,7 +3,6 @@
 //! or above `--deny` that no `[[allow]]` entry waives, 2 a usage error, 3 a check could not run. Since 0.5.0 `--deny` defaults
 //! to `info`, so any finding fails the run; `--deny none` restores "print, never fail", and `--deny medium` lets Low and Info through.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

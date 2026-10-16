@@ -145,13 +145,6 @@ impl Session {
     pub(crate) fn cache_dir(&self) -> Option<&Path> {
         self.inner.cache_dir.as_deref()
     }
-
-    /// Tests only: let go of the cache lock (the sabotage of the overlapping-run test).
-    #[cfg(test)]
-    #[allow(dead_code)] // only a manual sabotage run of the overlapping-run test calls it
-    pub(crate) fn release_lock_for_test(&self) {
-        self.inner._cache.borrow_mut().take();
-    }
 }
 
 /// Runs `f` with `session` active on this thread: `RewrittenWorktree::create_with` for the session's repository

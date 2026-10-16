@@ -2,9 +2,6 @@
 //! What `--help`, `--version` and the usage line say. The help is the documentation a user reads first, and it is the
 //! one place a doc comment placed above the wrong attribute silently describes the wrong option.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
-mod common;
-
 use assert_cmd::Command;
 
 fn coderipper(args: &[&str]) -> std::process::Output {

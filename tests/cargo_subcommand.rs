@@ -3,7 +3,6 @@
 //! `cargo-coderipper coderipper <args>` (it passes the subcommand's own name first); a bare `cargo coderipper` means
 //! `fast`.
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;

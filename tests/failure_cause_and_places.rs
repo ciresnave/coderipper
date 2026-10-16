@@ -5,7 +5,6 @@
 //! error(s) (or failed without any diagnostic)" and nothing else, and eight identical "actions/checkout@v4 is not pinned" lines
 //! gave no file or line (the JSON had them).
 
-#[allow(dead_code)] // shared helpers; this file uses only some of them
 mod common;
 
 use assert_cmd::Command;
