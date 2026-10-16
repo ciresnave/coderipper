@@ -11,6 +11,7 @@
 use crate::allowlist::{AllowEntry, Allowlist};
 use crate::finding::{Confidence, Finding, Location, Severity, Waived};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// `check_id` of the findings this module emits.
 pub(crate) const ALLOWLIST_CHECK_ID: &str = "allowlist";
@@ -25,6 +26,10 @@ pub(crate) struct Suppression<'a> {
     completed: HashMap<String, usize>,
     /// The findings entries waived, each with the reason of the first entry that named it.
     waived: Vec<Waived>,
+    /// The project root, when findings under its conformance fixtures are not to be reported (see [`is_fixture`]).
+    fixtures_of: Option<PathBuf>,
+    /// How many findings were left out as fixture findings.
+    excluded: usize,
 }
 
 impl<'a> Suppression<'a> {
@@ -34,7 +39,24 @@ impl<'a> Suppression<'a> {
             matched: vec![false; allowlist.entries().len()],
             completed: HashMap::new(),
             waived: Vec::new(),
+            fixtures_of: None,
+            excluded: 0,
         }
+    }
+
+    /// Like [`Self::new`], and a finding located in one of `project_root`'s own conformance fixtures is left out of the
+    /// result, not reported: the fixture is defective on purpose, and the repository that holds it is not the project the
+    /// fixture describes.
+    pub fn for_project(allowlist: &'a Allowlist, project_root: &Path) -> Self {
+        Self {
+            fixtures_of: Some(project_root.to_path_buf()),
+            ..Self::new(allowlist)
+        }
+    }
+
+    /// How many findings [`Self::apply`] left out because they were in a conformance fixture; zero for [`Self::new`].
+    pub fn excluded(&self) -> usize {
+        self.excluded
     }
 
     /// Records that `check_id` ran to completion and returned `raw_count` findings before
@@ -48,6 +70,10 @@ impl<'a> Suppression<'a> {
     pub fn apply(&mut self, raw: Vec<Finding>) -> Vec<Finding> {
         let mut kept = Vec::new();
         for f in raw {
+            if self.in_fixture(&f) {
+                self.excluded += 1;
+                continue;
+            }
             let mut reason = None;
             for (i, entry) in self.allowlist.entries().iter().enumerate() {
                 if names_finding(entry, &f) {
@@ -74,6 +100,14 @@ impl<'a> Suppression<'a> {
         kept
     }
 
+    fn in_fixture(&self, f: &Finding) -> bool {
+        let (Some(root), Some(location)) = (self.fixtures_of.as_deref(), f.location.as_ref())
+        else {
+            return false;
+        };
+        is_fixture(root, &location.file)
+    }
+
     /// The findings waived so far, in the order they were seen.
     pub fn take_waived(&mut self) -> Vec<Waived> {
         std::mem::take(&mut self.waived)
@@ -98,6 +132,26 @@ impl<'a> Suppression<'a> {
         }
         out
     }
+}
+
+/// Is `file` (a `/`-separated path relative to `root`) inside a conformance fixture of `root`: `conformance/<rule>/<variant>/...`
+/// where the variant directory holds the fixture's `expect.toml`? A same-shaped file anywhere else, or under `conformance/` but not
+/// in a fixture (no `expect.toml`), is not one.
+fn is_fixture(root: &Path, file: &str) -> bool {
+    let mut parts = file.split('/');
+    let (Some("conformance"), Some(rule), Some(variant), Some(_)) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return false;
+    };
+    if [rule, variant].iter().any(|p| p.is_empty() || *p == "..") {
+        return false;
+    }
+    root.join("conformance")
+        .join(rule)
+        .join(variant)
+        .join("expect.toml")
+        .is_file()
 }
 
 fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
@@ -278,6 +332,60 @@ mod tests {
             positive_control: None,
             member: None,
         }
+    }
+
+    #[test]
+    fn a_finding_in_the_projects_own_conformance_fixture_is_left_out_and_counted() {
+        let root = tempfile::tempdir().unwrap();
+        let fixture = root.path().join("conformance/SUP-001/defective");
+        std::fs::create_dir_all(&fixture).unwrap();
+        std::fs::write(fixture.join("expect.toml"), "").unwrap();
+        // the same shape, but no `expect.toml` beside it, and the same shape outside `conformance/`
+        std::fs::create_dir_all(root.path().join("conformance/notes/draft")).unwrap();
+        let al = Allowlist::empty();
+        let mut s = Suppression::for_project(&al, root.path());
+        let kept = s.apply(vec![
+            finding(
+                "SUP-001",
+                "conformance/SUP-001/defective/web/package.json",
+                None,
+            ),
+            finding("SUP-001", "conformance/notes/draft/web/package.json", None),
+            finding(
+                "SUP-001",
+                "web/conformance/SUP-001/defective/package.json",
+                None,
+            ),
+            finding("SUP-001", "web/package.json", None),
+            finding("SUP-001", "conformance/../web/package.json", None),
+        ]);
+        let kept: Vec<_> = kept
+            .iter()
+            .map(|f| f.location.as_ref().unwrap().file.as_str())
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                "conformance/notes/draft/web/package.json",
+                "web/conformance/SUP-001/defective/package.json",
+                "web/package.json",
+                "conformance/../web/package.json",
+            ]
+        );
+        assert_eq!(s.excluded(), 1);
+    }
+
+    #[test]
+    fn without_a_project_root_nothing_is_left_out() {
+        let al = Allowlist::empty();
+        let mut s = Suppression::new(&al);
+        let kept = s.apply(vec![finding(
+            "SUP-001",
+            "conformance/SUP-001/defective/web/package.json",
+            None,
+        )]);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(s.excluded(), 0);
     }
 
     const ONE: &str =
