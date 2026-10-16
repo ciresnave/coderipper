@@ -6,6 +6,24 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.37 - 2026-10-15 (proposed)
+
+A repository's own conformance fixtures are no longer reported when it is swept (CodeRipper's own `sweep --deny info` exited 1,
+16 of 20 findings from `conformance/**`; measured on 0.6.36 at ba87887).
+
+### Changed
+- A finding located at `conformance/<rule>/<variant>/...`, where `<variant>` holds an `expect.toml`, is left out of the run
+  and counted in one stderr note ("N finding(s) in this repository's own conformance fixtures ... were not reported"). Such a
+  fixture is defective on purpose, and the repository that holds it is not the project it describes. Nothing else is
+  excluded: the same files anywhere else, or under `conformance/` without an `expect.toml`, are reported as before.
+  `coderipper conformance` is unaffected (it runs a fixture as the project root, where its paths are not under `conformance/`).
+  This also takes the `clean` DOC-010 fixture's `/docs/guide.md` out of a repository-wide run (a root-relative link resolves to
+  the repository root there, not to the fixture's).
+
+### Added (tests only)
+- `suppression` tests: a defective fixture finding is left out and counted; a same-shaped file outside `conformance/`, one
+  without `expect.toml`, and a `..` path are all kept.
+
 ## 0.6.36 - 2026-10-15 (proposed)
 
 The uncommitted-changes note and `--project`'s help no longer overclaim (review findings on #86).

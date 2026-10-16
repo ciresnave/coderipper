@@ -399,6 +399,12 @@ The default build (the `cli` feature) downloads over HTTPS through `ureq` and `r
 (`flate2` with its Rust backend, `tar`, `zip`) are pure Rust. Building without the `cli` feature (`default-features = false`)
 leaves `ring` out. Replacing `ring` with a pure-Rust provider is wanted and not done yet.
 
+## Conformance fixtures are not reported
+
+A repository that holds its own conformance fixtures (`conformance/<rule>/<variant>/`, each with an `expect.toml`) is not
+reported for what is in them: a fixture is defective on purpose. The run prints one note with the count. A file of the same
+shape anywhere else is reported as usual.
+
 ## Waiving a finding
 
 Since 0.5.0 a finding fails the run, so a deliberate one (public API built ahead of its consumer, a value discarded on
