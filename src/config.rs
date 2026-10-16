@@ -47,7 +47,7 @@ const LIMIT_NAMES: &[&str] = &[
 
 /// One `.coderipper.toml`, as written. `deny_unknown_fields`: a misspelt key is an error, never a silent absence.
 #[derive(Debug, Default, Deserialize)]
-#[cfg_attr(any(feature = "cli", test), serde(deny_unknown_fields))]
+#[serde(deny_unknown_fields)]
 pub(crate) struct ConfigFile {
     #[serde(rename = "allow", default)]
     pub allow: Vec<AllowEntry>,
@@ -78,10 +78,23 @@ pub(crate) struct ConfigFile {
     pub tools: Option<ToolsSection>,
     #[cfg(any(feature = "cli", test))]
     pub limits: Option<LimitsSection>,
-    /// Without the command-line program the keys it alone reads are accepted and not looked at.
+    /// Without the command-line program the keys only it reads are accepted, whatever their value, and not looked at; any other
+    /// key is still an error. `tests/config_cli_only_keys.rs` pins both builds.
     #[cfg(not(any(feature = "cli", test)))]
-    #[serde(flatten)]
-    _cli_only: std::collections::BTreeMap<String, toml::Value>,
+    #[serde(rename = "redact")]
+    _redact: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "install-tools")]
+    _install_tools: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "cache")]
+    _cache: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "tools")]
+    _tools: Option<toml::Value>,
+    #[cfg(not(any(feature = "cli", test)))]
+    #[serde(rename = "limits")]
+    _limits: Option<toml::Value>,
 }
 
 #[cfg(any(feature = "cli", test))]

@@ -17,7 +17,9 @@ No `#[allow(dead_code)]` attribute is left in the repository (CireSnave 2026-10-
   includes `common`.
 - `src/build_cache`, `src/config.rs`: items only the command-line program uses are `#[cfg(feature = "cli")]` (or
   `any(feature = "cli", test)` when unit tests use them) instead of allowed. Without the `cli` feature `ConfigFile` accepts the
-  keys only the CLI reads and does not look at them (they are not checked for misspelling there); with it, behaviour is unchanged.
+  five keys only the CLI reads (`redact`, `install-tools`, `cache`, `tools`, `limits`), whatever their value, and does not look
+  at them; every other unknown key is still an error, and with `cli` behaviour is unchanged. `tests/config_cli_only_keys.rs`
+  pins both builds, and CI runs it without `cli`.
 - `src/cargo_json.rs`: `RawTarget.name` and `.kind` exist only in test builds, the only place they are read.
 - `src/session.rs`: `release_lock_for_test`, called by nothing, is deleted.
 

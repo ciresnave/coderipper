@@ -104,6 +104,7 @@ jobs:
           cargo clippy --locked --no-default-features --all-targets -- -D warnings
           cargo test --locked --no-default-features --lib
           cargo test --locked --no-default-features --doc
+          cargo test --locked --no-default-features --test config_cli_only_keys
 
   msrv:
     name: Builds on the declared minimum Rust version
