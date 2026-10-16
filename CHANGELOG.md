@@ -15,6 +15,12 @@ CodeRipper's whole extended sweep on itself runs in CI.
   over the repository with its history fetched. Measured on this branch's tree: exit 0, no finding, 4 waived (1 declared public
   API, 3 history-only SEC-002 placeholders), 17 fixture findings not reported. Not a required check yet; the existing
   `coderipper` job (`fast --deny medium`, classic) is unchanged.
+- `--skip-rule ID=WHY` (repeatable, on `fast`, `sweep` and `check`) and the library's `run_checks_in_with_tools_skipping` /
+  `run_workspace_in_with_tools_skipping`: a built-in check is not called, and the run carries a note
+  `<ID> not run: skipped on request (<WHY>)`. A name that is no built-in check, and a skip with no reason, are errors. The CI job
+  uses it for `ci-protection-presence` alone: the job's token (`contents: read`) cannot read branch protection (run 38841727909
+  exited 3, "cannot read ciresnave/coderipper from GitHub"), and a personal access token is not to be given to a job. That check
+  runs in the PM's sweep under an admin account. Existing functions are unchanged.
 
 ## 0.6.38 - 2026-10-15 (proposed)
 

@@ -405,6 +405,13 @@ A repository that holds its own conformance fixtures (`conformance/<rule>/<varia
 reported for what is in them: a fixture is defective on purpose. The run prints one note with the count. A file of the same
 shape anywhere else is reported as usual.
 
+## Leaving a check out of a run
+
+`--skip-rule ID=WHY` (repeatable) does not call a built-in check and prints `ID not run: skipped on request (WHY)`. It is for a
+check that cannot run where the run is (`ci-protection-presence` needs repository-admin read, which a CI job's own token lacks),
+with the place it does run named in `WHY`. A name that is no built-in check and a skip with no reason are errors. It is not a way
+to silence a finding: that is an `[[allow]]` entry.
+
 ## Waiving a finding
 
 Since 0.5.0 a finding fails the run, so a deliberate one (public API built ahead of its consumer, a value discarded on

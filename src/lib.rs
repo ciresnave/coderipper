@@ -231,15 +231,32 @@ pub fn run_workspace_in_with_tools(
     only_check_id: Option<&str>,
     on_member: &mut dyn FnMut(&str, usize, usize),
 ) -> WorkspaceRun {
-    let mut run = run_workspace_over_in(
-        profile,
-        tools,
-        &registered_checks(),
-        ctx,
-        tier,
-        only_check_id,
-        on_member,
-    );
+    run_workspace_in_with_tools_skipping(profile, tools, ctx, tier, only_check_id, &[], on_member)
+}
+
+/// [`run_workspace_in_with_tools`] without the built-in checks named in `skip` (see [`run_checks_in_with_tools_skipping`]).
+pub fn run_workspace_in_with_tools_skipping(
+    profile: Profile,
+    tools: &ToolEnv,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    skip: &[(String, String)],
+    on_member: &mut dyn FnMut(&str, usize, usize),
+) -> WorkspaceRun {
+    let checks = match checks_without(skip) {
+        Ok(checks) => checks,
+        Err(e) => {
+            return WorkspaceRun {
+                result: RunResult::new(Vec::new(), vec![e]),
+                members: 0,
+                members_with_errors: 0,
+            }
+        }
+    };
+    let mut run =
+        run_workspace_over_in(profile, tools, &checks, ctx, tier, only_check_id, on_member);
+    run.result.notes.extend(skip_notes(skip));
     redact::finish(&mut run.result);
     run
 }
@@ -460,15 +477,57 @@ pub fn run_checks_in_with_tools(
     tier: Tier,
     only_check_id: Option<&str>,
 ) -> RunResult {
+    run_checks_in_with_tools_skipping(profile, tools, ctx, tier, only_check_id, &[])
+}
+
+/// The built-in checks without the ones `skip` names, each as `(check id, why)`. A name that is no built-in check (a typo, or a rule
+/// of a profile) is an error, never a quiet no-op; every skip is a note on the run, with its reason.
+fn checks_without(skip: &[(String, String)]) -> Result<Vec<Box<dyn Check>>, String> {
+    let checks = registered_checks();
+    let ids: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+    for (id, _) in skip {
+        if !ids.contains(&id.as_str()) {
+            return Err(format!(
+                "cannot skip \"{id}\": it is no built-in check; the checks are: {}",
+                ids.join(", ")
+            ));
+        }
+    }
+    Ok(checks
+        .into_iter()
+        .filter(|c| !skip.iter().any(|(id, _)| id == c.id()))
+        .collect())
+}
+
+fn skip_notes(skip: &[(String, String)]) -> impl Iterator<Item = String> + '_ {
+    skip.iter()
+        .map(|(id, why)| format!("{id} not run: skipped on request ({why})"))
+}
+
+/// [`run_checks_in_with_tools`] without the built-in checks named in `skip`, each as `(check id, why)`: the run does not call
+/// them and says so in its notes, with the reason. A name that is not a built-in check is an error in the result.
+pub fn run_checks_in_with_tools_skipping(
+    profile: Profile,
+    tools: &ToolEnv,
+    ctx: &CheckContext,
+    tier: Tier,
+    only_check_id: Option<&str>,
+    skip: &[(String, String)],
+) -> RunResult {
+    let checks = match checks_without(skip) {
+        Ok(checks) => checks,
+        Err(e) => return RunResult::new(Vec::new(), vec![e]),
+    };
     let mut result = run_checks_over_in(
         profile,
         tools,
-        &registered_checks(),
+        &checks,
         ctx,
         tier,
         only_check_id,
         UnitFilter::Any,
     );
+    result.notes.extend(skip_notes(skip));
     redact::finish(&mut result);
     result
 }

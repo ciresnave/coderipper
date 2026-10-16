@@ -67,6 +67,8 @@ jobs:
   # severity failing the job (`--deny info`). It is the run the portfolio PM measures, so it stays green. The history is fetched
   # (SEC-002 reads it, and says "not run" on a shallow clone); the tools are downloaded because without `--install-tools` a rule
   # whose tool is missing is a gap and the job would pass without having looked. Not a required check (yet).
+  # `ci-protection-presence` is the one check left out: it reads branch protection, which the workflow token (`contents: read`) cannot
+  # see and which a personal access token must not be given for. It runs in the PM's sweep, under an admin account (ROADMAP item 7).
   coderipper-sweep:
     name: CodeRipper sweep (extended, --deny info) on its own repository
     runs-on: ubuntu-latest
@@ -76,7 +78,7 @@ jobs:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
       - name: coderipper sweep --profile extended --all-features --deny info
-        run: cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --project .
+        run: cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project .
 
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
