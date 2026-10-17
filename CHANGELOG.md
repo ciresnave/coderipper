@@ -6,6 +6,33 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.43 - 2026-10-17 (proposed)
+
+A committed merge conflict is a finding, in every profile (PM task after baracuda#197 merged `<<<<<<< HEAD` into `docs/DEVICE-TESTS.md` and every
+gate passed).
+
+### Added
+- Rule `conflict-marker` (neutral module; catalog record in `rules/gov.toml`; **runs under `classic` too**, the one neutral rule that does): a tracked
+  text file with a line that starts with seven `<` and a space (or is those seven alone) opens a conflict region, a line that starts with seven `>`
+  and a space closes it, and a line of seven `=` counts only between them (alone it is a Markdown heading underline). One High finding per region at
+  its first line; a region never closed, and a closing marker with no opening, are findings too. Not read, so that quoting the markers is not a
+  defect: a fenced code block in a Markdown file, anything under `fixtures`, `testdata`, `conformance`, `snapshots`, `golden` or a vendored
+  directory, patch files (`.patch`, `.diff`, `.rej`, `.orig`), a file with a NUL byte, a file over two megabytes. Git is asked once which files hold a
+  candidate line (`git grep`), so a large repository is not read blob by blob (fuel, 1809 files: seconds, not minutes). A `classic` run in a
+  directory that is not a git repository with a commit does not take it (nothing to read); `extended` still errors there, as the other neutral rules do.
+- Planted case both ways: `conformance/conflict-marker/{defective,clean}` (a conflict in a page at line 5; the same text in a fenced block, and a
+  heading underline, reported as nothing), unit tests for each shape (CRLF, never-closed, stray close, fence and tilde fence, fixtures, vendored,
+  patch, binary, six characters, indented), and a CLI test that `classic` and `extended` both report it and `--deny` fails the run.
+
+### Changed (a behaviour change in `classic`)
+- **The default profile now runs a sixth rule.** `classic` was the five original checks and nothing else; it now also runs `conflict-marker`, so a
+  repository with a committed conflict marker fails a plain `coderipper fast` (exit 1 at `--deny info`), and `--coverage` counts one more rule that ran
+  ("5 clean" where a one-crate run said 4). A repository with no marker sees no other change.
+
+### Measured
+- Over the 27 default-branch clones of 2026-10-17: the rule found `baracuda` `docs/DEVICE-TESTS.md:4` (the merge that started this; region lines 4-8) in a
+  clone taken before baracuda#199 removed it; **re-fetched after #199, all 27 are clean**, including coderipper itself.
+
 ## 0.6.42 - 2026-10-16 (proposed)
 
 Q14 triage (PM task; CireSnave 2026-10-16: "Go with your recommendation" = no breaking release yet).

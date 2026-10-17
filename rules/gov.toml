@@ -241,3 +241,29 @@ checked_today = "Rust only: each allow attribute (also inside cfg_attr) and each
 [rule.applicability]
 languages = ["rust"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "conflict-marker"
+title = "No tracked file holds an unresolved merge conflict"
+domain = "GOV"
+statement = "No file in the repository contains merge conflict markers: a line that starts with seven less-than signs, a line of seven equals signs inside that region, or a line that starts with seven greater-than signs."
+rationale = "A committed conflict marker means a merge was finished without being resolved: the file is neither side's work, a document reads as nonsense and code may not build, and every gate that reads only the build passes it."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+aliases = []
+remediation = "Resolve the conflict: keep the intended lines and delete the marker lines. A file that quotes the markers on purpose puts them in a fenced code block."
+related = ["GOV-002"]
+lifecycle = "experimental"
+checked_today = "Every tracked text file outside fixtures, vendored directories and patch files, read line by line at HEAD: an opening marker with or without a closing one, and a stray closing marker. A fenced code block in a Markdown file is not read, and a line of equals signs outside a region is a heading underline. Not judged: markers that do not start their line, and files over two megabytes or with a NUL byte."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
