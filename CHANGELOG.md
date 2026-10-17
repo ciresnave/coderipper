@@ -24,9 +24,14 @@ gate passed).
   heading underline, reported as nothing), unit tests for each shape (CRLF, never-closed, stray close, fence and tilde fence, fixtures, vendored,
   patch, binary, six characters, indented), and a CLI test that `classic` and `extended` both report it and `--deny` fails the run.
 
+### Changed (a behaviour change in `classic`)
+- **The default profile now runs a sixth rule.** `classic` was the five original checks and nothing else; it now also runs `conflict-marker`, so a
+  repository with a committed conflict marker fails a plain `coderipper fast` (exit 1 at `--deny info`), and `--coverage` counts one more rule that ran
+  ("5 clean" where a one-crate run said 4). A repository with no marker sees no other change.
+
 ### Measured
-- Over the 27 default-branch clones of 2026-10-17: **1 hit**, `baracuda` `docs/DEVICE-TESTS.md:4` (the merge that started this; the region is lines 4-8).
-  The other 26 are clean, including coderipper itself.
+- Over the 27 default-branch clones of 2026-10-17: the rule found `baracuda` `docs/DEVICE-TESTS.md:4` (the merge that started this; region lines 4-8) in a
+  clone taken before baracuda#199 removed it; **re-fetched after #199, all 27 are clean**, including coderipper itself.
 
 ## 0.6.42 - 2026-10-16 (proposed)
 
