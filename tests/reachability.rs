@@ -759,6 +759,34 @@ pub fn standalone() {}
 }
 
 #[test]
+fn a_pub_finding_says_it_is_pub_and_names_both_cures_and_a_private_one_does_not() {
+    // Q14 sample of 2026-10-16: 26 of 30 reported items were `pub` API of a published library, 4 were private dead code.
+    // The text must let a reader tell them apart without opening the file.
+    let lib = "pub fn api() {}
+fn private_dead() {}
+";
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", lib)]);
+    let findings = run_reachability(&repo).unwrap();
+    let detail_of = |subject: &str| {
+        findings
+            .iter()
+            .find(|f| f.subject.as_deref() == Some(subject))
+            .unwrap_or_else(|| panic!("no finding for {subject}: {findings:?}"))
+            .detail
+            .clone()
+    };
+    let api = detail_of("api");
+    assert!(
+        api.contains("written `pub`") && api.contains("public_api") && api.contains("pub(crate)"),
+        "{api}"
+    );
+    assert!(
+        !detail_of("private_dead").contains("written `pub`"),
+        "{findings:?}"
+    );
+}
+
+#[test]
 fn a_dead_type_keeps_the_plain_claim_even_though_its_methods_mention_it() {
     // An inherent impl's header lends the type's name to its methods; the type is not "reachable only from" them.
     let lib = "pub struct Dead;

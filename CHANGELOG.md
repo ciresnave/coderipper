@@ -6,6 +6,22 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.6.42 - 2026-10-16 (proposed)
+
+Q14 triage (PM task; CireSnave 2026-10-16: "Go with your recommendation" = no breaking release yet).
+
+### Changed
+- **A `reachability` finding on an item written `pub` says so and names both cures.** In the 2026-10-16 sample of 30 findings
+  (`auto-discovery`, `mlmf`), 28 were rooted in a `pub` item of a published library (true as stated, not dead) and 2 were private dead
+  code, but the text was the same for both. The detail now adds: "It is written `pub`: if it is this library's API, declare it under
+  `[reachability] public_api` with a reason; if not, remove it or narrow it to `pub(crate)`." Only with a library; the summary and the
+  set of findings are unchanged. Planted both ways in `tests/reachability.rs`.
+
+### Added
+- `docs/portfolio-triage/2026-10-16-q14-remeasurement.md`: WSP-001, DOC-009 and SUP-008 re-measured (11, 3 and 176 findings against 24,
+  21 and 326 on 2026-10-14; every one a true defect in the repository's own files, so no rule changed), every repository-level rule on
+  `baracuda`, `synapse` and `fuel`, the reachability read, and the measured bar.
+
 ## 0.6.41 - 2026-10-16 (proposed)
 
 A Rust lint suppression or ignored test says why (CireSnave 2026-10-16: *"That same general dislike applies to
