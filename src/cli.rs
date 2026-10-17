@@ -38,9 +38,9 @@ enum MessageFormat {
 /// `--profile`'s values: which rules run and what is reported.
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Profile {
-    /// The five original checks and exactly the output they have always had (the default).
+    /// The five original checks, plus `conflict-marker` (the one rule every profile takes), and the output they have always had (the default).
     Classic,
-    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression); the
+    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression, conflict-marker); the
     /// rules of the language modules join it as they arrive.
     Extended,
 }
@@ -902,6 +902,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         neutral.extend(crate::module::delegated_rule_ids());
         if profile == Profile::Extended {
             known.extend(&neutral);
+        } else {
+            // the one rule every profile takes
+            known.push("conflict-marker");
         }
         if !known.contains(&id.as_str()) {
             let hint = if neutral.contains(&id.as_str()) {

@@ -173,3 +173,64 @@ fn lint_suppression_runs_only_under_extended_and_counts_the_attributes_that_say_
         "1 allow and 0 ignore attribute(s) carry a reason",
     ));
 }
+
+#[test]
+fn conflict_marker_runs_in_every_profile_and_reads_a_fence_as_a_quotation() {
+    let (l, e, g) = ("<".repeat(7), "=".repeat(7), ">".repeat(7));
+    let conflict = format!(
+        "{l} HEAD
+ours
+{e}
+theirs
+{g} branch
+"
+    );
+    let defective = common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/main.rs", MAIN),
+        (
+            "docs/DEVICE-TESTS.md",
+            &format!(
+                "# Tests
+
+{conflict}"
+            ),
+        ),
+    ]);
+    // classic and extended both report it, at the opening marker, and `--deny` fails the run
+    for profile in ["classic", "extended"] {
+        coderipper(&defective, &["fast", "--profile", profile])
+            .assert()
+            .code(0)
+            .stdout(predicate::str::contains(
+                "docs/DEVICE-TESTS.md:3 (conflict-marker)",
+            ));
+        Command::cargo_bin("coderipper")
+            .unwrap()
+            .args(["fast", "--profile", profile, "--project"])
+            .arg(defective.path())
+            .env("CODERIPPER_CACHE", "off")
+            .assert()
+            .code(1);
+    }
+    // the same text in a fenced block of a page is a quotation, and a heading underline is not a marker: clean
+    let clean = common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("src/main.rs", MAIN),
+        (
+            "docs/MERGING.md",
+            &format!(
+                "Merging
+{e}
+
+```
+{conflict}```
+"
+            ),
+        ),
+    ]);
+    coderipper(&clean, &["fast"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("conflict-marker").not());
+}

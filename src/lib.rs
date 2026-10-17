@@ -181,7 +181,7 @@ pub fn run_workspace(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Profile {
-    /// The five original checks and nothing else: what [`run_checks`] and [`run_workspace`] always ran.
+    /// The five original checks, and the `conflict-marker` rule (a committed conflict marker is a broken file in any profile).
     Classic,
     /// `Classic`, plus the rules of the built-in language-neutral module ([`module::NeutralModule`]) and the rules delegated to
     /// installed tools ([`module::DelegatedModule`]; a tool that is not installed makes its rule a reported gap, never a
@@ -193,7 +193,8 @@ impl Profile {
     /// The rule ids this profile adds to the five original checks.
     fn extra_rules(self) -> Vec<&'static str> {
         match self {
-            Profile::Classic => Vec::new(),
+            // the one rule every profile takes: a committed conflict marker is a broken file, whatever else is checked
+            Profile::Classic => vec!["conflict-marker"],
             Profile::Extended => {
                 let mut ids = module::neutral_rule_ids();
                 ids.extend(module::delegated_rule_ids());
@@ -865,7 +866,17 @@ fn run_selected_checks(
     units: UnitFilter,
     rootless: bool,
 ) -> RunResult {
-    let extra = profile.extra_rules();
+    let mut extra = profile.extra_rules();
+    // Classic's one extra rule reads HEAD. A project that is not a git repository with a commit has nothing for it to read,
+    // and a classic run must not start failing there (the extended profile does say so: the neutral rules error on it).
+    if profile == Profile::Classic
+        && !conformance::git_command(&ctx.project_root)
+            .args(["rev-parse", "--verify", "-q", "HEAD"])
+            .output()
+            .is_ok_and(|o| o.status.success())
+    {
+        extra.clear();
+    }
     // The checks to run, decided here (the host chooses what is in scope), then asked of the Rust module as one request.
     let mut selected: Vec<String> = checks
         .iter()
@@ -916,10 +927,7 @@ fn run_selected_checks(
     let neutral = module::NeutralModule::new();
     let delegated = module::DelegatedModule::new(tools.clone());
     let composite = module::Composite::new(vec![&rust, &neutral, &delegated]);
-    let module: &dyn module::Module = match profile {
-        Profile::Classic => &rust,
-        _ => &composite,
-    };
+    let module: &dyn module::Module = &composite;
     run_module_over(
         module,
         ctx,
