@@ -131,8 +131,9 @@ fn a_clean_nested_crate_is_clean_and_counted_as_run() {
     ]);
     let out = run(&["fast", "--coverage"], repo.path()).code(0);
     let text = stdout_of(&out);
+    // the cargo-level checks that apply to this crate, plus `conflict-marker`, which every profile takes
     assert!(
-        text.contains("4 clean, 0 with findings, 0 not run here, 0 could not run"),
+        text.contains("5 clean, 0 with findings, 0 not run here, 0 could not run"),
         "{text}"
     );
 }
