@@ -67,6 +67,32 @@ impl ReachabilityCheck {
     }
 }
 
+/// Whether the item at `file:line` was written `pub` (the rewritten tree has it as `pub(crate)`): read from the
+/// real project root, and false when either line cannot be read or the two disagree (an edited working tree).
+fn was_written_pub(
+    project_root: &std::path::Path,
+    rewritten_root: &std::path::Path,
+    file: &str,
+    line: u32,
+) -> bool {
+    let nth = |root: &std::path::Path| {
+        std::fs::read_to_string(root.join(file))
+            .ok()
+            .and_then(|text| {
+                text.lines()
+                    .nth((line as usize).saturating_sub(1))
+                    .map(|l| l.trim_start().to_string())
+            })
+    };
+    match (nth(project_root), nth(rewritten_root)) {
+        (Some(original), Some(rewritten)) => match original.strip_prefix("pub ") {
+            Some(rest) => rewritten.strip_prefix("pub(crate) ") == Some(rest),
+            None => false,
+        },
+        _ => false,
+    }
+}
+
 /// "`x` is reachable only from `a`, which has no callers found within this crate" (at most three
 /// names, then a count).
 fn reachable_only_from(symbol: &str, from: &[String], cyclic: bool) -> String {
@@ -243,6 +269,13 @@ impl Check for ReachabilityCheck {
                         String::new(),
                     ),
                 };
+                // A `pub` item of a published library has no consumer inside its own repository: say that this one
+                // was written `pub`, so a reader can tell API from private code and knows both cures.
+                let pub_note = if has_lib && was_written_pub(&ctx.project_root, &wt.root, &hit.file, hit.line) {
+                    " It is written `pub`: if it is this library's API, declare it under `[reachability] public_api`                      with a reason; if not, remove it or narrow it to `pub(crate)`."
+                } else {
+                    ""
+                };
                 Finding {
                     check_id: "reachability".into(),
                     severity: Severity::Medium,
@@ -257,7 +290,7 @@ impl Check for ReachabilityCheck {
                     detail: format!(
                         "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
                          `pub(crate)` in a throwaway worktree, so the lint's normal `pub`-exemption doesn't \
-                         hide it. File: {}, line {}.{origin_note}{set_aside_note}",
+                         hide it. File: {}, line {}.{pub_note}{origin_note}{set_aside_note}",
                         hit.file, hit.line
                     ),
                     positive_control: Some(positive_control.clone()),
