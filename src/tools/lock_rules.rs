@@ -4,7 +4,10 @@
 //! over the shipped `tools.lock`, so a lock with a bad hash or an unsafe name fails the BUILD, and the run-time parser
 //! (`ToolsLock::parse`) applies exactly the same rules to any other lock.
 
-#![allow(dead_code)] // build.rs uses only some of these
+#![allow(
+    dead_code,
+    reason = "build.rs includes this file and uses only some of the functions"
+)]
 
 /// One lock entry's fields, borrowed.
 pub struct Fields<'a> {
