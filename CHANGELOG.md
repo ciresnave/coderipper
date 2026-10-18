@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.7.1 - 2026-10-18 (proposed)
+
+A bad shipped `tools.lock` fails the build, not only a test or a run (PM task, group5 audit row 1). Stacked on 0.7.0 (#95).
+
+### Changed
+- `build.rs` reads `src/tools/tools.lock` and runs the lock rules over every entry (64-hex hashes, safe name/version/file/member components, the
+  platform form, a licence, an allowed source scheme, archive/member/file_sha256 together, no duplicate name and platform); a violation panics the
+  build with the entry named. The rules moved to `src/tools/lock_rules.rs`, a file with no crate dependencies that `build.rs` includes by `#[path]`
+  and `ToolsLock::parse` calls, so the build-time check and the run-time parser cannot drift. Messages are unchanged. New build dependency: `toml`.
+- Shown, not just argued: with the first entry's `sha256` set to `deadbeef`, `cargo build` fails (exit 101, "gitleaks 8.30.1: sha256 must be 64 hex
+  digits"); restored, it builds. Before this the same lock built and the `embedded()` panic waited for the first `cargo test` or the first run.
+
 ## 0.7.0 - 2026-10-18 (proposed, Breaking)
 
 The module protocol's closed sets are types, not strings (PM task, group5 audit row 2; EXPECTATIONS 6.16: a closed set is checked where the data
