@@ -24,7 +24,7 @@
 use super::{dir_and_ancestors, dir_of, file_name, join, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "SUP-001";
+const ID: &str = crate::rule_id::SUP_001;
 
 const NODE_LOCKS: &[&str] = &[
     "package-lock.json",

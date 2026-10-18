@@ -38,8 +38,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// The catalog rules this evidences.
-pub(super) const SUP: &str = "SUP-002";
-pub(super) const SEC: &str = "SEC-006";
+pub(super) const SUP: &str = crate::rule_id::SUP_002;
+pub(super) const SEC: &str = crate::rule_id::SEC_006;
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "osv-scanner";
 

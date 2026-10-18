@@ -11,7 +11,7 @@
 use super::{RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "WSP-001";
+const ID: &str = crate::rule_id::WSP_001;
 
 /// Where GitHub looks for the file, in the order it looks.
 const PLACES: &[&str] = &[".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"];

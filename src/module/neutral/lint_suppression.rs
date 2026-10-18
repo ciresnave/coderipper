@@ -17,7 +17,7 @@ use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 use syn::{Attribute, Meta, Token};
 
-const ID: &str = "lint-suppression";
+const ID: &str = crate::rule_id::LINT_SUPPRESSION;
 
 /// Directory names whose contents are somebody else's code.
 const VENDORED: &[&str] = &[

@@ -45,7 +45,7 @@ use std::ffi::OsString;
 use std::path::Path;
 
 /// The catalog rule this evidences.
-pub(super) const RULE: &str = "SUP-008";
+pub(super) const RULE: &str = crate::rule_id::SUP_008;
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "zizmor";
 

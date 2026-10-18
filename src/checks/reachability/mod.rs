@@ -118,7 +118,7 @@ fn reachable_only_from(symbol: &str, from: &[String], cyclic: bool) -> String {
 
 impl Check for ReachabilityCheck {
     fn id(&self) -> &'static str {
-        "reachability"
+        crate::rule_id::REACHABILITY
     }
 
     fn scope(&self) -> Scope {

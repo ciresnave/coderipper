@@ -23,7 +23,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 /// The catalog rule this evidences.
-pub(super) const RULE: &str = "SEC-002";
+pub(super) const RULE: &str = crate::rule_id::SEC_002;
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "gitleaks";
 

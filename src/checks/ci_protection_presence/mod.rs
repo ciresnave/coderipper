@@ -28,7 +28,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::github::{origin_url, parse_github_remote, GhCli, Github};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
-pub const CHECK_ID: &str = "ci-protection-presence";
+pub const CHECK_ID: &str = crate::rule_id::CI_PROTECTION_PRESENCE;
 
 /// `Finding.location.file` of every finding here: repository settings are not a file, so this names
 /// the settings page an `[[allow]]` entry would point at (`file = "github:branch-protection"`,
