@@ -6,8 +6,8 @@ use coderipper::check::Tier;
 use coderipper::conformance::{run, Options, Verdict};
 use coderipper::finding::{Confidence, Finding, Location, Severity};
 use coderipper::module::{
-    Capabilities, ErrorKind, Event, Hello, Module, ModuleOutput, ModuleSummary, Request, RuleClaim,
-    RuleResult,
+    Capabilities, ClaimStatus, ErrorKind, Event, Hello, Module, ModuleOutput, ModuleSummary,
+    Request, RuleClaim, RuleResult,
 };
 use std::path::Path;
 use std::sync::Mutex;
@@ -278,7 +278,7 @@ fn a_rule_the_module_marks_not_applicable_is_not_judged() {
     let fixtures = fixtures_with_pair();
     let mut module = Scripted::new(&["r1"], reports_bad_txt());
     let mut na = RuleClaim::native("r9");
-    na.status = "not-applicable".into();
+    na.status = ClaimStatus::NotApplicable;
     na.reason = Some("no such construct".into());
     module.claims.push(na);
     let result = run(&module, &Options::new(fixtures.path())).unwrap();
@@ -588,15 +588,6 @@ line = 1
         }),
     );
     assert_eq!(verdict_of(&module, fixtures.path(), "r1"), Verdict::Proven);
-}
-
-#[test]
-fn a_claim_with_a_status_outside_the_protocol_is_an_error() {
-    let fixtures = fixtures_with_pair();
-    let mut module = Scripted::new(&["r1"], reports_bad_txt());
-    module.claims[0].status = "bogus".into();
-    let err = run(&module, &Options::new(fixtures.path())).expect_err("bad status");
-    assert!(err.to_string().contains("bogus"), "{err}");
 }
 
 #[test]

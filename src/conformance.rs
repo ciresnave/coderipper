@@ -36,7 +36,7 @@
 //! directory or a symbolic link, and it clears the git environment variables that would point its repository at the caller's.
 
 use crate::check::{CheckContext, Tier};
-use crate::module::{reconcile, Limits, Module, Request, RuleStatus};
+use crate::module::{reconcile, ClaimStatus, Limits, Module, Request, RuleStatus};
 use anyhow::{bail, Context};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -198,22 +198,10 @@ pub fn run(module: &dyn Module, options: &Options) -> anyhow::Result<Conformance
     if let Some(problem) = hello.problem() {
         bail!("the module's hello: {problem}");
     }
-    if let Some(bad) = hello.rules.iter().find(|r| {
-        !matches!(
-            r.status.as_str(),
-            "implemented-native" | "delegated" | "not-applicable"
-        )
-    }) {
-        bail!(
-            "the module claims the rule \"{}\" with the status \"{}\", which the protocol does not define",
-            bad.id,
-            bad.status
-        );
-    }
     let claimed: Vec<&str> = hello
         .rules
         .iter()
-        .filter(|r| r.status != "not-applicable")
+        .filter(|r| r.status != ClaimStatus::NotApplicable)
         .map(|r| r.id.as_str())
         .collect();
     if let Some(wanted) = &options.rule {

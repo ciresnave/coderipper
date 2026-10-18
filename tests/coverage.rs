@@ -4,7 +4,7 @@
 
 use coderipper::catalog::Catalog;
 use coderipper::coverage::{for_missing_module, for_module, RuleRun, RunOutcome};
-use coderipper::module::{Capabilities, Hello, RuleClaim};
+use coderipper::module::{Capabilities, ClaimStatus, Hello, RuleClaim};
 
 /// A catalog of rules `a`-`e` (the ids are `WSP-90n`): `a`, `b`, `c` apply to any language, `d` only to rust, `e` only to python.
 fn catalog() -> Catalog {
@@ -49,7 +49,12 @@ scopes = ["first_party"]
 
 fn claim(id: &str, status: &str, proof: Option<&str>) -> RuleClaim {
     let mut c = RuleClaim::native(id);
-    c.status = status.into();
+    c.status = match status {
+        "implemented-native" => ClaimStatus::ImplementedNative,
+        "delegated" => ClaimStatus::Delegated,
+        "not-applicable" => ClaimStatus::NotApplicable,
+        other => panic!("not a claim status: {other}"),
+    };
     c.proof = proof.map(str::to_string);
     if status == "not-applicable" {
         c.reason = Some("no such construct".into());

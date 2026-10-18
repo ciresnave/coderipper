@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.7.0 - 2026-10-18 (proposed, Breaking)
+
+The module protocol's closed sets are types, not strings (PM task, group5 audit row 2; EXPECTATIONS 6.16: a closed set is checked where the data
+enters, not where it is used).
+
+### Changed (Breaking)
+- `RuleClaim::status` is `ClaimStatus` (`ImplementedNative`, `Delegated`, `NotApplicable`), and `Request::unit` / `Request::run_tier` are
+  `RequestUnit` (`Package`, `Repository`) and `RequestTier` (`Fast`, `Sweep`), instead of `String`. The JSON is the same strings
+  (`"implemented-native"`, `"package"`, `"fast"`, ...), so a conforming module is unaffected; a hello or request with any other value is now a parse
+  error. The conformance runner's separate "status the protocol does not define" check is gone (it cannot happen); a test replaces it at parse time.
+- `Request`, `Hello`, `RuleClaim` and `Capabilities` are `deny_unknown_fields`: a module that sends a key the protocol does not define fails its
+  hello instead of being half-read. (Findings and rule results are unchanged: they may still carry extra keys.)
+- Test: `tests/protocol_closed_sets.rs` (written first and red: all three accepted the bad input).
+
 ## 0.6.43 - 2026-10-17 (proposed)
 
 A committed merge conflict is a finding, in every profile (PM task after baracuda#197 merged `<<<<<<< HEAD` into `docs/DEVICE-TESTS.md` and every

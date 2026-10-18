@@ -27,8 +27,8 @@ use std::process::{Command, Stdio};
 
 use super::external::{run_child_accepting, Who, ENV_ALLOWLIST};
 use super::{
-    Capabilities, ErrorKind, Event, Hello, Limits, Module, ModuleOutput, ModuleSummary, Request,
-    RuleClaim, RuleResult,
+    Capabilities, ClaimStatus, ErrorKind, Event, Hello, Limits, Module, ModuleOutput,
+    ModuleSummary, Request, RuleClaim, RuleResult,
 };
 use crate::finding::Finding;
 use crate::tools::{ToolEnv, ToolError};
@@ -296,7 +296,7 @@ impl Module for DelegatedModule {
                 .iter()
                 .map(|r| {
                     let mut claim = RuleClaim::native(r.id);
-                    claim.status = "delegated".into();
+                    claim.status = ClaimStatus::Delegated;
                     claim.tool = Some(r.tool.into());
                     if self.installed(r.tool) {
                         claim.proof = Some(format!("conformance/{}", r.id));

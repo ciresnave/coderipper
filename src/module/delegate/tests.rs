@@ -298,12 +298,8 @@ fn the_claim_carries_its_proof_only_while_the_tool_is_installed() {
     assert_eq!(hello.rules.len(), 6);
     let claim = hello.rules.iter().find(|r| r.id == "SEC-002").unwrap();
     assert_eq!(
-        (
-            claim.id.as_str(),
-            claim.status.as_str(),
-            claim.tool.as_deref()
-        ),
-        ("SEC-002", "delegated", Some("gitleaks"))
+        (claim.id.as_str(), claim.status, claim.tool.as_deref()),
+        ("SEC-002", ClaimStatus::Delegated, Some("gitleaks"))
     );
     assert_eq!(
         claim.proof, None,
