@@ -41,7 +41,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
-pub const CHECK_ID: &str = "unused-parameters";
+pub const CHECK_ID: &str = crate::rule_id::UNUSED_PARAMETERS;
 
 /// Reports function parameters nothing reads (see the module docs).
 #[derive(Debug, Clone, Copy, Default)]

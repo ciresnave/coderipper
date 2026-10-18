@@ -13,7 +13,7 @@
 use super::{file_name, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "SUP-011";
+const ID: &str = crate::rule_id::SUP_011;
 
 const VENDOR_SEGMENTS: &[&str] = &[
     "vendor",

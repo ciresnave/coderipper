@@ -6,9 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.7.2 - 2026-10-18 (proposed)
+
+A check names its rule through a generated constant, so a misspelt rule id does not compile (PM task, group5 audit row 4). Stacked on 0.7.1 (#96).
+
+### Changed
+- `build.rs` writes a `pub const` for every rule id in `rules/*.toml` (`WSP-001` -> `rule_id::WSP_001`, `conflict-marker` ->
+  `rule_id::CONFLICT_MARKER`) and fails on an id that is not an identifier or collides with another. The 17 rule-id constants of the neutral
+  module, the delegated tools and the Rust checks (and `reachability`'s `id()`) are those constants instead of string literals. No behaviour change.
+- Shown: `crate::rule_id::WSP_0O1` in `wsp001.rs` is `error[E0425]: cannot find value` and `cargo check` exits 101; restored, it builds.
+- Not converted: the rule ids written as literals inside tests (they assert what the constants say) and `"allowlist"` (a stale-entry finding, not a rule).
+
 ## 0.7.1 - 2026-10-18 (proposed)
 
-A bad shipped `tools.lock` fails the build, not only a test or a run (PM task, group5 audit row 1). Stacked on 0.7.0 (#95).
+A bad shipped `tools.lock` fails the build, not only a test or a run (PM task, group5 audit row 1). (#96).
 
 ### Changed
 - `build.rs` reads `src/tools/tools.lock` and runs the lock rules over every entry (64-hex hashes, safe name/version/file/member components, the

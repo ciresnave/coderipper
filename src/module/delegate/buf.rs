@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The catalog rule this evidences.
-pub(super) const RULE: &str = "API-006";
+pub(super) const RULE: &str = crate::rule_id::API_006;
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "buf";
 

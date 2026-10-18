@@ -18,7 +18,7 @@
 use super::{RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "conflict-marker";
+const ID: &str = crate::rule_id::CONFLICT_MARKER;
 
 /// Directory names whose contents quote markers or are somebody else's.
 const SKIPPED: &[&str] = &[

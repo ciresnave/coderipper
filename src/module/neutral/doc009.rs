@@ -13,7 +13,7 @@
 use super::{file_name, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "DOC-009";
+const ID: &str = crate::rule_id::DOC_009;
 
 /// How many documentation pages a repository needs before the missing glossary is a finding. Not configurable: a repository
 /// that disagrees waives the finding with a reason, as for every other rule.

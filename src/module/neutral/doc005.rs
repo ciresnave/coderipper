@@ -13,7 +13,7 @@
 use super::{dir_of, file_name, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 
-const ID: &str = "DOC-005";
+const ID: &str = crate::rule_id::DOC_005;
 
 const STATUSES: &[&str] = &[
     "proposed",

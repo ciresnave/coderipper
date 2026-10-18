@@ -39,7 +39,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
-pub const CHECK_ID: &str = "version-consistency";
+pub const CHECK_ID: &str = crate::rule_id::VERSION_CONSISTENCY;
 
 /// Reports a package whose version differs from the rest of its project (see the module docs).
 #[derive(Debug, Clone, Copy, Default)]
