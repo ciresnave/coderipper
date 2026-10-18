@@ -9,7 +9,7 @@
 //! finding, and it never changes a run's exit code (the owner's ruling, 2026-10-08).
 
 use crate::catalog::{Catalog, Rule};
-use crate::module::Hello;
+use crate::module::{ClaimStatus, Hello};
 use serde_json::json;
 
 /// The most gaps a JSON coverage line lists before it says it is cut (the counts are never cut).
@@ -192,7 +192,7 @@ pub fn for_module(
             .iter()
             .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
         match claim {
-            Some(c) if c.status == "not-applicable" => coverage.not_applicable += 1,
+            Some(c) if c.status == ClaimStatus::NotApplicable => coverage.not_applicable += 1,
             Some(c) if !c.covers_language(language) => {
                 coverage.not_covered += 1;
                 coverage.gaps.push(rule.id().to_string());
@@ -202,7 +202,7 @@ pub fn for_module(
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
                 // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
-                if c.status != "delegated" {
+                if c.status != ClaimStatus::Delegated {
                     coverage.claimed_unproven_ids.push(rule.id().to_string());
                 }
             }
@@ -265,7 +265,7 @@ pub fn for_missing_module_with(
             .flat_map(|h| &h.rules)
             .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
         match claim {
-            Some(c) if c.status == "not-applicable" => coverage.not_applicable += 1,
+            Some(c) if c.status == ClaimStatus::NotApplicable => coverage.not_applicable += 1,
             // the module's check does not read this language's files: not yet implemented for it
             Some(c) if !c.covers_language(language) => {
                 coverage.not_covered += 1;
@@ -276,7 +276,7 @@ pub fn for_missing_module_with(
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
                 // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
-                if c.status != "delegated" {
+                if c.status != ClaimStatus::Delegated {
                     coverage.claimed_unproven_ids.push(rule.id().to_string());
                 }
             }

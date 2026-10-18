@@ -105,8 +105,44 @@ impl Limits {
     }
 }
 
+/// What one run judges, as it is written in a [`Request`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum RequestUnit {
+    /// One package.
+    Package,
+    /// The repository as a whole.
+    Repository,
+}
+
+/// The tier of a run, as it is written in a [`Request`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum RequestTier {
+    /// The fast tier: no network.
+    Fast,
+    /// The sweep tier: the network is permitted.
+    Sweep,
+}
+
+/// How a module covers a rule it claims.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum ClaimStatus {
+    /// The module implements the rule itself.
+    ImplementedNative,
+    /// The module runs a tool for the rule.
+    Delegated,
+    /// The rule does not apply to what the module checks.
+    NotApplicable,
+}
+
 /// What the host asks of a module: check exactly these rules.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct Request {
     /// Always [`REQUEST_REASON`].
@@ -115,14 +151,14 @@ pub struct Request {
     pub protocol: String,
     /// Identifies this run in logs; a module treats it as opaque.
     pub run_id: String,
-    /// `"package"` or `"repository"`: what one run judges (see [`Unit`]).
-    pub unit: String,
+    /// What one run judges (see [`Unit`]).
+    pub unit: RequestUnit,
     /// The user's own directory. Read-only to the module.
     pub project_root: PathBuf,
     /// Where checks that read sibling projects look for them.
     pub portfolio_root: PathBuf,
-    /// `"fast"` or `"sweep"`.
-    pub run_tier: String,
+    /// The tier of the run.
+    pub run_tier: RequestTier,
     /// The rules to check. The module checks exactly these.
     pub rules: Vec<String>,
     /// Whether the run permits network access.
@@ -159,17 +195,15 @@ impl Request {
             protocol: PROTOCOL.into(),
             run_id,
             unit: match unit {
-                Some(Unit::Repository) => "repository",
-                _ => "package",
-            }
-            .into(),
+                Some(Unit::Repository) => RequestUnit::Repository,
+                _ => RequestUnit::Package,
+            },
             project_root: ctx.project_root.clone(),
             portfolio_root: ctx.portfolio_root.clone(),
             run_tier: match tier {
-                Tier::Sweep => "sweep",
-                _ => "fast",
-            }
-            .into(),
+                Tier::Sweep => RequestTier::Sweep,
+                _ => RequestTier::Fast,
+            },
             rules,
             network: tier == Tier::Sweep,
             limits,
@@ -180,6 +214,7 @@ impl Request {
 
 /// What a module can do, as it declares it.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct Capabilities {
     /// Whether the module runs the analysed project's own code (a build script, a lint config).
@@ -215,12 +250,13 @@ impl Capabilities {
 
 /// One rule a module claims, with how it covers it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct RuleClaim {
     /// The rule's id.
     pub id: String,
-    /// `"implemented-native"`, `"delegated"` or `"not-applicable"`.
-    pub status: String,
+    /// How the module covers the rule.
+    pub status: ClaimStatus,
     /// The tool a delegated rule runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool: Option<String>,
@@ -241,7 +277,7 @@ impl RuleClaim {
     pub fn native(id: impl Into<String>) -> Self {
         Self {
             id: id.into(),
-            status: "implemented-native".into(),
+            status: ClaimStatus::ImplementedNative,
             tool: None,
             proof: None,
             reason: None,
@@ -263,6 +299,7 @@ impl RuleClaim {
 
 /// The hello a module prints for `describe`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct Hello {
     /// Always [`HELLO_REASON`].

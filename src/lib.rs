@@ -1081,7 +1081,7 @@ fn run_module_unredacted(
     let claimed: Vec<&str> = hello
         .rules
         .iter()
-        .filter(|r| r.status != "not-applicable")
+        .filter(|r| r.status != crate::module::ClaimStatus::NotApplicable)
         .map(|r| r.id.as_str())
         .collect();
     let registered: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();

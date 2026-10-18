@@ -21,8 +21,9 @@ pub use delegate::{delegated_rule_ids, DelegatedModule};
 pub use external::ExternalModule;
 pub use neutral::{rule_ids as neutral_rule_ids, NeutralModule};
 pub use protocol::{
-    Capabilities, ErrorKind, Event, Hello, Limits, ModuleSummary, Request, RuleClaim, RuleRan,
-    RuleResult, HELLO_REASON, PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
+    Capabilities, ClaimStatus, ErrorKind, Event, Hello, Limits, ModuleSummary, Request,
+    RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, PROTOCOL,
+    REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
 
