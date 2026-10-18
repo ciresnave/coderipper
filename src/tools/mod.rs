@@ -27,8 +27,10 @@ use std::path::{Path, PathBuf};
 
 mod archive;
 mod env;
+mod lock_rules;
 pub use archive::ArchiveKind;
 pub use env::ToolEnv;
+use lock_rules::file_source_path;
 
 /// One line of the lock: a tool, at one version, for one platform.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -227,141 +229,19 @@ fn invalid(entry: &ToolEntry, what: &str) -> ToolError {
 }
 
 fn validate_entry(entry: &ToolEntry) -> Result<(), ToolError> {
-    for (label, value) in [("name", &entry.name), ("version", &entry.version)] {
-        if !is_safe_component(value) {
-            return Err(invalid(
-                entry,
-                &format!("the {label} {value:?} is not a safe path component"),
-            ));
-        }
-    }
-    if let Some(file) = &entry.file {
-        if !is_safe_component(file) {
-            return Err(invalid(
-                entry,
-                &format!("the file name {file:?} is not a safe path component"),
-            ));
-        }
-    }
-    if entry.platform.is_empty()
-        || !entry
-            .platform
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
-    {
-        return Err(invalid(
-            entry,
-            &format!("the platform {:?} is not <arch>-<os>", entry.platform),
-        ));
-    }
-    if !is_sha256(&entry.sha256) {
-        return Err(invalid(entry, "sha256 must be 64 hex digits"));
-    }
-    match (&entry.archive, &entry.member, &entry.file_sha256) {
-        (None, None, None) => {}
-        (Some(_), Some(member), Some(hash)) => {
-            if member.is_empty() || !member.split('/').all(is_safe_component) {
-                return Err(invalid(
-                    entry,
-                    &format!(
-                        "the member {member:?} is not a plain relative path of safe components"
-                    ),
-                ));
-            }
-            if !is_sha256(hash) {
-                return Err(invalid(entry, "file_sha256 must be 64 hex digits"));
-            }
-        }
-        _ => {
-            return Err(invalid(
-                entry,
-                "archive, member and file_sha256 go together: all three or none",
-            ))
-        }
-    }
-    if entry.licence.trim().is_empty() {
-        return Err(invalid(entry, "a licence (SPDX expression) is required"));
-    }
-    if !is_allowed_source(&entry.source) {
-        return Err(invalid(
-            entry,
-            &format!(
-                "the source {:?} must be https://, http:// on this machine, or file://",
-                entry.source
-            ),
-        ));
-    }
-    Ok(())
-}
-
-fn is_sha256(text: &str) -> bool {
-    text.len() == 64 && text.chars().all(|c| c.is_ascii_hexdigit())
-}
-
-/// A name that is one plain path component on every platform CodeRipper runs on.
-fn is_safe_component(name: &str) -> bool {
-    if name.is_empty()
-        || name.starts_with('.')
-        || name.ends_with('.')
-        || !name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '+'))
-    {
-        return false;
-    }
-    // Reserved device names, with or without an extension, are not files on Windows.
-    let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
-    let reserved = matches!(stem.as_str(), "con" | "prn" | "aux" | "nul")
-        || (stem.len() == 4
-            && (stem.starts_with("com") || stem.starts_with("lpt"))
-            && stem.as_bytes()[3].is_ascii_digit()
-            && stem.as_bytes()[3] != b'0');
-    !reserved
-}
-
-fn is_allowed_source(source: &str) -> bool {
-    if source.starts_with("https://") && source.len() > "https://".len() {
-        return true;
-    }
-    if let Some(rest) = source.strip_prefix("file://") {
-        return file_source_path(rest).is_some();
-    }
-    if let Some(rest) = source.strip_prefix("http://") {
-        let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
-        // Userinfo (`a@b`), backslashes and whitespace make the host ambiguous between parsers: refuse them outright.
-        if authority.contains(['@', '\\']) || authority.contains(char::is_whitespace) {
-            return false;
-        }
-        let (host, port) = match authority.strip_prefix('[') {
-            Some(v6) => match v6.split_once(']') {
-                Some((host, "")) => (host, None),
-                Some((host, tail)) => (host, tail.strip_prefix(':')),
-                None => return false,
-            },
-            None => match authority.split_once(':') {
-                Some((host, port)) => (host, Some(port)),
-                None => (authority, None),
-            },
-        };
-        let port_ok = port.is_none_or(|p| p.chars().all(|c| c.is_ascii_digit()));
-        return port_ok && matches!(host, "127.0.0.1" | "localhost" | "::1");
-    }
-    false
-}
-
-/// The local path a `file://` source names: `file:///abs/path` or `file://localhost/abs/path` (and `file:///C:/x` on Windows).
-/// A relative path or another host is not a local file. There is no percent-decoding.
-fn file_source_path(rest: &str) -> Option<&str> {
-    let path = rest.strip_prefix("localhost").unwrap_or(rest);
-    if !path.starts_with('/') || path.len() < 2 {
-        return None;
-    }
-    // `/C:/x` is a Windows drive path with a URL's leading slash.
-    let bytes = path.as_bytes();
-    if bytes.len() >= 3 && bytes[2] == b':' && bytes[1].is_ascii_alphabetic() {
-        return Some(&path[1..]);
-    }
-    Some(path)
+    lock_rules::check(&lock_rules::Fields {
+        name: &entry.name,
+        version: &entry.version,
+        platform: &entry.platform,
+        source: &entry.source,
+        sha256: &entry.sha256,
+        licence: &entry.licence,
+        file: entry.file.as_deref(),
+        archive: entry.archive.map(|_| "set"),
+        member: entry.member.as_deref(),
+        file_sha256: entry.file_sha256.as_deref(),
+    })
+    .map_err(|what| invalid(entry, &what))
 }
 
 /// `<arch>-<os>` for this build, the form the lock's `platform` takes: `x86_64-windows`, `aarch64-macos`, `x86_64-linux`.
