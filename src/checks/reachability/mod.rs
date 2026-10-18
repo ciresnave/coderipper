@@ -278,6 +278,7 @@ impl Check for ReachabilityCheck {
                 };
                 Finding {
                     check_id: "reachability".into(),
+                    claim: crate::finding::Claim::Absence,
                     severity: Severity::Medium,
                     confidence: Confidence::Medium,
                     project: project_name.clone(),

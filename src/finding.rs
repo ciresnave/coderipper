@@ -82,6 +82,29 @@ impl Location {
     }
 }
 
+/// What a finding asserts: that something is there, or that something is not.
+///
+/// An absence ("no callers", "does not exclude", "keeps no glossary") is evidence only next to a positive control, the proof that
+/// the query can find the thing when it exists. A check declares the claim by building the finding with [`Finding::absence`],
+/// which cannot be called without the control; the English-word guess in [`Finding::validate`] is only the backstop for a
+/// presence finding whose summary says otherwise.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum Claim {
+    /// Something is there: a defect was read at a place.
+    #[default]
+    Presence,
+    /// Something is not there, and the finding must carry the control that shows the query works.
+    Absence,
+}
+
+impl Claim {
+    fn is_presence(&self) -> bool {
+        *self == Claim::Presence
+    }
+}
+
 /// One thing a check found, in the shape every check emits into.
 ///
 /// This shared shape is what lets the host triage findings from different checks into one ranked
@@ -103,6 +126,7 @@ impl Location {
 ///     detail: "d".to_string(),
 ///     member: None,
 ///     positive_control: None,
+///     claim: coderipper::finding::Claim::Presence,
 /// };
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -135,6 +159,10 @@ pub struct Finding {
     /// enforced", "no matching version"). A finding making that kind of claim with this unset is a
     /// bug in the check that produced it, not evidence — see `Finding::validate`.
     pub positive_control: Option<String>,
+    /// Whether the finding asserts a presence or an absence (see [`Claim`]). Left out of the JSON for a presence, so a report
+    /// that never had the field reads back the same, and an old report without it is a presence.
+    #[serde(default, skip_serializing_if = "Claim::is_presence")]
+    pub claim: Claim,
 }
 
 /// A finding that an `[[allow]]` entry in `.coderipper.toml` waived: it does not fail the run, but it is still reported, with the
@@ -237,7 +265,25 @@ impl Finding {
             detail: detail.into(),
             member: None,
             positive_control: None,
+            claim: Claim::Presence,
         }
+    }
+
+    /// A finding that asserts an absence. The positive control is a parameter, not a setter, so an absence cannot be built
+    /// without the proof that the query works.
+    pub fn absence(
+        check_id: impl Into<String>,
+        severity: Severity,
+        confidence: Confidence,
+        project: impl Into<String>,
+        summary: impl Into<String>,
+        detail: impl Into<String>,
+        positive_control: impl Into<String>,
+    ) -> Self {
+        let mut finding = Self::new(check_id, severity, confidence, project, summary, detail);
+        finding.claim = Claim::Absence;
+        finding.positive_control = Some(positive_control.into());
+        finding
     }
 
     /// Where the finding points.
@@ -268,7 +314,11 @@ impl Finding {
     /// hands a finding to the host, not just at the end of a report — a caller that only validates
     /// the final report can't tell which check produced a bad finding.
     pub fn validate(self) -> Result<Self, FindingError> {
-        if claims_absence(&self.summary) && self.positive_control.is_none() {
+        let controlled = self
+            .positive_control
+            .as_deref()
+            .is_some_and(|c| !c.trim().is_empty());
+        if (self.claim == Claim::Absence || claims_absence(&self.summary)) && !controlled {
             return Err(FindingError::AbsenceClaimMissingControl {
                 check_id: self.check_id,
                 summary: self.summary,
@@ -296,6 +346,7 @@ mod tests {
             summary: summary.into(),
             detail: "detail text".into(),
             positive_control: positive_control.map(str::to_string),
+            claim: Claim::Presence,
             member: None,
         }
     }
@@ -340,6 +391,74 @@ mod tests {
     fn a_non_absence_claim_needs_no_control() {
         let f = sample("version mismatch: crate a=0.3.0, crate b=0.2.9", None);
         assert!(f.validate().is_ok());
+    }
+
+    fn absence(summary: &str, control: &str) -> Finding {
+        Finding::absence(
+            "wsp-x",
+            Severity::Low,
+            Confidence::High,
+            "p",
+            summary,
+            "d",
+            control,
+        )
+    }
+
+    #[test]
+    fn an_absence_is_built_with_its_control_and_says_so_on_the_wire() {
+        let f = absence("the repository keeps a glossary elsewhere", "17 docs read");
+        assert_eq!(f.claim, Claim::Absence);
+        assert_eq!(f.positive_control.as_deref(), Some("17 docs read"));
+        assert!(f.clone().validate().is_ok());
+        let json = serde_json::to_string(&f).unwrap();
+        assert!(json.contains(r#""claim":"absence""#), "{json}");
+        assert_eq!(serde_json::from_str::<Finding>(&json).unwrap(), f);
+    }
+
+    #[test]
+    fn an_absence_with_a_blank_control_is_refused_even_when_no_word_gives_it_away() {
+        // "does not exclude" is in no word list: the claim is declared by the constructor, not guessed from the text.
+        let f = absence("the config does not exclude the vendored directory", "  ");
+        assert!(matches!(
+            f.validate(),
+            Err(FindingError::AbsenceClaimMissingControl { .. })
+        ));
+    }
+
+    #[test]
+    fn a_deserialized_absence_with_no_control_is_refused() {
+        let json = r#"{"check_id":"c","severity":"low","confidence":"high","project":"p","location":null,"summary":"quiet","detail":"d","positive_control":null,"claim":"absence"}"#;
+        let f: Finding = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            f.validate(),
+            Err(FindingError::AbsenceClaimMissingControl { .. })
+        ));
+    }
+
+    #[test]
+    fn a_finding_with_no_claim_field_is_a_presence_and_serializes_without_one() {
+        let json = r#"{"check_id":"c","severity":"low","confidence":"high","project":"p","location":null,"summary":"s","detail":"d","positive_control":null}"#;
+        let f: Finding = serde_json::from_str(json).unwrap();
+        assert_eq!(f.claim, Claim::Presence);
+        assert!(!serde_json::to_string(&f).unwrap().contains("claim"));
+    }
+
+    #[test]
+    fn the_word_list_still_catches_a_presence_built_with_new_that_claims_an_absence() {
+        let f = Finding::new(
+            "c",
+            Severity::Low,
+            Confidence::High,
+            "p",
+            "no callers found",
+            "d",
+        );
+        assert_eq!(f.claim, Claim::Presence);
+        assert!(matches!(
+            f.validate(),
+            Err(FindingError::AbsenceClaimMissingControl { .. })
+        ));
     }
 
     #[test]

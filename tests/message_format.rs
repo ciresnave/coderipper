@@ -58,6 +58,7 @@ fn a_finding_is_one_json_line_followed_by_a_summary_line() {
     assert_eq!(finding["check_id"], "unused-return-values");
     assert_eq!(finding["severity"], "medium");
     assert_eq!(finding["subject"], "f");
+    assert_eq!(finding["claim"], "absence");
     assert_eq!(finding["location"]["file"], "src/main.rs");
     let summary = &lines[1];
     assert_eq!(summary["reason"], "coderipper-summary");
@@ -85,9 +86,11 @@ fn golden_the_keys_of_a_finding_line_and_of_the_summary_line() {
 }
 
 /// A finding line is the `Finding` fields plus `reason`. `positive_control` is `null` when absent; `member` is left out
-/// unless a `--workspace` run set it.
-const GOLDEN_FINDING_KEYS: [&str; 10] = [
+/// unless a `--workspace` run set it; `claim` is there (as `"absence"`) only when the finding asserts an absence, which the
+/// `unused-return-values` finding under test does.
+const GOLDEN_FINDING_KEYS: [&str; 11] = [
     "check_id",
+    "claim",
     "confidence",
     "detail",
     "location",

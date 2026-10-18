@@ -166,6 +166,7 @@ impl Check for UnusedParametersCheck {
             })
             .map(|site| Finding {
                 check_id: CHECK_ID.into(),
+                claim: crate::finding::Claim::Absence,
                 severity: Severity::Low,
                 confidence: Confidence::High,
                 project: project.clone(),

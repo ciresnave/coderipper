@@ -1150,6 +1150,7 @@ mod tests {
         fn run(&self, _ctx: &CheckContext) -> anyhow::Result<Vec<Finding>> {
             Ok(vec![Finding {
                 check_id: self.id.into(),
+                claim: crate::finding::Claim::Presence,
                 severity: finding::Severity::Info,
                 confidence: finding::Confidence::High,
                 project: "p".into(),
@@ -1254,6 +1255,7 @@ mod tests {
     fn fake_finding(summary: &str, control: Option<&str>) -> Finding {
         Finding {
             check_id: "fake".into(),
+            claim: crate::finding::Claim::Presence,
             severity: finding::Severity::Low,
             confidence: finding::Confidence::High,
             project: "p".into(),

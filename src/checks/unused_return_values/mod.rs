@@ -152,6 +152,7 @@ impl Check for UnusedReturnValuesCheck {
                 };
                 Finding {
                     check_id: CHECK_ID.into(),
+                    claim: crate::finding::Claim::Absence,
                     severity,
                     confidence: Confidence::Medium,
                     project: project.clone(),

@@ -99,7 +99,7 @@ fn is_private_npm_package(manifest: &str) -> bool {
 }
 
 fn missing_lock(view: &RepoView, manifest: &str, subject: &str, what: &str) -> Finding {
-    Finding::new(
+    Finding::absence(
         ID,
         Severity::Medium,
         Confidence::Medium,
@@ -108,12 +108,12 @@ fn missing_lock(view: &RepoView, manifest: &str, subject: &str, what: &str) -> F
         format!(
             "Without a committed lockfile every build may resolve different transitive code, so a build cannot be reproduced. Commit {what} next to the manifest or at the workspace root (and take it out of .gitignore)."
         ),
+        format!(
+            "{manifest} is tracked and was read: it declares an application, and the search for a lockfile covered its directory and every directory above it"
+        ),
     )
     .location(Location::new(manifest, None))
     .subject(subject)
-    .positive_control(format!(
-        "{manifest} is tracked and was read: it declares an application, and the search for a lockfile covered its directory and every directory above it"
-    ))
 }
 
 /// One finding per workflow file and tool that resolves dependencies afresh.

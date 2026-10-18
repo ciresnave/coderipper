@@ -227,6 +227,7 @@ fn normalize_entry_path(path: &str) -> String {
 fn base(entry: &AllowEntry, project: &str) -> Finding {
     Finding {
         check_id: ALLOWLIST_CHECK_ID.into(),
+        claim: crate::finding::Claim::Presence,
         severity: Severity::Info,
         confidence: Confidence::High,
         project: project.to_string(),
@@ -319,6 +320,7 @@ mod tests {
     fn finding(check: &str, file: &str, subject: Option<&str>) -> Finding {
         Finding {
             check_id: check.into(),
+            claim: crate::finding::Claim::Presence,
             severity: Severity::Medium,
             confidence: Confidence::Medium,
             project: "p".into(),
