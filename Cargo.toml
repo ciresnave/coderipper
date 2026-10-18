@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 description = "Audits a Rust project for what clippy does not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
@@ -36,6 +36,9 @@ required-features = ["cli"]
 [[test]]
 name = "external_module"
 harness = false
+
+[build-dependencies]
+toml = "1"
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
