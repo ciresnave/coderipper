@@ -6,6 +6,28 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.7.3 - 2026-10-18 (proposed)
+
+An absence is declared by the constructor, not guessed from the words of the summary (PM task, group5 audit row 3; approved option (a) on 2026-10-18).
+Stacked on 0.7.2 (#97), which is stacked on 0.7.1 (#98).
+
+### Added
+- `Finding::absence(check_id, severity, confidence, project, summary, detail, positive_control)`: the only constructor of an absence claim, and the
+  control is a parameter, so it cannot be built without one. `Finding::claim` (`Claim::Presence` | `Claim::Absence`) is a new field, serialized only
+  for an absence (`"claim":"absence"`), so every existing report and the golden file are unchanged and a finding from an older module reads back as a
+  presence.
+- `validate()` now refuses a declared absence whose control is missing or blank, including one that arrived over the wire from a module, whatever its
+  summary says. The English word list (zero, no, none, missing, unreachable, 0) stays as the backstop for a presence finding that says otherwise; a
+  test pins that it still fires on one built with `Finding::new`.
+
+### Changed
+- `--message-format json`: a finding line gains the key `"claim":"absence"` when the check declared an absence (an additive key; a presence finding's
+  line is byte-for-byte what it was). `tests/message_format.rs` pins the new key set for `unused-return-values`.
+- The checks whose finding is "something is not there" declare it: `doc009` (no glossary), `wsp001` (no CODEOWNERS / no default owner), `sup001`
+  (lockfile not committed), `sup011` (vendored directory not excluded; no word in the list catches "does not exclude"), and the struct-literal findings of
+  `reachability`, `unused-parameters`, `unused-return-values` and `ci-protection-presence`. Findings that report a defect read at a place keep
+  `Finding::new` (their control, where they have one, is still set with `.positive_control`).
+
 ## 0.7.2 - 2026-10-18 (proposed)
 
 A check names its rule through a generated constant, so a misspelt rule id does not compile (PM task, group5 audit row 4). Stacked on 0.7.1 (#96).

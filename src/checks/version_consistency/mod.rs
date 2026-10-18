@@ -147,6 +147,7 @@ fn shown(path: &Path) -> String {
 fn not_the_workspace_root(project: &str, project_dir: &Path, workspace_root: &Path) -> Finding {
     Finding {
         check_id: CHECK_ID.into(),
+        claim: crate::finding::Claim::Presence,
         severity: Severity::Info,
         confidence: Confidence::High,
         project: project.to_string(),
@@ -472,6 +473,7 @@ impl Problem {
                     .count();
                 Finding {
                     check_id: CHECK_ID.into(),
+                    claim: crate::finding::Claim::Presence,
                     severity: Severity::High,
                     confidence: Confidence::High,
                     project: project.to_string(),
@@ -500,6 +502,7 @@ impl Problem {
             }
             Problem::TrackMismatch { pkg, tracked } => Finding {
                 check_id: CHECK_ID.into(),
+                claim: crate::finding::Claim::Presence,
                 severity: Severity::High,
                 confidence: Confidence::High,
                 project: project.to_string(),

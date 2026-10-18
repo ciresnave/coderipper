@@ -217,6 +217,7 @@ impl Check for CiProtectionPresenceCheck {
         );
         Ok(vec![Finding {
             check_id: CHECK_ID.into(),
+            claim: crate::finding::Claim::Absence,
             severity: Severity::High,
             confidence: Confidence::High,
             project: project_of(&canonical),
@@ -276,6 +277,7 @@ fn ruleset_requires_checks(rules: &[serde_json::Value]) -> bool {
 fn info_finding(slug: &str, branch: Option<&str>, summary: String, control: String) -> Finding {
     Finding {
         check_id: CHECK_ID.into(),
+        claim: crate::finding::Claim::Absence,
         severity: Severity::Info,
         confidence: Confidence::High,
         project: project_of(slug),

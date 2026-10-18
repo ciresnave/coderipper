@@ -59,20 +59,20 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 "the repository tracks {docs} documentation page(s) under docs/ or doc/, fewer than {MIN_PAGES}, the number at which a missing glossary is a finding"
             ));
         }
-        return Verdict::Findings(vec![Finding::new(
+        return Verdict::Findings(vec![Finding::absence(
             ID,
             Severity::Info,
             Confidence::Low,
             view.name(),
             "the repository documents itself but keeps no glossary",
             "A shared vocabulary lowers misreading. Add a GLOSSARY.md (or docs/glossary.md) that defines the project's domain terms.",
+            format!(
+                "{docs} documentation file(s) are tracked under docs/ or doc/, and none of the {} tracked paths has a file name containing `glossary`",
+                view.paths().len()
+            ),
         )
         .location(Location::new("GLOSSARY.md", None))
-        .subject("glossary")
-        .positive_control(format!(
-            "{docs} documentation file(s) are tracked under docs/ or doc/, and none of the {} tracked paths has a file name containing `glossary`",
-            view.paths().len()
-        ))]);
+        .subject("glossary")]);
     }
     let mut findings = Vec::new();
     for path in glossaries {

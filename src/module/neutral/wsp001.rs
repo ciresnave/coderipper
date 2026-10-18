@@ -41,21 +41,21 @@ fn read_entries(text: &str) -> (usize, bool) {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let project = view.name();
     let Some(path) = PLACES.iter().find(|p| view.has(p)) else {
-        return Verdict::Findings(vec![Finding::new(
+        return Verdict::Findings(vec![Finding::absence(
             ID,
             Severity::Medium,
             Confidence::High,
             project,
             "the repository has no CODEOWNERS file, so it names no owner",
             "Nobody is recorded as answering for this repository. Add a CODEOWNERS file (.github/CODEOWNERS) with a default entry: `* @owner-or-team`.",
+            format!(
+                "the search covered {} among {} tracked files",
+                PLACES.join(", "),
+                view.paths().len()
+            ),
         )
         .location(Location::new(PLACES[0], None))
-        .subject("CODEOWNERS")
-        .positive_control(format!(
-            "the search covered {} among {} tracked files",
-            PLACES.join(", "),
-            view.paths().len()
-        ))]);
+        .subject("CODEOWNERS")]);
     };
     let Some(text) = view.read(path) else {
         return Verdict::Findings(Vec::new());
@@ -64,20 +64,20 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     if default_owner {
         return Verdict::Findings(Vec::new());
     }
-    Verdict::Findings(vec![Finding::new(
+    Verdict::Findings(vec![Finding::absence(
         ID,
         Severity::Medium,
         Confidence::High,
         project,
         format!("{path} has no default owner (a `*` entry with an owner)"),
         "Files that no other pattern matches belong to nobody. Add a default entry: `* @owner-or-team`.",
+        format!(
+            "{path} is tracked and was read; it holds {entries} ownership entr{}, none of them a `*` pattern with an owner",
+            if entries == 1 { "y" } else { "ies" }
+        ),
     )
     .location(Location::new(path.to_string(), None))
-    .subject("CODEOWNERS")
-    .positive_control(format!(
-        "{path} is tracked and was read; it holds {entries} ownership entr{}, none of them a `*` pattern with an owner",
-        if entries == 1 { "y" } else { "ies" }
-    ))])
+    .subject("CODEOWNERS")])
 }
 
 #[cfg(test)]

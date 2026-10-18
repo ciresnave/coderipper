@@ -79,7 +79,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 continue;
             }
             findings.push(
-                Finding::new(
+                Finding::absence(
                     ID,
                     Severity::Low,
                     Confidence::Medium,
@@ -88,12 +88,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                     format!(
                         "{dir} holds third-party code the team does not maintain, and judging it by the team's own standards buries real findings in noise. Add `{name}` to the exclusions in {config}."
                     ),
+                    format!(
+                        "{dir} holds {files} tracked file(s) and {config} was read; the search was for the text `{name}`"
+                    ),
                 )
                 .location(Location::new(config, None))
-                .subject(dir.as_str())
-                .positive_control(format!(
-                    "{dir} holds {files} tracked file(s) and {config} was read; the search was for the text `{name}`"
-                )),
+                .subject(dir.as_str()),
             );
         }
     }
