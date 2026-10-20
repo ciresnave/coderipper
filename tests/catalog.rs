@@ -1,7 +1,7 @@
 //! The rule catalog (multi-language design §4): records are data, parsed strictly, and the five built-in checks each have
 //! one that agrees with what the check declares about itself.
 
-use coderipper::catalog::{Catalog, CatalogError, Lifecycle};
+use coderipper::catalog::{Catalog, CatalogError, Domain, Lifecycle};
 use coderipper::check::{Network, Scope, Unit};
 
 /// A complete, valid record in the file format, to mutate one field at a time.
@@ -94,7 +94,7 @@ fn a_knowledge_base_id_sits_in_the_file_of_its_domain() {
     for rule in Catalog::builtin().rules() {
         if let Some((prefix, number)) = rule.id().split_once('-') {
             if prefix.len() == 3 && number.chars().all(|c| c.is_ascii_digit()) {
-                assert_eq!(rule.domain(), prefix, "{}", rule.id());
+                assert_eq!(rule.domain().as_str(), prefix, "{}", rule.id());
             }
         }
     }
@@ -199,7 +199,7 @@ fn a_valid_record_parses() {
     let catalog = parse(&[("wsp.toml", record("WSP-900"))]).expect("valid");
     let rule = catalog.get("WSP-900").expect("present");
     assert_eq!(rule.lifecycle(), Lifecycle::Advisory);
-    assert_eq!(rule.domain(), "WSP");
+    assert_eq!(rule.domain(), Domain::Wsp);
 }
 
 #[test]
@@ -338,4 +338,20 @@ flavour = \"x\"",
     );
     let err = parse(&[("a.toml", text)]).expect_err("unknown field");
     assert!(err.to_string().contains("flavour"), "{err}");
+}
+
+#[test]
+fn an_unknown_domain_language_or_scope_is_rejected() {
+    for (from, to, word) in [
+        ("domain = \"WSP\"", "domain = \"ZZZ\"", "ZZZ"),
+        ("languages = [\"any\"]", "languages = [\"cobol\"]", "cobol"),
+        (
+            "scopes = [\"first_party\"]",
+            "scopes = [\"second_party\"]",
+            "second_party",
+        ),
+    ] {
+        let err = parse(&[("a.toml", record("WSP-900").replace(from, to))]).expect_err(word);
+        assert!(err.to_string().contains(word), "{err}");
+    }
 }

@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.0 - 2026-10-20 (proposed, Breaking)
+
+A rule's domain, languages and scopes are enums, not strings (PM task, group5 audit row 9).
+
+### Changed (Breaking)
+- `Rule::domain()` returns `Domain` (21 variants; `Domain::as_str` gives the three letters), `Applicability::languages` is `Vec<Language>`
+  (`any`, `rust`, `typescript`, `python`) and `Applicability::scopes` is `Vec<CodeScope>` (`first_party`, `third_party`). A record naming
+  anything else now fails to parse, naming the bad value, instead of loading and matching nothing. Module protocol language strings are
+  unchanged: they come from external modules.
+
 ## 0.7.4 - 2026-10-20 (proposed)
 
 The configuration keys `profile`, `deny` and `message-format` are the same enums as the flags (PM task, group5 audit row 4).

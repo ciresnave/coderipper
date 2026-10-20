@@ -129,15 +129,151 @@ pub enum Lifecycle {
     Blocking,
 }
 
+/// The three-letter domain a rule belongs to; a record naming any other is refused when the catalog is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[non_exhaustive]
+pub enum Domain {
+    /// The `AIH` domain.
+    #[serde(rename = "AIH")]
+    Aih,
+    /// The `API` domain.
+    #[serde(rename = "API")]
+    Api,
+    /// The `ARC` domain.
+    #[serde(rename = "ARC")]
+    Arc,
+    /// The `CON` domain.
+    #[serde(rename = "CON")]
+    Con,
+    /// The `COR` domain.
+    #[serde(rename = "COR")]
+    Cor,
+    /// The `DOC` domain.
+    #[serde(rename = "DOC")]
+    Doc,
+    /// The `EFX` domain.
+    #[serde(rename = "EFX")]
+    Efx,
+    /// The `ERR` domain.
+    #[serde(rename = "ERR")]
+    Err,
+    /// The `EVO` domain.
+    #[serde(rename = "EVO")]
+    Evo,
+    /// The `EXT` domain.
+    #[serde(rename = "EXT")]
+    Ext,
+    /// The `GOV` domain.
+    #[serde(rename = "GOV")]
+    Gov,
+    /// The `MOD` domain.
+    #[serde(rename = "MOD")]
+    Mod,
+    /// The `OPS` domain.
+    #[serde(rename = "OPS")]
+    Ops,
+    /// The `PRF` domain.
+    #[serde(rename = "PRF")]
+    Prf,
+    /// The `RDB` domain.
+    #[serde(rename = "RDB")]
+    Rdb,
+    /// The `REL` domain.
+    #[serde(rename = "REL")]
+    Rel,
+    /// The `SEC` domain.
+    #[serde(rename = "SEC")]
+    Sec,
+    /// The `SUP` domain.
+    #[serde(rename = "SUP")]
+    Sup,
+    /// The `TST` domain.
+    #[serde(rename = "TST")]
+    Tst,
+    /// The `TYP` domain.
+    #[serde(rename = "TYP")]
+    Typ,
+    /// The `WSP` domain.
+    #[serde(rename = "WSP")]
+    Wsp,
+}
+
+impl Domain {
+    /// The three letters, as written in a record and in a knowledge-base id.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Aih => "AIH",
+            Self::Api => "API",
+            Self::Arc => "ARC",
+            Self::Con => "CON",
+            Self::Cor => "COR",
+            Self::Doc => "DOC",
+            Self::Efx => "EFX",
+            Self::Err => "ERR",
+            Self::Evo => "EVO",
+            Self::Ext => "EXT",
+            Self::Gov => "GOV",
+            Self::Mod => "MOD",
+            Self::Ops => "OPS",
+            Self::Prf => "PRF",
+            Self::Rdb => "RDB",
+            Self::Rel => "REL",
+            Self::Sec => "SEC",
+            Self::Sup => "SUP",
+            Self::Tst => "TST",
+            Self::Typ => "TYP",
+            Self::Wsp => "WSP",
+        }
+    }
+}
+
+/// A language a rule applies to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum Language {
+    /// Every language.
+    Any,
+    /// Rust.
+    Rust,
+    /// TypeScript.
+    Typescript,
+    /// Python.
+    Python,
+}
+
+impl Language {
+    /// Whether a rule that applies to `self` applies to the module language named `language` (`any` applies to all).
+    pub fn covers(self, language: &str) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Rust => language == "rust",
+            Self::Typescript => language == "typescript",
+            Self::Python => language == "python",
+        }
+    }
+}
+
+/// Whose code a rule judges.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum CodeScope {
+    /// The project's own code.
+    FirstParty,
+    /// Its dependencies' code.
+    ThirdParty,
+}
+
 /// What a rule applies to.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[non_exhaustive]
 pub struct Applicability {
     /// Languages it applies to; `any` means all.
-    pub languages: Vec<String>,
+    pub languages: Vec<Language>,
     /// Which code it judges (`first_party`, ...).
-    pub scopes: Vec<String>,
+    pub scopes: Vec<CodeScope>,
 }
 
 /// One rule: what it claims and how it behaves. Read it through the accessors.
@@ -146,7 +282,7 @@ pub struct Applicability {
 pub struct Rule {
     id: String,
     title: String,
-    domain: String,
+    domain: Domain,
     statement: String,
     rationale: String,
     evidence_tiers: Vec<EvidenceTier>,
@@ -186,8 +322,8 @@ impl Rule {
         &self.title
     }
     /// The three-letter domain (`WSP`, `RDB`, ...).
-    pub fn domain(&self) -> &str {
-        &self.domain
+    pub fn domain(&self) -> Domain {
+        self.domain
     }
     /// What the rule claims, paraphrased.
     pub fn statement(&self) -> &str {
@@ -384,7 +520,6 @@ fn validate(file: &str, rule: &Rule) -> Result<(), CatalogError> {
     }
     for (field, text) in [
         ("title", &rule.title),
-        ("domain", &rule.domain),
         ("statement", &rule.statement),
         ("rationale", &rule.rationale),
         ("remediation", &rule.remediation),
@@ -401,19 +536,31 @@ fn validate(file: &str, rule: &Rule) -> Result<(), CatalogError> {
             "applicability names no languages or no scopes".into(),
         ));
     }
-    let lists: [(&str, Vec<&String>); 5] = [
-        (
-            "applicability.languages",
-            rule.applicability.languages.iter().collect(),
-        ),
-        (
-            "applicability.scopes",
-            rule.applicability.scopes.iter().collect(),
-        ),
+    let lists: [(&str, Vec<&String>); 3] = [
         ("aliases", rule.aliases.iter().collect()),
         ("kb_refs", rule.kb_refs.iter().collect()),
         ("related", rule.related.iter().collect()),
     ];
+    let mut seen_languages = std::collections::HashSet::new();
+    if let Some(dup) = rule
+        .applicability
+        .languages
+        .iter()
+        .find(|l| !seen_languages.insert(**l))
+    {
+        return Err(invalid(format!(
+            "applicability.languages lists {dup:?} twice"
+        )));
+    }
+    let mut seen_scopes = std::collections::HashSet::new();
+    if let Some(dup) = rule
+        .applicability
+        .scopes
+        .iter()
+        .find(|s| !seen_scopes.insert(**s))
+    {
+        return Err(invalid(format!("applicability.scopes lists {dup:?} twice")));
+    }
     for (field, items) in lists {
         if items.iter().any(|i| i.trim().is_empty()) {
             return Err(invalid(format!("{field} has a blank entry")));
