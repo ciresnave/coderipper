@@ -141,7 +141,7 @@ fn applies_to(rule: &Rule, language: &str) -> bool {
     rule.applicability()
         .languages
         .iter()
-        .any(|l| l == "any" || l == language)
+        .any(|l| l.covers(language))
 }
 
 /// Coverage of `language` by the module that said `hello`, joined with the catalog and (optionally) this run's outcomes.
