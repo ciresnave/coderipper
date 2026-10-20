@@ -1,6 +1,7 @@
 //! The command-line program, shared by the `coderipper` and `cargo-coderipper` binaries. Not part of the library API.
 
 use crate::check::{CheckContext, Tier};
+use crate::config::{Deny, MessageFormat, Profile};
 use crate::finding::Severity;
 use clap::{Parser, Subcommand, ValueEnum};
 use std::ffi::OsString;
@@ -25,26 +26,6 @@ impl std::fmt::Display for UsageError {
 
 impl std::error::Error for UsageError {}
 
-/// How findings are written to stdout.
-#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum MessageFormat {
-    /// Human-readable lines (the default).
-    Human,
-    /// One JSON object per line, each with a `"reason"`: `coderipper-finding` per finding, then one
-    /// `coderipper-summary` with the finding count, the errors and the exit code.
-    Json,
-}
-
-/// `--profile`'s values: which rules run and what is reported.
-#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum Profile {
-    /// The five original checks, plus `conflict-marker` (the one rule every profile takes), and the output they have always had (the default).
-    Classic,
-    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression, conflict-marker); the
-    /// rules of the language modules join it as they arrive.
-    Extended,
-}
-
 impl Profile {
     fn lib(self) -> crate::Profile {
         match self {
@@ -61,17 +42,6 @@ enum CoverageMode {
     Summary,
     /// Counts and the ids of every rule not yet covered.
     Full,
-}
-
-/// `--deny`'s values: the severity at which a finding fails the run, or `none` for never.
-#[derive(Clone, Copy, ValueEnum)]
-enum Deny {
-    None,
-    Info,
-    Low,
-    Medium,
-    High,
-    Critical,
 }
 
 impl Deny {
@@ -133,28 +103,25 @@ impl Conf {
     }
 
     fn deny(&self, flag: Deny) -> Deny {
-        match (&self.settings.deny, self.given.deny) {
-            (Some(text), false) => Deny::from_str(text, true).unwrap_or(flag),
+        match (self.settings.deny, self.given.deny) {
+            (Some(file), false) => file,
             _ => flag,
         }
     }
 
     fn message_format(&self, flag: MessageFormat) -> MessageFormat {
-        match (&self.settings.message_format, self.given.message_format) {
-            (Some(text), false) => MessageFormat::from_str(text, true).unwrap_or(flag),
+        match (self.settings.message_format, self.given.message_format) {
+            (Some(file), false) => file,
             _ => flag,
         }
     }
 
     /// `--profile`, else the repository's `profile`, else a wide file's, else the built-in default.
-    fn profile(&self, flag: Profile, repository: Option<&str>) -> Profile {
+    fn profile(&self, flag: Profile, repository: Option<Profile>) -> Profile {
         if self.given.profile {
             return flag;
         }
-        repository
-            .or(self.settings.profile.as_deref())
-            .and_then(|text| Profile::from_str(text, true).ok())
-            .unwrap_or(flag)
+        repository.or(self.settings.profile).unwrap_or(flag)
     }
 
     fn redact(&self, flag: bool) -> bool {
@@ -889,7 +856,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let message_format = conf.message_format(message_format);
     let profile = conf.profile(
         profile,
-        repository.as_ref().and_then(|f| f.profile.as_deref()),
+        repository.as_ref().and_then(|f| f.profile),
     );
     if conf.redact(redact) {
         crate::redact::set_policy(crate::redact::RedactionPolicy::On);

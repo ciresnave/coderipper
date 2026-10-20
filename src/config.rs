@@ -32,9 +32,42 @@ pub(crate) const FILE_NAME: &str = ".coderipper.toml";
 pub(crate) const REPOSITORY_MAY_SET: &str =
     "[[allow]], [[tracks]], [buf], [reachability] and profile";
 
-const PROFILES: &[&str] = &["classic", "extended"];
-const DENY_LEVELS: &[&str] = &["none", "info", "low", "medium", "high", "critical"];
-const MESSAGE_FORMATS: &[&str] = &["human", "json"];
+/// How findings are written to stdout (`--message-format`, and the key of the same name).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum MessageFormat {
+    /// Human-readable lines (the default).
+    Human,
+    /// One JSON object per line, each with a `"reason"`: `coderipper-finding` per finding, then one
+    /// `coderipper-summary` with the finding count, the errors and the exit code.
+    Json,
+}
+
+/// Which rules run and what is reported (`--profile`, and the key of the same name).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum Profile {
+    /// The five original checks, plus `conflict-marker` (the one rule every profile takes), and the output they have always had (the default).
+    Classic,
+    /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression, conflict-marker); the
+    /// rules of the language modules join it as they arrive.
+    Extended,
+}
+
+/// The severity at which a finding fails the run, or `none` for never (`--deny`, and the key of the same name).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum Deny {
+    None,
+    Info,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
 
 #[cfg(any(feature = "cli", test))]
 /// The limit keys, in the order they are reported.
@@ -59,12 +92,15 @@ pub(crate) struct ConfigFile {
     #[serde(default)]
     pub reachability: Option<ReachabilitySettings>,
     /// A default for `--profile`.
-    pub profile: Option<String>,
+    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    pub profile: Option<Profile>,
     /// A default for `--deny`.
-    pub deny: Option<String>,
+    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    pub deny: Option<Deny>,
     /// A default for `--message-format`.
     #[serde(rename = "message-format")]
-    pub message_format: Option<String>,
+    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    pub message_format: Option<MessageFormat>,
     #[cfg(any(feature = "cli", test))]
     /// A default for `--redact`.
     pub redact: Option<bool>,
@@ -145,17 +181,6 @@ impl ConfigFile {
     pub(crate) fn parse(text: &str, path: &Path) -> anyhow::Result<Self> {
         let file: ConfigFile =
             toml::from_str(text).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?;
-        let one_of = |key: &str, value: &Option<String>, allowed: &[&str]| match value.as_deref() {
-            Some(v) if !allowed.contains(&v) => Err(anyhow::anyhow!(
-                "{}: `{key} = \"{v}\"` is not one of: {}",
-                path.display(),
-                allowed.join(", ")
-            )),
-            _ => Ok(()),
-        };
-        one_of("profile", &file.profile, PROFILES)?;
-        one_of("deny", &file.deny, DENY_LEVELS)?;
-        one_of("message-format", &file.message_format, MESSAGE_FORMATS)?;
         Ok(file)
     }
 
@@ -284,9 +309,9 @@ pub(crate) struct Limit {
 /// The settings the wide files and the environment give, before flags and the repository's file are applied.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct Settings {
-    pub profile: Option<String>,
-    pub deny: Option<String>,
-    pub message_format: Option<String>,
+    pub profile: Option<Profile>,
+    pub deny: Option<Deny>,
+    pub message_format: Option<MessageFormat>,
     pub redact: Option<bool>,
     pub install_tools: Option<bool>,
     pub cache_enabled: Option<bool>,
@@ -309,9 +334,9 @@ impl Settings {
                     slot.clone_from(v);
                 }
             };
-            take(&mut s.profile, &f.profile);
-            take(&mut s.deny, &f.deny);
-            take(&mut s.message_format, &f.message_format);
+            s.profile = f.profile.or(s.profile);
+            s.deny = f.deny.or(s.deny);
+            s.message_format = f.message_format.or(s.message_format);
             if f.redact.is_some() {
                 s.redact = f.redact;
             }
@@ -403,10 +428,10 @@ mod tests {
             ),
             layer("/home/u/.coderipper.toml", "deny = \"low\"\n"),
         ]);
-        assert_eq!(s.deny.as_deref(), Some("low"));
+        assert_eq!(s.deny, Some(Deny::Low));
         assert_eq!(
-            s.profile.as_deref(),
-            Some("extended"),
+            s.profile,
+            Some(Profile::Extended),
             "a key the later file does not set keeps the earlier value"
         );
     }
@@ -556,7 +581,7 @@ mod tests {
         std::fs::write(&other, "deny = \"high\"\n").unwrap();
         let layers = load_wide(&get, Some(&other), false).unwrap();
         assert_eq!(layers.len(), 1);
-        assert_eq!(layers[0].file.deny.as_deref(), Some("high"));
+        assert_eq!(layers[0].file.deny, Some(Deny::High));
         assert!(load_wide(&get, Some(&home.join("absent.toml")), false).is_err());
     }
 }
