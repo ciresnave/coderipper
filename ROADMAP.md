@@ -1,10 +1,26 @@
 # CodeRipper roadmap
 
 Where CodeRipper should go, in order, and who uses it. **Written 2026-10-14 against `main@1aebeb2` (0.6.14), at the PM's
-request; the PM owns priorities, so this is the lane's proposal and the PM edits it.** Detail lives in the plans under
+request; refreshed 2026-10-20 against `main@ea58701` (0.8.3) at the PM's task. The PM owns priorities, so this is the lane's proposal and the PM edits it.** Detail lives in the plans under
 `docs/superpowers/plans/`; this file orders them and says why. It records no promise of a date.
 
-## Where it stands (read from `main@1aebeb2`)
+## Where it stands (read from `main@ea58701`, 0.8.3, 2026-10-20; the bullets below that quote a date are older measurements and keep their date)
+
+- **Since 2026-10-14 (0.6.14 to 0.8.3):** items 1, 2, 3, 5, 6 and 7 below are done; two native rules were added (`lint-suppression`, extended profile
+  only, 0.6.41; `conflict-marker`, every profile, 0.6.43); the crate runs its own sweep in CI (0.6.39); the portfolio-wide
+  "group5" code audit was worked through (0.6.43-0.8.3: closed enums at the protocol boundary and in the catalog and config, rule ids generated
+  from `rules/*.toml`, `Finding::absence` needs its control, a bad shipped `tools.lock` fails the build, fixture contract tested over the whole
+  `conformance/` tree, GitHub error wording read in one place, `BuiltinCheck`). 0.7.0 and 0.8.0 are Breaking in the library's types; none
+  changed a default. crates.io was last read on 2026-10-14 (below); it was not re-read for this refresh.
+- **Bar re-measured 2026-10-20** (`coderipper 0.8.3`, depth-1 clones of the default branch of 33 repositories, `--no-config check <rule> --profile extended`,
+  132 runs, all exit 0): **WSP-001 11 findings in 11 repositories (24 on 2026-10-14), DOC-009 0 (21), SUP-008 97 in 5 (326 in 18), SUP-001 7 in 7.**
+  Each rule is clean on 22, 13, 26 and 24 repositories respectively and finds the rest; DOC-009 also fires on `conformance/DOC-009/defective`.
+  Remaining: WSP-001 is "no CODEOWNERS" in `approvals-ciresnave`, `authframework-site`, `auto-discovery`, `candlelight`, `commy`, `commy-sdk-rust`,
+  `commy-wire`, `dirty-ranges`, `fam`, `kiss-ref`, `role-system`; SUP-008 is `auto-discovery` 56, `role-system` 21, `commy` 9, `candlelight` 7, `fam` 4
+  (68 `unpinned-uses`, 28 `excessive-permissions`, 1 `unpinned-images`); SUP-001 is cargo without `--locked` in `agentlife`, `commy`, `commy-sdk-rust`,
+  `lightbulb`, `role-system`, `synapse` and an application crate without `Cargo.lock` in `PersistAnt`. DOC-009 is 0 because 0.6.25 added a ten-page
+  threshold (20 repositories are below it) and the rest now keep a glossary. The population grew from 27 to 33 (`commy`, `commy-sdk-rust`, `commy-wire`,
+  `dirty-ranges`, `role-system`, `authframework-site` are new); the two clones that track no workflow are "not run" for SUP-001 and SUP-008, not clean.
 
 - **One engine, three faces.** The library, `coderipper` and `cargo coderipper` are built and published
   (crates.io lists 0.6.3, 0.6.9, 0.6.11 and 0.6.14 as not yanked, read 2026-10-14). The hosted service is **design only: nothing is
@@ -16,8 +32,8 @@ request; the PM owns priorities, so this is the lane's proposal and the PM edits
 - **Not built.** The TypeScript and Python modules (multi-language P4, P5), the remaining 96 unscheduled native rules, the
   and every hosted-service component (the configuration layers, designed in `2026-10-13-configuration-layers.md`, were built in 0.6.21).
 - **The default ruleset is still the five classic checks.** CireSnave's ruling (board 144) is that the default becomes all rules,
-  which is a breaking release; it is **not ready**: the 26-repository sweep of 2026-10-13 found WSP-001 on 23 repositories,
-  DOC-009 on 21 and SUP-008 on 21, so those three mechanical rules must be triaged first.
+  which is a breaking release; as of 2026-10-20 it is **closer but not ready**: WSP-001 is on 11 repositories, DOC-009 on none and SUP-008 on 5 (97 findings),
+  against 24 / 21 / 18 repositories on 2026-10-14. What is left is mechanical fixes the owning lanes have not made (and six repositories new to the population).
 - **Measured on the real fuel workspace (Task 7, 2026-10-15, `fuel@8cdb33dd` 0.19.5, CodeRipper 0.6.32, `--workspace`).** **45 members analysed = the plan's 43 publishable members + 2 non-publishable fixtures** (`fuel-model-fixture`, `fuel-model-umbrella-fixture`; the plan was written against `fuel@d1bfe127`, which listed 43). **Findings:** reachability 469 (all medium; 25 members; the cold and warm runs are byte-identical), unused-return-values 36 (28 low + 8 medium; 6 members), unused-parameters 0; every run exits 3. **Wall time per whole-workspace run:** reachability 1742 s cold and 915 s warm, unused-return-values 1992 s and unused-parameters 1334 s (both run after reachability, so against a warm cache); the cache is 73.5 GB. **The lever is an incremental cache, not parallelism** (PM's ruling). **Not collected:** per-member times (the runs were whole-workspace; the plan asked for them), per-member parity against `--workspace` (the PM ruled it unnecessary), and a run beside another lane's build. On Windows, `fuel-cuda-backend` and `fuel-metal-kernels` cannot build, so every run exits 3 for that environmental reason. **unused-parameters reported 0 findings and no positive control: the control's target was not built** (`fuel-capture-fixtures` has `required-features = ["capture"]` and is never compiled in a default build; no crate-wide `allow(unused)` hides it). **Defects found by this run, all fixed (0.6.33-0.6.35, proposed):** (1) when a control is absent because its target was not built, the output now says so ("target not built: required-features=[capture]"), fixed for unused-parameters in PR #83; (2) `--features`, `--all-features` and `--no-default-features` now reach the build step (PR #84); (3) CodeRipper reads the committed tree (a throwaway worktree), so uncommitted fixes show no change; `--help` and the run now say so (PR #85; 0.6.36 corrected it: the throwaway worktree is used by reachability, unused-return-values and unused-parameters only, `version-consistency` and API-006 read the working tree, and the note now counts untracked files too).
 
 ## Order of work
@@ -29,15 +45,16 @@ would make it stop.
 |---|---|---|---|---|
 | 1 | **DONE in 0.6.16 (proposed): proc-macro crates under `cfg_attr`** (the remainder of issue 54). 0.6.7 kept `#[proc_macro*]` entry points `pub`, but an attribute written inside `cfg_attr(..., proc_macro_derive(..))` was not recognised and that crate still exited 3. | A crate that exits 3 cannot go clean under "all rules"; issue 54 found it in 1 of the 23 repositories measured on 2026-10-12. | small | nothing |
 | 2 | **Backport of item 1 and of the 0.6.7 fix.** Published 0.6.9, 0.6.11 and 0.6.14 already carry 0.6.7; only 0.6.3 lacks it. There are no release branches and the line is pre-1.0 (users take the newest 0.6.x), so no backport branch is cut: the answer is "publish the item 1 fix in the next 0.6.x". | The portfolio rule is to backport when it is not a lot of work. | none | the PM's `cargo publish` |
-| 3 | **Triage WSP-001, DOC-009 and SUP-008 across the portfolio** (report-only for this lane: the per-repository fixes belong to the lanes that own those repositories). Produce one list per rule: true defect, rule too strict, waiver with a reason. **Lists produced 2026-10-14 (27 repositories at their default branch): `docs/portfolio-triage/2026-10-14-wsp001-doc009-sup008.md`; the per-repository fixes are the other lanes' to make.** | It gates the breaking release (item 4). | medium, mostly other lanes | the other lanes |
-| 4 | **All rules by default (breaking, 0.7.0).** | CireSnave's ruling; the 2026-10-13 sweep says not ready. | small once 3 is done | item 3 |
+| 3 | **DONE 2026-10-14, re-measured 2026-10-20 (see "Where it stands"): triage WSP-001, DOC-009 and SUP-008 across the portfolio** (report-only for this lane: the per-repository fixes belong to the lanes that own those repositories). Produce one list per rule: true defect, rule too strict, waiver with a reason. **Lists produced 2026-10-14 (27 repositories at their default branch): `docs/portfolio-triage/2026-10-14-wsp001-doc009-sup008.md`; the per-repository fixes are the other lanes' to make.** | It gates the breaking release (item 4). | medium, mostly other lanes | the other lanes |
+| 4 | **All rules by default (breaking; the next Breaking number, which the PM allocates: 0.7.0 and 0.8.0 are taken).** | CireSnave's ruling; the 2026-10-20 bar says closer, not ready. | small | the remaining WSP-001 / SUP-008 / SUP-001 fixes in the other lanes; the PM's go |
 | 5 | **DONE in 0.6.21 (published): the configuration layers** (system file, user file, restricted repository file, environment, flags; `--config`, `--no-config`; #69). | The hosted service and a site-wide policy both need a stronger-than-repository layer, and today a repository can only waive what it chooses. | medium | nothing |
 | 6 | **Known reachability limits.** (a) an intended public API of a library with no in-repo consumer is still reported (**DONE in 0.6.23, proposed: `[reachability] public_api` declares the surface with a reason per entry, printed as declared public; no source signal is guessed**); (b) `[patch]` and `[replace]` dependencies are not seen by the dependents rescue (**DONE in 0.6.22, proposed: a patch whose `path` is a member's directory counts as a path dependency; git, out-of-workspace and `.cargo/config.toml` patches are still not seen**). | These are the two shapes the sweep still reads as false positives; each waived finding costs a reviewer. | medium | nothing |
-| 7 | **Small defects found and not filed:** the gitleaks wrapper "did not read the history" on a Windows path longer than 260 characters (fixed in 0.6.17, proposed: `core.longpaths=true` through git's environment configuration); `--redact` on `conformance` (fixed in 0.6.18, proposed); and run `cargo coderipper --deny medium` in this repository's own CI (done in 0.6.19, proposed). | Cheap, and each is a wrong or missing message. | small | nothing |
+| 7 | **DONE (0.6.17-0.6.19, proposed): small defects found and not filed:** the gitleaks wrapper "did not read the history" on a Windows path longer than 260 characters (fixed in 0.6.17, proposed: `core.longpaths=true` through git's environment configuration); `--redact` on `conformance` (fixed in 0.6.18, proposed); and run `cargo coderipper --deny medium` in this repository's own CI (done in 0.6.19, proposed). | Cheap, and each is a wrong or missing message. | small | nothing |
 | 8 | **TypeScript module (multi-language P4), then Python (P5), then the install policy (P6).** The estimates are in the programme plan: 9-22 and 8-21 lane-days, both unmeasured. | The portfolio's websites and tools are TypeScript; Rust-only coverage leaves them as gaps. | large | items 3-5 (so a module is not built on a default that is about to change) |
 | 9 | **Hosted service.** Result document and intake interface first (design), then the build. | CireSnave's stated plan for ThinkersJournal.com; the design is complete enough to price. | large | **CireSnave's separate go** |
 
-Item 1 is done; items 2 and 7 are this lane's to start now. Item 3 needs the PM to route the other lanes. Item 9 waits and is not worked.
+**2026-10-20:** items 1, 2 (by the next 0.6.x policy, no branch cut), 3, 5, 6 and 7 are done. Item 4 waits on the other lanes' fixes and the PM's go; item 8 waits on item 4 and
+on the triage of the default ruleset; item 9 waits on CireSnave's go and is not worked. Nothing in this lane is unblocked beyond re-measuring.
 
 ## Who consumes it, and who should
 
