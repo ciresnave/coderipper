@@ -687,3 +687,75 @@ fn an_expectation_marked_many_accepts_one_or_more_findings_in_its_place_and_no_o
         Verdict::Failed(reasons) if reasons.iter().any(|r| r.contains("other.txt"))
     ));
 }
+
+/// The shape of `conformance/`, read from the index (a disk walk would see other checkouts' files): every directory is a
+/// catalog id with exactly a `defective` and a `clean` twin, each with an `expect.toml` that obeys the runner's contract
+/// (defective expects at least one finding, clean none, every expectation names the directory's rule). The runner enforces
+/// the contract only for a rule it is asked to run; this fails for a stray, misnamed or half-made fixture directory too.
+#[test]
+fn the_conformance_tree_matches_the_catalog_and_the_fixture_contract() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let listing = std::process::Command::new("git")
+        .args(["ls-files", "-z", "conformance"])
+        .current_dir(root)
+        .output()
+        .expect("git runs");
+    assert!(listing.status.success(), "git ls-files failed");
+    let files: Vec<String> = String::from_utf8(listing.stdout)
+        .expect("utf-8 paths")
+        .split(' ')
+        .filter(|f| !f.is_empty())
+        .map(str::to_string)
+        .collect();
+    assert!(
+        files
+            .iter()
+            .any(|f| f == "conformance/DOC-005/clean/expect.toml"),
+        "positive control: the listing must contain a known fixture, got {} files",
+        files.len()
+    );
+    let catalog = coderipper::catalog::Catalog::builtin();
+    let mut rules = std::collections::BTreeSet::new();
+    for file in &files {
+        let parts: Vec<&str> = file.split('/').collect();
+        assert!(
+            parts.len() >= 4,
+            "{file}: not under <rule>/<defective|clean>/"
+        );
+        assert!(
+            catalog.get(parts[1]).is_some(),
+            "{file}: {} is not a catalog id",
+            parts[1]
+        );
+        assert!(
+            ["defective", "clean"].contains(&parts[2]),
+            "{file}: only defective/ and clean/ belong here"
+        );
+        rules.insert(parts[1].to_string());
+    }
+    for rule in &rules {
+        for (kind, wants_findings) in [("defective", true), ("clean", false)] {
+            let path = format!("conformance/{rule}/{kind}/expect.toml");
+            assert!(files.contains(&path), "{path} is missing");
+            let text = std::fs::read_to_string(root.join(&path)).expect("readable");
+            let table: toml::Table = text.parse().unwrap_or_else(|e| panic!("{path}: {e}"));
+            let expected = table
+                .get("expect")
+                .and_then(|v| v.as_array())
+                .map_or(&[][..], Vec::as_slice);
+            assert_eq!(
+                !expected.is_empty(),
+                wants_findings,
+                "{path}: {kind} fixture expects {} finding(s)",
+                expected.len()
+            );
+            for e in expected {
+                assert_eq!(
+                    e.get("rule").and_then(|r| r.as_str()),
+                    Some(rule.as_str()),
+                    "{path}: an expectation names another rule"
+                );
+            }
+        }
+    }
+}
