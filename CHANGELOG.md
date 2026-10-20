@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.3 - 2026-10-20 (proposed)
+
+The compiled-in checks are one closed set (PM task, group5 audit row 3). Not breaking: see the note on `Finding::check_id`.
+
+### Added
+- `builtin::BuiltinCheck` (`ALL`, `id`, `from_id`, `is_proven`, `build`). `registered_checks()` and the Rust module's list of proven claims
+  (a hand-kept `PROVEN` string list) are derived from it; a new variant makes the compiler name each `match` that must decide, and a test
+  ties each variant's id to the id of the check it builds.
+
+### Not done
+- `Finding::check_id` and `AllowEntry::check` stay strings: findings arrive from external modules and delegates with ids that are not built-in
+  checks, so a closed enum there would reject them. The audit's "breaking" mechanism applies only if that is wanted.
+
 ## 0.8.2 - 2026-10-20 (proposed)
 
 GitHub's error wording is read in one place (PM task, group5 audit row 7). Not breaking.
