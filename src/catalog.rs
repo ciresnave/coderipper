@@ -133,46 +133,67 @@ pub enum Lifecycle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 #[non_exhaustive]
 pub enum Domain {
+    /// The `AIH` domain.
     #[serde(rename = "AIH")]
     Aih,
+    /// The `API` domain.
     #[serde(rename = "API")]
     Api,
+    /// The `ARC` domain.
     #[serde(rename = "ARC")]
     Arc,
+    /// The `CON` domain.
     #[serde(rename = "CON")]
     Con,
+    /// The `COR` domain.
     #[serde(rename = "COR")]
     Cor,
+    /// The `DOC` domain.
     #[serde(rename = "DOC")]
     Doc,
+    /// The `EFX` domain.
     #[serde(rename = "EFX")]
     Efx,
+    /// The `ERR` domain.
     #[serde(rename = "ERR")]
     Err,
+    /// The `EVO` domain.
     #[serde(rename = "EVO")]
     Evo,
+    /// The `EXT` domain.
     #[serde(rename = "EXT")]
     Ext,
+    /// The `GOV` domain.
     #[serde(rename = "GOV")]
     Gov,
+    /// The `MOD` domain.
     #[serde(rename = "MOD")]
     Mod,
+    /// The `OPS` domain.
     #[serde(rename = "OPS")]
     Ops,
+    /// The `PRF` domain.
     #[serde(rename = "PRF")]
     Prf,
+    /// The `RDB` domain.
     #[serde(rename = "RDB")]
     Rdb,
+    /// The `REL` domain.
     #[serde(rename = "REL")]
     Rel,
+    /// The `SEC` domain.
     #[serde(rename = "SEC")]
     Sec,
+    /// The `SUP` domain.
     #[serde(rename = "SUP")]
     Sup,
+    /// The `TST` domain.
     #[serde(rename = "TST")]
     Tst,
+    /// The `TYP` domain.
     #[serde(rename = "TYP")]
     Typ,
+    /// The `WSP` domain.
     #[serde(rename = "WSP")]
     Wsp,
 }
