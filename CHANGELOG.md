@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.7.4 - 2026-10-20 (proposed)
+
+The configuration keys `profile`, `deny` and `message-format` are the same enums as the flags (PM task, group5 audit row 4).
+Stacked on nothing; not breaking.
+
+### Changed
+- `Profile`, `Deny` and `MessageFormat` are defined once, in `config.rs`, and derive both `serde::Deserialize` (kebab-case) and
+  `clap::ValueEnum`. The three string arrays, the `one_of` check and the second parse of each value in `cli.rs` are gone, so the file and the
+  flag cannot drift apart. The accepted spellings are unchanged.
+- A wrong value in a configuration file now fails inside the TOML parse, so the message carries the file, the line and serde's list of the
+  accepted values (`unknown variant "sometimes", expected one of ...`) in place of the hand-written sentence. Still an error in every build.
+
 ## 0.7.3 - 2026-10-18 (proposed)
 
 An absence is declared by the constructor, not guessed from the words of the summary (PM task, group5 audit row 3; approved option (a) on 2026-10-18).
