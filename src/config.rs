@@ -92,14 +92,32 @@ pub(crate) struct ConfigFile {
     #[serde(default)]
     pub reachability: Option<ReachabilitySettings>,
     /// A default for `--profile`.
-    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    #[cfg_attr(
+        not(any(feature = "cli", test)),
+        expect(
+            dead_code,
+            reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"
+        )
+    )]
     pub profile: Option<Profile>,
     /// A default for `--deny`.
-    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    #[cfg_attr(
+        not(any(feature = "cli", test)),
+        expect(
+            dead_code,
+            reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"
+        )
+    )]
     pub deny: Option<Deny>,
     /// A default for `--message-format`.
     #[serde(rename = "message-format")]
-    #[cfg_attr(not(any(feature = "cli", test)), expect(dead_code, reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"))]
+    #[cfg_attr(
+        not(any(feature = "cli", test)),
+        expect(
+            dead_code,
+            reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"
+        )
+    )]
     pub message_format: Option<MessageFormat>,
     #[cfg(any(feature = "cli", test))]
     /// A default for `--redact`.

@@ -854,10 +854,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     }
     let deny = conf.deny(deny);
     let message_format = conf.message_format(message_format);
-    let profile = conf.profile(
-        profile,
-        repository.as_ref().and_then(|f| f.profile),
-    );
+    let profile = conf.profile(profile, repository.as_ref().and_then(|f| f.profile));
     if conf.redact(redact) {
         crate::redact::set_policy(crate::redact::RedactionPolicy::On);
     }
