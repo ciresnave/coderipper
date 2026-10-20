@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.4 - 2026-10-20 (proposed)
+
+ROADMAP refreshed to `main@ea58701` (0.8.3); it was dated 2026-10-14 (0.6.14). Documentation only.
+
+### Changed
+- `ROADMAP.md`: items 1-3, 5-7 marked done, the group5 audit recorded, and the WSP-001 / DOC-009 / SUP-008 / SUP-001 bar re-measured over
+  33 fresh clones (was 27): 11 / 0 / 97 / 7 findings, against 24 / 21 / 326 on 2026-10-14. The default-ruleset release number is now
+  the next Breaking one, not 0.7.0 (0.7.0 shipped the protocol enums).
+
 ## 0.8.3 - 2026-10-20 (proposed)
 
 The compiled-in checks are one closed set (PM task, group5 audit row 3). Not breaking: see the note on `Finding::check_id`.
