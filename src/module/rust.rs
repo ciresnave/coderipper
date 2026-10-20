@@ -4,17 +4,8 @@ use super::{
     Capabilities, ErrorKind, Event, Hello, Module, ModuleOutput, ModuleSummary, Request, RuleClaim,
     RuleResult,
 };
+use crate::builtin::BuiltinCheck;
 use crate::check::{Check, CheckContext, Network};
-
-/// The built-in rules whose claim is earned: each has a seeded-defect fixture and a clean twin under `conformance/`, run by this
-/// repository's own tests (`tests/conformance.rs` fails if this list and the fixtures disagree). The host trusts a built-in
-/// module's `proof` because that CI proved it; there is no per-build lock file for code that is compiled into the binary.
-const PROVEN: &[&str] = &[
-    "reachability",
-    "unused-parameters",
-    "unused-return-values",
-    "version-consistency",
-];
 
 /// The compiled-in checks, answering the module protocol in process. A request names rules by check id; each named check
 /// runs through [`Check::run`] and comes back as its raw findings followed by one rule result, exactly the events an
@@ -50,7 +41,7 @@ impl Module for RustModule<'_> {
                 .iter()
                 .map(|c| {
                     let mut claim = RuleClaim::native(c.id());
-                    if PROVEN.contains(&c.id()) {
+                    if BuiltinCheck::from_id(c.id()).is_some_and(BuiltinCheck::is_proven) {
                         claim.proof = Some(format!("conformance/{}", c.id()));
                     }
                     claim

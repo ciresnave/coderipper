@@ -59,6 +59,7 @@ pub use serde_json;
 
 pub(crate) mod allowlist;
 pub mod build_cache;
+pub mod builtin;
 pub(crate) mod cargo_json;
 pub mod catalog;
 pub mod check;
@@ -96,13 +97,10 @@ use tools::ToolEnv;
 /// The list is fixed rather than loaded dynamically: there is no known need yet for a check this project's own
 /// maintainers didn't write. To run your own, pass a list to [`run_checks_with`].
 pub fn registered_checks() -> Vec<Box<dyn Check>> {
-    vec![
-        Box::new(checks::ReachabilityCheck::new()),
-        Box::new(checks::UnusedReturnValuesCheck::new()),
-        Box::new(checks::UnusedParametersCheck::new()),
-        Box::new(checks::VersionConsistencyCheck::new()),
-        Box::new(checks::CiProtectionPresenceCheck::new()),
-    ]
+    builtin::BuiltinCheck::ALL
+        .into_iter()
+        .map(builtin::BuiltinCheck::build)
+        .collect()
 }
 
 /// Run every registered check at or below the requested tier, collect and validate their
@@ -1116,6 +1114,8 @@ mod tests {
         // test -- a unit test has no business writing into a shared .git via `git worktree add`.
         let checks = registered_checks();
         let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
+        // The expected list is written out on purpose: `BuiltinCheck::ALL` derives the registration, so comparing with it would pass
+        // whatever the order; this pins the order the checks run in.
         assert_eq!(
             ids,
             vec![
