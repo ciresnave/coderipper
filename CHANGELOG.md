@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.2 - 2026-10-20 (proposed)
+
+GitHub's error wording is read in one place (PM task, group5 audit row 7). Not breaking.
+
+### Added
+- `ApiError::kind()` and `ApiErrorKind` (`EmptyRepository`, `PlanLimit`, `Other`). `ci-protection-presence` matched `message.contains("empty")` and
+  `contains("Upgrade to GitHub Pro")` inline; it now asks `kind()`, so a reworded GitHub answer is one edit with one test, not two silent flips.
+
 ## 0.8.1 - 2026-10-20 (proposed)
 
 The fixture contract is checked over the whole `conformance/` tree (PM task, group5 audit row 8). Not breaking.
