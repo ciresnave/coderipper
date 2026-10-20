@@ -25,7 +25,7 @@
 
 use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::finding::{Confidence, Finding, Location, Severity};
-use crate::github::{origin_url, parse_github_remote, GhCli, Github};
+use crate::github::{origin_url, parse_github_remote, ApiErrorKind, GhCli, Github};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = crate::rule_id::CI_PROTECTION_PRESENCE;
@@ -114,7 +114,7 @@ impl Check for CiProtectionPresenceCheck {
                 // repository itself saying it has no commits makes this informational.
                 let commits_path = format!("repos/{slug}/commits?per_page=1");
                 return match self.api.get(&commits_path) {
-                    Err(c) if c.status == Some(409) && c.message.contains("empty") => {
+                    Err(c) if c.kind() == ApiErrorKind::EmptyRepository => {
                         Ok(vec![info_finding(&canonical,
                             Some(branch),
                             format!("{canonical} has no commits yet, so its default branch `{branch}` does not exist to protect"),
@@ -187,7 +187,7 @@ impl Check for CiProtectionPresenceCheck {
                 )
             }
             // Real answer for a private repo on a free plan: rulesets cannot exist there.
-            Err(e) if e.status == Some(403) && e.message.contains("Upgrade to GitHub Pro") => {
+            Err(e) if e.kind() == ApiErrorKind::PlanLimit => {
                 format!(
                     "GET {rules_path} answered 403 \"{}\": this repository's plan cannot have rulesets",
                     e.message

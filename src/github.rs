@@ -37,6 +37,30 @@ impl ApiError {
     }
 }
 
+/// What a failed call means, decided in one place: GitHub's answers name these cases only in words, and a caller that matched
+/// the words itself would flip behaviour silently when GitHub rewords one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum ApiErrorKind {
+    /// 409: the repository has no commits yet.
+    EmptyRepository,
+    /// 403: the repository's plan cannot have this feature (rulesets on a private repository on a free plan).
+    PlanLimit,
+    /// Anything else: not found, forbidden, rate limited, no `gh`, no network.
+    Other,
+}
+
+impl ApiError {
+    /// Which known case this failure is. The only place that reads GitHub's wording.
+    pub fn kind(&self) -> ApiErrorKind {
+        match self.status {
+            Some(409) if self.message.contains("empty") => ApiErrorKind::EmptyRepository,
+            Some(403) if self.message.contains("Upgrade to GitHub Pro") => ApiErrorKind::PlanLimit,
+            _ => ApiErrorKind::Other,
+        }
+    }
+}
+
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.status {
@@ -196,6 +220,32 @@ pub fn origin_url(dir: &Path) -> anyhow::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_failure_is_classified_by_status_and_wording_in_one_place() {
+        let kind = |status, message| ApiError::new(status, message).kind();
+        assert_eq!(
+            kind(Some(409), "Git Repository is empty."),
+            ApiErrorKind::EmptyRepository
+        );
+        assert_eq!(
+            kind(
+                Some(403),
+                "Upgrade to GitHub Pro or make this repository public to enable this feature."
+            ),
+            ApiErrorKind::PlanLimit
+        );
+        // Right words, wrong status; right status, other words: neither is the known case.
+        assert_eq!(
+            kind(Some(404), "Git Repository is empty."),
+            ApiErrorKind::Other
+        );
+        assert_eq!(
+            kind(Some(403), "Resource not accessible"),
+            ApiErrorKind::Other
+        );
+        assert_eq!(kind(None, "cannot run `gh`"), ApiErrorKind::Other);
+    }
 
     fn repo(owner: &str, name: &str) -> Option<RepoRef> {
         Some(RepoRef {
