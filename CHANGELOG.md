@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.1 - 2026-10-20 (proposed)
+
+The fixture contract is checked over the whole `conformance/` tree (PM task, group5 audit row 8). Not breaking.
+
+### Added
+- A test enumerates `conformance/` from the git index and fails for a directory that is not a catalog id, a rule missing its `defective`
+  or `clean` twin, a defective fixture expecting nothing, a clean twin expecting a finding, or an expectation naming another rule. The runner
+  already refused these, but only for a rule it was asked to run.
+
 ## 0.8.0 - 2026-10-20 (proposed, Breaking)
 
 A rule's domain, languages and scopes are enums, not strings (PM task, group5 audit row 9).
