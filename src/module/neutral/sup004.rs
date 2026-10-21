@@ -15,6 +15,8 @@
 //! 4. *An npm dependency* written `file:` / `link:` / `portal:` that leaves the repository (High), or fetched from git (`git+`, `git://`,
 //!    `github:`, `gitlab:`, `bitbucket:`, `gist:`, `user/repo`) or from a tarball URL (Medium).
 //!
+//! A macro written inside a string literal (a line with an escaped quote) is test data and is not read.
+//!
 //! The directories the other rules skip (`fixtures`, `testdata`, `conformance`, `snapshots`, `golden`, vendored code) are skipped here.
 //!
 //! **What it cannot see:** another ecosystem's manifests; a build script or test that finds a sibling by a hardcoded `..` join at run
@@ -245,7 +247,8 @@ impl Scan<'_> {
             let reads_file = ["include!", "include_str!", "include_bytes!", "#[path"]
                 .iter()
                 .any(|m| code.contains(m));
-            if code.starts_with("//") || !(reads_file || from_manifest) {
+            // a macro written inside a string literal (an escaped quote on the line) is test data, not a read
+            if code.starts_with("//") || code.contains("\\\"") || !(reads_file || from_manifest) {
                 continue;
             }
             // the literal on this line, else on the next
@@ -499,6 +502,14 @@ mod tests {
             ("vendor/y/Cargo.toml", &m)
         ])
         .is_empty());
+    }
+
+    #[test]
+    fn a_macro_inside_a_string_literal_is_test_data_not_a_read() {
+        let m = manifest("");
+        let src = "let t = \"include_str!(\\\"../../../x\\\")\";
+";
+        assert!(run(&[("a/Cargo.toml", &m), ("a/src/lib.rs", src)]).is_empty());
     }
 
     #[test]
