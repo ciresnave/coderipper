@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.6 - 2026-10-21 (proposed)
+
+`cargo deny check` runs in CI (PM task). No source change.
+
+### Added
+- `deny.toml`: advisories deny (yanked too) with no ignore entries; licences limited to a permissive allow-list (MIT, Apache-2.0
+  with or without the LLVM exception, ISC, BSD-3-Clause, Zlib, Unlicense, 0BSD, Unicode-3.0, CDLA-Permissive-2.0); unknown registries
+  and git sources denied. Before this file `cargo deny` allowed no licence at all and reported 200 errors.
+- CI job `deny` (`EmbarkStudios/cargo-deny-action`, pinned to the v2.1.1 commit).
+
 ## 0.8.5 - 2026-10-21 (proposed)
 
 Lock-only security update (PM task). No source change.
