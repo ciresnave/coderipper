@@ -62,12 +62,32 @@ Process and persons: Serena rules, `gh auth switch`, peer IDs and holds, message
 - **Private repositories** call the same workflow with `runs-on` set to the self-hosted label, under the 5.1h private-repository conditions (push to main, schedule, dispatch, same-repo PRs). **Open question:** a private caller can only use a reusable workflow in a repository that allows it (this repository's Actions access setting). Whether this repository is public decides it; not checked here.
 - **Rollout without turning every repository red on one day:** each rule starts report-only per repository (GOV-001 baseline, count ratchets down), the PM turns a check required once it is green on the default branch, which is how 6.5 already says to add checks.
 
-## 3. Decisions the PM or CireSnave must make
+## 3. Rulings (PM, 2026-10-21) and the blocking table
 
-1. **Version bump and "bump on a complete change set".** 6.6 lets several pushes share one bump; a per-PR check cannot know a PR belongs to a longer change set. Recommend: the check runs on PRs into the default branch and demands a changed version there (each merge is a pushed change); a change set that spans PRs lands the bump in its last PR and the earlier ones carry a label (`version-deferred`) that the check accepts only with the label. Alternative: check on `main` after merge and open an issue. The first is deterministic.
-2. **6.1-6.4 are not PR gates.** CireSnave said on 2026-09-10 (EXPECTATIONS 6, "DO NOT BLOCK A PR ON section 6") that README, tests, library docs and licensing gate *advertising a project finished*, not each PR, and on 2026-10-21 that anything checkable should be checked in CI. Both can hold: run these checks in the portfolio workflow as non-required (visible) until the project crosses the release line, then require them at the release (a 1.0, a "production-ready" README). Needs his or the PM's reading.
-3. **Exceptions are data.** Licence exceptions (KISS CC0 text; inherited third-party files), version `[[tracks]]`, and git-dependency blockers need one place to live. Proposal: the repository's `.coderipper.toml`, each with `reason` and `owner` (5.1f), counted in the report.
-4. **Forks are excluded (6.5).** The profile needs a repository-level "this is a fork, do not hold it" switch; the PM's roll-out list is the source.
+1. **Version and changelog (6.6).** A check on PRs into the default branch: the package manifest version (`Cargo.toml`, `package.json`; never a lock file) differs from the base's, and `CHANGELOG.md` has an entry for it. The `version-deferred` label is accepted only on a PR whose number the PM allocates at gate time; the PM's gate re-checks at merge.
+2. **6.1-6.4 do not block a PR.** CireSnave, 2026-09-10, verbatim: *"My expectations are not \*right this second\* requirements. They are not gates that have to be verified before we proceed. However, they are things that need to remain on a to-do list until they are completed in every project. They are "before a project is truly complete, these will all be true"."* So the README, tests, library-docs and per-file SPDX classes run visibly but are **non-blocking**, and become requirements at the release line (a 1.0, a "production-ready" README, an announcement). **The unambiguous mechanical violations block**, because they break a rule he stated as a prohibition, not a to-do (6.8, 6.5, CLAUDE.md 9).
+3. **Exceptions are data**, in the repository's `.coderipper.toml`, each with `reason` and `owner` (5.1f), counted in the report.
+4. **Forks are excluded (6.5)**; the profile needs a per-repository "fork" switch fed from the PM's roll-out list.
+5. coderipper is **public**, so private repositories can call its reusable workflow.
+
+| Rule | Blocking on a PR | Non-blocking (visible, required at the release line) |
+|---|---|---|
+| Path dependency outside the repository; `git =` dependency without a waiver; `include_*!("../")` or `#[path]` leaving the crate | **blocking** | |
+| `deny.toml` missing, or `cargo deny check` not run in CI | **blocking** | |
+| Licence file(s) missing | **blocking** | |
+| Actions not pinned to SHAs; broad token permissions (SUP-008) | **blocking** | |
+| Lockfile / `--locked` (SUP-001); secrets (SEC-002); conflict markers | **blocking** | |
+| Version changed vs base + CHANGELOG entry | **blocking** (`version-deferred` as above) | |
+| One version per project (`version-consistency`) | **blocking** | |
+| New `#[ignore]` / `allow(dead_code)` without reason (5.1g) | **blocking** (the reason check) | owner/detector, count ratchet |
+| Self-hosted job on a PR trigger without the same-repo condition (5.1h) | **blocking** | |
+| CODEOWNERS (WSP-001) | **blocking** (a file check) | |
+| SPDX identifier in every source file; holder is the organisation; provenance notices | | non-blocking |
+| README shape; CONTRIBUTING; `missing_docs`; tests exist; coverage | | non-blocking |
+| Newest dependencies (scheduled); advisories; link rot | | non-blocking per PR; scheduled job opens the finding |
+| Settings audit (admin bypass, force-push, squash-only) | run in the PM's sweep | |
+
+Rows not in the PM's list (version-consistency, ignore reason, self-hosted, CODEOWNERS) are this lane's proposal; the PM edits.
 
 ## 4. Build order (each its own PR with its own version)
 
