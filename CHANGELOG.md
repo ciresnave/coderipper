@@ -18,6 +18,9 @@ Rule `SUP-004`, dependencies only from published sources (PM task, CireSnave 202
   run-time `..` joins, `version` on in-repository path dependencies, a registry allowlist.
 - Planted cases both ways: `conformance/SUP-004/{defective,clean}` and unit tests for each table and shape.
 
+### Measured
+- Over `origin` default branches of 36 checkouts under `C:\Projects` (a `git archive` of each; 3 more, `claude-code-wrapper`, `llm-bench`, `unpopped-harness`, could not be archived and are not counted; run by `check SUP-004 --profile extended` at 0.8.8): **144 findings in 9 repositories, 27 clean.** 24 are `git =` dependencies (candlelight 11, lightbulb 9, baracuda 2, mlmf 2: each needs a named blocker or the published version), 2 are High (`commy` `gen_certs.rs`, `include_str!("../tests/...")` from the repository root), and 118 are Medium `include*!` that leave their crate (fuel 97, mlmf 9, PersistAnt 5, baracuda 4, Humboldt 2, Unpopped 1). Those 118 are real packaging defects for a published crate but many are in `tests/` (they pass in the workspace); no path dependency outside a repository was found. A first run also flagged 40 `CARGO_MANIFEST_DIR` joins that stay inside the repository; those are no longer reported.
+
 ## 0.8.7 - 2026-10-21 (proposed)
 
 Which portfolio rules a CI job can check, and the design of one check set (PM task). Documentation only.
