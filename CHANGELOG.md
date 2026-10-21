@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.7 - 2026-10-21 (proposed)
+
+Which portfolio rules a CI job can check, and the design of one check set (PM task). Documentation only.
+
+### Added
+- `docs/portfolio-ci-coverage.md`: every rule in `CLAUDE.md` and `CIRESNAVE-EXPECTATIONS.md` classified CI / partly / no, what covers it today, the build list, and a `portfolio` profile with one reusable workflow.
+
 ## 0.8.6 - 2026-10-21 (proposed)
 
 `cargo deny check` runs in CI (PM task). No source change.
