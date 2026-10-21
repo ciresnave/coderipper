@@ -93,6 +93,7 @@ kb_refs = []
 remediation = "Publish or vendor the dependency through an approved registry, or add the source to the allowlist after review."
 related = []
 lifecycle = "experimental"
+checked_today = "Cargo manifests (dependencies, dev-, build-, workspace and target tables, [patch], [replace], and a .cargo/config.toml paths override) and npm package.json files: a path or file:/link: dependency that leaves the repository (high), a git dependency or an npm git/URL spec (medium, waivable with a reason), and a Rust include!, include_str!, include_bytes!, #[path] or CARGO_MANIFEST_DIR join that leaves its crate (medium) or the repository (high). Not judged: other ecosystems, a hardcoded .. join made at run time, whether an in-repository path dependency carries a version, and the registry allowlist the rule describes (any registry passes)."
 
 [rule.applicability]
 languages = ["any"]

@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.8 - 2026-10-21 (proposed)
+
+Rule `SUP-004`, dependencies only from published sources (PM task, CireSnave 2026-10-21: the rule against relative path dependencies should be a CI check; EXPECTATIONS 6.8).
+
+### Added
+- Rule `SUP-004` (neutral module, extended profile; catalog record already in `rules/sup.toml`, now with `checked_today`): a Cargo path dependency that leaves the repository is High
+  (dependencies, dev-, build-, workspace, target tables, `[patch]`, `[replace]`, a `.cargo/config.toml` `paths` override); a `git =` dependency is Medium and is waived through an
+  `[[allow]]` entry; a Rust `include!`, `include_str!`, `include_bytes!` or `#[path]` that leaves its crate is Medium, and High when it leaves the repository (a `CARGO_MANIFEST_DIR` join is reported only then: a test finding its workspace is not a published-crate defect);
+  an npm `file:`/`link:` dependency leaving the repository is High, an npm git or URL spec Medium. Fixture and vendored directories are skipped. Not judged: other ecosystems,
+  run-time `..` joins, `version` on in-repository path dependencies, a registry allowlist.
+- Planted cases both ways: `conformance/SUP-004/{defective,clean}` and unit tests for each table and shape.
+
+### Measured
+- Over `origin` default branches of 36 checkouts under `C:\Projects` (a `git archive` of each; 3 more, `claude-code-wrapper`, `llm-bench`, `unpopped-harness`, could not be archived and are not counted; run by `check SUP-004 --profile extended` at 0.8.8): **144 findings in 9 repositories, 27 clean.** 24 are `git =` dependencies (candlelight 11, lightbulb 9, baracuda 2, mlmf 2: each needs a named blocker or the published version), 2 are High (`commy` `gen_certs.rs`, `include_str!("../tests/...")` from the repository root), and 118 are Medium `include*!` that leave their crate (fuel 97, mlmf 9, PersistAnt 5, baracuda 4, Humboldt 2, Unpopped 1). Those 118 are real packaging defects for a published crate but many are in `tests/` (they pass in the workspace); no path dependency outside a repository was found. A first run also flagged 40 `CARGO_MANIFEST_DIR` joins that stay inside the repository; those are no longer reported.
+
 ## 0.8.7 - 2026-10-21 (proposed)
 
 Which portfolio rules a CI job can check, and the design of one check set (PM task). Documentation only.
