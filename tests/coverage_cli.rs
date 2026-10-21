@@ -201,7 +201,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks, the five proven language-neutral rules, lint-suppression (Rust only) and conflict-marker
-    assert_eq!(rust["covered"], 11);
+    assert_eq!(rust["covered"], 12);
     // reachability's claim and the six delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 7);
@@ -209,7 +209,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
     // no TypeScript module, but the six language-neutral rules apply to it (the six delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], 6);
+    assert_eq!(ts["covered"], 7);
     assert_eq!(ts["claimed_unproven"], 6);
     assert_eq!(
         ts["note"],
@@ -266,7 +266,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
         .find(|l| l["language"] == "python")
         .unwrap_or_else(|| panic!("{text}"));
     // the five rules that read any file kind are covered; SUP-001 reads Cargo and npm files only
-    assert_eq!(py["covered"], 5, "{py}");
+    assert_eq!(py["covered"], 6, "{py}");
     let gaps: Vec<&str> = py["gaps"]
         .as_array()
         .unwrap()
@@ -279,7 +279,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 11, "{rust}");
+    assert_eq!(rust["covered"], 12, "{rust}");
 }
 
 #[test]

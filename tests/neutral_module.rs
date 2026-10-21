@@ -1,4 +1,4 @@
-//! The language-neutral module (multi-language P3, PR 1): its seven rules, over the real fixtures in `conformance/`, through the
+//! The language-neutral module (multi-language P3, PR 1): its eight rules, over the real fixtures in `conformance/`, through the
 //! conformance runner and through the host.
 
 use coderipper::check::{CheckContext, Tier};
@@ -6,8 +6,9 @@ use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::{Module, NeutralModule};
 use std::path::{Path, PathBuf};
 
-const RULES: [&str; 7] = [
+const RULES: [&str; 8] = [
     "SUP-001",
+    "SUP-004",
     "SUP-011",
     "DOC-005",
     "DOC-009",
@@ -43,9 +44,9 @@ fn copy_dir(from: &Path, to: &Path) {
 }
 
 #[test]
-fn each_of_the_seven_claims_is_earned_by_its_fixtures() {
+fn each_of_the_eight_claims_is_earned_by_its_fixtures() {
     let proofs = proofs();
-    assert_eq!(proofs.len(), 7, "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(proofs.len(), 8, "one verdict per claimed rule: {proofs:?}");
     for rule in RULES {
         let verdict = proofs.iter().find(|(r, _)| r == rule).map(|(_, v)| v);
         assert_eq!(verdict, Some(&Verdict::Proven), "{rule}: {proofs:?}");
@@ -72,7 +73,7 @@ fn the_modules_proof_claims_are_exactly_the_rules_the_fixtures_prove() {
     assert_eq!(claimed, proven);
 }
 
-/// The controls that the seven proofs above are not vacuous: a rule that reports nothing, or always reports, cannot pass both
+/// The controls that the eight proofs above are not vacuous: a rule that reports nothing, or always reports, cannot pass both
 /// halves. Here the defect is put into the clean twin, and then removed from the defective project.
 #[test]
 fn a_clean_twin_that_gains_the_defect_fails_and_a_defect_that_is_removed_fails() {
@@ -142,7 +143,7 @@ fn a_directory_that_is_not_a_git_repository_is_an_error_for_every_rule_never_cle
         Tier::Fast,
         coderipper::module::Limits::default(),
     );
-    assert_eq!(result.errors.len(), 7, "{:?}", result.errors);
+    assert_eq!(result.errors.len(), 8, "{:?}", result.errors);
     assert!(result.findings.is_empty());
     assert!(result
         .outcomes
@@ -193,8 +194,8 @@ fn the_host_runs_the_module_and_reports_findings_under_the_catalog_ids() {
         .map(|f| f.check_id.as_str())
         .collect();
     assert_eq!(ids, vec!["WSP-001"], "{:?}", result.findings);
-    // the seven rules were asked for; six did not apply or found nothing
-    assert_eq!(result.outcomes.len(), 7, "{:?}", result.outcomes);
+    // the eight rules were asked for; seven did not apply or found nothing
+    assert_eq!(result.outcomes.len(), 8, "{:?}", result.outcomes);
 }
 
 #[test]

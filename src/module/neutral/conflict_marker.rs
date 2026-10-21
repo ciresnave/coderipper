@@ -21,7 +21,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 const ID: &str = crate::rule_id::CONFLICT_MARKER;
 
 /// Directory names whose contents quote markers or are somebody else's.
-const SKIPPED: &[&str] = &[
+pub(super) const SKIPPED: &[&str] = &[
     "fixtures",
     "fixture",
     "testdata",

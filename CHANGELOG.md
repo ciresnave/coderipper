@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.8 - 2026-10-21 (proposed)
+
+Rule `SUP-004`, dependencies only from published sources (PM task, CireSnave 2026-10-21: the rule against relative path dependencies should be a CI check; EXPECTATIONS 6.8).
+
+### Added
+- Rule `SUP-004` (neutral module, extended profile; catalog record already in `rules/sup.toml`, now with `checked_today`): a Cargo path dependency that leaves the repository is High
+  (dependencies, dev-, build-, workspace, target tables, `[patch]`, `[replace]`, a `.cargo/config.toml` `paths` override); a `git =` dependency is Medium and is waived through an
+  `[[allow]]` entry; a Rust `include!`, `include_str!`, `include_bytes!`, `#[path]` or `CARGO_MANIFEST_DIR` join that leaves its crate is Medium, and High when it leaves the repository;
+  an npm `file:`/`link:` dependency leaving the repository is High, an npm git or URL spec Medium. Fixture and vendored directories are skipped. Not judged: other ecosystems,
+  run-time `..` joins, `version` on in-repository path dependencies, a registry allowlist.
+- Planted cases both ways: `conformance/SUP-004/{defective,clean}` and unit tests for each table and shape.
+
 ## 0.8.7 - 2026-10-21 (proposed)
 
 Which portfolio rules a CI job can check, and the design of one check set (PM task). Documentation only.
