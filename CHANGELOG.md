@@ -13,7 +13,7 @@ Rule `SUP-004`, dependencies only from published sources (PM task, CireSnave 202
 ### Added
 - Rule `SUP-004` (neutral module, extended profile; catalog record already in `rules/sup.toml`, now with `checked_today`): a Cargo path dependency that leaves the repository is High
   (dependencies, dev-, build-, workspace, target tables, `[patch]`, `[replace]`, a `.cargo/config.toml` `paths` override); a `git =` dependency is Medium and is waived through an
-  `[[allow]]` entry; a Rust `include!`, `include_str!`, `include_bytes!`, `#[path]` or `CARGO_MANIFEST_DIR` join that leaves its crate is Medium, and High when it leaves the repository;
+  `[[allow]]` entry; a Rust `include!`, `include_str!`, `include_bytes!` or `#[path]` that leaves its crate is Medium, and High when it leaves the repository (a `CARGO_MANIFEST_DIR` join is reported only then: a test finding its workspace is not a published-crate defect);
   an npm `file:`/`link:` dependency leaving the repository is High, an npm git or URL spec Medium. Fixture and vendored directories are skipped. Not judged: other ecosystems,
   run-time `..` joins, `version` on in-repository path dependencies, a registry allowlist.
 - Planted cases both ways: `conformance/SUP-004/{defective,clean}` and unit tests for each table and shape.

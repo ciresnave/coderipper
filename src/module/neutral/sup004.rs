@@ -273,7 +273,8 @@ impl Scan<'_> {
                     format!("{file}:{} reads `{rel}`, which is outside the repository", i + 1),
                     "A build that reads a file from outside the repository works only where that file sits. Keep the file in the crate, or depend on the published crate that owns it.",
                 ),
-                Some(path) if !within(&path, &crate_root) => self.finding(
+                // a `CARGO_MANIFEST_DIR` join that stays in the repository is a test finding its workspace, not a published-crate defect
+                Some(path) if !from_manifest && !within(&path, &crate_root) => self.finding(
                     Severity::Medium,
                     file,
                     n,
@@ -470,9 +471,14 @@ mod tests {
                    const T: &str = concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/../sibling/x.txt\");\n\
                    const U: &str = concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/data/x.txt\");\n";
         let found = run(&[("a/Cargo.toml", &m), ("a/src/lib.rs", src)]);
-        assert_eq!(found.len(), 2, "{found:?}");
+        // the `#[path]` leaves the crate; the sibling join stays in the repository and is not reported
+        assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].location.as_ref().unwrap().line, Some(1));
-        assert_eq!(found[1].location.as_ref().unwrap().line, Some(3));
+        let far = "const T: &str = concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/../../x\");
+";
+        let found = run(&[("a/Cargo.toml", &m), ("a/src/lib.rs", far)]);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].severity, Severity::High);
     }
 
     #[test]
