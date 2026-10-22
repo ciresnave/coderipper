@@ -285,7 +285,11 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     let mut personal_headers = Vec::new();
     for path in &sources {
         let has_header = match &with_spdx {
-            Some(list) => list.iter().any(|p| p == path),
+            // git grep skips a file it takes for binary (one with a NUL byte), so a file it did not list is read before it is called bare
+            Some(list) => {
+                list.iter().any(|p| p == path)
+                    || view.read(path).is_some_and(|t| !header(&t).0.is_empty())
+            }
             None => view.read(path).is_some_and(|t| !header(&t).0.is_empty()),
         };
         if !has_header {
