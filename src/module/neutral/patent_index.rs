@@ -482,7 +482,9 @@ mod tests {
 
     #[test]
     fn the_pinned_index_matches_its_pin() {
-        let digest: String = Sha256::digest(INDEX.as_bytes())
+        // the pin is over the bytes the repository stores (LF); a Windows checkout may have converted them to CRLF
+        let stored = INDEX.replace("\r\n", "\n");
+        let digest: String = Sha256::digest(stored.as_bytes())
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
