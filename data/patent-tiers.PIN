@@ -1,0 +1,9 @@
+# The pinned copy of the patent-safety index that `patent-index-match` reads. No network at lint time.
+# Refresh: copy agent-pack/patent-tiers.json from the upstream commit below (or a newer one), then update this file and the
+# sha256; the `the_pinned_index_matches_its_pin` test fails until they agree. LICENSE and NOTICE come from the same commit.
+source = "https://github.com/ThinkersJournal/agent-safety-bed"
+path = "agent-pack/patent-tiers.json"
+version = "1.2.0"
+commit = "5bd779f2523c9b258c1e500a4bb4ef4c13cb7809"
+sha256 = "8ba84812790858816ebe6c5147e546930f5414fade02a3f9a242c26b4ff4c6c7"
+licence = "Apache-2.0"

@@ -316,3 +316,29 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "patent-index-match"
+title = "Dependencies checked against the patent-safety index"
+domain = "SUP"
+statement = "A declared dependency that the pinned agent-safety-bed patent index lists is reported by the entry's action: avoid, flag-for-review, separate-component and allow-with-conditions are surfaced with the entry's id and note."
+rationale = "A patent or licence-direction caution about a dependency is cheap to read before it is added and expensive to find after a product ships; the index records it per package, so a tool can show it at the moment of decision."
+evidence_tiers = ["V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+aliases = []
+remediation = "Follow the entry's action: pick the alternative its note names, keep a copyleft component behind a process boundary, or have the owner review it and waive the finding with an [[allow]] entry that records who reviewed it. An index match is due diligence, not a patent opinion or a clearance."
+related = ["SUP-004"]
+lifecycle = "experimental"
+checked_today = "Cargo.toml dependency tables, package.json dependency tables, pyproject.toml (PEP 621 dependencies, optional dependencies, dependency groups, Poetry tables) and requirements*.txt, compared by registry name with the match lists of the pinned agent-safety-bed index (version and commit in data/patent-tiers.PIN): avoid is high, flag-for-review medium, allow-with-conditions and separate-component low, allow not reported. The result is an index match only: it is not legal advice, not a freedom-to-operate clearance, and a dependency with no match is not cleared. Not judged: Maven and Gradle, lockfiles and transitive dependencies, a technique written in the project's own source, and the 18 index entries that list no package name."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

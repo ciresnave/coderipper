@@ -83,6 +83,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("lint-suppression");
     // and the rule every profile takes
     triaged.push("conflict-marker");
+    // the patent-index rule
+    triaged.push("patent-index-match");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     in_catalog.sort_unstable();
