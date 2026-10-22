@@ -368,3 +368,29 @@ checked_today = "A licence file at the root (LICENSE*, LICENCE*, COPYING*, UNLIC
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "ci-security"
+title = "Pull-request workflows get no secrets, hosted runners where no GPU is needed"
+domain = "SUP"
+statement = "A workflow triggered by a pull request reads no repository secret, a pull_request_target job does not check out the pull request's head, a job that needs no GPU runs on a hosted runner, and a workflow sets its token permissions at the top."
+rationale = "A pull request from outside the repository runs the contributor's workflow text; a secret, a base-repository token with the head checked out, or a self-hosted runner hands that contributor the project's credentials or machine."
+evidence_tiers = ["V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "high"
+confidence_class = "high"
+kb_refs = []
+aliases = []
+remediation = "Move secret-using steps to a push or workflow_run job, use pull_request (not pull_request_target) for code from forks, run GPU-free jobs on ubuntu-latest, windows-latest or macos-latest, and put `permissions: contents: read` at the top of each workflow."
+related = ["SUP-008"]
+lifecycle = "experimental"
+checked_today = "Each .github/workflows/*.yml|yaml: a job of a pull_request or pull_request_target workflow that reads secrets.NAME (not GITHUB_TOKEN), or secrets: inherit, or a top-level env secret (High); a pull_request_target job whose actions/checkout takes the pull request head (High); a job on a self-hosted or custom-labelled runner that mentions no GPU, CUDA, Vulkan, ROCm or OpenCL in its name, steps, labels or the workflow file name (Medium); a workflow with no top-level permissions block (Low). Not judged: repository visibility and the forge setting that requires approval for outside collaborators; a runner chosen by an expression; secrets reached through composite actions or called workflows."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

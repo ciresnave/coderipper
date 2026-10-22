@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.12 - 2026-10-22 (proposed)
+
+Rule `ci-security` (PM task from CireSnave 2026-10-22: "Require approval before workflows from outside collaborators run. Don't give pull-request-triggered jobs on a public repo any repository secrets. Prefer hosted runners for public repos wherever a job doesn't need our GPU."). Stacked on #113 (0.8.11).
+
+### Added
+- Rule `ci-security` (neutral module, advisory in `--profile portfolio`; catalog record in `rules/sup.toml`): High for a job of a `pull_request`/`pull_request_target` workflow that reads `secrets.NAME` (not `GITHUB_TOKEN`), `secrets: inherit`, or a top-level `env` secret; High for a `pull_request_target` job whose `actions/checkout` takes the pull request head; Medium for a job on a self-hosted or custom-labelled runner that mentions no GPU/CUDA/Vulkan/ROCm/OpenCL; Low for a workflow with no top-level `permissions:`.
+- Planted cases both ways: `conformance/ci-security/{defective,clean}` (one defective workflow per finding) and unit tests with a positive control for each.
+- Dependency `serde_yaml_ng` 0.10 (workflow YAML).
+
+### Not judged
+- Repository visibility (run the rule over the public repositories) and the forge setting "require approval for outside collaborators" (a settings-audit read, not a file); a runner chosen by an expression; secrets reached through composite actions or called workflows.
+
+### Changed
+- The neutral module claims eleven rules (was ten).
+
 ## 0.8.11 - 2026-10-22 (proposed)
 
 Rule `licence` (PM task, `docs/portfolio-ci-coverage.md` build order 1; EXPECTATIONS 6.4 and 6.4a).

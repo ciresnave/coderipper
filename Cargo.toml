@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.8.11"
+version = "0.8.12"
 edition = "2021"
 description = "Audits a Rust project for what clippy does not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
@@ -48,6 +48,7 @@ anyhow = "1"
 thiserror = "2"
 toml = "1"
 tempfile = "3"
+serde_yaml_ng = "0.10"
 syn = { version = "3.0.6", features = ["full", "visit"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 sha2 = "0.11.0"
