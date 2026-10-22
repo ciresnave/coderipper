@@ -31,6 +31,7 @@ impl Profile {
         match self {
             Profile::Classic => crate::Profile::Classic,
             Profile::Extended => crate::Profile::Extended,
+            Profile::Portfolio => crate::Profile::Portfolio,
         }
     }
 }
@@ -864,7 +865,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         let mut known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
         let mut neutral = crate::module::neutral_rule_ids();
         neutral.extend(crate::module::delegated_rule_ids());
-        if profile == Profile::Extended {
+        if profile == Profile::Portfolio {
+            known.extend(crate::module::neutral_rule_ids());
+        } else if profile == Profile::Extended {
             known.extend(&neutral);
         } else {
             // the one rule every profile takes
@@ -932,6 +935,17 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let denied = deny.severity();
     let code = if !result.errors.is_empty() {
         EXIT_COULD_NOT_RUN
+    } else if profile == Profile::Portfolio {
+        // a floor per rule instead of one `--deny`; `--deny none` still never fails on a finding
+        let blocked = deny != Deny::None
+            && result.findings.iter().any(|f| {
+                crate::portfolio_floor(&f.check_id).is_some_and(|floor| f.severity >= floor)
+            });
+        if blocked {
+            EXIT_FINDINGS
+        } else {
+            EXIT_CLEAN
+        }
     } else if denied.is_some_and(|level| result.findings.iter().any(|f| f.severity >= level)) {
         EXIT_FINDINGS
     } else {

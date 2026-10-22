@@ -54,6 +54,10 @@ pub(crate) enum Profile {
     /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression, conflict-marker); the
     /// rules of the language modules join it as they arrive.
     Extended,
+    /// What a repository's pull-request check takes: the five original checks and every language-neutral rule, but none of the
+    /// rules delegated to a tool (no network, no tool to install), judged against a per-rule blocking floor instead of one `--deny`:
+    /// a rule that finds a mechanical violation fails the run, an expectation-class rule only reports (see `portfolio_floor`).
+    Portfolio,
 }
 
 /// The severity at which a finding fails the run, or `none` for never (`--deny`, and the key of the same name).

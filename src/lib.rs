@@ -191,6 +191,26 @@ pub enum Profile {
     /// installed tools ([`module::DelegatedModule`]; a tool that is not installed makes its rule a reported gap, never a
     /// failure). Those rules judge the whole repository, so a workspace run takes them once, at the workspace root.
     Extended,
+    /// The language-neutral rules and the five original checks without the delegated tool rules, with a blocking floor per rule
+    /// ([`portfolio_floor`]): the profile a repository's pull-request check runs.
+    Portfolio,
+}
+
+/// The lowest severity at which a finding of `check_id` fails a `portfolio` run, or `None` when the rule only reports.
+///
+/// Blocking is for the mechanical violations the owner has ruled on: a dependency that is not a published version (`SUP-004`), a
+/// committed conflict marker, a version that disagrees with itself, and a patent-index `avoid` (High, the `avoid` action). Every other
+/// rule reports and never blocks until the owner rules it blocking (a lockfile, a CODEOWNERS file and a CI-protection check are
+/// candidates). A rule that judges an expectation that is allowed to be incomplete while a project is under way (documentation, lint
+/// suppressions, the Rust reachability and parameter analyses) stays advisory: the owner's words are that those "are not gates that
+/// have to be verified before we proceed".
+pub fn portfolio_floor(check_id: &str) -> Option<finding::Severity> {
+    match check_id {
+        "SUP-004" | "version-consistency" => Some(finding::Severity::Medium),
+        "conflict-marker" => Some(finding::Severity::Low),
+        "patent-index-match" => Some(finding::Severity::High),
+        _ => None,
+    }
 }
 
 impl Profile {
@@ -204,6 +224,7 @@ impl Profile {
                 ids.extend(module::delegated_rule_ids());
                 ids
             }
+            Profile::Portfolio => module::neutral_rule_ids(),
         }
     }
 }
