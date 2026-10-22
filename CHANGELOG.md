@@ -12,6 +12,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ### Added
 - Profile `portfolio` (`Profile::Portfolio`): the five original checks and every language-neutral rule (`SUP-001`, `SUP-004`, `SUP-011`, `DOC-005`, `DOC-009`, `WSP-001`, `lint-suppression`, `conflict-marker`, `patent-index-match`), **without** the rules delegated to a tool (no network, no tool to install). It fails the run by a floor per rule (`coderipper::portfolio_floor`) instead of one `--deny`: `SUP-004` and `version-consistency` at Medium, `conflict-marker` at Low, `patent-index-match` at High (its `avoid` action); every other rule (including `SUP-001`, `WSP-001` and `ci-protection-presence`, until the owner rules them blocking) reports and never blocks, per the owner's words that expectation-class rules "are not gates that have to be verified before we proceed". `--deny none` still never fails on a finding. A waiver is an `[[allow]]` entry as in every profile.
+- Key `blocking = ["RULE-ID", ..]` in a repository's `.coderipper.toml`: rules that repository has made blocking for itself under `--profile portfolio` (a finding at Low or above fails the run). A repository flips a rule once it is clean for it; it never lowers a default floor; an unknown rule id is a usage error.
 - Tests: `tests/portfolio_cli.rs` (an `avoid` dependency blocks; `flag-for-review` and conditions entries are shown but pass; `--deny none`; a delegated rule is a usage error; the floor table).
 
 ### Notes

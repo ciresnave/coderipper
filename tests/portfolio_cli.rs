@@ -99,3 +99,33 @@ fn a_rule_not_yet_ruled_blocking_reports_without_failing() {
         .code(0)
         .stdout(predicate::str::contains("(WSP-001)"));
 }
+
+fn with_blocking(requirements: &str, config: &str) -> tempfile::TempDir {
+    common::git_repo_with(&[
+        ("requirements.txt", requirements),
+        (".coderipper.toml", config),
+    ])
+}
+
+#[test]
+fn a_repository_can_make_a_rule_blocking_for_itself() {
+    // WSP-001 (no CODEOWNERS) is advisory by default; this repository has opted in, so it now fails the run
+    portfolio(
+        &with_blocking("requests\n", "blocking = [\"WSP-001\"]\n"),
+        &[],
+    )
+    .assert()
+    .code(1)
+    .stdout(predicate::str::contains("(WSP-001)"));
+}
+
+#[test]
+fn blocking_names_a_rule_that_exists() {
+    portfolio(
+        &with_blocking("requests\n", "blocking = [\"WSP-999\"]\n"),
+        &[],
+    )
+    .assert()
+    .code(2)
+    .stderr(predicate::str::contains("no rule of --profile portfolio"));
+}

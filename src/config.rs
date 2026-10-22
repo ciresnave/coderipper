@@ -104,6 +104,17 @@ pub(crate) struct ConfigFile {
         )
     )]
     pub profile: Option<Profile>,
+    /// `blocking = [..]`: rules this repository has made blocking under `--profile portfolio` (see `portfolio_floor`), by rule id; every finding of
+    /// such a rule at Low or above fails the run. A repository that is clean for a rule flips it here; it never lowers a default floor.
+    #[cfg_attr(
+        not(any(feature = "cli", test)),
+        expect(
+            dead_code,
+            reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"
+        )
+    )]
+    #[serde(default)]
+    pub blocking: Vec<String>,
     /// A default for `--deny`.
     #[cfg_attr(
         not(any(feature = "cli", test)),

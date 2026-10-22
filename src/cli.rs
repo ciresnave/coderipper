@@ -856,6 +856,24 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let deny = conf.deny(deny);
     let message_format = conf.message_format(message_format);
     let profile = conf.profile(profile, repository.as_ref().and_then(|f| f.profile));
+    // `blocking = [..]` in the repository's file: rules it has made blocking under `--profile portfolio`; a name that is no rule is an error
+    let blocking: Vec<String> = repository
+        .as_ref()
+        .map(|f| f.blocking.clone())
+        .unwrap_or_default();
+    if !blocking.is_empty() {
+        let checks = crate::registered_checks();
+        let mut known: Vec<&str> = checks.iter().map(|c| c.id()).collect();
+        known.extend(crate::module::neutral_rule_ids());
+        if let Some(bad) = blocking.iter().find(|id| !known.contains(&id.as_str())) {
+            return Err(UsageError(format!(
+                "{}: blocking names \"{bad}\", which is no rule of --profile portfolio; the rules are: {}",
+                crate::config::FILE_NAME,
+                known.join(", ")
+            ))
+            .into());
+        }
+    }
     if conf.redact(redact) {
         crate::redact::set_policy(crate::redact::RedactionPolicy::On);
     }
@@ -939,7 +957,10 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         // a floor per rule instead of one `--deny`; `--deny none` still never fails on a finding
         let blocked = deny != Deny::None
             && result.findings.iter().any(|f| {
-                crate::portfolio_floor(&f.check_id).is_some_and(|floor| f.severity >= floor)
+                let opted_in = blocking.contains(&f.check_id);
+                crate::portfolio_floor(&f.check_id)
+                    .or(opted_in.then_some(crate::finding::Severity::Low))
+                    .is_some_and(|floor| f.severity >= floor)
             });
         if blocked {
             EXIT_FINDINGS
