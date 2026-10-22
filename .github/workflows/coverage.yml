@@ -54,6 +54,6 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
+          # tokenless: a pull_request job must not read a repository secret (ci-security)
           # Never turns the build red: a missing token (fork PR) or a Codecov outage is not a test failure.
           fail_ci_if_error: false
