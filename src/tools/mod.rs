@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The tool cache: where the external tools a module delegates to are installed, and the policy for installing them
 //! (design section 8).
 //!

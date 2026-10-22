@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Planted variants for `reachability` (CodeRipper's own self-check, decision 180). `tests/reachability.rs` and the
 //! `conformance/reachability` fixture seed ONE spelling of a dead `pub` function; the cases here plant its siblings (the
 //! other item kinds and function qualifiers a `pub` item can be written with, and the ways an item can be live) and state the

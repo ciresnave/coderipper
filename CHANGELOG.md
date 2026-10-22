@@ -16,6 +16,7 @@ Rule `licence` (PM task, `docs/portfolio-ci-coverage.md` build order 1; EXPECTAT
 
 ### Changed
 - The neutral module claims ten rules (was nine); the coverage report counts one more covered rule per language.
+- Every tracked source file now starts with `SPDX-License-Identifier: MIT OR Apache-2.0` (126 files; the new rule found 124 of 127 without one on this repository), and `LICENSE-MIT` names the organisation, Thinker's Journal, as holder instead of a person (EXPECTATIONS 6.4).
 - Conformance fixtures `patent-index-match/{clean,defective}/requirements.txt`: `requests` 2.32.0 to 2.33.0 (dependabot #111, folded in; the fixtures only name a package, nothing is installed).
 
 ### Not judged

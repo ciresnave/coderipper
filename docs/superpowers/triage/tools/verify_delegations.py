@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Check each `delegated` triage claim against the tool's own primary source. Read-only; installs nothing.
 
 A claim is "tool T evidences rule R through its check C" (C is a lint name, a rule code, a subcommand or a flag). The agents who

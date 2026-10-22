@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! API-006 (schema changes obey evolution rules), delegated to [buf](https://github.com/bufbuild/buf) (Apache-2.0): `buf breaking`
 //! over the project's Protocol Buffers schemas.
 //!

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Golden files: the two formats other programs and other projects depend on, pinned byte for byte.
 //!
 //! - `tests/golden/finding.json`: how a `Finding` serializes (what `--message-format json` is built from, and what a

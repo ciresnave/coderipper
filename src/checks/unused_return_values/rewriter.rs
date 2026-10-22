@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Tags every eligible function with `#[must_use = "CR:<id>"] #[deprecated(note = "CR:<id>")]`,
 //! inserted INLINE (never as a new line) so every original line number survives the rewrite.
 //!

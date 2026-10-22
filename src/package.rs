@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Where a project's package lives: inside its git repository, and inside its cargo workspace.
 //!
 //! A project is the directory the user passes (`--project`). It is usually a whole repository with

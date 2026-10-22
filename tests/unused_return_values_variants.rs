@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Planted variants for `unused-return-values` (CodeRipper's own self-check, decision 180). `tests/unused_return_values.rs` and
 //! the `conformance/unused-return-values` fixture seed ONE spelling of each shape; the cases here plant the siblings the
 //! check's documentation says it judges (or clean twins of them) and state the verdict it must give. A case that failed when

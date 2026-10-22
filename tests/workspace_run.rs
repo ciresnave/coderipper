@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `--workspace`: every member of a cargo workspace in one command, through the real CLI.
 //!
 //! Fixtures are tempdir git repositories with tiny crates. Most runs switch the build cache off (the session then builds

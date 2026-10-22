@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """List triage labels and notes that reuse the knowledge base's own wording. Needs the KB file, which is NOT in this repository.
 
 A label or note is reported when, compared case-insensitively after removing punctuation, either

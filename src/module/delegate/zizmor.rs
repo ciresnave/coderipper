@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-008 (CI workflows pinned and least-privileged), delegated to [zizmor](https://github.com/zizmorcore/zizmor) (MIT).
 //!
 //! **What this judges:** zizmor is given the project's *tracked* GitHub Actions files (`git ls-files`, never a walk of the disk):

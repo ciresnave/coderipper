@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! A persistent `CARGO_TARGET_DIR` for the builds the checks run, so a dependency is compiled once, not once per run.
 //!
 //! Every check builds the package it analyses in a throwaway git worktree. Left alone, each build starts from an

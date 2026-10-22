@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! A user's own `Check`, run through the host with `run_checks_with`.
 //!
 //! This is an outside crate, so it is exactly what a library user can do. The behaviours pinned here are the ones the

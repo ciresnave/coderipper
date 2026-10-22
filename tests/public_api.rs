@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The library's public API as an OUTSIDE crate sees it.
 //!
 //! An integration test is a separate crate, so it can do only what a user of the published library can do. The

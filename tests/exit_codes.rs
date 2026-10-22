@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The CLI's exit codes, which are a promise to CI: 0 no finding at or above `--deny` (and every check ran), 1 a finding at
 //! or above `--deny` that no `[[allow]]` entry waives, 2 a usage error, 3 a check could not run. Since 0.5.0 `--deny` defaults
 //! to `info`, so any finding fails the run; `--deny none` restores "print, never fail", and `--deny medium` lets Low and Info through.

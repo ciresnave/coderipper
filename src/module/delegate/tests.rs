@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The delegation framework: getting a tool, running it, and what each way of failing means. `git` stands in for a tool that
 //! misbehaves (the suite needs it anyway): `git --version` exits 0 and writes no report, `git <nonsense>` exits non-zero.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! DOC-005: decision records have a valid status and consistent supersession links.
 //!
 //! **What this judges:** a decision record is a tracked `.md` file in a directory named `adr`, `adrs` or `decisions` (other than

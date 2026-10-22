@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SEC-002 against the REAL gitleaks: the pinned release is downloaded (through the embedded lock, checksum-verified) into a
 //! temporary tools directory and run over a seeded repository and its clean twin. No fake stands in for the tool here: this is the
 //! test that says the mapping reads what gitleaks really writes.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! WSP-001: every repository has a named owner.
 //!
 //! **What this judges (the owner part of the rule, from the repository alone):** the repository tracks a `CODEOWNERS` file

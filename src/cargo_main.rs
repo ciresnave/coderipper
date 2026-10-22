@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `cargo coderipper`: cargo finds this binary on PATH as the subcommand `coderipper`.
 
 use std::process::ExitCode;

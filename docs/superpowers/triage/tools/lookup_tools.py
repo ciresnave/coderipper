@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Look up facts about the third-party tools named in the triage, from public registries.
 
 Read-only. Standard library only. For every distinct `coordinate` in the given triage TSV files it asks the registry the

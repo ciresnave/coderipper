@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! DOC-010 (documentation links resolve), delegated to [lychee](https://github.com/lycheeverse/lychee) (Apache-2.0 OR MIT).
 //!
 //! **What this judges:** lychee is given the project's *tracked* Markdown, HTML and text documents (`git ls-files`, never a walk of

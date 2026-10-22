@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Planted variants for `unused-parameters` (CodeRipper's own self-check, decision 180). `tests/unused_parameters.rs` and the
 //! `conformance/unused-parameters` fixture seed ONE spelling of each shape; the cases here plant the siblings the check's
 //! documentation says it judges (or clean twins of them) and state the verdict it must give. A case that failed when it was

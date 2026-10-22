@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Which files does the LIBRARY compile, and which identifiers do every OTHER target's files mention?
 //!
 //! The reachability check downgrades the lib's `pub` items and builds only the lib (a bin or test

@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-002 and SEC-006 against the REAL osv-scanner: the pinned release is downloaded (through the embedded lock,
 //! checksum-verified) into a temporary tools directory and run over seeded lockfiles and their clean twins. No fake stands in for
 //! the tool here: this is the test that says the mapping reads what osv-scanner really writes.

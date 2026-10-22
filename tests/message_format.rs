@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `--message-format json`: one JSON object per line on stdout, each with a `"reason"` (the way cargo's own
 //! `--message-format json` works), so a tool can read findings without parsing the human text. The golden tests pin the
 //! exact key sets: a field renamed or removed is a breaking change for everyone reading the stream.

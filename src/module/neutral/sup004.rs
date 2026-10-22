@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-004: a dependency comes from a published registry, never from where something sits on a disk or on GitHub.
 //!
 //! **What this judges (CireSnave, 2026-10-07: dependencies are by published version, not by relative placement on a laptop, and

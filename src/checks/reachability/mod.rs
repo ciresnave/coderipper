@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Reachability check (project scope): does every function in a Rust crate get called from
 //! somewhere, including `pub` items that `rustc`'s own `dead_code` lint deliberately exempts.
 //!

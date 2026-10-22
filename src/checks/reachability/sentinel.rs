@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use std::path::Path;
 
 /// A guaranteed-unique symbol name that is never actually used anywhere. Appended to the rewritten

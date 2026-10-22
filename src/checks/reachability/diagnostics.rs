@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use crate::cargo_json::{build_all_targets, build_lib_only, CAP_LINTS};
 use std::path::Path;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Conformance (multi-language design section 6.2): a module's claim to cover a rule is earned by a fixture with a seeded
 //! defect and a clean twin. These tests drive the runner with a scripted module (every verdict, cheaply) and with the
 //! built-in Rust module over the fixtures in `conformance/` (the real claims).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use std::path::Path;
 
 /// Neither name starts with `_`: rustc exempts underscore-prefixed names from `unused_variables`,

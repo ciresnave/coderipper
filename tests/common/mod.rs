@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Shared fixture helpers for integration tests. A fixture is built in a throwaway tempdir and
 //! committed to its own fresh git repo, because every check reads HEAD through a git worktree --
 //! a test must never point a check at the real shared checkout.

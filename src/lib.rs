@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! CodeRipper audits a Rust project for integration defects that the compiler and clippy do not report: public
 //! functions nothing calls, return values every caller discards, parameters nothing reads, crates in one project
 //! that disagree on their version, and a repository whose default branch enforces no CI.

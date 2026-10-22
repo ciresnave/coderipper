@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The language-neutral module (multi-language P3, PR 1): its ten rules, over the real fixtures in `conformance/`, through the
 //! conformance runner and through the host.
 

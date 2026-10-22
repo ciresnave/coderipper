@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SEC-002 (no committed secrets), delegated to [gitleaks](https://github.com/gitleaks/gitleaks) (MIT).
 //!
 //! **What this judges:** gitleaks scans the repository's whole git history (`gitleaks git`), so a secret that was committed and

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The minimal `Cargo.toml` fixture text. Its own file so that only the tests that use it compile it.
 
 pub const MANIFEST: &str =

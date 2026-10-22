@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Modules: the unit the host asks to check rules.
 //!
 //! A [`Module`] answers `describe` (what it covers) and `check` (run exactly these rules). The five built-in checks live

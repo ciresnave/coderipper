@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! A repository with no Rust crate at its root (a web app whose backend is in `backend/`, a site with no Rust at all).
 //!
 //! Before 0.6.0 every Rust check asked cargo about the root and failed, so a repository of any other shape exited 3 with

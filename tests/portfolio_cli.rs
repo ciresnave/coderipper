@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `--profile portfolio`: the language-neutral rules without the delegated tool rules, failing the run by a floor per rule instead of
 //! one `--deny`. The cases use a Python project (a `requirements.txt`) so only the rules under test have anything to say.
 

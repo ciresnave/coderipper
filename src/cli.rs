@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The command-line program, shared by the `coderipper` and `cargo-coderipper` binaries. Not part of the library API.
 
 use crate::check::{CheckContext, Tier};

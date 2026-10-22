@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The module boundary is untrusted input: a closed set (a claim's status, a request's unit and tier) is an enum, and a
 //! message with a key or a value outside the protocol is rejected where it is parsed, not interpreted later.
 

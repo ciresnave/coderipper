@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Which languages a project contains that no active module checks. The stderr line of the classic profile and the coverage report
 //! both need it. It enumerates from git's index (`git ls-files`), never by walking the disk: a disk walk sees other lanes' worktrees,
 //! ignored directories and `node_modules`.

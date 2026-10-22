@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The rule catalog (multi-language design §4): records are data, parsed strictly, and the five built-in checks each have
 //! one that agrees with what the check declares about itself.
 

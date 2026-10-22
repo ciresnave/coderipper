@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Decides which dead-code candidates NOT to report because a target the lib build never compiled
 //! (a bin, a test, an example, a bench) reaches them.
 //!

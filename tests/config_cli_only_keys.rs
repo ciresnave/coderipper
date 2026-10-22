@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! A key only the command-line program reads, in a repository's `.coderipper.toml`. Without the `cli` feature the library accepts
 //! it and does not look at it; with the feature a wrong value is an error. A key nobody reads is an error in both builds.
 //! CI runs this file with `--no-default-features` as well as with the defaults.

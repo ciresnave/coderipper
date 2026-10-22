@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! [`ToolEnv`]: everything a delegated rule needs to get hold of its tool, in one value the caller builds once.
 
 use super::{

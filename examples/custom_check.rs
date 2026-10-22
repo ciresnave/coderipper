@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Writing your own check and running it through the host.
 //!
 //! ```text

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Finds every function parameter that rustc's `unused_variables` lint could report, with the exact
 //! position rustc will report it at.
 //!

@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! DOC-010 against the REAL lychee: the pinned release is downloaded (through the embedded lock, checksum-verified) into a
 //! temporary tools directory and run over seeded documents and their clean twins. No fake stands in for the tool here: this is the
 //! test that says the mapping reads what lychee really writes.

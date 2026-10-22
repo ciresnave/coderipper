@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The compiled-in checks as one closed set. Everything that used to list them by hand (the registration order, the module's
 //! list of proven claims) is derived from [`BuiltinCheck`], so adding a check is one new variant and the compiler names each
 //! `match` that must decide about it.

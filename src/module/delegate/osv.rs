@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-002 (dependencies free of known advisories) and SEC-006 (no known exploitable dependency vulnerabilities), delegated to
 //! [osv-scanner](https://github.com/google/osv-scanner) (Apache-2.0).
 //!

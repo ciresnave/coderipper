@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Host-level allowlist behaviour: suppression is applied by `run_checks`, not by each check, so
 //! the host can see which entries matched nothing ("stale this run", design doc §4).
 

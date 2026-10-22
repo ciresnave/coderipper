@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The three checks on a workspace MEMBER: the project is the member's directory, findings are about
 //! that package only and carry package-relative paths, and the allowlist is the member's own.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Runs the fast built-in checks on a project and prints what they report.
 //!
 //! ```text

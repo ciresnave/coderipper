@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Rebuild every derived file in this directory from the committed raw agent outputs, in the right order.
 
   1. make_rules.py          rules.tsv (+ label overrides applied to raw/)

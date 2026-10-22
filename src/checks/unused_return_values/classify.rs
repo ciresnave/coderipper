@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Turns rustc's diagnostics plus the rewriter's tag table into per-function usage counts.
 //!
 //! Two signals, joined by the `CR:<id>` reason string:

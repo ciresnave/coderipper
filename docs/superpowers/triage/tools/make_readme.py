@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Generate triage/README.md from the data files, so every number in it is computed, not typed.
 Run from the triage directory:  python tools/make_readme.py
 """

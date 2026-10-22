@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The README and the package metadata are what a stranger reads first on crates.io. These tests keep them honest about
 //! what the crate does: every check is described, nothing unbuilt is promised, and no link points at a file the
 //! published package does not contain.

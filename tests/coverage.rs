@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The coverage report (multi-language design section 6): computed from the catalog joined with what a module claims and has
 //! proven, never asserted. A claim without a proof is a gap, a missing module is every rule not covered, and the report
 //! says so in CodeRipper's own voice: an incomplete implementation, not a finding about the checked code.

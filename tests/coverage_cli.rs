@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The coverage report and the profiles from the command line (multi-language design sections 4.4, 6.4, 10.2).
 //!
 //! The owner's ruling (2026-10-08): a known coverage gap NEVER fails a run. It may be mentioned as "not yet implemented", worded as
