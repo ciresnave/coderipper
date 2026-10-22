@@ -21,13 +21,13 @@
 
 use super::{RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
-use serde_yaml_ng::Value;
+use yaml_serde::Value;
 
 const ID: &str = crate::rule_id::CI_SECURITY;
 
 const GPU_WORDS: &[&str] = &["gpu", "cuda", "vulkan", "nvidia", "rocm", "opencl"];
 
-fn key(map: &serde_yaml_ng::Mapping, name: &str) -> Option<Value> {
+fn key(map: &yaml_serde::Mapping, name: &str) -> Option<Value> {
     map.get(Value::String(name.to_string())).cloned()
 }
 
@@ -45,7 +45,7 @@ fn workflow_files(view: &RepoView) -> Vec<String> {
 }
 
 /// The event names a workflow's `on:` lists (YAML 1.1 reads a bare `on` key as the boolean `true`).
-fn events(doc: &serde_yaml_ng::Mapping) -> Vec<String> {
+fn events(doc: &yaml_serde::Mapping) -> Vec<String> {
     let on = key(doc, "on").or_else(|| doc.get(Value::Bool(true)).cloned());
     match on {
         Some(Value::String(s)) => vec![s],
@@ -62,7 +62,7 @@ fn events(doc: &serde_yaml_ng::Mapping) -> Vec<String> {
 }
 
 fn dump(value: &Value) -> String {
-    serde_yaml_ng::to_string(value).unwrap_or_default()
+    yaml_serde::to_string(value).unwrap_or_default()
 }
 
 /// The secrets (other than the workflow token) a piece of workflow text names.
@@ -92,12 +92,12 @@ fn secrets_in(text: &str) -> Vec<String> {
 }
 
 /// Whether the job passes every secret on to a called workflow (`secrets: inherit`).
-fn inherits(job: &serde_yaml_ng::Mapping) -> bool {
+fn inherits(job: &yaml_serde::Mapping) -> bool {
     matches!(key(job, "secrets"), Some(Value::String(s)) if s == "inherit")
 }
 
 /// The labels a job's `runs-on` names; `None` when an expression chooses them.
-fn labels(job: &serde_yaml_ng::Mapping) -> Option<Vec<String>> {
+fn labels(job: &yaml_serde::Mapping) -> Option<Vec<String>> {
     let labels: Vec<String> = match key(job, "runs-on")? {
         Value::String(s) => vec![s],
         Value::Sequence(seq) => seq
@@ -127,7 +127,7 @@ fn hosted(label: &str) -> bool {
 }
 
 /// Whether a checkout step of the job takes the pull request's head.
-fn checks_out_head(job: &serde_yaml_ng::Mapping) -> bool {
+fn checks_out_head(job: &yaml_serde::Mapping) -> bool {
     let Some(Value::Sequence(steps)) = key(job, "steps") else {
         return false;
     };
@@ -154,7 +154,7 @@ fn checks_out_head(job: &serde_yaml_ng::Mapping) -> bool {
 
 /// Whether the job's own `if:` limits it to named events and none of them is a pull request (`github.event_name == 'release'`): the
 /// job is in a pull-request workflow but does not run for one. Anything more elaborate than a plain equality is not trusted.
-fn never_on_pull_request(job: &serde_yaml_ng::Mapping) -> bool {
+fn never_on_pull_request(job: &yaml_serde::Mapping) -> bool {
     let Some(cond) = key(job, "if").and_then(|c| match c {
         Value::String(s) => Some(s),
         Value::Bool(_) => None,
@@ -197,7 +197,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let Some(text) = view.read(file) else {
             continue;
         };
-        let doc = match serde_yaml_ng::from_str::<Value>(&text) {
+        let doc = match yaml_serde::from_str::<Value>(&text) {
             Ok(Value::Mapping(m)) => m,
             _ => {
                 notes.push(format!(
@@ -430,7 +430,10 @@ jobs:
             "== 'release' || github.event_name == 'pull_request'",
         );
         assert_eq!(subjects(&run(&[(W, &or)])), vec!["publish:secrets"]);
-        let by_ref = text.replace("github.event_name == 'release'", "github.ref == 'refs/heads/main'");
+        let by_ref = text.replace(
+            "github.event_name == 'release'",
+            "github.ref == 'refs/heads/main'",
+        );
         assert!(run(&[(W, &by_ref)]).is_empty());
         let none = text.replace(
             "    if: github.event_name == 'release'

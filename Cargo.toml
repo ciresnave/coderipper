@@ -48,7 +48,7 @@ anyhow = "1"
 thiserror = "2"
 toml = "1"
 tempfile = "3"
-serde_yaml_ng = "0.10"
+yaml_serde = "0.10"
 syn = { version = "3.0.6", features = ["full", "visit"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 sha2 = "0.11.0"
