@@ -6,6 +6,19 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.10 - 2026-10-22 (proposed)
+
+`--profile portfolio`: the profile a repository's pull-request check runs (build order step 4 of `docs/portfolio-ci-coverage.md`, first part).
+
+### Added
+- Profile `portfolio` (`Profile::Portfolio`): the five original checks and every language-neutral rule (`SUP-001`, `SUP-004`, `SUP-011`, `DOC-005`, `DOC-009`, `WSP-001`, `lint-suppression`, `conflict-marker`, `patent-index-match`), **without** the rules delegated to a tool (no network, no tool to install). It fails the run by a floor per rule (`coderipper::portfolio_floor`) instead of one `--deny`: `SUP-004` and `version-consistency` at Medium, `conflict-marker` at Low, `patent-index-match` at High (its `avoid` action); every other rule (including `SUP-001`, `WSP-001` and `ci-protection-presence`, until the owner rules them blocking) reports and never blocks, per the owner's words that expectation-class rules "are not gates that have to be verified before we proceed". `--deny none` still never fails on a finding. A waiver is an `[[allow]]` entry as in every profile.
+- Key `blocking = ["RULE-ID", ..]` in a repository's `.coderipper.toml`: rules that repository has made blocking for itself under `--profile portfolio` (a finding at Low or above fails the run). A repository flips a rule once it is clean for it; it never lowers a default floor; an unknown rule id is a usage error.
+- Tests: `tests/portfolio_cli.rs` (an `avoid` dependency blocks; `flag-for-review` and conditions entries are shown but pass; `--deny none`; a delegated rule is a usage error; the floor table).
+
+### Notes
+- Still to come in this step: the reusable workflow `portfolio.yml` that calls the profile pinned by SHA, and the licence and version-and-changelog rules joining the floor table.
+- Any data file a check pins by hash must be hashed over its LF bytes: a Windows checkout converts text to CRLF (coderipper#110 failed on Windows for that reason).
+
 ## 0.8.9 - 2026-10-22 (proposed)
 
 Rule `patent-index-match`: a declared dependency the patent-safety index lists (PM task from CireSnave 2026-10-22: "get CodeRipper working with it").

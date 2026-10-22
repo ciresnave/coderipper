@@ -54,6 +54,10 @@ pub(crate) enum Profile {
     /// `classic`, plus the coverage report and the language-neutral rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001, lint-suppression, conflict-marker); the
     /// rules of the language modules join it as they arrive.
     Extended,
+    /// What a repository's pull-request check takes: the five original checks and every language-neutral rule, but none of the
+    /// rules delegated to a tool (no network, no tool to install), judged against a per-rule blocking floor instead of one `--deny`:
+    /// a rule that finds a mechanical violation fails the run, an expectation-class rule only reports (see `portfolio_floor`).
+    Portfolio,
 }
 
 /// The severity at which a finding fails the run, or `none` for never (`--deny`, and the key of the same name).
@@ -100,6 +104,17 @@ pub(crate) struct ConfigFile {
         )
     )]
     pub profile: Option<Profile>,
+    /// `blocking = [..]`: rules this repository has made blocking under `--profile portfolio` (see `portfolio_floor`), by rule id; every finding of
+    /// such a rule at Low or above fails the run. A repository that is clean for a rule flips it here; it never lowers a default floor.
+    #[cfg_attr(
+        not(any(feature = "cli", test)),
+        expect(
+            dead_code,
+            reason = "parsed so a wrong value is an error in every build; only the command-line program uses it"
+        )
+    )]
+    #[serde(default)]
+    pub blocking: Vec<String>,
     /// A default for `--deny`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -565,6 +580,13 @@ mod tests {
             "an unknown limit is an error"
         );
         assert!(ConfigFile::parse("profile = 3\n", Path::new("c")).is_err());
+    }
+
+    #[test]
+    fn blocking_names_are_read_from_the_file() {
+        let f = ConfigFile::parse("blocking = [\"SUP-004\"]\n", Path::new("c")).unwrap();
+        assert_eq!(f.blocking, vec!["SUP-004".to_string()]);
+        assert!(ConfigFile::parse("blocking = 3\n", Path::new("c")).is_err());
     }
 
     #[test]

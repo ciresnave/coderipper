@@ -224,6 +224,10 @@ and it never changes the exit code. A language in your repository that has no mo
 profile prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
 least one source file among the files git tracks; a project outside git is not scanned).
 
+## Pull-request check: `--profile portfolio`
+
+`--profile portfolio` is the profile a repository's pull-request check runs: the five original checks and every language-neutral rule above, **without** the rules delegated to a tool (no network, nothing to install). It fails the run by a floor per rule instead of one `--deny`: a mechanical violation blocks (`SUP-004` and `version-consistency` at Medium, `conflict-marker` at Low, `patent-index-match` at High, which is the index's `avoid` action), and every other rule reports without blocking until the owner rules it blocking. `--deny none` still never fails on a finding, and a waiver is an `[[allow]]` entry as everywhere. The floors are `coderipper::portfolio_floor`. A repository that is clean for an advisory rule makes it blocking for itself with `blocking = ["SUP-001", "WSP-001"]` in its own `.coderipper.toml` (rule ids; a finding of such a rule at Low or above then fails the run; it never lowers a default floor, and a name that is no rule is a usage error).
+
 ## Language-neutral rules: `--profile extended`
 
 Under `--profile extended` five rules that read a repository's files, not its source (and one that hands the repository to a tool,
