@@ -583,6 +583,13 @@ mod tests {
     }
 
     #[test]
+    fn blocking_names_are_read_from_the_file() {
+        let f = ConfigFile::parse("blocking = [\"SUP-004\"]\n", Path::new("c")).unwrap();
+        assert_eq!(f.blocking, vec!["SUP-004".to_string()]);
+        assert!(ConfigFile::parse("blocking = 3\n", Path::new("c")).is_err());
+    }
+
+    #[test]
     fn the_search_order_is_wide_first_and_home_last() {
         let get = |k: &str| match k {
             "HOME" => Some("/home/u".to_string()),
