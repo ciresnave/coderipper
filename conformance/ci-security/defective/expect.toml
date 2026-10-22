@@ -1,0 +1,21 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/secret.yml"
+line = 4
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/target.yml"
+line = 4
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/runner.yml"
+line = 4
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/perms.yml"
+line = 1

@@ -1,0 +1,7 @@
+on: push
+permissions: {}
+jobs:
+  build:
+    runs-on: [self-hosted, windows]
+    steps:
+      - run: cargo test
