@@ -1,0 +1,6 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "patent-index-match"
+file = "requirements.txt"
+line = 2

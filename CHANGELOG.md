@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.9 - 2026-10-22 (proposed)
+
+Rule `patent-index-match`: a declared dependency the patent-safety index lists (PM task from CireSnave 2026-10-22: "get CodeRipper working with it").
+
+### Added
+- Rule `patent-index-match` (neutral module, extended profile; catalog record in `rules/sup.toml`): each dependency declared in `Cargo.toml`, `package.json`, `pyproject.toml` (PEP 621, dependency groups, Poetry) or `requirements*.txt` is compared by registry name with the `match` lists of the agent-safety-bed index. By the entry's action: `avoid` is High, `flag-for-review` Medium, `allow-with-conditions` and `separate-component` Low, `allow` is not reported. A finding carries the entry's id, tier, licence and note, and says **index match**: not legal advice, not a patent clearance, and a dependency with no match is not cleared. Waivable with an `[[allow]]` entry. Not judged: Maven and Gradle (the index lists Maven names; no parser reads them yet), lockfiles and transitive dependencies, a technique written in the project's own source, the 18 index entries that list no package name.
+- The index is pinned in the crate: `data/patent-tiers.json` from agent-safety-bed 1.2.0 (commit `5bd779f`), `data/patent-tiers.PIN` (version, commit, sha256) and the upstream `LICENSE` and `NOTICE` (Apache-2.0; credit kept). No network at lint time. A test fails if the data and the pin disagree.
+- Planted cases both ways: `conformance/patent-index-match/{defective,clean}` (a `gensim` requirement, an `avoid` entry, must be found; unlisted dependencies must not) and unit tests for every manifest, normalisation (PEP 503, hyphen/underscore, scoped npm, `package` and `npm:` aliases), `ray[rllib]` extras, and the wording.
+
+### Changed
+- The neutral module claims nine rules (was eight); the coverage report counts one more covered rule per language.
+
 ## 0.8.8 - 2026-10-21 (proposed)
 
 Rule `SUP-004`, dependencies only from published sources (PM task, CireSnave 2026-10-21: the rule against relative path dependencies should be a CI check; EXPECTATIONS 6.8).
