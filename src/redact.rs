@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Removes *known* secret shapes from third-party text before it is shown to someone else.
 //!
 //! CodeRipper runs other people's build scripts and tools and prints some of what they wrote. [`text`] is the one function that

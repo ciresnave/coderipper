@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use super::*;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;

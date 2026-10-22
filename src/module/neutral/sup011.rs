@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-011: analysis tools skip the source the project merely vendors.
 //!
 //! **What this judges:** a tracked directory named `vendor`, `vendors`, `third_party`, `third-party`, `node_modules` or

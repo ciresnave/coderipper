@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `ci-protection-presence` through the conformance runner, with a stub forge: the one rule that had no seeded defect and clean
 //! twin because it asks GitHub, and a fixture cannot make GitHub answer. The fixtures under `tests/fixtures/forge/` name an
 //! `origin` (an `expect.toml` key), and the check here is built over a [`Github`] that answers for those two repositories from

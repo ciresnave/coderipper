@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Configuration layers (`docs/superpowers/plans/2026-10-13-configuration-layers.md`).
 //!
 //! One file name, `.coderipper.toml`, is read from up to four places and combined, weakest first:

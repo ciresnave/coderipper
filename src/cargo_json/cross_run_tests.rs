@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Cross-run staleness: a build must never be served a unit another CodeRipper run wrote into the shared cache.
 //!
 //! Cargo decides a unit is fresh by comparing its source files' mtimes with the artifact. A checkout made BEFORE

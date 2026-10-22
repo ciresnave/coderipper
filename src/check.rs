@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The [`Check`] trait, what a check declares about itself, and the [`CheckContext`] it runs against.
 
 use crate::finding::Finding;

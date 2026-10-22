@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The rule catalog: one record per rule, as data (multi-language design §4).
 //!
 //! A [`Rule`] says what a rule claims, why, and how it behaves (scope, network, unit, default severity, how contested

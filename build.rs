@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Does two things at build time. Generates the rule-id constants from `rules/*.toml` (see `rule_ids`). Fails the build when the shipped `src/tools/tools.lock` breaks the lock rules (a bad hash, an unsafe name, a source scheme
 //! the installer refuses, a duplicate entry). The rules are `src/tools/lock_rules.rs`, the same file the run-time parser uses.
 

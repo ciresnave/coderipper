@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! lint-suppression: a Rust lint suppression or an ignored test says why.
 //!
 //! **What this judges:** every tracked `.rs` file outside a vendored directory is parsed, and each `#[allow(..)]` / `#![allow(..)]`

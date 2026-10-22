@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Applies the project's allowlist to a run's raw findings, and notices entries that no longer
 //! suppress anything (design doc §4, "self-dissolving" suppression).
 //!

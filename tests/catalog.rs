@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The rule catalog (multi-language design §4): records are data, parsed strictly, and the five built-in checks each have
 //! one that agrees with what the check declares about itself.
 
@@ -85,6 +86,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("conflict-marker");
     // the patent-index rule
     triaged.push("patent-index-match");
+    // the licence rule
+    triaged.push("licence");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     in_catalog.sort_unstable();

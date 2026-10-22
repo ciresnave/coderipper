@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `cargo coderipper`: the same program installed as a cargo subcommand, so it runs next to `cargo clippy`. Cargo runs
 //! `cargo-coderipper coderipper <args>` (it passes the subcommand's own name first); a bare `cargo coderipper` means
 //! `fast`.

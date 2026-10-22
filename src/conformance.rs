@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Conformance: how a module earns its claim to cover a rule (multi-language design section 6.2).
 //!
 //! A claim to check a rule is only worth what proves it. For each rule a module claims, the fixtures directory holds a small

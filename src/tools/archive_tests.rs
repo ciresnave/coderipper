@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Archive installs: a tool shipped as a `.tar.gz` or `.zip` is unpacked by CodeRipper itself, one named member only, after the
 //! archive's own checksum and before the member's checksum are both checked. An archive that tries to leave the cache, or carries a
 //! link, is refused whole, even when the member we want is fine.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! SUP-001: a project that ships as an application commits its lockfile, and its CI installs strictly from it.
 //!
 //! **What this judges (two readings of the rule, both from tracked files):**

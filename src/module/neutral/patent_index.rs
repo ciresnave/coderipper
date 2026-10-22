@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `patent-index-match`: a declared dependency that the agent-safety-bed patent index lists.
 //!
 //! **What this judges:** each dependency a manifest declares is compared by registry name with the `match` lists of the pinned

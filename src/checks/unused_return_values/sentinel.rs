@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use super::classify::SENTINEL_TAG;
 use std::path::Path;
 

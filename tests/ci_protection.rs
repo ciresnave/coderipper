@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `ci-protection-presence` against canned GitHub responses. The JSON for "protected" and "unprotected" is
 //! copied from real `gh api repos/<o>/<r>/branches/main` answers (2026-10-02): a protected branch with
 //! three required contexts, and a branch with no protection at all. No network is involved.

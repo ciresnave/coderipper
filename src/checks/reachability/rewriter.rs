@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Line-based `pub` -> `pub(crate)` rewrite (design doc §2, plan's Global Constraints: intentionally
 //! not a full AST rewrite for v1). Downgrades a bare `pub` immediately before one of the declaring
 //! keywords, OR before `use` (a re-export); leaves `pub(crate)`, `pub(super)`, `pub(in ...)` alone.

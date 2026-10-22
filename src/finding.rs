@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! [`Finding`], the one shape every check reports in, with its [`Severity`] and [`Confidence`].
 
 use serde::{Deserialize, Serialize};

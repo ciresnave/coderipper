@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `--profile portfolio`: the language-neutral rules without the delegated tool rules, failing the run by a floor per rule instead of
 //! one `--deny`. The cases use a Python project (a `requirements.txt`) so only the rules under test have anything to say.
 
@@ -8,7 +9,10 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 fn project(requirements: &str) -> tempfile::TempDir {
-    common::git_repo_with(&[("requirements.txt", requirements)])
+    common::git_repo_with(&[
+        ("requirements.txt", requirements),
+        ("LICENSE", "MIT License\n"),
+    ])
 }
 
 fn portfolio(project: &tempfile::TempDir, extra: &[&str]) -> Command {
@@ -79,6 +83,7 @@ fn the_floors_block_mechanical_rules_and_leave_expectation_rules_advisory() {
     assert_eq!(portfolio_floor("SUP-004"), Some(Severity::Medium));
     assert_eq!(portfolio_floor("conflict-marker"), Some(Severity::Low));
     assert_eq!(portfolio_floor("patent-index-match"), Some(Severity::High));
+    assert_eq!(portfolio_floor("licence"), Some(Severity::High));
     // positive control above: the table answers; these are advisory
     for advisory in [
         "DOC-005",
@@ -103,6 +108,7 @@ fn a_rule_not_yet_ruled_blocking_reports_without_failing() {
 fn with_blocking(requirements: &str, config: &str) -> tempfile::TempDir {
     common::git_repo_with(&[
         ("requirements.txt", requirements),
+        ("LICENSE", "MIT License\n"),
         (".coderipper.toml", config),
     ])
 }
@@ -128,4 +134,40 @@ fn blocking_names_a_rule_that_exists() {
     .assert()
     .code(2)
     .stderr(predicate::str::contains("no rule of --profile portfolio"));
+}
+
+#[test]
+fn a_repository_with_no_licence_file_blocks() {
+    let no_licence = common::git_repo_with(&[(
+        "requirements.txt",
+        "requests
+",
+    )]);
+    portfolio(&no_licence, &[])
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("(licence)"))
+        .stdout(predicate::str::contains("no licence file"));
+}
+
+#[test]
+fn a_missing_header_reports_without_blocking() {
+    // positive control: the same repository with no source header passes while it has a licence file; the header finding is Medium
+    let repo = common::git_repo_with(&[
+        (
+            "requirements.txt",
+            "requests
+",
+        ),
+        ("LICENSE", "MIT License\n"),
+        (
+            "app.py",
+            "print(1)
+",
+        ),
+    ]);
+    portfolio(&repo, &[])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("SPDX-License-Identifier"));
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `version-consistency` against real `cargo metadata`: each rule has a case that must report and a
 //! control that must stay quiet. No git and no build are involved; the check reads manifests.
 

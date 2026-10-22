@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! DOC-009: the project keeps a glossary, and defines each term once.
 //!
 //! **What this judges:** a repository with documentation (at least [`MIN_PAGES`] tracked `.md` files under `docs/` or `doc/` at the root) must track a

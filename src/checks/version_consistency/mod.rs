@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Version-consistency check (project scope, local): do all of a project's packages share one version?
 //!
 //! Rule record: `version-consistency` in `rules/wsp.toml` (the rule catalog). Background in `docs/rules/wsp.md`; it overlaps WSP-003 (partly) of the owner's knowledge base, which this check covers only in part.

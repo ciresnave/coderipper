@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! CodeRipper audits a Rust project for integration defects that the compiler and clippy do not report: public
 //! functions nothing calls, return values every caller discards, parameters nothing reads, crates in one project
 //! that disagree on their version, and a repository whose default branch enforces no CI.
@@ -209,6 +210,8 @@ pub fn portfolio_floor(check_id: &str) -> Option<finding::Severity> {
         "SUP-004" | "version-consistency" => Some(finding::Severity::Medium),
         "conflict-marker" => Some(finding::Severity::Low),
         "patent-index-match" => Some(finding::Severity::High),
+        // only the missing licence file is High; the manifest, header and holder findings are Medium and report only
+        "licence" => Some(finding::Severity::High),
         _ => None,
     }
 }

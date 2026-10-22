@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The module protocol against a real child process: every way an external module can fail ends as an error, never as a
 //! clean run.
 //!

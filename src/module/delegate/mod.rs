@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! [`DelegatedModule`]: the rules CodeRipper hands to a tool it installs and runs as an external process (design section 7).
 //!
 //! A delegated rule has a **mapping record**: the tool's own code for a finding (gitleaks' `RuleID`, say) to the catalog rule it

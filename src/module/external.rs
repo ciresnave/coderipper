@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! [`ExternalModule`]: a module that is a separate executable, spoken to over JSON lines.
 
 use std::ffi::OsString;

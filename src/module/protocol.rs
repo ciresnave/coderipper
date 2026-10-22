@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The wire shapes of the module protocol (design §5): the request the host sends, the hello a module answers `describe`
 //! with, and the events a module prints while it checks.
 

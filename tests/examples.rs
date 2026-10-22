@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The examples are documentation that must keep working: each one is run for real and its output checked.
 
 mod common;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The rules a tool lock's entries must satisfy, as plain functions over strings.
 //!
 //! This file has no dependency on the rest of the crate on purpose: `build.rs` includes it with `#[path]` and runs [`check`]

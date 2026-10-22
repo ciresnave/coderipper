@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Testing a check that talks to GitHub, with no network: hand it a [`Github`] that answers from a table.
 //!
 //! ```text

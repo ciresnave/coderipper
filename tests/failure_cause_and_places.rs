@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! What the exit-3 message says about WHY a crate's build failed, and where each finding is, in the text output.
 //!
 //! Found by the 2026-10-11 dogfood run: a crate whose build script could not find OpenSSL ended with "build reported real compiler

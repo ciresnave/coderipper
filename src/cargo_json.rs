@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Runs `cargo build --all-targets --message-format=json` and parses rustc's diagnostics, keeping
 //! the parts a check needs: the lint code, the primary span's line AND column, and the text of each
 //! direct child note (where a `#[must_use = "..."]` reason string shows up).

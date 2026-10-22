@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! What `--help`, `--version` and the usage line say. The help is the documentation a user reads first, and it is the
 //! one place a doc comment placed above the wrong attribute silently describes the wrong option.
 

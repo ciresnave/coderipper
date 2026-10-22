@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Normalise the per-language triage cells that three independent agents filled in, and join the pieces.
 
 Why this exists: the three language agents and the neutral-column agent each decided, alone, how to treat the 24 rules that

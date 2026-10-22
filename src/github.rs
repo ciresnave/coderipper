@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The little of GitHub this tool needs: read one JSON document from the REST API, and work out which
 //! repository a git checkout belongs to.
 //!

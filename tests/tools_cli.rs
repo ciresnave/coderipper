@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `coderipper tools`: the tool cache from the command line. A tool is a file served by a local fake server (never the real
 //! network), pinned in a lock the test writes. Exit 0 on success, 3 when a tool could not be had (no consent, bad checksum, no
 //! download), 2 for a usage error.

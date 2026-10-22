@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! conflict-marker: no tracked file holds an unresolved merge conflict.
 //!
 //! **What this judges:** every tracked text file (outside the directories below) is read line by line. A line that starts with

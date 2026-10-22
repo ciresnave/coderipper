@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The coverage report (multi-language design section 6): which of the catalog's rules CodeRipper can check for a language, and
 //! what this run found for them.
 //!

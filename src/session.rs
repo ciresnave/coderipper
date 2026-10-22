@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! The session checkout: one git checkout for a whole `--workspace` run.
 //!
 //! Without a session every check run makes its own throwaway checkout, rewrites the analysed package, builds, and

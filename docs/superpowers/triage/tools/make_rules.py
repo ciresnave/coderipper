@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Build rules.tsv from the pass-1 outputs, applying labels_override.tsv, and mark which rules have per-language cells.
 
 The overrides replace labels (and one note) that repeated the knowledge base's wording. They are applied to the committed copies in

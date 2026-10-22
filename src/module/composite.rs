@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! [`Composite`]: several modules asked as one, so a run judges one allowlist and one set of rule ids across all of them.
 
 use super::{Event, Hello, Module, ModuleOutput, ModuleSummary, Request};

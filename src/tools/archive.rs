@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Reading one executable out of a downloaded archive, without trusting the archive.
 //!
 //! The rule is strict on purpose: an archive is refused **whole** when *any* entry has a name that could leave the directory it is

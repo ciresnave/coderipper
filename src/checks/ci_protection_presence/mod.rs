@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! CI/protection-presence check (project scope, NETWORK): does the repository's default branch enforce
 //! required status checks?
 //!

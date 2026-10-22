@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Unused-parameters check (project scope, Rust): which function parameters are never used?
 //!
 //! Rule record: `unused-parameters` in `rules/rdb.toml` (the rule catalog). Background in `docs/rules/rdb.md`; it overlaps RDB-006 (partly) of the owner's knowledge base, which this check covers only in part.

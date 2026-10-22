@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Unused-return-values check (project scope, Rust): is a function's return value ever consumed,
 //! or does every caller discard it?
 //!

@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::process::Command as StdCommand;

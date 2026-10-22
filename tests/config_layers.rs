@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Configuration layers (ROADMAP item 5, `docs/superpowers/plans/2026-10-13-configuration-layers.md`): a wide
 //! `.coderipper.toml` in the user's home (or the file `--config` names), the repository's own file restricted to an allowlist
 //! of keys, the environment, then flags. Each test runs the real binary with `CODERIPPER_CONFIG` naming the test's "home" file

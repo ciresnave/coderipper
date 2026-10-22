@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! Planted variants for the language-neutral rules (CodeRipper's own self-check, decision 180): each rule's conformance fixture
 //! seeds ONE shape of its defect, so a rule that fires on that shape and misses its siblings is "proven" and still has a false
 //! negative. Each case here plants a sibling shape the rule's documentation says it judges (or a clean twin of it) and states the

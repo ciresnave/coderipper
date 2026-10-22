@@ -1,4 +1,5 @@
 #![cfg(feature = "cli")]
+// SPDX-License-Identifier: MIT OR Apache-2.0
 //! `coderipper conformance`: runs the fixtures and says which claims are earned. Exit 0 when no fixture contradicts a
 //! claim (a claim without a fixture is reported, not failed), 1 when one does, 2 for a usage error, 3 when it could not run.
 
