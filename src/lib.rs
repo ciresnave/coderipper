@@ -209,6 +209,8 @@ pub fn portfolio_floor(check_id: &str) -> Option<finding::Severity> {
         "SUP-004" | "version-consistency" => Some(finding::Severity::Medium),
         "conflict-marker" => Some(finding::Severity::Low),
         "patent-index-match" => Some(finding::Severity::High),
+        // only the missing licence file is High; the manifest, header and holder findings are Medium and report only
+        "licence" => Some(finding::Severity::High),
         _ => None,
     }
 }

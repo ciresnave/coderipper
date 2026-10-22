@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.11 - 2026-10-22 (proposed)
+
+Rule `licence` (PM task, `docs/portfolio-ci-coverage.md` build order 1; EXPECTATIONS 6.4 and 6.4a).
+
+### Added
+- Rule `licence` (neutral module, `--profile portfolio` floor High; catalog record in `rules/sup.toml`): **High, the only blocking finding:** no licence file at the repository root (`LICENSE*`, `LICENCE*`, `COPYING*`, `UNLICENSE*` or a `LICENSES/` directory). **Medium, reported and never blocking** (the owner's words that expectations "are not gates that have to be verified before we proceed"): a manifest `license` identifier (`Cargo.toml`, `package.json`, `pyproject.toml`) that no licence file is named for (one generic `LICENSE` is accepted for any, its text is not read); source files with no `SPDX-License-Identifier` in their first 15 lines; a header naming a licence other than the project's with no `NOTICE` or `THIRD-PARTY` origin record; a copyright line naming the owner as a person. The per-file findings are one finding per repository naming the count and the first five files.
+- Planted cases both ways: `conformance/licence/{defective,clean}` and unit tests for each finding, the root-only search, expression parsing, and the skipped directories.
+
+### Changed
+- The neutral module claims ten rules (was nine); the coverage report counts one more covered rule per language.
+- Conformance fixtures `patent-index-match/{clean,defective}/requirements.txt`: `requests` 2.32.0 to 2.33.0 (dependabot #111, folded in; the fixtures only name a package, nothing is installed).
+
+### Not judged
+- The licence text itself; whether a copied file's header is its origin's; another owner's personal name (the list of personal forms is built in); manifests below the root; markup and data files.
+
 ## 0.8.10 - 2026-10-22 (proposed)
 
 `--profile portfolio`: the profile a repository's pull-request check runs (build order step 4 of `docs/portfolio-ci-coverage.md`, first part).
