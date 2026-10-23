@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.7 - 2026-10-23 (proposed)
+
+`[reachability] public_api_crates`: declare a whole crate's public items as API with one entry (baracuda's second sweep, run 40025510102: 753 `reachability` findings, of which 725 of the 730 that parse are in crates with `publish` not `false`, and 12 of 12 sampled are `pub` items reachable through a `pub mod` tree, so intended API). `{ crate = "<package>", reason = "..." }` in the **workspace root's** `.coderipper.toml` covers every `reachability` finding of that cargo package in a `--workspace` run, printed as `[declared-public]` with the reason. Why a new key: a member's finding paths are relative to the member, and a member's run reads only the member's own file, so the root's `public_api` globs could not name one crate. A name that matches no finding is reported by name (only when `reachability` ran for every member). Tests: three unit tests and `a_crate_level_public_api_declaration_covers_one_package_of_a_workspace` (one package covered, the other not; a misspelt name warns).
+
+**Decision pending (not changed here): should `reachability` treat the public items of a published library as API by default?** Evidence is in the PR description; the default is unchanged.
+
 ## 0.9.4 - 2026-10-23 (proposed)
 
 `ci-security`: the self-hosted-runner finding now says the job "names no GPU or other hardware it needs" and prints the `[[allow]]` entry that waives it (`file`, `symbol = "<job>:runner"`, a `reason` placeholder), so a lane need not look it up. The rule's doc states the precision: GPU words stand in for "needs our hardware", so a self-hosted job that needs other hardware (PersistAnt's power-loss rig) fires every time, by design, and is waived with a reason. No change in what fires.

@@ -465,6 +465,17 @@ reported as an `allowlist` finding saying the path or symbol may be gone. A wide
 warning and `(declared by <file>)` as for waivers, and a wide entry that matches nothing here is not reported. This declares; it does not
 prove: a dead item under a declared path is declared public too, so keep the globs narrow.
 
+**A whole crate at once (`public_api_crates`).** A workspace of FFI-binding or published-library crates has hundreds of public items, and a path glob cannot name one crate from the workspace root (a member's finding paths are relative to the member, so `src/**` would match every member). Declare the package instead, in the **workspace root's** `.coderipper.toml`:
+
+```toml
+[reachability]
+public_api_crates = [
+  { crate = "baracuda-cuda-sys", reason = "FFI bindings: every pub item is API" },
+]
+```
+
+`crate` is the cargo **package** name and `reason` is required. Every `reachability` finding of that package in a `--workspace` run is printed as `[declared-public/<severity>]` with the reason, like a `public_api` entry, and is not hidden. A name that matches no finding is reported as an `allowlist` finding naming the crate (only when `reachability` ran cleanly for every member, so a build failure is not read as "nothing matched"). It applies to `--workspace` runs; a single-package run reads that package's own file, where `public_api` with `src/**` does the same job. This declares; it does not prove: an item that is `pub` but not reachable through a `pub` module path is declared public too.
+
 ### Where a waiver, a `tracks` entry and `--deny` are read from
 
 A `.coderipper.toml` is read **from the directory of the package being checked**, and from nowhere else. In a repository with a crate

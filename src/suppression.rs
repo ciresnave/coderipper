@@ -164,7 +164,16 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
     } else {
         location.file == normalize_entry_path(&entry.file)
     };
-    entry.check == f.check_id
+    // a crate-level declaration covers a package: its findings carry the package as `member` in a workspace run, else as `project`
+    let crate_matches = entry
+        .crate_scope
+        .as_deref()
+        .is_none_or(|name| match &f.member {
+            Some(member) => member == name,
+            None => f.project == name,
+        });
+    crate_matches
+        && entry.check == f.check_id
         && file_matches
         && entry
             .symbol
@@ -245,6 +254,21 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
 }
 
 fn stale(entry: &AllowEntry, raw_count: usize, project: &str) -> Finding {
+    if let Some(name) = &entry.crate_scope {
+        return Finding {
+            summary: format!(
+                "`[reachability] public_api_crates` entry for crate `{name}` matched nothing this run -- the package name may be wrong, or it has no unreferenced public item"
+            ),
+            detail: format!(
+                "This declaration was written because: \"{}\". No `reachability` finding this run belongs to a package named `{name}`, so it declares                  nothing. Fix the name if it is misspelt (it is the cargo package name, not the directory), remove it if the crate is gone, or                  keep it if the crate has no unreferenced public item today.",
+                entry.reason
+            ),
+            positive_control: Some(format!(
+                "check `reachability` ran to completion this run and returned {raw_count} raw finding(s) before suppression; none of them belongs to `{name}`"
+            )),
+            ..base(entry, project)
+        };
+    }
     if entry.declared_public {
         return Finding {
             summary: format!(
@@ -611,6 +635,69 @@ public_api = [
         assert_eq!(waived.len(), 3);
         assert!(waived.iter().all(|w| w.declared_public), "{waived:?}");
         assert_eq!(waived[0].reason, "published API");
+    }
+
+    const PUBLIC_CRATES: &str = "[reachability]
+public_api_crates = [
+  { crate = \"ffi-sys\", reason = \"FFI bindings: every pub item is API\" },
+]
+";
+
+    #[test]
+    fn a_crate_level_declaration_covers_every_finding_of_that_package_and_no_other() {
+        let al = allowlist(PUBLIC_CRATES);
+        let mut s = Suppression::new(&al);
+        let in_member = |file: &str, member: &str, symbol: &str| {
+            let mut f = finding("reachability", file, Some(symbol));
+            f.member = Some(member.into());
+            f
+        };
+        let kept = s.apply(vec![
+            // paths are relative to each member in a workspace run: the package name, not the path, picks the crate
+            in_member("src/lib.rs", "ffi-sys", "a"),
+            in_member("src/types.rs", "ffi-sys", "b"),
+            in_member("src/lib.rs", "other", "c"),
+            // another check in the declared crate is not covered
+            {
+                let mut f = in_member("src/lib.rs", "ffi-sys", "d");
+                f.check_id = "unused-return-values".into();
+                f
+            },
+        ]);
+        let kept: Vec<_> = kept.iter().map(|f| f.subject.clone().unwrap()).collect();
+        assert_eq!(kept, vec!["c", "d"]);
+        let waived = s.take_waived();
+        assert_eq!(waived.len(), 2);
+        assert!(waived.iter().all(|w| w.declared_public), "{waived:?}");
+        assert_eq!(waived[0].reason, "FFI bindings: every pub item is API");
+    }
+
+    #[test]
+    fn outside_a_workspace_run_the_crate_is_matched_by_the_project_name() {
+        let al = allowlist(PUBLIC_CRATES);
+        let mut s = Suppression::new(&al);
+        let mut hit = finding("reachability", "src/lib.rs", Some("a"));
+        hit.project = "ffi-sys".into();
+        let miss = finding("reachability", "src/lib.rs", Some("b"));
+        let kept = s.apply(vec![hit, miss]);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].subject.as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn a_crate_declaration_that_matches_nothing_warns_by_crate_name() {
+        let al = allowlist(PUBLIC_CRATES);
+        let mut s = Suppression::new(&al);
+        let _ = s.apply(vec![finding("reachability", "src/lib.rs", Some("a"))]);
+        s.mark_completed("reachability", 1);
+        let stale = s.stale_findings(&["reachability"], "p");
+        assert_eq!(stale.len(), 1);
+        assert!(
+            stale[0].summary.contains("public_api_crates"),
+            "{}",
+            stale[0].summary
+        );
+        assert!(stale[0].summary.contains("ffi-sys"), "{}", stale[0].summary);
     }
 
     #[test]

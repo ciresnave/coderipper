@@ -450,6 +450,32 @@ fn run_workspace_over_in(
         }
     });
 
+    // The workspace root's crate-level `[reachability] public_api_crates` declarations cover findings of its members, whose own run
+    // read only the member's file. They are applied here, once every member is known: a name that matches no finding is reported by
+    // name (and only when `reachability` ran for every member, so a build failure is not read as "nothing matched").
+    let declarations = Allowlist::load(&root)
+        .map(Allowlist::crate_declarations)
+        .unwrap_or_else(|_| Allowlist::empty());
+    if !declarations.entries().is_empty() {
+        let mut declared = Suppression::for_project(&declarations, &root);
+        let raw = findings
+            .iter()
+            .filter(|f| f.check_id == "reachability")
+            .count();
+        findings = declared.apply(findings);
+        let reachability_ran = checks.iter().any(|c| c.id() == "reachability")
+            && only_check_id.is_none_or(|id| id == "reachability");
+        if reachability_ran && with_errors == 0 {
+            declared.mark_completed("reachability", raw);
+            let project = root
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            findings.extend(declared.stale_findings(&["reachability"], &project));
+        }
+        waived.extend(declared.take_waived());
+    }
+
     WorkspaceRun {
         result: RunResult {
             findings,

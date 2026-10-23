@@ -268,3 +268,85 @@ fn a_virtual_workspace_root_runs_the_rust_checks_only_with_workspace() {
         .stdout(predicate::str::contains("(unused-return-values)"))
         .stderr(predicate::str::contains("virtual workspace root").not());
 }
+
+fn workspace_with_config(config: &str) -> tempfile::TempDir {
+    common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]
+members = [\"a\", \"b\"]
+resolver = \"2\"
+",
+        ),
+        (
+            "Cargo.lock",
+            "version = 4
+",
+        ),
+        (
+            "LICENSE",
+            "MIT License
+",
+        ),
+        (".coderipper.toml", config),
+        (
+            "a/Cargo.toml",
+            "[package]
+name = \"a\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+        ),
+        (
+            "a/src/lib.rs",
+            "pub fn f() -> i32 { 1 }
+",
+        ),
+        (
+            "b/Cargo.toml",
+            "[package]
+name = \"b\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+        ),
+        (
+            "b/src/lib.rs",
+            "pub fn g() -> i32 { 1 }
+",
+        ),
+    ])
+}
+
+#[test]
+fn a_crate_level_public_api_declaration_covers_one_package_of_a_workspace() {
+    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    // `a` and `b` each have an unreferenced public function; the declaration names only `a`
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
+",
+    );
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] b — `g` has zero callers",
+        ))
+        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not())
+        .stdout(predicate::str::contains(
+            "[declared-public/Medium] a — `f` has zero callers",
+        ));
+    // a misspelt package name declares nothing and says so by name
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"aa\", reason = \"published library\" }]
+",
+    );
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] a — `f` has zero callers",
+        ))
+        .stdout(predicate::str::contains("public_api_crates"))
+        .stdout(predicate::str::contains("`aa`"));
+}
