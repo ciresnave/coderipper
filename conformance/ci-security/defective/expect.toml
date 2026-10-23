@@ -19,3 +19,13 @@ line = 4
 rule = "ci-security"
 file = ".github/workflows/perms.yml"
 line = 1
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/selfhosted.yml"
+line = 4
+
+[[expect]]
+rule = "ci-security"
+file = ".github/workflows/branches.yml"
+line = 2
