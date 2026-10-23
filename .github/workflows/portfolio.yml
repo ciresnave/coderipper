@@ -1,0 +1,76 @@
+name: Portfolio checks
+
+# The one check set every repository of the portfolio runs per pull request (docs/portfolio-ci-coverage.md section 2). A caller writes
+#
+#   jobs:
+#     portfolio:
+#       permissions:
+#         contents: read
+#       uses: ciresnave/coderipper/.github/workflows/portfolio.yml@<40-hex SHA of a commit on main>
+#
+# and passes nothing else but, for a private repository, `with: runs-on: <self-hosted label>`. The rule list is fixed by the `portfolio`
+# profile and the CodeRipper version by `CODERIPPER_VERSION` below, so a caller can no more drift by editing its own workflow than
+# override either; bumping the version is a change to this file, which callers pick up by moving their SHA.
+#
+# The run builds the caller's crate (reachability compiles it, so a `build.rs` executes), hence the first step: a pull request from a
+# fork, or a `pull_request_target` run, is refused on any runner that is not a GitHub-hosted one.
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label; a private repository passes its self-hosted label.
+        type: string
+        default: ubuntu-latest
+
+# the token gets read access to the repository and nothing else; no secret is declared, so none can be passed
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
+  CODERIPPER_VERSION: 0.8.13
+
+jobs:
+  portfolio:
+    name: Portfolio checks (coderipper sweep --profile portfolio)
+    runs-on: ${{ inputs.runs-on }}
+    # every step is Bash, whatever the runner: a Windows runner defaults to PowerShell
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Refuse untrusted code on a runner that is not GitHub-hosted
+        env:
+          RUNS_ON: ${{ inputs.runs-on }}
+          EVENT: ${{ github.event_name }}
+          FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          if { [ "$FORK" = true ] || [ "$EVENT" = pull_request_target ]; } && ! printf '%s' "$RUNS_ON" | grep -Eq '^(ubuntu|windows|macos)-'; then
+            echo "::error::runs-on '$RUNS_ON' is not a GitHub-hosted runner and this run is for code from a fork; it would execute that code (build.rs) on your machine"
+            exit 1
+          fi
+      # the whole history: version-and-changelog compares against the base ref and SEC-002 reads the history, and a shallow clone makes
+      # either say "not run"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Install coderipper from crates.io
+        run: cargo install coderipper --version "$CODERIPPER_VERSION" --locked
+      # `--no-config`: the runner's own configuration files do not decide the result; the repository's `.coderipper.toml` still does
+      # (`[[allow]]` entries carry a reason and an owner and are reviewed in the pull request that adds them).
+      # `ci-protection-presence` reads branch protection, which this job's token cannot see; the PM's sweep runs it.
+      # The `portfolio` profile holds the language-neutral rules only, so the secrets scan (SEC-002, delegated to gitleaks) is its own
+      # step, with the tool downloaded: without `--install-tools` a missing tool is a gap and the job would pass without having looked.
+      - name: coderipper sweep --profile portfolio, and the secrets scan
+        run: |
+          code=0
+          coderipper sweep --profile portfolio --deny medium --no-config --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          cat "$RUNNER_TEMP/sweep.stderr" >&2
+          # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
+          # repository with no Rust crate (nothing to look at) and the rule this step skips on purpose.
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          exit "$code"
