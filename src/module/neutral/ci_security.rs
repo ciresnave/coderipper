@@ -9,7 +9,9 @@
 //!   `github.head_ref`): code from outside runs with the base repository's token and secrets.
 //! - **Medium:** a job that runs on a self-hosted or custom-labelled runner and mentions no GPU, CUDA, Vulkan, ROCm or OpenCL anywhere
 //!   (its name, steps, labels, or the workflow's file name): a hosted runner would do. A runner chosen by an expression
-//!   (`${{ matrix.os }}`) is not judged.
+//!   (`${{ matrix.os }}`) is not judged. **Precision:** GPU words stand in for "needs our hardware", so a self-hosted job that needs other
+//!   hardware (a power-loss rig, a device) fires by design, every time; the way out is an `[[allow]]` entry with the reason, which the finding
+//!   prints in full.
 //! - **High:** a job on a self-hosted or custom-labelled runner under `pull_request` or `pull_request_target` whose `if:` lacks the
 //!   same-repo condition (`github.event.pull_request.head.repo.full_name == github.repository`): a fork's pull request would run on
 //!   the machine (CireSnave, 2026-10-16, the self-hosted policy 5.1h).
@@ -403,10 +405,13 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                                 Confidence::Medium,
                                 project,
                                 format!(
-                                    "{file}: job `{name}` runs on {} and mentions no GPU",
+                                    "{file}: job `{name}` runs on {} and names no GPU or other hardware it needs",
                                     custom.iter().map(|l| format!("`{l}`")).collect::<Vec<_>>().join(", ")
                                 ),
-                                "On a public repository prefer a hosted runner (ubuntu-latest, windows-latest, macos-latest) for a job that needs no GPU: a self-hosted runner executes whatever a pull request's workflow says. Keep a self-hosted label only for a job that needs the GPU.",
+                                format!(
+                                    r#"On a public repository prefer a hosted runner (ubuntu-latest, windows-latest, macos-latest) for a job that needs no GPU: a self-hosted runner executes whatever a pull request's workflow says. Keep a self-hosted label only for a job that needs our GPU or other hardware (a power-loss rig, a device). A job that does need it is waived with this entry in .coderipper.toml:{nl}[[allow]]{nl}check = "ci-security"{nl}file = "{file}"{nl}symbol = "{name}:runner"{nl}reason = "<why this job needs our hardware>""#,
+                                    nl = char::from(10)
+                                ),
                                 format!("{file} job `{name}` was read whole; the search covers its name, steps, labels and the workflow's file name, and finds GPU, CUDA, Vulkan, ROCm and OpenCL where a job names them"),
                             )
                             .location(Location::new(file.clone(), Some(line)))
@@ -500,6 +505,17 @@ mod tests {
         let found = run(&[(W, text)]);
         assert_eq!(subjects(&found), vec!["build:runner"]);
         assert_eq!(found[0].severity, Severity::Medium);
+        // the finding prints the entry that waives it, so a lane need not look it up
+        let allow = ["[[allow]]", "check = ", "file = ", "symbol = ", "reason = "];
+        for want in allow {
+            assert!(
+                found[0].detail.contains(want),
+                "{want} missing from: {}",
+                found[0].detail
+            );
+        }
+        assert!(found[0].detail.contains("symbol = \"build:runner\""));
+        assert!(found[0].summary.contains("or other hardware"));
         let gpu = text.replace("[self-hosted, windows]", "[self-hosted, gpu]");
         assert!(run(&[(W, &gpu)]).is_empty());
         let by_step = text.replace("cargo test", "cargo test --features cuda");

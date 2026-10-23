@@ -6,6 +6,9 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.4 - 2026-10-23 (proposed)
+
+`ci-security`: the self-hosted-runner finding now says the job "names no GPU or other hardware it needs" and prints the `[[allow]]` entry that waives it (`file`, `symbol = "<job>:runner"`, a `reason` placeholder), so a lane need not look it up. The rule's doc states the precision: GPU words stand in for "needs our hardware", so a self-hosted job that needs other hardware (PersistAnt's power-loss rig) fires every time, by design, and is waived with a reason. No change in what fires.
 ## 0.9.3 - 2026-10-23 (proposed)
 
 Docs only: `docs/superpowers/plans/2026-10-23-performance-rules.md`, the design for the `PRF` rule family (PM task from CireSnave 2026-10-23): eleven statically checkable rules with precision notes and positive controls, what is not checkable and must never become a rule, "performance claim without a benchmark" as a check, the scoping that keeps it quiet (`[perf] hot_paths`, opt-in until a precision gate), how it avoids contradicting the Clean Code rules, and a measurement on fuel, baracuda and Unpopped with 12 sampled findings judged one by one (4 of 12 true; the allocation-in-loop family 0 of 7). Nothing is built.
