@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.14 - 2026-10-23 (proposed)
+
+Reusable workflow `portfolio.yml` (`docs/portfolio-ci-coverage.md` build order 4). Stacked on #115 (0.8.13).
+
+### Added
+- `.github/workflows/portfolio.yml`, a `workflow_call` workflow: installs the pinned release (`cargo install coderipper --version 0.8.12 --locked`, a version the caller cannot override) and runs `coderipper sweep --profile portfolio --deny medium --project .` on a full-history checkout. Input `runs-on` (default `ubuntu-latest`); `contents: read` only, no secrets declared; fails the job when a rule printed "not run".
+
+### Not done
+- This repository does not call the workflow yet: a call pinned by SHA needs a commit of `main` that holds the file, so it follows this merge.
+
 ## 0.8.13 - 2026-10-22 (proposed)
 
 Rule `version-and-changelog` (`docs/portfolio-ci-coverage.md` build order 3; PM ruling 2026-10-21 on EXPECTATIONS 6.6, and CireSnave 2026-09-17: "If a change is made and pushed, the version should change in some way. If it is a breaking change, the major version should change.").

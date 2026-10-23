@@ -1,0 +1,52 @@
+name: Portfolio checks
+
+# The one check set every repository of the portfolio runs per pull request (docs/portfolio-ci-coverage.md section 2). A caller writes
+#
+#   jobs:
+#     portfolio:
+#       permissions:
+#         contents: read
+#       uses: ciresnave/coderipper/.github/workflows/portfolio.yml@<40-hex SHA of a commit on main>
+#
+# and passes nothing else but, for a private repository, `with: runs-on: <self-hosted label>`. The rule list is fixed by the `portfolio`
+# profile and the CodeRipper version by `CODERIPPER_VERSION` below, so a caller can no more drift by editing its own workflow than
+# override either; bumping the version is a change to this file, which callers pick up by moving their SHA.
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: Runner label; a private repository passes its self-hosted label.
+        type: string
+        default: ubuntu-latest
+
+# the token gets read access to the repository and nothing else; no secret is declared, so none can be passed
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # The published release the sweep installs. It is the newest release: CireSnave wants every dependency on its most recent version.
+  CODERIPPER_VERSION: 0.8.12
+
+jobs:
+  portfolio:
+    name: Portfolio checks (coderipper sweep --profile portfolio)
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      # the whole history: version-and-changelog compares against the base ref and SEC-002 reads the history, and a shallow clone makes
+      # either say "not run"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Install coderipper ${{ env.CODERIPPER_VERSION }} from crates.io
+        run: cargo install coderipper --version "$CODERIPPER_VERSION" --locked
+      - name: coderipper sweep --profile portfolio --deny medium
+        run: |
+          code=0
+          coderipper sweep --profile portfolio --deny medium --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          cat "$RUNNER_TEMP/sweep.stderr" >&2
+          # A rule that did not run is a note, never an exit code: fail the job on any whose tool is not available or whose input is missing.
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr"; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          exit "$code"
