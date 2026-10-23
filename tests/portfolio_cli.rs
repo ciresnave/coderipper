@@ -276,6 +276,62 @@ fn workspace_with_config(config: &str) -> tempfile::TempDir {
             "[workspace]
 members = [\"a\", \"b\"]
 resolver = \"2\"
+
+/// A workspace whose member `c` has a build script that fails unless `DOCS_RS` is set (the shape of a crate that needs nvcc).
+fn workspace_with_a_member_that_needs_a_toolchain() -> tempfile::TempDir {
+    common::git_repo_with(&[
+        ("Cargo.toml", "[workspace]\nmembers = [\"a\", \"c\"]\nresolver = \"2\"\n"),
+        ("Cargo.lock", "version = 4\n"),
+        ("LICENSE", "MIT License\n"),
+        ("a/Cargo.toml", "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n"),
+        ("a/src/lib.rs", "pub fn f() -> i32 { 1 }\n"),
+        (
+            "c/Cargo.toml",
+            "[package]\nname = \"c\"\nversion = \"0.1.0\"\nedition = \"2021\"\nbuild = \"build.rs\"\n",
+        ),
+        (
+            "c/build.rs",
+            "fn main() { if std::env::var(\"DOCS_RS\").is_err() { panic!(\"no toolchain\"); } }\n",
+        ),
+        ("c/src/lib.rs", "pub fn k() {}\n"),
+    ])
+}
+
+#[test]
+fn a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_read() {
+    let repo = workspace_with_a_member_that_needs_a_toolchain();
+    // the test repository has no `origin`, so the branch-protection check is skipped: the exit code is then about the build alone
+    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    // without the variable the member's build fails: the run says so (exit 3) and names the member, it does not skip it quietly
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .env_remove("DOCS_RS")
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains("c: reachability failed to run"))
+        .stderr(predicate::str::contains("not judged"));
+    // with `DOCS_RS=1` the build script skips its toolchain, the member is analysed, and nothing is reported as not judged
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .env("DOCS_RS", "1")
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains("not judged").not());
+}
+
+#[test]
+fn a_package_whose_targets_are_outside_src_says_so_instead_of_a_bare_os_error() {
+    // baracuda's `examples` package: only `[[bin]]` entries with a `path` at the package root, no `src/`
+    let repo = common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[package]
+name = \"ex\"
+version = \"0.0.0\"
+edition = \"2021\"
+publish = false
+
+[[bin]]
+name = \"hello\"
+path = \"hello.rs\"
 ",
         ),
         (
@@ -390,4 +446,19 @@ public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
             "[Medium/Medium] b — `g` has zero callers",
         ))
         .stdout(predicate::str::contains("public_api_crates").not());
+
+        (
+            "hello.rs",
+            "fn main() {}
+",
+        ),
+    ]);
+    sweep_portfolio(
+        &repo,
+        &["--skip-rule", "ci-protection-presence=no forge in a test"],
+    )
+    .assert()
+    .code(3)
+    .stderr(predicate::str::contains("has no `src/` directory"))
+    .stderr(predicate::str::contains("os error").not());
 }

@@ -137,7 +137,13 @@ impl RewrittenWorktree {
     where
         F: FnMut(&str, &str) -> anyhow::Result<String>,
     {
-        let mut files = walk_rs_files(&self.root.join("src"))?;
+        let src = self.root.join("src");
+        anyhow::ensure!(
+            src.is_dir(),
+            "{} has no `src/` directory: this package's targets (`[[bin]]`, `[[example]]` or `[lib]` with a `path`) are outside `src/`, which the Rust checks do not support yet, so none of them was judged",
+            self.root.display()
+        );
+        let mut files = walk_rs_files(&src)?;
         files.sort();
         for entry in files {
             let relative = entry
