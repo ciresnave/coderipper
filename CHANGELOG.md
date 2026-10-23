@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.6 - 2026-10-23 (proposed)
+
+Fix (baracuda's second sweep, run 40025510102): the Rust checks assert nothing for a member that cannot be built, and the output did not say which.
+
+- `portfolio.yml` sets `DOCS_RS=1` for the sweep step: a build script that honours the docs.rs convention skips its native or CUDA toolchain (nvcc), so such a crate compiles on a hosted runner. **The analysis is then static only**: it reads the source and does not prove the native part builds.
+- A `--workspace` run now ends with a note naming each member that could not be built or run ("not judged (...): a, b"), beside the per-check errors it already printed (`WorkspaceRun::members_failed`, a new field on a `#[non_exhaustive]` struct). A member whose build still fails (a build script that ignores `DOCS_RS`) stays an error, so the job fails on it instead of passing for the others.
+- A package whose targets are outside `src/` (only `[[bin]]` entries with a `path` at the package root: baracuda's `examples`) failed with a bare "The system cannot find the path specified (os error 3)". It now says "<dir> has no `src/` directory: this package's targets ... are outside `src/`, which the Rust checks do not support yet, so none of them was judged". **Supporting such a package is not done**; it needs the targets' `src_path` from `cargo metadata`.
+- Tests: `a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_read` (the member fails without `DOCS_RS`, is named, and is analysed with it) and `a_package_whose_targets_are_outside_src_says_so_instead_of_a_bare_os_error`.
+
 ## 0.9.4 - 2026-10-23 (proposed)
 
 `ci-security`: the self-hosted-runner finding now says the job "names no GPU or other hardware it needs" and prints the `[[allow]]` entry that waives it (`file`, `symbol = "<job>:runner"`, a `reason` placeholder), so a lane need not look it up. The rule's doc states the precision: GPU words stand in for "needs our hardware", so a self-hosted job that needs other hardware (PersistAnt's power-loss rig) fires every time, by design, and is waived with a reason. No change in what fires.

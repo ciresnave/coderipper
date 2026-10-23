@@ -106,6 +106,11 @@ jobs:
         if: runner.environment == 'github-hosted'
         run: echo "CODERIPPER_CACHE_DIR=$RUNNER_TEMP/coderipper-build" >> "$GITHUB_ENV"
       - name: coderipper sweep --profile portfolio, and the secrets scan
+        # `DOCS_RS=1`: a build script that honours it (the docs.rs convention) skips its native or CUDA toolchain, so a crate that needs nvcc
+        # or a vendor SDK still compiles on a hosted runner. The analysis is then STATIC ONLY: it reads the source, it does not prove the
+        # native part builds. A member whose build still fails is named in the output as not judged, and the job fails on it.
+        env:
+          DOCS_RS: "1"
         run: |
           code=0
           # A cargo workspace is analysed member by member: `--project .` on a virtual workspace root runs none of the Rust checks (each
