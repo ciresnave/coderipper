@@ -937,6 +937,13 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             "coderipper: workspace: {} members analysed, {} with errors",
             run.members, run.members_with_errors
         );
+        // a member that could not be built or run says nothing about its code: name each, so it is never mistaken for a clean one
+        if !run.members_failed.is_empty() {
+            eprintln!(
+                "coderipper: note: not judged (the member could not be built or run; see the errors above): {}",
+                run.members_failed.join(", ")
+            );
+        }
         run.result
     } else {
         crate::run_checks_in_with_tools_skipping(

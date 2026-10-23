@@ -83,6 +83,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      # The analysis compiles the caller's crates, so a build script that needs `protoc` (prost-build; mlmf's) must find it. Only on a
+      # GitHub-hosted Linux runner, where installing a package is routine; a self-hosted runner is the owner's machine and is left alone.
+      # A crate whose build still fails is named as not judged, not reported clean.
+      - name: Install protoc (GitHub-hosted Linux runners)
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
       - name: Install coderipper from crates.io
         run: cargo install coderipper --version "$CODERIPPER_VERSION" --locked
       # `--no-config`: the runner's own configuration files do not decide the result; the repository's `.coderipper.toml` still does
@@ -106,6 +112,11 @@ jobs:
         if: runner.environment == 'github-hosted'
         run: echo "CODERIPPER_CACHE_DIR=$RUNNER_TEMP/coderipper-build" >> "$GITHUB_ENV"
       - name: coderipper sweep --profile portfolio, and the secrets scan
+        # `DOCS_RS=1`: a build script that honours it (the docs.rs convention) skips its native or CUDA toolchain, so a crate that needs nvcc
+        # or a vendor SDK still compiles on a hosted runner. The analysis is then STATIC ONLY: it reads the source, it does not prove the
+        # native part builds. A member whose build still fails is named in the output as not judged, and the job fails on it.
+        env:
+          DOCS_RS: "1"
         run: |
           code=0
           # A cargo workspace is analysed member by member: `--project .` on a virtual workspace root runs none of the Rust checks (each

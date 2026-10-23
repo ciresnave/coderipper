@@ -163,6 +163,9 @@ pub struct WorkspaceRun {
     pub members: usize,
     /// Members whose run reported at least one error.
     pub members_with_errors: usize,
+    /// The names of those members, in the order they were analysed, so a report can say which ones could not be judged (a member whose
+    /// build failed asserts nothing about its code).
+    pub members_failed: Vec<String>,
 }
 
 /// Runs the checks over every member of the cargo workspace containing `ctx.project_root` (the root or any member).
@@ -280,6 +283,7 @@ pub fn run_workspace_in_with_tools_skipping(
                 result: RunResult::new(Vec::new(), vec![e]),
                 members: 0,
                 members_with_errors: 0,
+                members_failed: Vec::new(),
             }
         }
     };
@@ -303,6 +307,7 @@ fn run_workspace_over_in(
         result: RunResult::new(Vec::new(), vec![message]),
         members: 0,
         members_with_errors: 0,
+        members_failed: Vec::new(),
     };
     // before visiting any member: a wrong id would otherwise repeat its error once per member
     if let Some(problem) = check_list_problem(checks, &profile.extra_rules(), only_check_id) {
@@ -324,6 +329,7 @@ fn run_workspace_over_in(
             result,
             members,
             members_with_errors,
+            members_failed: Vec::new(),
         };
     }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
@@ -376,6 +382,7 @@ fn run_workspace_over_in(
                 },
                 members: 0,
                 members_with_errors: 0,
+                members_failed: Vec::new(),
             };
         }
     };
@@ -383,6 +390,7 @@ fn run_workspace_over_in(
     let total = members.len();
     let mut analysed = 0;
     let mut with_errors = 0;
+    let mut failed_members: Vec<String> = Vec::new();
     session::with_session(&session, || {
         for (index, member) in members.iter().enumerate() {
             on_member(&member.name, index + 1, total);
@@ -410,6 +418,7 @@ fn run_workspace_over_in(
             }
             if !run.errors.is_empty() {
                 with_errors += 1;
+                failed_members.push(member.name.clone());
             }
             for mut waiver in run.waived {
                 waiver.finding.member = Some(member.name.clone());
@@ -440,6 +449,9 @@ fn run_workspace_over_in(
                     }
                 ));
                 with_errors += 1;
+                if !failed_members.contains(&member.name) {
+                    failed_members.push(member.name.clone());
+                }
                 return;
             }
             errors.extend(
@@ -460,6 +472,7 @@ fn run_workspace_over_in(
         },
         members: analysed,
         members_with_errors: with_errors,
+        members_failed: failed_members,
     }
 }
 
