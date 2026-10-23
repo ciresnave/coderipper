@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.5 - 2026-10-23 (proposed)
+
+Docs only: `ROADMAP.md` gains "Next rule families" (the PM's tasks carrying CireSnave's words, 2026-10-23): the default-on policy in eight points, and fourteen families, each with three candidate rules and the incident that is its positive control (or a statement that none was supplied). Family 13 (documentation) has four tiers: deterministic checks including doc-comment presence and staleness, a prose-lint tier (native Rust set, optional Vale shell-out), metrics, and an off-by-default LLM tier. Nothing is built.
+
 ## 0.9.4 - 2026-10-23 (proposed)
 
 `ci-security`: the self-hosted-runner finding now says the job "names no GPU or other hardware it needs" and prints the `[[allow]]` entry that waives it (`file`, `symbol = "<job>:runner"`, a `reason` placeholder), so a lane need not look it up. The rule's doc states the precision: GPU words stand in for "needs our hardware", so a self-hosted job that needs other hardware (PersistAnt's power-loss rig) fires every time, by design, and is waived with a reason. No change in what fires.
