@@ -15,6 +15,9 @@ Self-hosted and trigger lints (`docs/portfolio-ci-coverage.md` build order 5, se
 - `ci-security`: a `pull_request` trigger whose `branches:` filter names neither `main` nor `master` (nor `*`/`**`), or whose `branches-ignore:` names one of them, is **Medium**.
 - Planted cases both ways: `conformance/ci-security/defective` gains `selfhosted.yml` and `branches.yml`; unit tests for each finding with positive controls (reversed operand order, a release-only job, a push trigger, a hosted runner, a catch-all filter).
 
+### Changed
+- `ci.yml` calls `portfolio.yml` at `5e6e1d4` (0.8.17, the commit that merged #119) and `portfolio.yml` installs 0.8.17 (published).
+
 ### Not judged
 - Repository visibility (a private repository is the waiver above) and the forge's approval setting; a runner chosen by an expression; the default branch's real name (main and master are assumed).
 

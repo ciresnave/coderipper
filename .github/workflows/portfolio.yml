@@ -29,7 +29,7 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
-  CODERIPPER_VERSION: 0.8.16
+  CODERIPPER_VERSION: 0.8.17
 
 jobs:
   portfolio:
