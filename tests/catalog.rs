@@ -90,6 +90,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("licence");
     // the CI-security rule
     triaged.push("ci-security");
+    // the version-and-changelog rule
+    triaged.push("version-and-changelog");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     in_catalog.sort_unstable();

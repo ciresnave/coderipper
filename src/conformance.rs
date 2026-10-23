@@ -324,7 +324,23 @@ fn judge_one(
     if copy_baseline(dir, project.path())? {
         git_commit_all(project.path())
             .with_context(|| format!("{name}: could not commit the fixture's baseline"))?;
+        // a clone has the default branch's tip as `origin/main`: the baseline is where the change started, so a rule that asks
+        // where a branch left the default branch finds it here
+        git_command(project.path())
+            .args(["update-ref", "refs/remotes/origin/main", "HEAD"])
+            .output()
+            .context("could not record the fixture's baseline as origin/main")?;
         clear_worktree(project.path())?;
+        // stage the removal now: a file of the fixture that has the baseline file's size and timestamp (a version bumped from
+        // 0.1.0 to 0.2.0 in the same second) would otherwise be taken for unchanged and committed as the baseline's
+        let staged = git_command(project.path())
+            .args(["add", "-A", "-f"])
+            .output()?;
+        anyhow::ensure!(
+            staged.status.success(),
+            "{name}: could not stage the baseline's removal: {}",
+            String::from_utf8_lossy(&staged.stderr).trim()
+        );
     }
     copy_fixture(dir, project.path())?;
     git_commit_all(project.path())

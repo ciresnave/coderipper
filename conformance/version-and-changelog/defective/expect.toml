@@ -1,0 +1,11 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "version-and-changelog"
+file = "Cargo.toml"
+line = 3
+
+[[expect]]
+rule = "version-and-changelog"
+file = "CHANGELOG.md"
+line = 1

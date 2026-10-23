@@ -6,6 +6,22 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.13 - 2026-10-22 (proposed)
+
+Rule `version-and-changelog` (`docs/portfolio-ci-coverage.md` build order 3; PM ruling 2026-10-21 on EXPECTATIONS 6.6, and CireSnave 2026-09-17: "If a change is made and pushed, the version should change in some way. If it is a breaking change, the major version should change.").
+
+### Added
+- Rule `version-and-changelog` (neutral module, advisory in `--profile portfolio`; catalog record in `rules/wsp.toml`): Medium when the root `Cargo.toml` (`[package]`, else `[workspace.package]`) or `package.json` version is the base's; Medium when a version that changed, or a manifest the base lacked, has no entry in the root `CHANGELOG*`/`CHANGES*` file (a heading, or a line that begins with the version, naming it as a whole token) or the repository has no changelog.
+- The base: the merge-base of `HEAD` with `origin/HEAD`, else `origin/main`, else `origin/master` (`RepoView::base`). A coverage gap, never clean, when none exists, when the history is missing (a shallow clone: `fetch-depth: 0`), and on the default branch where `HEAD` is the base.
+- Planted cases both ways: `conformance/version-and-changelog/{defective,clean}`, each with a `.baseline`, and unit tests with a positive control for each finding and for the whole-token entry match.
+
+### Changed
+- The conformance runner records a fixture's `.baseline` commit as `origin/main`, as a clone would have it, so a rule that asks where a branch left the default branch finds it.
+- The neutral module claims twelve rules (was eleven).
+
+### Not judged
+- The `version-deferred` label (a forge fact; the PM's gate allocates the number and re-checks at merge), which component a breaking change moved, manifests below the root, `pyproject.toml`, lock files, and what an entry says.
+
 ## 0.8.12 - 2026-10-22 (proposed)
 
 Rule `ci-security` (PM task from CireSnave 2026-10-22: "Require approval before workflows from outside collaborators run. Don't give pull-request-triggered jobs on a public repo any repository secrets. Prefer hosted runners for public repos wherever a job doesn't need our GPU."). Stacked on #113 (0.8.11).
