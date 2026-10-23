@@ -28,6 +28,11 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Portfolio runs never use a compiler wrapper. A self-hosted runner can inherit another user's `RUSTC_WRAPPER` (sccache) that the
+  # runner account cannot execute, which fails `cargo install` before it compiles anything; an empty value turns it off (harmless on
+  # a hosted runner).
+  RUSTC_WRAPPER: ""
+  CARGO_BUILD_RUSTC_WRAPPER: ""
   # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
   CODERIPPER_VERSION: 0.8.19
 
