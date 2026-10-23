@@ -83,6 +83,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      # The analysis compiles the caller's crates, so a build script that needs `protoc` (prost-build; mlmf's) must find it. Only on a
+      # GitHub-hosted Linux runner, where installing a package is routine; a self-hosted runner is the owner's machine and is left alone.
+      # A crate whose build still fails is named as not judged, not reported clean.
+      - name: Install protoc (GitHub-hosted Linux runners)
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
       - name: Install coderipper from crates.io
         run: cargo install coderipper --version "$CODERIPPER_VERSION" --locked
       # `--no-config`: the runner's own configuration files do not decide the result; the repository's `.coderipper.toml` still does
