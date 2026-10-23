@@ -171,3 +171,47 @@ fn a_missing_header_reports_without_blocking() {
         .code(0)
         .stdout(predicate::str::contains("SPDX-License-Identifier"));
 }
+
+#[test]
+fn an_allow_entry_for_a_rule_outside_the_profile_is_not_called_unregistered() {
+    // SEC-002 is a delegated rule, which the profile leaves out; an entry naming it is for another profile's run, not a typo. A name
+    // that is no rule at all still is one (the positive control).
+    let p = common::git_repo_with(&[
+        ("requirements.txt", "requests==2.32.0\n"),
+        ("LICENSE", "MIT License\n"),
+        (
+            ".coderipper.toml",
+            "[[allow]]\ncheck = \"SEC-002\"\nfile = \"src/x.rs\"\nreason = \"history only\"\n\n[[allow]]\ncheck = \"NO-SUCH-RULE\"\nfile = \"src/y.rs\"\nreason = \"a typo\"\n",
+        ),
+    ]);
+    portfolio(&p, &[])
+        .assert()
+        .stdout(predicate::str::contains(
+            "`NO-SUCH-RULE`, that is not registered",
+        ))
+        .stdout(predicate::str::contains("`SEC-002`, that is not registered").not());
+}
+
+#[test]
+fn the_list_of_registered_rules_in_an_unknown_entry_names_each_rule_once() {
+    let p = common::git_repo_with(&[
+        ("requirements.txt", "requests==2.32.0\n"),
+        ("LICENSE", "MIT License\n"),
+        (
+            ".coderipper.toml",
+            "[[allow]]\ncheck = \"NO-SUCH-RULE\"\nfile = \"src/y.rs\"\nreason = \"a typo\"\n",
+        ),
+    ]);
+    let out = portfolio(&p, &["--message-format", "json"])
+        .assert()
+        .get_output()
+        .stdout
+        .clone();
+    let out = String::from_utf8(out).unwrap();
+    let line = out
+        .lines()
+        .find(|l| l.contains("NO-SUCH-RULE"))
+        .expect("the unknown-entry finding");
+    // the finding lists the registered rules twice (its detail and its positive control), each list naming `conflict-marker` once
+    assert_eq!(line.matches("conflict-marker").count(), 2, "{line}");
+}

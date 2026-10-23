@@ -951,6 +951,23 @@ fn run_selected_checks(
     };
     let mut registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
     registered.extend(&extra);
+    // Over the built-in checks, a name the allowlist may use is any rule of this build, not only the profile's: an entry for a rule
+    // another profile runs is not a typo. Over a list of the caller's own checks the entries are judged against that list alone.
+    let built_in: Vec<String> = registered_checks()
+        .iter()
+        .map(|c| c.id().to_string())
+        .collect();
+    if !checks.is_empty()
+        && checks
+            .iter()
+            .all(|c| built_in.iter().any(|id| id == c.id()))
+    {
+        for id in Profile::Extended.extra_rules() {
+            if !registered.contains(&id) {
+                registered.push(id);
+            }
+        }
+    }
     let rust = module::RustModule::new(checks);
     let neutral = module::NeutralModule::new();
     let delegated = module::DelegatedModule::new(tools.clone());

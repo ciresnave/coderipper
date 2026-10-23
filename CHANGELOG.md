@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.16 - 2026-10-23 (proposed)
+
+Found by the first run of `portfolio.yml` (#117): this repository's two `SEC-002` `[[allow]]` entries were reported as "names a check that is not registered" under `--profile portfolio`.
+
+### Fixed
+- The allowlist's "not registered" judgement took the rule list of the profile being run, so an entry for a rule of another profile (a delegated rule under `portfolio` or `classic`) read as a typo. Over the built-in checks it now takes every rule of the build (each named once); a name that is no rule at all is still reported, and a run over a list of the caller's own checks still judges entries against that list alone (the documented gotcha, `tests/custom_check.rs`). Tests (each red before): `an_allow_entry_for_a_rule_outside_the_profile_is_not_called_unregistered` (the typo case is its positive control), `the_list_of_registered_rules_in_an_unknown_entry_names_each_rule_once`, `an_entry_naming_a_rule_of_a_profile_is_unknown_to_a_run_of_your_own_checks`.
+
 ## 0.8.15 - 2026-10-23 (proposed)
 
 This repository calls its own `portfolio.yml` (build order 4, second half).
