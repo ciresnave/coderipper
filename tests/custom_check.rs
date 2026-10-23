@@ -208,6 +208,23 @@ fn an_entry_naming_a_check_you_did_not_pass_is_reported_as_unknown() {
 }
 
 #[test]
+fn an_entry_naming_a_rule_of_a_profile_is_unknown_to_a_run_of_your_own_checks() {
+    // The same gotcha for the rules the profiles add: a custom list does not know them either, so the allowlist's profile-wide
+    // registration (a delegated rule is no typo under `--profile portfolio`) does not reach a run of the caller's own checks.
+    let dir = project_with(&[(
+        ".coderipper.toml",
+        "[[allow]]\ncheck = \"SEC-002\"\nfile = \"src/lib.rs\"\nreason = \"kept\"\n",
+    )]);
+    let result = run_checks_with(&boxed(TodoFile), &ctx(dir.path()), Tier::Fast, None);
+    let unknown = result
+        .findings
+        .iter()
+        .find(|f| f.check_id == "allowlist")
+        .expect("an unknown-check finding");
+    assert!(unknown.summary.contains("SEC-002"), "{}", unknown.summary);
+}
+
+#[test]
 fn a_sweep_tier_check_runs_in_the_fast_tier_only_when_named() {
     let dir = project_with(&[]);
     let sweep = boxed(SweepOnly);
