@@ -28,9 +28,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # The published release the sweep installs. The version-and-changelog rule (merged in 0.8.13) is in the profile from the first
-  # release that carries it, so this moves to that release once it is published.
-  CODERIPPER_VERSION: 0.8.12
+  # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
+  CODERIPPER_VERSION: 0.8.13
 
 jobs:
   portfolio:
