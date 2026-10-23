@@ -1,0 +1,7 @@
+on: pull_request
+permissions: {}
+jobs:
+  dev:
+    runs-on: [self-hosted, gpu]
+    steps:
+      - run: cargo test

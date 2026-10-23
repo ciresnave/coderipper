@@ -1,0 +1,13 @@
+on:
+  push:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  dev:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    environment: gpu-runner
+    runs-on: [self-hosted, gpu]
+    steps:
+      - run: cargo test

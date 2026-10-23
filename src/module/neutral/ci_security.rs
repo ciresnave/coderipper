@@ -10,6 +10,13 @@
 //! - **Medium:** a job that runs on a self-hosted or custom-labelled runner and mentions no GPU, CUDA, Vulkan, ROCm or OpenCL anywhere
 //!   (its name, steps, labels, or the workflow's file name): a hosted runner would do. A runner chosen by an expression
 //!   (`${{ matrix.os }}`) is not judged.
+//! - **High:** a job on a self-hosted or custom-labelled runner under `pull_request` or `pull_request_target` whose `if:` lacks the
+//!   same-repo condition (`github.event.pull_request.head.repo.full_name == github.repository`): a fork's pull request would run on
+//!   the machine (CireSnave, 2026-10-16, the self-hosted policy 5.1h).
+//! - **Medium:** the same job with the condition but no `environment:` (the required-reviewer gate; a private repository on the Free
+//!   plan cannot have one, so its same-repo condition is the whole gate and this finding is waived there).
+//! - **Medium:** a `pull_request` trigger whose `branches:` filter names neither `main` nor `master` (nor a catch-all pattern), or whose
+//!   `branches-ignore:` names one of them: pull requests to the default branch get no checks (CireSnave, 2026-09-17, checks everywhere).
 //! - **Low:** a workflow with no top-level `permissions:` block, so its token takes the repository default.
 //!
 //! Whether the repository is public is not known from its files, so every finding applies when it is; run the rule over the public
@@ -59,6 +66,40 @@ fn events(doc: &yaml_serde::Mapping) -> Vec<String> {
             .collect(),
         _ => Vec::new(),
     }
+}
+
+/// The `branches` / `branches-ignore` filters of the workflow's `pull_request` trigger, as `(branches, ignored)`; `None` when the
+/// trigger is absent or carries no filter.
+fn pull_request_filters(doc: &yaml_serde::Mapping) -> Option<(Vec<String>, Vec<String>)> {
+    let on = key(doc, "on").or_else(|| doc.get(Value::Bool(true)).cloned())?;
+    let Value::Mapping(on) = on else {
+        return None;
+    };
+    let Some(Value::Mapping(pr)) = key(&on, "pull_request") else {
+        return None;
+    };
+    let list = |name: &str| -> Vec<String> {
+        match key(&pr, name) {
+            Some(Value::Sequence(seq)) => seq
+                .into_iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect(),
+            Some(Value::String(s)) => vec![s],
+            _ => Vec::new(),
+        }
+    };
+    let (branches, ignored) = (list("branches"), list("branches-ignore"));
+    (!branches.is_empty() || !ignored.is_empty()).then_some((branches, ignored))
+}
+
+/// Whether the job's `if:` carries the same-repo condition, with either operand order.
+fn same_repo_condition(job: &yaml_serde::Mapping) -> bool {
+    let Some(Value::String(cond)) = key(job, "if") else {
+        return false;
+    };
+    let cond: String = cond.chars().filter(|c| !c.is_whitespace()).collect();
+    cond.contains("github.event.pull_request.head.repo.full_name==github.repository")
+        || cond.contains("github.repository==github.event.pull_request.head.repo.full_name")
 }
 
 fn dump(value: &Value) -> String {
@@ -238,6 +279,29 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             );
         }
 
+        if let Some((branches, ignored)) = pull_request_filters(&doc) {
+            let default = |b: &String| matches!(b.as_str(), "main" | "master" | "**" | "*");
+            let leaves_out = if branches.is_empty() {
+                ignored.iter().any(default)
+            } else {
+                !branches.iter().any(default)
+            };
+            if leaves_out {
+                findings.push(
+                    Finding::new(
+                        ID,
+                        Severity::Medium,
+                        Confidence::Medium,
+                        project,
+                        format!("{file}: the pull_request trigger's branch filter leaves out main and master"),
+                        "Every branch gets checks on pull requests, the default branch first. Drop the `branches:` filter, or list the default branch in it.",
+                    )
+                    .location(Location::new(file.clone(), Some(line_of(&text, "pull_request"))))
+                    .subject("on:branches"),
+                );
+            }
+        }
+
         let Some(Value::Mapping(jobs)) = key(&doc, "jobs") else {
             continue;
         };
@@ -290,6 +354,43 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             }
             if let Some(labels) = labels(job) {
                 let custom: Vec<&String> = labels.iter().filter(|l| !hosted(l)).collect();
+                if !custom.is_empty() && from_outside && !never_on_pull_request(job) {
+                    let on = custom
+                        .iter()
+                        .map(|l| format!("`{l}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let gated = same_repo_condition(job);
+                    if !gated {
+                        findings.push(
+                            Finding::absence(
+                                ID,
+                                Severity::High,
+                                Confidence::High,
+                                project,
+                                format!("{file}: job `{name}` runs on {on} under {} without the same-repo condition", events.join("/")),
+                                "A pull request from a fork would run its workflow text on this machine. Add `if: github.event.pull_request.head.repo.full_name == github.repository` to the job (fork pull requests then get hosted-runner tests only), or move the job to push, schedule or workflow_dispatch.",
+                                format!("{file} job `{name}` was read whole; its `if:` is searched for `github.event.pull_request.head.repo.full_name == github.repository` in either operand order, which the policy's own example carries"),
+                            )
+                            .location(Location::new(file.clone(), Some(line)))
+                            .subject(format!("{name}:same-repo")),
+                        );
+                    } else if key(job, "environment").is_none() {
+                        findings.push(
+                            Finding::absence(
+                                ID,
+                                Severity::Medium,
+                                Confidence::Medium,
+                                project,
+                                format!("{file}: job `{name}` runs on {on} under {} with no environment gate", events.join("/")),
+                                "Add `environment:` naming an environment with a required reviewer, so a same-repo pull request waits for approval before it runs on the machine. A private repository on the Free plan cannot have required reviewers: waive this finding there, its same-repo condition is the gate.",
+                                format!("{file} job `{name}` was read whole; its keys are searched for `environment`, which a gated job carries"),
+                            )
+                            .location(Location::new(file.clone(), Some(line)))
+                            .subject(format!("{name}:environment")),
+                        );
+                    }
+                }
                 if !custom.is_empty() {
                     let haystack = format!("{}{}", dump(&Value::Mapping(job.clone())), "")
                         .to_ascii_lowercase();
@@ -441,6 +542,105 @@ jobs:
             "",
         );
         assert_eq!(subjects(&run(&[(W, &none)])), vec!["publish:secrets"]);
+    }
+
+    const SELF: &str = "on: pull_request
+permissions: {}
+jobs:
+  dev:
+    runs-on: [self-hosted, gpu]
+    steps:
+      - run: cargo test
+";
+
+    #[test]
+    fn a_self_hosted_job_on_a_pull_request_needs_the_same_repo_condition_and_the_environment() {
+        let found = run(&[(W, SELF)]);
+        assert_eq!(subjects(&found), vec!["dev:same-repo"]);
+        assert_eq!(found[0].severity, Severity::High);
+        assert_eq!(found[0].location.as_ref().unwrap().line, Some(4));
+        let cond = "    if: github.event.pull_request.head.repo.full_name == github.repository
+";
+        let gated = SELF.replace("    runs-on", &format!("{cond}    runs-on"));
+        let found = run(&[(W, &gated)]);
+        assert_eq!(subjects(&found), vec!["dev:environment"]);
+        assert_eq!(found[0].severity, Severity::Medium);
+        let both = gated.replace(
+            "    runs-on",
+            "    environment: gpu-runner
+    runs-on",
+        );
+        assert!(run(&[(W, &both)]).is_empty());
+        // positive controls: the reversed operand order is the same condition; a job that never runs for a pull request, a push
+        // trigger and a hosted runner are not judged
+        let reversed = both.replace(
+            "github.event.pull_request.head.repo.full_name == github.repository",
+            "github.repository == github.event.pull_request.head.repo.full_name",
+        );
+        assert!(run(&[(W, &reversed)]).is_empty());
+        let release = SELF.replace(
+            "    runs-on",
+            "    if: github.event_name == 'release'
+    runs-on",
+        );
+        assert!(run(&[(W, &release)]).is_empty());
+        assert!(run(&[(W, &SELF.replace("on: pull_request", "on: push"))]).is_empty());
+        assert!(run(&[(W, &SELF.replace("[self-hosted, gpu]", "ubuntu-latest"))]).is_empty());
+        // a condition that names something else is not the same-repo condition
+        let other = SELF.replace(
+            "    runs-on",
+            "    if: github.actor == 'me'
+    runs-on",
+        );
+        assert_eq!(subjects(&run(&[(W, &other)])), vec!["dev:same-repo"]);
+    }
+
+    #[test]
+    fn a_branch_filter_that_leaves_out_the_default_branch_is_medium() {
+        let filtered = |filter: &str| {
+            format!(
+                "on:
+  pull_request:
+{filter}permissions: {{}}
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps:
+      - run: x
+"
+            )
+        };
+        let found = run(&[(
+            W,
+            &filtered(
+                "    branches: [develop]
+",
+            ),
+        )]);
+        assert_eq!(subjects(&found), vec!["on:branches"]);
+        assert_eq!(found[0].severity, Severity::Medium);
+        assert_eq!(found[0].location.as_ref().unwrap().line, Some(2));
+        let ignored = run(&[(
+            W,
+            &filtered(
+                "    branches-ignore: [main]
+",
+            ),
+        )]);
+        assert_eq!(subjects(&ignored), vec!["on:branches"]);
+        // positive controls: the default branch listed, a catch-all, an unrelated ignore and no filter at all
+        for ok in [
+            "    branches: [main, develop]
+",
+            "    branches: ['**']
+",
+            "    branches-ignore: [wip]
+",
+            "    types: [opened]
+",
+        ] {
+            assert!(run(&[(W, &filtered(ok))]).is_empty(), "{ok}");
+        }
     }
 
     #[test]

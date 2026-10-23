@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.18 - 2026-10-23 (proposed)
+
+Self-hosted and trigger lints (`docs/portfolio-ci-coverage.md` build order 5, second row), added to `ci-security`.
+
+### Added
+- `ci-security`: a job on a self-hosted or custom-labelled runner under `pull_request` or `pull_request_target` whose `if:` lacks the same-repo condition (`github.event.pull_request.head.repo.full_name == github.repository`, either operand order) is **High**; with the condition but no `environment:` it is **Medium** (CireSnave's self-hosted policy 5.1h; a private repository on the Free plan cannot have required reviewers, so waive the Medium there). A job limited by its own `if:` to other events is not judged, as for secrets.
+- `ci-security`: a `pull_request` trigger whose `branches:` filter names neither `main` nor `master` (nor `*`/`**`), or whose `branches-ignore:` names one of them, is **Medium**.
+- Planted cases both ways: `conformance/ci-security/defective` gains `selfhosted.yml` and `branches.yml`; unit tests for each finding with positive controls (reversed operand order, a release-only job, a push trigger, a hosted runner, a catch-all filter).
+
+### Not judged
+- Repository visibility (a private repository is the waiver above) and the forge's approval setting; a runner chosen by an expression; the default branch's real name (main and master are assumed).
+
 ## 0.8.17 - 2026-10-23 (proposed)
 
 `lint-suppression` ratchet (`docs/portfolio-ci-coverage.md` build order 5, first row; GOV-001 against the merge-base).
