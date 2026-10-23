@@ -34,7 +34,7 @@ env:
   RUSTC_WRAPPER: ""
   CARGO_BUILD_RUSTC_WRAPPER: ""
   # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
-  CODERIPPER_VERSION: 0.8.19
+  CODERIPPER_VERSION: 0.9.6
 
 jobs:
   portfolio:

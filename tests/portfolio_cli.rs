@@ -351,3 +351,126 @@ path = \"hello.rs\"
     .stderr(predicate::str::contains("has no `src/` directory"))
     .stderr(predicate::str::contains("os error").not());
 }
+
+fn workspace_with_config(config: &str) -> tempfile::TempDir {
+    common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]
+members = [\"a\", \"b\"]
+resolver = \"2\"
+",
+        ),
+        (
+            "Cargo.lock",
+            "version = 4
+",
+        ),
+        (
+            "LICENSE",
+            "MIT License
+",
+        ),
+        (".coderipper.toml", config),
+        (
+            "a/Cargo.toml",
+            "[package]
+name = \"a\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+        ),
+        (
+            "a/src/lib.rs",
+            "pub fn f() -> i32 { 1 }
+",
+        ),
+        (
+            "b/Cargo.toml",
+            "[package]
+name = \"b\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+        ),
+        (
+            "b/src/lib.rs",
+            "pub fn g() -> i32 { 1 }
+",
+        ),
+    ])
+}
+
+#[test]
+fn a_crate_level_public_api_declaration_covers_one_package_of_a_workspace() {
+    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    // `a` and `b` each have an unreferenced public function; the declaration names only `a`
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
+",
+    );
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] b — `g` has zero callers",
+        ))
+        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not())
+        .stdout(predicate::str::contains(
+            "[declared-public/Medium] a — `f` has zero callers",
+        ));
+    // a misspelt package name declares nothing and says so by name
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"aa\", reason = \"published library\" }]
+",
+    );
+    sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] a — `f` has zero callers",
+        ))
+        .stdout(predicate::str::contains("public_api_crates"))
+        .stdout(predicate::str::contains("`aa`"));
+}
+
+#[test]
+fn a_member_run_by_hand_agrees_with_the_workspace_run_on_a_root_only_declaration() {
+    // the lanes reproduce CI member by member (`--project crates/x`); a run that disagrees with CI is a defect
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
+",
+    );
+    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    let at = |dir: &str| {
+        let mut cmd = Command::cargo_bin("coderipper").unwrap();
+        cmd.args([
+            "sweep",
+            "--profile",
+            "portfolio",
+            "--deny",
+            "none",
+            "--no-config",
+        ])
+        .args(skip)
+        .arg("--project")
+        .arg(repo.path().join(dir))
+        .env("CODERIPPER_CACHE", "off");
+        cmd
+    };
+    // `a` is declared at the root: its run reads the root's file and prints the finding as declared public
+    at("a")
+        .assert()
+        .stdout(predicate::str::contains(
+            "[declared-public/Medium] a — `f` has zero callers",
+        ))
+        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not());
+    // `b` is not declared: it keeps its finding, and is not told that another package's entry matched nothing
+    at("b")
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] b — `g` has zero callers",
+        ))
+        .stdout(predicate::str::contains("public_api_crates").not());
+}
