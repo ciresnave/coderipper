@@ -47,11 +47,11 @@ fn a_bare_invocation_runs_the_fast_checks_in_the_current_directory() {
 fn deny_and_the_exit_codes_work_the_same_way() {
     let repo = project_with_a_medium_finding();
     as_cargo_runs_it(repo.path())
-        .args(["--deny", "medium"])
+        .args(["--profile", "classic", "--deny", "medium"])
         .assert()
         .code(1);
     as_cargo_runs_it(repo.path())
-        .args(["--deny", "high"])
+        .args(["--profile", "classic", "--deny", "high"])
         .assert()
         .code(0);
 }
@@ -60,7 +60,13 @@ fn deny_and_the_exit_codes_work_the_same_way() {
 fn workspace_and_message_format_are_accepted() {
     let repo = project_with_a_medium_finding();
     let out = as_cargo_runs_it(repo.path())
-        .args(["--workspace", "--message-format", "json"])
+        .args([
+            "--profile",
+            "classic",
+            "--workspace",
+            "--message-format",
+            "json",
+        ])
         .output()
         .unwrap();
     assert_eq!(

@@ -19,6 +19,10 @@ struct Run {
 fn run_cli(args: &[&str], envs: &[(&str, &str)]) -> Run {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.args(args);
+    // about the build cache of one check, not the rules of the default profile
+    if args.first() == Some(&"check") {
+        cmd.args(["--profile", "classic"]);
+    }
     for (k, v) in envs {
         cmd.env(k, v);
     }

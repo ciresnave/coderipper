@@ -84,7 +84,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.8", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.9", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run
@@ -220,8 +220,8 @@ them), so use only fixtures you trust. This is for the people who write checks a
 `--profile extended` (or `--coverage`, or `--coverage=full` to list the ids) prints, per language, how many of the catalogued rules
 CodeRipper really covers (a claim counts only when a conformance fixture proves it), how many it does not cover yet, and how this
 run went. A rule CodeRipper has not built is **not yet implemented**: that is CodeRipper's own gap, not a finding about your code,
-and it never changes the exit code. A language in your repository that has no module is listed the same way. The default `classic`
-profile prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
+and it never changes the exit code. A language in your repository that has no module is listed the same way. The `classic`
+profile (the default before 0.9.0) prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
 least one source file among the files git tracks; a project outside git is not scanned).
 
 ## Pull-request check: `--profile portfolio`
@@ -233,8 +233,8 @@ least one source file among the files git tracks; a project outside git is not s
 Under `--profile extended` five rules that read a repository's files, not its source (and one that hands the repository to a tool,
 see below) run next to the original checks, in the same
 run and under the same `.coderipper.toml` allowlist. Their ids are catalog ids; each is a narrow, deterministic reading of a broader
-rule, and each is proven by a conformance fixture (`coderipper conformance --module neutral`). The default `classic` profile does
-not run them. `coderipper check SUP-001 --profile extended` runs one.
+rule, and each is proven by a conformance fixture (`coderipper conformance --module neutral`). Since 0.9.0 the default profile (`extended`) runs
+them; `--profile classic` does not. `coderipper check SUP-001 --profile extended` runs one.
 
 | Rule | Reports |
 |---|---|
@@ -514,7 +514,7 @@ read by the command-line program only: a library caller that never asks sees non
 ```toml
 # ~/.coderipper.toml: defaults for every command-line option that is a default, and what the environment variables set
 deny = "medium"          # --deny: none | info | low | medium | high | critical
-profile = "extended"     # --profile: classic | extended
+profile = "extended"     # --profile: extended (the default) | classic | portfolio
 message-format = "human" # --message-format: human | json
 redact = false           # --redact
 install-tools = false    # --install-tools
