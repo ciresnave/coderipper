@@ -181,6 +181,11 @@ struct RunOpts {
         default_missing_value = "summary"
     )]
     coverage: Option<CoverageMode>,
+    /// Also print per-rule counts for the run: findings, waivers and declarations (`public_api`, `public_api_crates`), and the opt-outs
+    /// they add up to, so a sweep can be tracked from one line per rule. Human: a block after the findings. JSON: a
+    /// `coderipper-rule-summary` line before the `coderipper-summary` line. It changes no exit code.
+    #[arg(long)]
+    summary: bool,
     /// Say that the tools the delegated rules need (`--profile extended`: gitleaks for SEC-002, osv-scanner for SUP-002 and SEC-006, lychee for DOC-010, zizmor for SUP-008, buf for API-006) may be downloaded into the tool
     /// cache when they are not there. Without it nothing is downloaded or written, in CI or anywhere else, and a rule whose tool is
     /// missing is reported as not run (a gap; it never fails the run).
@@ -798,6 +803,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 message_format,
                 profile,
                 coverage,
+                summary,
                 install_tools,
                 tools_lock,
                 redact,
@@ -984,6 +990,11 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     // The coverage report: computed from the catalog joined with what the Rust module claims and has proven, and with this run's
     // outcomes. A gap in it never touches `code` above.
     let unchecked = crate::coverage::unchecked_languages(&ctx.project_root);
+    let summary_project = ctx
+        .project_root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
     let show_coverage = profile == Profile::Extended || coverage.is_some();
     let reports = show_coverage
         .then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended, &tools));
@@ -1054,6 +1065,13 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             if let Some(reports) = &reports {
                 print_coverage_human(reports, coverage == Some(CoverageMode::Full));
             }
+            if summary {
+                crate::rule_summary::print_human(
+                    &summary_project,
+                    &crate::rule_summary::rows(&result),
+                    result.errors.len(),
+                );
+            }
         }
         MessageFormat::Json => {
             for f in &result.findings {
@@ -1083,6 +1101,16 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                     crate::coverage::GAP_LIST_LIMIT
                 };
                 println!("{}", report.to_json_with_gap_limit(limit));
+            }
+            if summary {
+                println!(
+                    "{}",
+                    crate::rule_summary::to_json(
+                        &summary_project,
+                        &crate::rule_summary::rows(&result),
+                        result.errors.len()
+                    )
+                );
             }
             let mut summary = serde_json::json!({
                 "reason": "coderipper-summary",

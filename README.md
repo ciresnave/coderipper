@@ -80,6 +80,8 @@ fields plus `waiver_reason`, the entry's reason), then one `coderipper-summary` 
 cargo coderipper --message-format json --deny medium
 ```
 
+**`--summary` (0.9.8): one line per rule.** `coderipper sweep --summary` ends the human output with a totals line and one line per rule (findings, `[[allow]]` waivers, `public_api` declarations, severities); with `--message-format json` it prints one `coderipper-rule-summary` line just before the `coderipper-summary` line. The field names are stable: `reason`, `project`, `findings`, `waived`, `declared_public`, `opt_outs` (waived plus declared public: the project's visible opt-outs), `errors`, and `rules`, a list sorted by rule id whose items have `rule`, `findings`, `waived`, `declared_public` and `severities` (lower-case severity to count). A rule that ran clean has no row, and `--summary` changes no exit code.
+
 ## As a library
 
 ```toml

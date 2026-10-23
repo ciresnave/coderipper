@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.8 - 2026-10-23 (proposed)
+
+`--summary` (the PM's request, to track a portfolio sweep): per-rule counts for a run. Human: a totals line and one line per rule after the findings. JSON: one `coderipper-rule-summary` line before the `coderipper-summary` line, with stable fields `reason`, `project`, `findings`, `waived`, `declared_public`, `opt_outs`, `errors` and `rules` (`rule`, `findings`, `waived`, `declared_public`, `severities`). `opt_outs` is `[[allow]]` waivers plus `public_api`/`public_api_crates` declarations: the visible opt-outs of the default-on policy. A rule that ran clean has no row. No exit code changes. Tests: `tests/summary_cli.rs` (absent without the flag; human; JSON order and fields, totals equal the rows' sums) and two unit tests.
+
 ## 0.9.6 - 2026-10-23 (proposed)
 
 Fix (baracuda's second sweep, run 40025510102): the Rust checks assert nothing for a member that cannot be built, and the output did not say which.
