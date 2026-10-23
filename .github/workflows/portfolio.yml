@@ -90,6 +90,21 @@ jobs:
       # `ci-protection-presence` reads branch protection, which this job's token cannot see; the PM's sweep runs it.
       # The `portfolio` profile holds the language-neutral rules only, so the secrets scan (SEC-002, delegated to gitleaks) is its own
       # step, with the tool downloaded: without `--install-tools` a missing tool is a gap and the job would pass without having looked.
+      # The analysis builds the caller's crate (and every member of a workspace) in CodeRipper's own build cache. A GitHub-hosted runner
+      # starts empty, so that cache is kept between runs, keyed on the lockfiles; a self-hosted runner keeps its own cache directory and needs
+      # none of this. Restore and save are separate steps so the cache is saved even when the sweep fails on a finding.
+      - name: Restore the build cache (GitHub-hosted runners)
+        if: runner.environment == 'github-hosted'
+        id: build-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/coderipper-build
+          key: coderipper-build-${{ runner.os }}-${{ env.CODERIPPER_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            coderipper-build-${{ runner.os }}-${{ env.CODERIPPER_VERSION }}-
+      - name: Point CodeRipper's build cache at it (GitHub-hosted runners)
+        if: runner.environment == 'github-hosted'
+        run: echo "CODERIPPER_CACHE_DIR=$RUNNER_TEMP/coderipper-build" >> "$GITHUB_ENV"
       - name: coderipper sweep --profile portfolio, and the secrets scan
         run: |
           code=0
@@ -106,3 +121,9 @@ jobs:
           # is no base to compare with (their note ends "a run on the default branch").
           if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
+      - name: Save the build cache (GitHub-hosted runners)
+        if: always() && runner.environment == 'github-hosted' && steps.build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/coderipper-build
+          key: coderipper-build-${{ runner.os }}-${{ env.CODERIPPER_VERSION }}-${{ hashFiles('**/Cargo.lock') }}
