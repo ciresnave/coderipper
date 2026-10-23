@@ -86,6 +86,14 @@ jobs:
           if grep '^coderipper: note:.* not run:.* is not available' "$RUNNER_TEMP/sweep.stderr"; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
 
+  # The portfolio check set, called as every repository of the portfolio calls it: the reusable workflow of this repository, pinned by the
+  # SHA of a commit of `main` that holds it (the commit that merged it, so the pin is one the workflow itself did not need to know).
+  portfolio:
+    name: Portfolio checks
+    permissions:
+      contents: read
+    uses: ciresnave/coderipper/.github/workflows/portfolio.yml@23406320fe7e4483bedfe41b5b71128a574d8718 # 0.8.14
+
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:
     name: Docs build clean, library builds without the cli feature

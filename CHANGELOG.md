@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.15 - 2026-10-23 (proposed)
+
+This repository calls its own `portfolio.yml` (build order 4, second half).
+
+### Added
+- Job `portfolio` in `ci.yml`: `uses: ciresnave/coderipper/.github/workflows/portfolio.yml@23406320fe7e4483bedfe41b5b71128a574d8718` (the commit that merged the workflow, 0.8.14), `permissions: contents: read`, no inputs and no secrets. Not a required check yet.
+
 ## 0.8.14 - 2026-10-23 (proposed)
 
 Reusable workflow `portfolio.yml` (`docs/portfolio-ci-coverage.md` build order 4). Stacked on #115 (0.8.13).
