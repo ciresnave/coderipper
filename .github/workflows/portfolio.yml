@@ -97,6 +97,8 @@ jobs:
           coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || code=$?
           cat "$RUNNER_TEMP/sweep.stderr" >&2
           # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
-          # repository with no Rust crate (nothing to look at) and the rule this step skips on purpose.
-          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          # repository with no Rust crate (nothing to look at), the rule this step skips on purpose, and the two rules that compare
+          # a branch with its base (the lint-suppression ratchet, version-and-changelog) on a run of the default branch, where there
+          # is no base to compare with (their note ends "a run on the default branch").
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
