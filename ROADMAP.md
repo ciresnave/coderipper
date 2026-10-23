@@ -56,6 +56,89 @@ would make it stop.
 **2026-10-20:** items 1, 2 (by the next 0.6.x policy, no branch cut), 3, 5, 6 and 7 are done. Item 4 was done on 2026-10-23 (0.9.0, proposed); item 8 waited on item 4 and
 on the triage of the default ruleset; item 9 waits on CireSnave's go and is not worked. Nothing in this lane is unblocked beyond re-measuring.
 
+## Next rule families (proposal of 2026-10-23, from the PM's tasks carrying CireSnave's words)
+
+**Status: proposal, nothing built.** Ranked by incidents recorded in this portfolio. The incidents are **as the PM relayed them on 2026-10-23; this lane has not re-read the sources**, so
+each rule's first step is a fixture that reproduces the incident's shape (the positive control), and the rule is not claimed until that fixture is found. Where the PM supplied no
+incident, the row says so and the first control is synthetic. Order of work after this PR merges: the `perf` design (done: `docs/superpowers/plans/2026-10-23-performance-rules.md`, 0.9.3), the
+`--summary` mode, the precision sample (30 per candidate perf rule), then a design document each for families 1 to 4, in that order.
+
+### Default-on policy
+
+CireSnave, 2026-10-23, verbatim: *"I think everything except possibly the AI-assisted tier should be on by default in CodeRipper. After all, projects can opt out of any rule."*
+
+1. **Every family ships in the default profile (`extended`) except the LLM-assisted tier**, which is off by default.
+2. **Opt-out is per rule, in configuration, with a required reason.** The sweep reports the **opt-out count per project**, so waivers are visible (this ties to `lint-suppression`, which already counts suppressions that carry a reason).
+3. **Default-on never means blocking.** Whether a rule is a required check stays a per-project decision (`blocking = [..]`, or the portfolio floors).
+4. **Precision gate.** A rule joins the default only after its measured precision on the portfolio clears a bar. **Proposed bar: at least 80% true positives on at least 30 sampled findings** across at least three repositories, with the seed and the sample recorded beside the rule. Below it the rule ships **opt-in**. A rule that is exact on its syntax and finds nothing on the portfolio (nothing to sample) may ship default-on if a seeded fixture proves it both ways. The first sample (`perf`, 12 findings) found 4 true, and 0 of 7 in the allocation-in-loop family, so that family is opt-in.
+5. **Perf rules are default-on only where scoped** (inside a loop, or in a path declared hot with `[perf] hot_paths`); the looser ones are opt-in until measured. This **replaces** the earlier instruction that `perf` be an opt-in profile outside `portfolio`.
+6. **Release numbering.** A new default-on rule is a **Breaking** change for a consumer who upgrades (it can add a finding to a project that was clean). Before 1.0 that is the second number. Bundle families into few releases, with the exact rules together, and the opt-in rules in patch releases.
+7. **Network checks stay in the sweep tier**, never in a pull-request job.
+8. **The `portfolio` profile** (what every project's advisory job runs) picks up a new default-on rule, and **each change is announced first by a [NOTICE]**.
+
+### The families
+
+| # | family | three candidate rules (all static unless marked) | the incident that is the positive control | notes |
+|---|---|---|---|---|
+| 0 | **Performance** | see the design document: regex in a loop, collect-then-iterate, `repr(C)` padding, claim without a benchmark (exact); allocation in a loop, linear search, N+1, unbuffered I/O (opt-in until the gate) | measured on fuel, baracuda, Unpopped (design, section 6) | design merged in 0.9.3; the build is not scheduled |
+| 1 | **Security and cryptography** | (a) `unwrap`/`expect`/`panic!`/indexing in code that handles untrusted input (scoped by declared entry points, not the whole crate); (b) AEAD encryption with an empty or missing AAD, a non-constant-time `==` on a secret type, a secret type with no zeroize on drop; (c) a hard-coded key, a weak algorithm (MD5, SHA-1, DES, RC4, ECB), TLS verification switched off, a log macro whose argument is a secret field | auth-framework: the JARM AAD and zeroize defect. synapse: the CodeQL cleartext-logging alert | injection, zip-slip and path traversal, and unbounded allocation from an untrusted length are the next tier; they need taint, so they are delegated to CodeQL/Semgrep when installed rather than guessed from syntax |
+| 2 | **Provenance and licence of committed data** | (a) a data, binary or model file with no provenance record beside it (source, licence, sha256; `data/patent-tiers.PIN` is the shape); (b) a record whose licence contradicts the upstream's licence (**network**, sweep tier); (c) third-party code with no licence and notice kept | fuel: a GPL-3.0 Qwen-AWQ slice recorded as Apache-2.0 | ties to CireSnave's *"I am not a plageurist"* (the portfolio's provenance rule); (b) cannot be static, and says so |
+| 3 | **Doc-versus-code truth** | (a) a doc comment that promises behaviour the code does not have, in its mechanical form: it names a function or check that has zero callers; (b) a command in a README that does not run (fenced blocks run from a clean checkout; the same tier-1 rule as family 13); (c) a ROADMAP or status row marked done whose named file, symbol or test does not exist, and a CHANGELOG that disagrees with the manifest version | fuel: the AWQ doc says it "enforces `can_implement`", which has 0 callers | the engine for (a) is the existing `reachability` check; judging whether prose *means* the behaviour is not static and stays out |
+| 4 | **Silently ignored input** | (a) a config field that is parsed and never read; (b) a CLI flag that is parsed and never read; (c) an environment variable the documentation names and the code never reads | none supplied; the first fixture is synthetic and the portfolio sweep supplies the real ones | the engine is a field-level read count, the same family as `reachability` |
+| 5 | **Test quality** | (a) a test that prints and asserts nothing; (b) a wall-clock assertion (`Instant`, `sleep`, then an assertion on the elapsed time); (c) `#[ignore]` with no reason, and a test that reads a source path | lightbulb: a flaky wall-clock test | "new behaviour with no negative control" is a review judgement, not a static rule, unless a branch-level diff tool is added later |
+| 6 | **API and semver** | (a) a public enum without `#[non_exhaustive]`; (b) a public change with no version change (`cargo-semver-checks` is the model, and CI already has a "public API matched by the version" job); (c) a public function with no `# Panics` or `# Safety` section | fuel: `WeightStorage` | overlaps family 13 (doc presence); one rule, two families, counted once |
+| 7 | **Correctness and concurrency** | (a) a lossy `as` cast; (b) a lock guard held across `.await`, and a blocking call in an `async fn`; (c) a fixed-window rate limiter, and a network client built with no timeout | lightbulb: fixed-window rate limits | (b) overlaps Clippy (`await_holding_lock`); require the lint and add only what it lacks |
+| 8 | **Schema versus query** | (a) a SQL literal selecting a column that no migration creates; (b) a migration runner with no lock, so two instances can migrate at once; (c) a migration edited after it was released (checksum against the base) | auth-framework #147 | needs a migrations parser first; (c) reads the merge-base, like the `lint-suppression` ratchet |
+| 9 | **Supply-chain policy** | (a) a git or path dependency (CireSnave's sources rule); (b) a dependency behind the newest release (his latest-versions rule); (c) an advisory, a yanked version, an unmaintained crate | his two standing rules, quoted in `C:\Projects\CLAUDE.md` 9 | **mostly built**: `SUP-004` (a), `SUP-002` and `SEC-006` (c). Not built: the scheduled staleness check (b), `docs/portfolio-ci-coverage.md` build order 6, run on a schedule, not per pull request |
+| 10 | **Portability** | (a) target-specific code with no fallback (a `cfg(unix)` item used unconditionally); (b) a hard-coded path separator in a path join; (c) line endings disagreeing with `.gitattributes` | the path-rewriting and CRLF costs recorded in `C:\Projects\CLAUDE.md` 2 | the Windows exit-3 of fuel (`fuel-cuda-backend`, `fuel-metal-kernels` cannot build there, ROADMAP 2026-10-15) is an environment limit, not this family |
+| 11 | **Repository hygiene** | (a) no `SECURITY.md`; (b) no CODEOWNERS (`WSP-001`, built); (c) a `TODO` or `FIXME` with no issue link | `WSP-001`: 11 repositories on 2026-10-20 | (b) is the control for the whole family: it exists, and has a conformance pair |
+| 12 | **Non-Rust stacks** | web accessibility (an image with no `alt`, a form control with no label, a missing `lang`, a skipped heading level), security headers (CSP, HSTS in a server config), and the language-neutral families above through the TypeScript module (item 8) | none supplied | static accessibility catches a minority of real problems; the doc says that |
+| 13 | **Documentation usability and accuracy** | three tiers, below | none supplied for the tier-2 and tier-3 rules; tier 1 reuses family 3's incident | tiers 1 and 2 default-on after the gate; tier 3 off by default |
+| 14 | **End-user usability of apps** | accessibility and security headers as in family 12; first-run and error-message checks are tier 3 | none supplied | **onboarding and task flows need humans**; no static rule can judge them, and this row says so rather than imply otherwise |
+
+### Family 13 in detail: documentation, in four tiers
+
+CireSnave, 2026-10-23: *"What about having CodeRipper check things like usability for users, usability for developers, depth, completeness, and accuracy of documentation, and the like?"* and, on doc comments: *"accuracy of documentation when it comes to documenting code can somewhat be checked statically ... do we have doc comments for each function? Do those doc comments explain each parameter and each chunk of output? While we can't statically judge the quality ... we should be able to statically check to see if they're there."*
+
+**Tier 1, deterministic.** Doctests and examples compile. Fenced README commands are extracted and **run** from a clean checkout. Internal links, files and anchors exist (external links stay in the sweep tier, `DOC-010`). CLI flags, config keys, environment variables, cargo features and error variants are documented **and** nothing is documented that the code lacks (both directions; overlaps families 3 and 4). Version numbers, install commands and documented defaults match `Cargo.toml`, the registry and the code. A "not yet implemented" note on something the code implements. Every breaking change has a CHANGELOG line and a migration note. **Doc-comment presence and staleness (Rust first):**
+
+| id | rule | precision |
+|---|---|---|
+| (a) | a doc comment on every `pub fn` (and on a private function above a size or complexity threshold, configurable) | exact on presence; reuse `rustc` `missing_docs` and require it enabled |
+| (b) | every parameter named, or covered by an `# Arguments` section | exact on names; a doc that covers parameters in prose under another heading is missed |
+| (c) | the return value described; `# Errors` on a `Result` function; `# Panics` when the body has `panic!`, `unwrap`, `expect` or indexing; `# Safety` on an `unsafe fn` | reuse Clippy `missing_errors_doc`, `missing_panics_doc`, `missing_safety_doc`; add the per-return check; indexing is a weak signal for `# Panics` (often bounded) |
+| (d) | every `pub` struct field, enum variant and `const` documented | exact |
+| (e) | **staleness**: the doc names a parameter that is not in the signature; describes a return type the function no longer has; has `# Errors` on a function that returns no `Result` | exact for the parameter name; the return-type check compares words with the type name and misses paraphrase |
+| (f) | tautological doc: it only restates the identifier (`/// Gets the name.` on `fn get_name`), by token overlap with a threshold | **advisory**: it cannot tell a short, complete doc from a restatement when the function is trivial; say so in the finding |
+
+What Clippy and `rustc` lack, and the new rules add: per-parameter and per-return presence, staleness, the **portfolio count**, and a finding for a project that `#[allow]`s those lints (the `lint-suppression` rule). Other languages later: TSDoc `@param` and `@returns`, Python docstring sections. Each rule needs a positive control (a function with an undocumented parameter) and its twin.
+
+**Tier 1.5, prose lint (static, advisory).** CireSnave: *"prose can be checked statically for readability. We were doing that before AI existed ... Sentences that are too long, have potentially ambiguous meanings, or which contribute no added definition to the conversation can often be caught with a static checker."* Candidate rules, each with a precision note and a control:
+
+| rule | precision note | control |
+|---|---|---|
+| sentence length over a threshold | code spans and identifiers are stripped first; technical text has legitimately long sentences, so the threshold is per document type (spec, README, doc comment, CHANGELOG) | a 60-word sentence is found; the same text split in two is not |
+| readability score per document (Flesch, Gunning Fog) | numbers move with text length; advisory, reported as a number, never a finding by itself | a fixture pair on either side of a threshold |
+| a sentence that opens with *it*, *this* or *that* with no noun antecedent in the previous sentence | heuristic; a heading-led list defeats it | "This is slow." after a heading: found |
+| vague quantifiers (*some*, *various*, *several*, *etc.*) and stacked hedges | exact on the word list; some uses are fine, so Low | "various improvements" |
+| *should*, *must*, *may* mixed outside RFC 2119 usage | **respects a document's own requirement words** (KISS-style specs define them); fires only where the document defines none | a spec that defines MUST, then writes "should" |
+| filler (*basically*, *in order to*, *it should be noted that*) | exact on the phrase list | the phrases |
+| a sentence that only restates its heading or the identifier | token overlap; the same limit as (f) above | "## Installation / Installation instructions." |
+| a duplicated sentence | exact | repeated line |
+| an acronym or term used and never defined | checked against the project's `GLOSSARY.md` (`DOC-009` already reads it) | an acronym absent from the glossary |
+| passive voice and long noun chains; insensitive wording | weak signals; the word lists are curated and short | seeded phrases |
+
+**Vale and proselint were considered.** Both are existing prose linters (Vale: a Go program with YAML style rules; proselint: Python); this is from memory and **was not re-verified today**. Recommendation: a **small native Rust set** of the high-precision rules above (length, filler, duplicates, vague quantifiers, requirement words, undefined acronyms), because the portfolio rule is not to depend on an installed tool when the rule can be built in, a native rule is deterministic and has no install step, and the project already owns a glossary reader and a Markdown reader. **Optional shell-out to Vale when it is installed**, through the delegation framework that already runs gitleaks, osv-scanner, lychee, zizmor and buf (a tool that is missing is a reported gap, never a failure), so a project with its own Vale styles keeps them.
+
+**Tier 2, metrics (advisory numbers).** Public-API doc coverage as a percentage; presence of `# Errors`, `# Panics` and `# Safety` where the body warrants them; presence of a tutorial, a how-to, a reference and an explanation (Diataxis); time to first success, measured by running the README quick start in CI.
+
+**Tier 3, judgement (depth, clarity, accuracy of prose, helpful error messages). LLM-assisted, strictly advisory, off by default.** It must quote the objectionable sentence, runs only on changed documents, and routes to cheaper non-Claude models (CireSnave's cost rule, `C:\Projects\CLAUDE.md` 9). **It does not ship until it has been validated on documents seeded with known mistakes**, with the catch rate recorded. With the prose-lint tier above, this tier shrinks to **semantic correctness and depth** only.
+
+### Where each family goes next
+
+Families 1 to 4 each get a design document in the order above (the first is security and cryptography). Families 5 to 14 are scheduled only after those, and after the precision gate has been run on the first two families' rules.
+
+
 ## Who consumes it, and who should
 
 **Read 2026-10-14 from the git index of every repository under `C:\Projects` that has a `.git` entry, searching tracked
