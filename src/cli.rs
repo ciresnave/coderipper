@@ -167,10 +167,10 @@ struct RunOpts {
     /// `--message-format json`).
     #[arg(long, value_enum, default_value = "human")]
     message_format: MessageFormat,
-    /// Which rules run and what is reported: `classic` (default: the five original checks, output unchanged) or `extended` (adds
-    /// the coverage report). A rule CodeRipper has not built yet is "not yet implemented": it is reported, never a finding, and
+    /// Which rules run and what is reported: `extended` (default: every rule, with the coverage report), `classic` (the five original
+    /// checks, output unchanged) or `portfolio` (what a pull-request check takes). A rule CodeRipper has not built yet is "not yet implemented": it is reported, never a finding, and
     /// it never fails a run.
-    #[arg(long, value_enum, default_value = "classic")]
+    #[arg(long, value_enum, default_value = "extended")]
     profile: Profile,
     /// Print the coverage report even under the `classic` profile. `--coverage=full` also lists every rule not yet covered.
     #[arg(

@@ -26,9 +26,16 @@ fn coderipper() -> Command {
 
 /// Runs the CLI and returns (exit code, stdout lines parsed as JSON). Every stdout line must be JSON.
 fn run_json(args: &[&str], project: &std::path::Path) -> (i32, Vec<Value>) {
+    // these tests are about the JSON shape of the five original checks, so they run the `classic` profile (the default is every rule)
     let out = coderipper()
         .args(args)
-        .args(["--message-format", "json", "--project"])
+        .args([
+            "--profile",
+            "classic",
+            "--message-format",
+            "json",
+            "--project",
+        ])
         .arg(project)
         .output()
         .unwrap();

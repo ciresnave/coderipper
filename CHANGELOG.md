@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.0 - 2026-10-23 (proposed) - BREAKING
+
+**The default profile now runs every rule.** `coderipper`, `cargo coderipper`, `fast`, `sweep` and `check` with no `--profile` used to run the `classic` profile (the five original checks and `conflict-marker`); they now run `extended`: those, plus every language-neutral rule, the rules delegated to a tool (a tool that is not installed is a reported gap, never a failure; `--install-tools` fetches them), and the coverage report. CireSnave's ruling (board 144); the PM allocated 0.9.0 (pre-1.0, so the second number).
+
+- **What a consumer sees:** a project that ran the default and fails on `--deny` (the default `info`, or `--deny medium`) can now fail on findings of rules it never ran, such as `WSP-001` (no CODEOWNERS), `SUP-001`, `SUP-004` and `SUP-008`. Nothing changes until it moves to 0.9.0.
+- **To keep the old rule set:** pass `--profile classic`, or set `profile = "classic"` in `.coderipper.toml` or a wide config file. To fix instead of waive, see each finding; a waiver is an `[[allow]]` entry with a reason.
+- **Unchanged:** `--profile portfolio` (what the portfolio's pull-request job runs) keeps its rule set and floors; the library's `Profile` type and `run_checks_in` are untouched (the profile is an argument there); exit codes and the JSON shape.
+- Tests that were about the five original checks or the exit codes now pass `--profile classic` explicitly; the extended-profile tests are unchanged.
+
 ## 0.8.21 - 2026-10-23 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@c665210`, the merge of 0.8.20, whose workflow installs 0.8.19 (the pin before it ran 0.8.17). No code change.

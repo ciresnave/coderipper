@@ -82,6 +82,7 @@ fn fast(project: &tempfile::TempDir) -> Command {
 #[test]
 fn the_classic_profile_prints_nothing_about_coverage() {
     fast(&clean_project())
+        .args(["--profile", "classic"])
         .assert()
         .code(0)
         .stdout(predicate::str::contains("coverage").not())
@@ -91,6 +92,7 @@ fn the_classic_profile_prints_nothing_about_coverage() {
 #[test]
 fn classic_says_one_stderr_line_for_a_language_with_no_module_and_leaves_stdout_alone() {
     fast(&polyglot_project())
+        .args(["--profile", "classic"])
         .assert()
         .code(0)
         .stdout("coderipper: no issues found\n")
@@ -102,7 +104,7 @@ fn classic_says_one_stderr_line_for_a_language_with_no_module_and_leaves_stdout_
 #[test]
 fn classic_json_is_unchanged_by_an_unchecked_language() {
     let out = fast(&polyglot_project())
-        .args(["--message-format", "json"])
+        .args(["--profile", "classic", "--message-format", "json"])
         .assert()
         .code(0)
         .get_output()

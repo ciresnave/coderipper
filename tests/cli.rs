@@ -56,6 +56,7 @@ fn fast_mode_runs_cleanly_against_a_real_clean_project() {
     let repo = clean_fixture_repo();
     coderipper()
         .arg("fast")
+        .args(["--profile", "classic"])
         .arg("--project")
         .arg(repo.path())
         .assert()
@@ -563,7 +564,7 @@ fn features_flags_reach_the_build_so_a_gated_bin_is_checked() {
 fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
     let repo = clean_fixture_repo();
     coderipper()
-        .args(["fast", "--project"])
+        .args(["fast", "--profile", "classic", "--project"])
         .arg(repo.path())
         .assert()
         .success()
@@ -575,7 +576,7 @@ fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
     )
     .unwrap();
     coderipper()
-        .args(["fast", "--project"])
+        .args(["fast", "--profile", "classic", "--project"])
         .arg(repo.path())
         .assert()
         .success()

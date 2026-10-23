@@ -34,7 +34,7 @@ fn coderipper(project: &tempfile::TempDir, args: &[&str]) -> Command {
 
 #[test]
 fn classic_does_not_run_the_neutral_rules() {
-    coderipper(&project(), &["fast"])
+    coderipper(&project(), &["fast", "--profile", "classic"])
         .assert()
         .code(0)
         .stdout("coderipper: no issues found\n");
@@ -61,7 +61,7 @@ fn the_neutral_findings_count_toward_deny() {
 
 #[test]
 fn naming_a_neutral_rule_needs_the_extended_profile() {
-    coderipper(&project(), &["check", "WSP-001"])
+    coderipper(&project(), &["check", "WSP-001", "--profile", "classic"])
         .assert()
         .code(2)
         .stderr(predicate::str::contains("belongs to --profile extended"));
@@ -153,14 +153,17 @@ fn lint_suppression_runs_only_under_extended_and_counts_the_attributes_that_say_
     let src = "#[allow(dead_code)]\nfn unused() {}\n#[allow(unused, reason = \"kept for the plugin ABI\")]\nfn kept() {}\nfn main() {}\n";
     let repo = common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/main.rs", src)]);
     // classic: not asked for, so not reported, even with the suppression in the source
-    coderipper(&repo, &["fast"])
+    coderipper(&repo, &["fast", "--profile", "classic"])
         .assert()
         .code(0)
         .stdout(predicate::str::contains("lint-suppression").not());
-    coderipper(&repo, &["check", "lint-suppression"])
-        .assert()
-        .code(2)
-        .stderr(predicate::str::contains("belongs to --profile extended"));
+    coderipper(
+        &repo,
+        &["check", "lint-suppression", "--profile", "classic"],
+    )
+    .assert()
+    .code(2)
+    .stderr(predicate::str::contains("belongs to --profile extended"));
     coderipper(
         &repo,
         &["check", "lint-suppression", "--profile", "extended"],

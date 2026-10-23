@@ -215,7 +215,7 @@ fn a_wide_waiver_that_matches_nothing_here_is_not_a_stale_entry() {
     );
     let repo = clean_project();
     coderipper(home.path())
-        .args(["fast", "--project"])
+        .args(["fast", "--profile", "classic", "--project"])
         .arg(repo.path())
         .assert()
         .code(0)
