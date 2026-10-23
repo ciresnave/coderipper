@@ -128,7 +128,18 @@ What Clippy and `rustc` lack, and the new rules add: per-parameter and per-retur
 | an acronym or term used and never defined | checked against the project's `GLOSSARY.md` (`DOC-009` already reads it) | an acronym absent from the glossary |
 | passive voice and long noun chains; insensitive wording | weak signals; the word lists are curated and short | seeded phrases |
 
-**Vale and proselint were considered.** Both are existing prose linters (Vale: a Go program with YAML style rules; proselint: Python); this is from memory and **was not re-verified today**. Recommendation: a **small native Rust set** of the high-precision rules above (length, filler, duplicates, vague quantifiers, requirement words, undefined acronyms), because the portfolio rule is not to depend on an installed tool when the rule can be built in, a native rule is deterministic and has no install step, and the project already owns a glossary reader and a Markdown reader. **Optional shell-out to Vale when it is installed**, through the delegation framework that already runs gitleaks, osv-scanner, lychee, zizmor and buf (a tool that is missing is a reported gap, never a failure), so a project with its own Vale styles keeps them.
+**Vale and proselint were considered. Every fact about them in this paragraph is UNVERIFIED (from memory, not read from their documentation today), and none may be relied on until its check below has been run.**
+
+| claim (unverified) | the check that would verify it, before a rule is built on it |
+|---|---|
+| Vale is a single Go binary that reads YAML style rules | install the release, run `vale --version` and read the style-file format in its documentation |
+| Vale is MIT-licensed, proselint is BSD- or MIT-style licensed | read each `LICENSE` file in the tagged release; the portfolio's provenance rule applies to anything we bundle or download |
+| Vale can lint Markdown, reStructuredText and AsciiDoc and can skip code spans and code blocks | run it on a README that holds fenced code and inline code, with a rule that would fire inside them |
+| proselint is a Python tool with a fixed set of checks | install it in a clean virtual environment, list its checks, and run it on the same README |
+| neither reads `GLOSSARY.md`, so the undefined-acronym rule is ours either way | read each tool's documentation for a vocabulary or glossary feature, and run an acronym fixture |
+| a Vale run is fast and deterministic enough for a pull-request job | time it on this repository's `README.md`, `ROADMAP.md` and `CHANGELOG.md` on a hosted runner |
+
+Recommendation (a design choice, which does not depend on those facts): a **small native Rust set** of the high-precision rules above (length, filler, duplicates, vague quantifiers, requirement words, undefined acronyms), because the portfolio rule is not to depend on an installed tool when the rule can be built in, a native rule is deterministic and has no install step, and the project already owns a glossary reader and a Markdown reader. **Optional shell-out to Vale when it is installed**, through the delegation framework that already runs gitleaks, osv-scanner, lychee, zizmor and buf (a tool that is missing is a reported gap, never a failure), so a project with its own Vale styles keeps them.
 
 **Tier 2, metrics (advisory numbers).** Public-API doc coverage as a percentage; presence of `# Errors`, `# Panics` and `# Safety` where the body warrants them; presence of a tutorial, a how-to, a reference and an explanation (Diataxis); time to first success, measured by running the README quick start in CI.
 
