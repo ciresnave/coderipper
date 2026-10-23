@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.20 - 2026-10-23 (proposed)
+
+CI pins moved to 0.8.19: `portfolio.yml` `CODERIPPER_VERSION` and the `ci.yml` self-call (`portfolio.yml@c66f946`, the merge of 0.8.19). No code change.
+
 ## 0.8.19 - 2026-10-23 (proposed)
 
 `patent-index-match` reads Maven and Gradle (follow-up to the rule below, which listed them as not judged).
