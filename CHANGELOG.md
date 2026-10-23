@@ -14,6 +14,9 @@ Fix (baracuda's second sweep, run 40025510102): the Rust checks assert nothing f
 - A `--workspace` run now ends with a note naming each member that could not be built or run ("not judged (...): a, b"), beside the per-check errors it already printed (`WorkspaceRun::members_failed`, a new field on a `#[non_exhaustive]` struct). A member whose build still fails (a build script that ignores `DOCS_RS`) stays an error, so the job fails on it instead of passing for the others.
 - A package whose targets are outside `src/` (only `[[bin]]` entries with a `path` at the package root: baracuda's `examples`) failed with a bare "The system cannot find the path specified (os error 3)". It now says "<dir> has no `src/` directory: this package's targets ... are outside `src/`, which the Rust checks do not support yet, so none of them was judged". **Supporting such a package is not done**; it needs the targets' `src_path` from `cargo metadata`.
 - Tests: `a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_read` (the member fails without `DOCS_RS`, is named, and is analysed with it) and `a_package_whose_targets_are_outside_src_says_so_instead_of_a_bare_os_error`.
+## 0.9.5 - 2026-10-23 (proposed)
+
+Docs only: `ROADMAP.md` gains "Next rule families" (the PM's tasks carrying CireSnave's words, 2026-10-23): the default-on policy in eight points, and fourteen families, each with three candidate rules and the incident that is its positive control (or a statement that none was supplied). Family 13 (documentation) has four tiers: deterministic checks including doc-comment presence and staleness, a prose-lint tier (native Rust set, optional Vale shell-out), metrics, and an off-by-default LLM tier. Nothing is built.
 
 ## 0.9.4 - 2026-10-23 (proposed)
 
