@@ -9,3 +9,9 @@ line = 3
 rule = "lint-suppression"
 file = "src/lib.rs"
 line = 7
+
+# the same file one commit earlier had one `allow` (line 3), so the second one, line 10, is the surplus
+[[expect]]
+rule = "lint-suppression"
+file = "src/lib.rs"
+line = 10

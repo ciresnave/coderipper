@@ -159,6 +159,33 @@ impl BaseTree {
         &self.how
     }
 
+    /// Every path the base tracked, sorted, with forward slashes; empty when git cannot list the tree.
+    pub(crate) fn paths(&self) -> Vec<String> {
+        match &self.source {
+            #[cfg(test)]
+            BaseSource::Memory(map) => map.keys().cloned().collect(),
+            BaseSource::Git { root, sha } => {
+                let Ok(output) = crate::conformance::git_command(root)
+                    .args(["ls-tree", "-r", "-z", "--name-only", sha])
+                    .output()
+                else {
+                    return Vec::new();
+                };
+                if !output.status.success() {
+                    return Vec::new();
+                }
+                let mut paths: Vec<String> = output
+                    .stdout
+                    .split(|&byte| byte == 0)
+                    .filter(|path| !path.is_empty())
+                    .map(|path| String::from_utf8_lossy(path).into_owned())
+                    .collect();
+                paths.sort();
+                paths
+            }
+        }
+    }
+
     /// The text of a file as the base had it; `None` when the base did not have it.
     pub(crate) fn read(&self, path: &str) -> Option<String> {
         match &self.source {

@@ -6,3 +6,6 @@ fn unused() {}
 #[test]
 #[ignore]
 fn slow() {}
+
+#[allow(unused, reason = "added by this branch")]
+fn added() {}

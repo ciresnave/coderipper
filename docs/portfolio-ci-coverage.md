@@ -20,7 +20,7 @@ Classes: **CI** = a job can decide it from the repository (plus, where marked, t
 | Secrets scan | CI | SEC-002 (gitleaks) | none |
 | Dependency advisories (2.1's neighbour; 6.15 consumer side) | CI | SUP-002, SEC-006 (osv-scanner); `cargo deny check` (advisories, licences, git sources) in this repository only since 0.8.6 | `deny.toml` exists here; the 2026-10-21 PM list says 16 repos have none |
 | Doc links resolve (6.1 "links onward") | CI | DOC-010 (lychee) | links only, not "covers all features" |
-| `#[ignore]` / `allow(...)` carries a reason (5.1g) | partly | `lint-suppression` (extended profile) | reason only; no owner, no detector, no counted allowlist, no ban on new ones |
+| `#[ignore]` / `allow(...)` carries a reason (5.1g) | partly | `lint-suppression` (extended profile) | reason, and since 0.8.17 a count ratchet against the merge-base (a branch adds none); no owner, no detector |
 | Dead code, unused parameters and return values (5.1g "natural detector") | CI | `reachability`, `unused-parameters`, `unused-return-values` | an `allow(dead_code)` hides what they would report |
 | No merge-conflict markers | CI | `conflict-marker` | none |
 | Git dependencies denied (6.8, second half) | CI | `cargo deny` `[sources] unknown-git = "deny"`, where a repo has a `deny.toml` | only repos with a `deny.toml`; npm `git+` and `file:` dependencies not read |
@@ -39,7 +39,7 @@ Classes: **CI** = a job can decide it from the repository (plus, where marked, t
 | `deny.toml` present and `cargo deny check` runs (CLAUDE.md 9 dependencies) | CI | file present; a workflow step that runs it | new rule; the list of repos without one exists (sent to the PM 2026-10-21) |
 | Every branch gets checks on PRs (6.5 "all branches") | CI | a workflow triggered by `pull_request` with no `branches:` filter that leaves the default branch out | new workflow lint |
 | Settings audit: `enforce_admins=false`, force-push and deletion blocked, squash-only, delete-branch-on-merge, forks excluded (6.5, CLAUDE.md 3 and 4) | CI (network, admin token) | extend `ci-protection-presence` to read those fields | extension. Needs a token that can read protection on private repos, so it cannot run with `GITHUB_TOKEN` |
-| `#[ignore]` / `allow(dead_code)` counted, no new ones, owner and detector named (5.1g) | CI | per-repo count ratchet against a committed number (GOV-001); an entry without owner/detector fails | extension of `lint-suppression` |
+| `#[ignore]` / `allow(dead_code)` counted, no new ones, owner and detector named (5.1g) | CI | per-repo count ratchet against the merge-base tree (GOV-001; the base is the committed number, so nothing to maintain); owner/detector per entry is not judged (an attribute has no field for them) | extension of `lint-suppression`, done in 0.8.17 |
 | Waivers rare, each with reason and owner, counted in the report (5.1f) | CI | count `[[allow]]` entries per repo, reason and owner present, ratchet | extension; GOV-002 is a plan |
 | README exists and has the five parts (6.1) | partly | the file exists; headings for description, features, examples, links; links resolve (DOC-010). "Comprehensive" and "covers all features" are judgement | new rule, existence and shape only |
 | Library has CONTRIBUTING and doc comments on every function (6.3) | partly | `CONTRIBUTING.md` present for a library; `missing_docs` at deny level for a library crate (compile-time, 6.16, already free under `cargo clippy -D warnings`); DOC-001 is a plan | new rule: the lint level is set |

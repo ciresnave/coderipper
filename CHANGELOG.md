@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.17 - 2026-10-23 (proposed)
+
+`lint-suppression` ratchet (`docs/portfolio-ci-coverage.md` build order 5, first row; GOV-001 against the merge-base).
+
+### Added
+- Rule `lint-suppression`: the `allow` and the `ignore` attributes of the repository at `HEAD`, reasoned or not, are counted and compared with the tree the branch started from (the merge-base, found as `version-and-changelog` finds it). A kind whose total rose is a **Medium** finding at the first surplus attribute (advisory in `--profile portfolio` unless the repository lists the rule in `blocking`). Totals are compared, so a moved or renamed file adds nothing.
+- Planted cases both ways: `conformance/lint-suppression/{defective,clean}` now carry a `.baseline`; unit tests for a rise in each kind, equal, fewer, a rename, a new file, no base, and an unparsable base file.
+- `BaseTree::paths` (the base's tracked files).
+
+### Not judged
+- Owner and detector per suppression (an attribute has no field for them); suppressions in `Cargo.toml` `[lints]`; attributes in macro bodies. With no base (a shallow clone, the default branch itself) or a base file `syn` cannot parse, the ratchet is a note ("ratchet not run"), never a pass.
+
+### Changed
+- `ci.yml` calls `portfolio.yml` at `c0309d0` (0.8.16, the commit that merged #118) and `portfolio.yml` installs 0.8.16.
+
 ## 0.8.16 - 2026-10-23 (proposed)
 
 Found by the first run of `portfolio.yml` (#117): this repository's two `SEC-002` `[[allow]]` entries were reported as "names a check that is not registered" under `--profile portfolio`.
