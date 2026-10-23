@@ -171,3 +171,23 @@ fn a_missing_header_reports_without_blocking() {
         .code(0)
         .stdout(predicate::str::contains("SPDX-License-Identifier"));
 }
+
+#[test]
+fn an_allow_entry_for_a_rule_outside_the_profile_is_not_called_unregistered() {
+    // SEC-002 is a delegated rule, which the profile leaves out; an entry naming it is for another profile's run, not a typo. A name
+    // that is no rule at all still is one (the positive control).
+    let p = common::git_repo_with(&[
+        ("requirements.txt", "requests==2.32.0\n"),
+        ("LICENSE", "MIT License\n"),
+        (
+            ".coderipper.toml",
+            "[[allow]]\ncheck = \"SEC-002\"\nfile = \"src/x.rs\"\nreason = \"history only\"\n\n[[allow]]\ncheck = \"NO-SUCH-RULE\"\nfile = \"src/y.rs\"\nreason = \"a typo\"\n",
+        ),
+    ]);
+    portfolio(&p, &[])
+        .assert()
+        .stdout(predicate::str::contains(
+            "`NO-SUCH-RULE`, that is not registered",
+        ))
+        .stdout(predicate::str::contains("`SEC-002`, that is not registered").not());
+}

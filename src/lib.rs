@@ -951,6 +951,8 @@ fn run_selected_checks(
     };
     let mut registered: Vec<&str> = checks.iter().map(|c| c.id()).collect();
     registered.extend(&extra);
+    // a name the allowlist may use is any rule of this build, not only the profile's: an entry for a rule another profile runs is not a typo
+    registered.extend(Profile::Extended.extra_rules());
     let rust = module::RustModule::new(checks);
     let neutral = module::NeutralModule::new();
     let delegated = module::DelegatedModule::new(tools.clone());
