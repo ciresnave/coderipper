@@ -269,14 +269,6 @@ fn a_virtual_workspace_root_runs_the_rust_checks_only_with_workspace() {
         .stderr(predicate::str::contains("virtual workspace root").not());
 }
 
-fn workspace_with_config(config: &str) -> tempfile::TempDir {
-    common::git_repo_with(&[
-        (
-            "Cargo.toml",
-            "[workspace]
-members = [\"a\", \"b\"]
-resolver = \"2\"
-
 /// A workspace whose member `c` has a build script that fails unless `DOCS_RS` is set (the shape of a crate that needs nvcc).
 fn workspace_with_a_member_that_needs_a_toolchain() -> tempfile::TempDir {
     common::git_repo_with(&[
@@ -332,6 +324,41 @@ publish = false
 [[bin]]
 name = \"hello\"
 path = \"hello.rs\"
+",
+        ),
+        (
+            "Cargo.lock",
+            "version = 4
+",
+        ),
+        (
+            "LICENSE",
+            "MIT License
+",
+        ),
+        (
+            "hello.rs",
+            "fn main() {}
+",
+        ),
+    ]);
+    sweep_portfolio(
+        &repo,
+        &["--skip-rule", "ci-protection-presence=no forge in a test"],
+    )
+    .assert()
+    .code(3)
+    .stderr(predicate::str::contains("has no `src/` directory"))
+    .stderr(predicate::str::contains("os error").not());
+}
+
+fn workspace_with_config(config: &str) -> tempfile::TempDir {
+    common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]
+members = [\"a\", \"b\"]
+resolver = \"2\"
 ",
         ),
         (
@@ -446,19 +473,4 @@ public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
             "[Medium/Medium] b — `g` has zero callers",
         ))
         .stdout(predicate::str::contains("public_api_crates").not());
-
-        (
-            "hello.rs",
-            "fn main() {}
-",
-        ),
-    ]);
-    sweep_portfolio(
-        &repo,
-        &["--skip-rule", "ci-protection-presence=no forge in a test"],
-    )
-    .assert()
-    .code(3)
-    .stderr(predicate::str::contains("has no `src/` directory"))
-    .stderr(predicate::str::contains("os error").not());
 }
