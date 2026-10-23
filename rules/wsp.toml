@@ -268,3 +268,29 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "version-and-changelog"
+title = "A branch that changes the project changes its version and the changelog says so"
+domain = "WSP"
+statement = "The version in the root manifest of a branch differs from the version of the commit the branch started from, and the root changelog has an entry for it."
+rationale = "A consumer reads the version as the key to what changed; a change pushed under an unchanged number cannot be told from the release before it, and a number with no changelog entry says nothing about what moved."
+evidence_tiers = ["V5"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = ["WSP-003"]
+aliases = []
+remediation = "Bump the version in Cargo.toml or package.json (a patch for a fix, a minor for a feature, and for a breaking change the major; before 1.0 the second number) and add a `## <version> - <date>` entry to CHANGELOG.md. If the portfolio manager allocates the number at gate time, say so on the pull request."
+related = ["version-consistency"]
+lifecycle = "experimental"
+checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version) and package.json at HEAD against the same files at the merge-base of HEAD with origin/HEAD, origin/main or origin/master: an unchanged version is Medium; a changed version (or a manifest the base lacked) with no heading or leading line in the root CHANGELOG*/CHANGES* file naming it as a whole token, or no such file, is Medium. Not applicable on the default branch, with no origin branch, or in a clone without the history. Not judged: the version-deferred label, which component a breaking change moved, manifests below the root, pyproject.toml, lock files, what an entry says."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
