@@ -6,6 +6,9 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.2 - 2026-10-23 (proposed)
+
+`ci-security`: the self-hosted-runner finding now says the job "names no GPU or other hardware it needs" and prints the `[[allow]]` entry that waives it (`file`, `symbol = "<job>:runner"`, a `reason` placeholder), so a lane need not look it up. The rule's doc states the precision: GPU words stand in for "needs our hardware", so a self-hosted job that needs other hardware (PersistAnt's power-loss rig) fires every time, by design, and is waived with a reason. No change in what fires.
 ## 0.9.0 - 2026-10-23 (proposed) - BREAKING
 
 **The default profile now runs every rule.** `coderipper`, `cargo coderipper`, `fast`, `sweep` and `check` with no `--profile` used to run the `classic` profile (the five original checks and `conflict-marker`); they now run `extended`: those, plus every language-neutral rule, the rules delegated to a tool (a tool that is not installed is a reported gap, never a failure; `--install-tools` fetches them), and the coverage report. CireSnave's ruling (board 144); the PM allocated 0.9.0 (pre-1.0, so the second number).
