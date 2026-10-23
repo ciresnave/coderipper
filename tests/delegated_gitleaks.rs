@@ -258,7 +258,15 @@ fn the_tool_is_part_of_extended_only() {
     let empty = tempfile::tempdir().unwrap();
     let repo = repo_of("defective");
     coderipper(empty.path())
-        .args(["check", "SEC-002", "--deny", "none", "--project"])
+        .args([
+            "check",
+            "SEC-002",
+            "--profile",
+            "classic",
+            "--deny",
+            "none",
+            "--project",
+        ])
         .arg(repo.path())
         .assert()
         .code(2)

@@ -26,12 +26,14 @@ fn coderipper() -> Command {
     cmd
 }
 
+/// These tests are about the five original checks and the exit codes, so they run the `classic` profile (the default is every rule).
 fn run(args: &[&str], project: &std::path::Path) -> assert_cmd::assert::Assert {
-    coderipper()
-        .args(args)
-        .arg("--project")
-        .arg(project)
-        .assert()
+    let mut cmd = coderipper();
+    cmd.args(args);
+    if !args.contains(&"--profile") {
+        cmd.args(["--profile", "classic"]);
+    }
+    cmd.arg("--project").arg(project).assert()
 }
 
 fn stderr_of(assert: &assert_cmd::assert::Assert) -> String {
