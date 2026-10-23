@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.19 - 2026-10-23 (proposed)
+
+`patent-index-match` reads Maven and Gradle (follow-up to the rule below, which listed them as not judged).
+
+- `pom.xml` (each `<dependency>` by `groupId:artifactId`; a property placeholder is compared as written) and `build.gradle` / `build.gradle.kts` (each quoted `group:artifact[:version]` string) are compared with the index's 12 `maven` names (8 entries). Still not judged: Gradle version catalogs (`libs.versions.toml`), coordinates built from variables, lockfiles, transitive dependencies.
+- Test: `maven_pom_and_gradle_coordinates_match` (a listed pom and Gradle dependency are found, `junit:junit` in both is not).
+
 ## 0.8.18 - 2026-10-23 (proposed)
 
 Self-hosted and trigger lints (`docs/portfolio-ci-coverage.md` build order 5, second row), added to `ci-security`.

@@ -13,9 +13,10 @@
 //!
 //! Manifests read: `Cargo.toml` (dependency, dev-, build-, workspace and target tables; a renamed dependency by its `package`),
 //! `package.json` (all four dependency tables; an `npm:` alias by its real name), `pyproject.toml` (PEP 621 dependencies, optional
-//! dependencies and dependency groups; Poetry tables) and `requirements*.txt`. The directories the other rules skip are skipped.
+//! dependencies and dependency groups; Poetry tables), `requirements*.txt`, `pom.xml` (each `<dependency>` by `groupId:artifactId`;
+//! a property placeholder is compared as written) and `build.gradle[.kts]` (each quoted `group:artifact[:version]` string). The directories the other rules skip are skipped.
 //!
-//! **What it cannot see:** Maven and Gradle (the index lists Maven names, no parser reads them yet); lockfiles and transitive
+//! **What it cannot see:** a Gradle version catalog (`libs.versions.toml`) or a coordinate built from variables; lockfiles and transitive
 //! dependencies; a technique implemented in the project's own source or copied in; a package the index lists under no name
 //! (`match` is empty for 18 of 66 entries); code vendored in a skipped directory; a manifest that does not parse (named in a note).
 
@@ -53,6 +54,8 @@ struct Names {
     cargo: Vec<String>,
     pypi: Vec<String>,
     npm: Vec<String>,
+    #[serde(default)]
+    maven: Vec<String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,6 +63,7 @@ enum Eco {
     Cargo,
     Pypi,
     Npm,
+    Maven,
 }
 
 /// `(registry, normalised name)` to the entries listing it, each with the extras it requires.
@@ -94,6 +98,7 @@ fn loaded() -> &'static Loaded {
                 (Eco::Cargo, &entry.names.cargo),
                 (Eco::Pypi, &entry.names.pypi),
                 (Eco::Npm, &entry.names.npm),
+                (Eco::Maven, &entry.names.maven),
             ] {
                 for name in names {
                     let (base, extras) = split_extras(name);
@@ -134,7 +139,7 @@ fn normalise(eco: Eco, name: &str) -> String {
             out
         }
         Eco::Cargo => lower.replace('_', "-"),
-        Eco::Npm => lower,
+        Eco::Npm | Eco::Maven => lower,
     }
 }
 
@@ -177,6 +182,14 @@ fn pep508(line: &str) -> Option<(String, Vec<String>)> {
     }
     let extras = split_extras(&line[..line.find(']').map_or(end, |i| i + 1).max(end)]).1;
     Some((name.to_string(), extras))
+}
+
+/// The trimmed text of the first `<tag>…</tag>` in `block`.
+fn xml_text<'a>(block: &'a str, tag: &str) -> Option<&'a str> {
+    let open = format!("<{tag}>");
+    let from = block.find(&open)? + open.len();
+    let len = block[from..].find(&format!("</{tag}>"))?;
+    Some(block[from..from + len].trim())
 }
 
 fn skipped(path: &str) -> bool {
@@ -325,6 +338,51 @@ impl Scan<'_> {
         }
     }
 
+    /// `pom.xml`: the `groupId:artifactId` of every `<dependency>` and `<plugin>` block (a property placeholder is read as written).
+    fn pom(&mut self, file: &str, text: &str) {
+        self.manifests += 1;
+        let mut rest = text;
+        while let Some(start) = rest.find("<dependency>") {
+            let after = &rest[start + "<dependency>".len()..];
+            let Some(end) = after.find("</dependency>") else {
+                self.notes.push(format!(
+                    "{file} has an unclosed <dependency>, so the rest was not read"
+                ));
+                return;
+            };
+            let block = &after[..end];
+            if let (Some(g), Some(a)) = (xml_text(block, "groupId"), xml_text(block, "artifactId"))
+            {
+                self.dependency(Eco::Maven, file, text, &format!("{g}:{a}"), &[]);
+            }
+            rest = &after[end..];
+        }
+    }
+
+    /// `build.gradle` and `build.gradle.kts`: every quoted `group:artifact[:version]` coordinate.
+    fn gradle(&mut self, file: &str, text: &str) {
+        self.manifests += 1;
+        for quote in ['"', '\''] {
+            for (i, piece) in text.split(quote).enumerate() {
+                if i % 2 == 0 {
+                    continue;
+                }
+                let mut parts = piece.split(':');
+                let (Some(g), Some(a)) = (parts.next(), parts.next()) else {
+                    continue;
+                };
+                let coordinate = |s: &str| {
+                    !s.is_empty()
+                        && s.chars()
+                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+                };
+                if coordinate(g) && coordinate(a) && parts.count() <= 2 {
+                    self.dependency(Eco::Maven, file, text, &format!("{g}:{a}"), &[]);
+                }
+            }
+        }
+    }
+
     fn pyproject(&mut self, file: &str, text: &str) {
         let Ok(root) = text.parse::<toml::Table>() else {
             self.notes
@@ -410,8 +468,15 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     };
     for path in view.paths().iter().filter(|p| !skipped(p)) {
         let name = path.rsplit('/').next().unwrap_or(path);
-        if !matches!(name, "Cargo.toml" | "package.json" | "pyproject.toml")
-            && !is_requirements(path)
+        if !matches!(
+            name,
+            "Cargo.toml"
+                | "package.json"
+                | "pyproject.toml"
+                | "pom.xml"
+                | "build.gradle"
+                | "build.gradle.kts"
+        ) && !is_requirements(path)
         {
             continue;
         }
@@ -422,6 +487,8 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             "Cargo.toml" => scan.cargo_manifest(path, &text),
             "package.json" => scan.package_json(path, &text),
             "pyproject.toml" => scan.pyproject(path, &text),
+            "pom.xml" => scan.pom(path, &text),
+            "build.gradle" | "build.gradle.kts" => scan.gradle(path, &text),
             _ => {
                 scan.manifests += 1;
                 for line in text.lines() {
@@ -432,7 +499,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     }
     if scan.manifests == 0 && scan.notes.is_empty() {
         return Verdict::NotApplicable(
-            "no Cargo.toml, package.json, pyproject.toml or requirements file outside vendored and fixture directories".into(),
+            "no Cargo.toml, package.json, pyproject.toml, pom.xml, Gradle build file or requirements file outside vendored and fixture directories".into(),
         );
     }
     let index = loaded();
@@ -608,6 +675,29 @@ mod tests {
     }
 
     #[test]
+    fn maven_pom_and_gradle_coordinates_match() {
+        let pom = "<project><dependencies>
+<dependency>
+<groupId>org.drools</groupId>
+<artifactId>drools-core</artifactId>
+</dependency>
+                   <dependency><groupId>junit</groupId><artifactId>junit</artifactId></dependency>
+</dependencies></project>";
+        let gradle = "dependencies {
+  implementation(\"org.apache.jena:jena-arq:5.0.0\")
+  testImplementation 'junit:junit:4.13'
+}";
+        let f = run(&[("pom.xml", pom), ("app/build.gradle.kts", gradle)]);
+        assert_eq!(
+            pairs(&f),
+            vec![
+                (Severity::Low, "org.apache.jena:jena-arq".to_string()),
+                (Severity::Low, "org.drools:drools-core".to_string()),
+            ]
+        );
+    }
+
+    #[test]
     fn an_unparseable_manifest_is_a_note_not_a_clean_run() {
         match judge(&RepoView::from_files(&[("Cargo.toml", "[dependencies\n")])) {
             Verdict::Noted(f, notes) => {
@@ -642,7 +732,9 @@ mod tests {
         let total: usize = index
             .entries
             .iter()
-            .map(|e| e.names.cargo.len() + e.names.pypi.len() + e.names.npm.len())
+            .map(|e| {
+                e.names.cargo.len() + e.names.pypi.len() + e.names.npm.len() + e.names.maven.len()
+            })
             .sum();
         let keys: usize = index.by_name.values().map(Vec::len).sum();
         assert_eq!(total, keys);
