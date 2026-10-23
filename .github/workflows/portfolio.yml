@@ -93,7 +93,11 @@ jobs:
       - name: coderipper sweep --profile portfolio, and the secrets scan
         run: |
           code=0
-          coderipper sweep --profile portfolio --deny medium --no-config --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          # A cargo workspace is analysed member by member: `--project .` on a virtual workspace root runs none of the Rust checks (each
+          # errors, "not a package directory"), and on a root package that also has members it skips the members.
+          ws=""
+          if [ -f Cargo.toml ] && grep -q '^[[]workspace]' Cargo.toml; then ws=--workspace; fi
+          coderipper sweep --profile portfolio --deny medium --no-config $ws --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
           coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || code=$?
           cat "$RUNNER_TEMP/sweep.stderr" >&2
           # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
