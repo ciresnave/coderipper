@@ -474,7 +474,7 @@ public_api_crates = [
 ]
 ```
 
-`crate` is the cargo **package** name and `reason` is required. Every `reachability` finding of that package in a `--workspace` run is printed as `[declared-public/<severity>]` with the reason, like a `public_api` entry, and is not hidden. A name that matches no finding is reported as an `allowlist` finding naming the crate (only when `reachability` ran cleanly for every member, so a build failure is not read as "nothing matched"). It applies to `--workspace` runs; a single-package run reads that package's own file, where `public_api` with `src/**` does the same job. This declares; it does not prove: an item that is `pub` but not reachable through a `pub` module path is declared public too.
+`crate` is the cargo **package** name and `reason` is required. Every `reachability` finding of that package in a `--workspace` run is printed as `[declared-public/<severity>]` with the reason, like a `public_api` entry, and is not hidden. The declaration is read by the run of **each member**, so `--workspace` and a run by hand of one member (`--project crates/x`) give the same answer: a local run agrees with CI. A name that is no package of the workspace is reported as an `allowlist` finding naming the crate, from the `--workspace` run (the only run that knows every package); an entry for a package that has nothing to report this run is stale like any `public_api` entry. This declares; it does not prove: an item that is `pub` but not reachable through a `pub` module path is declared public too.
 
 ### Where a waiver, a `tracks` entry and `--deny` are read from
 

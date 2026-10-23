@@ -350,3 +350,44 @@ public_api_crates = [{ crate = \"aa\", reason = \"published library\" }]
         .stdout(predicate::str::contains("public_api_crates"))
         .stdout(predicate::str::contains("`aa`"));
 }
+
+#[test]
+fn a_member_run_by_hand_agrees_with_the_workspace_run_on_a_root_only_declaration() {
+    // the lanes reproduce CI member by member (`--project crates/x`); a run that disagrees with CI is a defect
+    let repo = workspace_with_config(
+        "[reachability]
+public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
+",
+    );
+    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    let at = |dir: &str| {
+        let mut cmd = Command::cargo_bin("coderipper").unwrap();
+        cmd.args([
+            "sweep",
+            "--profile",
+            "portfolio",
+            "--deny",
+            "none",
+            "--no-config",
+        ])
+        .args(skip)
+        .arg("--project")
+        .arg(repo.path().join(dir))
+        .env("CODERIPPER_CACHE", "off");
+        cmd
+    };
+    // `a` is declared at the root: its run reads the root's file and prints the finding as declared public
+    at("a")
+        .assert()
+        .stdout(predicate::str::contains(
+            "[declared-public/Medium] a — `f` has zero callers",
+        ))
+        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not());
+    // `b` is not declared: it keeps its finding, and is not told that another package's entry matched nothing
+    at("b")
+        .assert()
+        .stdout(predicate::str::contains(
+            "[Medium/Medium] b — `g` has zero callers",
+        ))
+        .stdout(predicate::str::contains("public_api_crates").not());
+}

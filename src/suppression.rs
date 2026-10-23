@@ -165,13 +165,14 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
         location.file == normalize_entry_path(&entry.file)
     };
     // a crate-level declaration covers a package: its findings carry the package as `member` in a workspace run, else as `project`
-    let crate_matches = entry
-        .crate_scope
-        .as_deref()
-        .is_none_or(|name| match &f.member {
-            Some(member) => member == name,
-            None => f.project == name,
-        });
+    let crate_matches = entry.run_scoped
+        || entry
+            .crate_scope
+            .as_deref()
+            .is_none_or(|name| match &f.member {
+                Some(member) => member == name,
+                None => f.project == name,
+            });
     crate_matches
         && entry.check == f.check_id
         && file_matches
@@ -250,6 +251,27 @@ fn base(entry: &AllowEntry, project: &str) -> Finding {
         detail: String::new(),
         positive_control: None,
         member: None,
+    }
+}
+
+/// A workspace root's `public_api_crates` entry whose `crate` is no package of the workspace: it can never cover anything, which is
+/// nearly always a misspelt name (it is the cargo package name, not the directory).
+pub(crate) fn unknown_crate(entry: &AllowEntry, packages: &[&str], project: &str) -> Finding {
+    let name = entry.crate_scope.as_deref().unwrap_or_default();
+    Finding {
+        summary: format!(
+            "`[reachability] public_api_crates` entry names `{name}`, which is no package of this workspace"
+        ),
+        detail: format!(
+            "This declaration was written because: \"{}\". The workspace's packages are: {}. The name is the cargo package name (the              `name` in the member's `Cargo.toml`), not its directory. Fix the spelling, or remove the entry if the crate is gone.",
+            entry.reason,
+            packages.join(", ")
+        ),
+        positive_control: Some(format!(
+            "the workspace was read whole ({} packages) and none is named `{name}`",
+            packages.len()
+        )),
+        ..base(entry, project)
     }
 }
 

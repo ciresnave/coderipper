@@ -50,6 +50,10 @@ pub(crate) struct AllowEntry {
     /// (`file` is then `**`). Matched against a finding's `member` in a `--workspace` run, else its `project`.
     #[serde(skip)]
     pub crate_scope: Option<String>,
+    /// Set when a crate-level declaration of the workspace root was added to the run of the package it names: every finding of that
+    /// run is then covered, whatever the finding's `project` (the directory name) is.
+    #[serde(skip)]
+    pub run_scoped: bool,
 }
 
 /// One item of `[reachability] public_api`: the project declares that what `file` (a path or a glob: `*` inside one directory,
@@ -113,6 +117,7 @@ impl PublicApiCrate {
             source,
             declared_public: true,
             crate_scope: Some(self.name.clone()),
+            run_scoped: false,
         }
     }
 }
@@ -129,12 +134,49 @@ impl PublicApiEntry {
             source,
             declared_public: true,
             crate_scope: None,
+            run_scoped: false,
         }
     }
 
     fn as_entry_with(source: Option<String>) -> impl Fn(&PublicApiEntry) -> AllowEntry {
         move |p| p.as_entry(source.clone())
     }
+}
+
+/// The `public_api_crates` entries of the nearest enclosing workspace root's `.coderipper.toml` that name the cargo package at
+/// `project_root`, marked as covering that whole run. Empty when the directory is not a workspace member, the root is the directory
+/// itself (its own file is read already), or the root declares nothing for this package. Cheap on purpose: two small TOML reads.
+fn workspace_declarations_for(project_root: &Path) -> Vec<AllowEntry> {
+    let read_table = |dir: &Path| -> Option<toml::Table> {
+        std::fs::read_to_string(dir.join("Cargo.toml"))
+            .ok()?
+            .parse()
+            .ok()
+    };
+    let Some(package) = read_table(project_root)
+        .and_then(|t| t.get("package")?.get("name")?.as_str().map(str::to_string))
+    else {
+        return Vec::new();
+    };
+    let Some(root) = project_root
+        .ancestors()
+        .skip(1)
+        .find(|dir| read_table(dir).is_some_and(|t| t.contains_key("workspace")))
+    else {
+        return Vec::new();
+    };
+    let Ok(list) = Allowlist::load(root) else {
+        return Vec::new();
+    };
+    list.crate_declarations()
+        .entries
+        .into_iter()
+        .filter(|e| e.crate_scope.as_deref() == Some(package.as_str()))
+        .map(|mut e| {
+            e.run_scoped = true;
+            e
+        })
+        .collect()
 }
 
 /// An inclusive range of 1-based line numbers.
@@ -260,6 +302,15 @@ impl Allowlist {
     pub fn crate_declarations(mut self) -> Self {
         self.entries.retain(|e| e.crate_scope.is_some());
         self
+    }
+
+    /// [`Self::load`] for the package at `project_root`, plus the crate-level declarations that its **workspace root's** file makes for
+    /// this package. The same run, whether `--workspace` made it or a lane ran `--project crates/x` by hand, so a local run agrees with CI.
+    pub fn load_for_package(project_root: &Path) -> anyhow::Result<Self> {
+        let mut list = Self::load(project_root)?;
+        list.entries
+            .extend(workspace_declarations_for(project_root));
+        Ok(list)
     }
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {
