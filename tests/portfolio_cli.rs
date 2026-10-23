@@ -215,3 +215,56 @@ fn the_list_of_registered_rules_in_an_unknown_entry_names_each_rule_once() {
     // the finding lists the registered rules twice (its detail and its positive control), each list naming `conflict-marker` once
     assert_eq!(line.matches("conflict-marker").count(), 2, "{line}");
 }
+
+/// A virtual workspace root (no `[package]`, two members): the layout of baracuda and fuel.
+fn virtual_workspace() -> tempfile::TempDir {
+    common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n",
+        ),
+        ("Cargo.lock", "version = 4\n"),
+        ("LICENSE", "MIT License\n"),
+        (
+            "a/Cargo.toml",
+            "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("a/src/lib.rs", "pub fn f() -> i32 { 1 }\n"),
+        (
+            "b/Cargo.toml",
+            "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        ),
+        ("b/src/main.rs", "fn g() -> i32 { 1 }\nfn main() { g(); }\n"),
+    ])
+}
+
+fn sweep_portfolio(project: &tempfile::TempDir, extra: &[&str]) -> Command {
+    let mut cmd = Command::cargo_bin("coderipper").unwrap();
+    cmd.args([
+        "sweep",
+        "--profile",
+        "portfolio",
+        "--deny",
+        "none",
+        "--no-config",
+    ])
+    .args(extra)
+    .arg("--project")
+    .arg(project.path())
+    .env("CODERIPPER_CACHE", "off");
+    cmd
+}
+
+#[test]
+fn a_virtual_workspace_root_runs_the_rust_checks_only_with_workspace() {
+    let repo = virtual_workspace();
+    // without `--workspace` the three Rust checks cannot run on the root (what portfolio.yml did before it passed the flag)
+    sweep_portfolio(&repo, &[])
+        .assert()
+        .stderr(predicate::str::contains("virtual workspace root"));
+    // with it they run on each member: the seeded defect in member `b` is found (the control that the rules ran at all)
+    sweep_portfolio(&repo, &["--workspace"])
+        .assert()
+        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stderr(predicate::str::contains("virtual workspace root").not());
+}
