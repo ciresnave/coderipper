@@ -464,6 +464,26 @@ fn run_workspace_over_in(
         }
     });
 
+    // The workspace root's crate-level `[reachability] public_api_crates` declarations are applied by each member's own run (see
+    // `Allowlist::load_for_package`), so a run of one member by hand agrees with this one. A name that is no package of the workspace
+    // can cover nothing in any of them, so it is reported here, where every package is known.
+    if let Ok(root_list) = Allowlist::load(&root).map(Allowlist::crate_declarations) {
+        let packages: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+        let project = root
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        for entry in root_list.entries() {
+            if entry
+                .crate_scope
+                .as_deref()
+                .is_some_and(|name| !packages.contains(&name))
+            {
+                findings.push(suppression::unknown_crate(entry, &packages, &project));
+            }
+        }
+    }
+
     WorkspaceRun {
         result: RunResult {
             findings,
@@ -1017,7 +1037,7 @@ fn run_module_over(
     let mut notes = Vec::new();
 
     // A malformed allowlist must not swallow the findings: report it, and run unsuppressed.
-    let allowlist = Allowlist::load(&ctx.project_root).unwrap_or_else(|e| {
+    let allowlist = Allowlist::load_for_package(&ctx.project_root).unwrap_or_else(|e| {
         errors.push(format!("allowlist: {e}"));
         Allowlist::empty()
     });

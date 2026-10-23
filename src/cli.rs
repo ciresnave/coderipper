@@ -423,7 +423,7 @@ fn report_wide_configuration(layers: &[crate::config::Layer], settings: &crate::
             .file
             .reachability
             .as_ref()
-            .map_or(0, |r| r.public_api.len());
+            .map_or(0, |r| r.public_api.len() + r.public_api_crates.len());
         if p > 0 {
             let noun = if p == 1 { "entry" } else { "entries" };
             eprintln!(

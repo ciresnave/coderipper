@@ -8,8 +8,17 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ## 0.9.8 - 2026-10-23 (proposed)
 
+The `ci.yml` self-call is repinned to `portfolio.yml@66d358e1`, the merge of 0.9.7 (its workflow installs 0.9.6, which has `DOCS_RS` handling and the "not judged" note; the pin before it ran 0.8.19).
+
 `--summary` (the PM's request, to track a portfolio sweep): per-rule counts for a run. Human: a totals line and one line per rule after the findings. JSON: one `coderipper-rule-summary` line before the `coderipper-summary` line, with stable fields `reason`, `project`, `findings`, `waived`, `declared_public`, `opt_outs`, `errors` and `rules` (`rule`, `findings`, `waived`, `declared_public`, `severities`). `opt_outs` is `[[allow]]` waivers plus `public_api`/`public_api_crates` declarations: the visible opt-outs of the default-on policy. A rule that ran clean has no row. No exit code changes. Tests: `tests/summary_cli.rs` (absent without the flag; human; JSON order and fields, totals equal the rows' sums) and two unit tests.
 
+## 0.9.7 - 2026-10-23 (proposed)
+
+`[reachability] public_api_crates`: declare a whole crate's public items as API with one entry (baracuda's second sweep, run 40025510102: 753 `reachability` findings, of which 725 of the 730 that parse are in crates with `publish` not `false`, and 12 of 12 sampled are `pub` items reachable through a `pub mod` tree, so intended API). `{ crate = "<package>", reason = "..." }` in the **workspace root's** `.coderipper.toml` covers every `reachability` finding of that cargo package, printed as `[declared-public]` with the reason. **Each member's own run reads it** (the nearest enclosing workspace root's file, entries naming that package only), so a run by hand of one member, `--project crates/x`, agrees with `--workspace` and with CI (PersistAnt had reproduced CI member by member and got different results). Why a new key: a member's finding paths are relative to the member, and a member's run reads only the member's own file, so the root's `public_api` globs could not name one crate. A name that is no package of the workspace is reported by name by the `--workspace` run. Tests: three unit tests, `a_crate_level_public_api_declaration_covers_one_package_of_a_workspace` (one package covered, the other not; a misspelt name is reported) and `a_member_run_by_hand_agrees_with_the_workspace_run_on_a_root_only_declaration` (root-only config, two members, `--project` on each).
+
+`portfolio.yml` moves `CODERIPPER_VERSION` to 0.9.6 (the first release with `DOCS_RS` handling, the "not judged" note and the protoc step's companion fix); the `ci.yml` self-call is repinned in a follow-up, to the merge of this change.
+
+**Decision pending (not changed here): should `reachability` treat the public items of a published library as API by default?** Evidence is in the PR description; the default is unchanged.
 ## 0.9.6 - 2026-10-23 (proposed)
 
 Fix (baracuda's second sweep, run 40025510102): the Rust checks assert nothing for a member that cannot be built, and the output did not say which.
