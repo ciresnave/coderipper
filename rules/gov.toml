@@ -236,7 +236,7 @@ aliases = []
 remediation = "Fix what the lint objects to, delete or use the dead code, or gate it with cfg(test) / cfg(feature); otherwise add reason = \"..\" to the allow, or name where and why an ignored test runs: #[ignore = \"..\"]."
 related = ["GOV-002", "TST-005"]
 lifecycle = "experimental"
-checked_today = "Rust only: each allow attribute (also inside cfg_attr) and each ignore attribute in a tracked .rs file outside a vendored directory has a non-blank reason, read with syn. The count of those that do is printed as a note. Not judged: attributes inside macro bodies, expect attributes, Cargo.toml [lints] tables, other languages."
+checked_today = "Rust only: each allow attribute (also inside cfg_attr) and each ignore attribute in a tracked .rs file outside a vendored directory has a non-blank reason, read with syn. The count of those that do is printed as a note. A branch whose total of allow (or of ignore) attributes, reasons or not, is above the merge-base's is a Medium finding at the first surplus one; with no base the ratchet is a note. Not judged: owner and detector per suppression, attributes inside macro bodies, expect attributes, Cargo.toml [lints] tables, other languages."
 
 [rule.applicability]
 languages = ["rust"]

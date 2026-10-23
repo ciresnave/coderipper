@@ -92,7 +92,7 @@ jobs:
     name: Portfolio checks
     permissions:
       contents: read
-    uses: ciresnave/coderipper/.github/workflows/portfolio.yml@23406320fe7e4483bedfe41b5b71128a574d8718 # 0.8.14
+    uses: ciresnave/coderipper/.github/workflows/portfolio.yml@c0309d0139382e6938ff46f09198dc70bef3ab2d # 0.8.16
 
   # The jobs below are new with the library's first release. They are not (yet) required checks: only the matrix above is.
   docs:

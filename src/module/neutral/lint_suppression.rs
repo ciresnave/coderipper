@@ -7,12 +7,19 @@
 //! there is almost never a suppression: delete the code, use it, or gate it with `#[cfg(test)]` / `#[cfg(feature = ..)]`. Every
 //! attribute that does carry a reason is counted in a note on the run, so the debt stays visible when no finding is reported.
 //!
+//! **The ratchet (GOV-001, `docs/portfolio-ci-coverage.md` build order 5):** a branch adds no suppression. The `allow` and the `ignore`
+//! attributes of the repository at `HEAD` are counted, reasons or not, and compared with the same count of the tree the branch
+//! started from (the merge-base, as `version-and-changelog` finds it). A kind whose total rose is a **Medium** finding at the first file
+//! whose own count rose; totals, not files, are compared, so a moved or renamed file adds nothing. No base (a shallow clone, the default
+//! branch itself) or a base file `syn` cannot parse is a note that the ratchet did not run, never a clean pass. Owner and detector per
+//! suppression are not judged: an attribute has no field for them, and a `reason` that names them is the author's to write.
+//!
 //! **What it cannot see:** attributes written inside a macro's token stream (`macro_rules!` bodies, a function-like macro's
 //! arguments), which `syn` does not parse as attributes; a comment beside the attribute (it is not a reason: `reason =` is);
 //! `#[expect(..)]`, which rustc itself fails when it has nothing left to suppress; suppressions in `Cargo.toml`
 //! `[lints]` tables or in `clippy.toml`; any language but Rust. A file `syn` cannot parse is counted in a note, never read as clean.
 
-use super::{RepoView, Verdict};
+use super::{Base, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use syn::punctuated::Punctuated;
 use syn::visit::Visit;
@@ -124,6 +131,107 @@ impl<'ast> Visit<'ast> for Sites {
     }
 }
 
+/// The `allow` and `ignore` attributes of one file, reason or not, as `(is an allow, line)`; `None` when `syn` cannot parse it.
+fn tally(text: &str) -> Option<Vec<(bool, u32)>> {
+    let parsed = syn::parse_file(text).ok()?;
+    let mut sites = Sites { out: Vec::new() };
+    sites.visit_file(&parsed);
+    Some(
+        sites
+            .out
+            .iter()
+            .map(|s| (matches!(s.kind, Kind::Allow(_)), s.line))
+            .collect(),
+    )
+}
+
+/// A suppression-ratchet run: the findings, or the reason it did not run.
+fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, String> {
+    let base = match view.base() {
+        Base::Tree(base) => base,
+        Base::SameAsHead(why) | Base::Gap(why) => return Err(why),
+    };
+    // a file that cannot be counted (at HEAD or at the base) makes the comparison unsound: say so instead of reading it as zero
+    let counted = |text: &str| {
+        if text.contains("allow") || text.contains("ignore") {
+            tally(text)
+        } else {
+            Some(Vec::new())
+        }
+    };
+    let kinds = |sites: &[(bool, u32)], allow: bool| sites.iter().filter(|s| s.0 == allow).count();
+    let mut then = [0usize; 2];
+    for path in base
+        .paths()
+        .iter()
+        .filter(|p| p.ends_with(".rs") && !vendored(p))
+    {
+        let Some(text) = base.read(path) else {
+            return Err(format!("{path} could not be read at {}", base.how()));
+        };
+        let Some(sites) = counted(&text) else {
+            return Err(format!("{path} could not be parsed at {}", base.how()));
+        };
+        then[0] += kinds(&sites, true);
+        then[1] += kinds(&sites, false);
+    }
+    let mut now = [0usize; 2];
+    // for each kind, every file at HEAD with more of it than the base has of that file, and the line of its first surplus one
+    let mut rose: [Vec<(&str, u32)>; 2] = [Vec::new(), Vec::new()];
+    for path in files {
+        let Some(text) = view.read(path) else {
+            return Err(format!("{path} could not be read"));
+        };
+        let Some(sites) = counted(&text) else {
+            return Err(format!("{path} could not be parsed"));
+        };
+        let before = base
+            .read(path)
+            .and_then(|t| counted(&t))
+            .unwrap_or_default();
+        for (slot, allow) in [(0usize, true), (1, false)] {
+            let have = kinds(&sites, allow);
+            now[slot] += have;
+            let had = kinds(&before, allow);
+            if have > had {
+                let line = sites.iter().filter(|s| s.0 == allow).nth(had).map(|s| s.1);
+                rose[slot].push((path.as_str(), line.unwrap_or(1)));
+            }
+        }
+    }
+    let mut findings = Vec::new();
+    for (slot, kind) in [(0usize, "allow"), (1, "ignore")] {
+        let (before, after) = (then[slot], now[slot]);
+        if after <= before {
+            continue;
+        }
+        // one finding per file that gained one, so a file that is not reported (a planted fixture) cannot hide another that is
+        for (file, line) in rose[slot].iter() {
+            findings.push(
+                Finding::new(
+                    ID,
+                    Severity::Medium,
+                    Confidence::High,
+                    view.name(),
+                    format!(
+                        "the number of `{kind}` attributes rose from {before} to {after} against {}",
+                        base.how()
+                    ),
+                    "This branch adds a lint suppression or an ignored test. Fix what the lint objects to, or run the test where it can run                      (CLAUDE.md: a test that cannot run on GitHub runs on a self-hosted runner, never `#[ignore]`); the count only goes down.",
+                )
+                .location(Location::new(*file, Some(*line)))
+                .subject(format!("{kind}-count"))
+                .positive_control(format!(
+                    "{} Rust file(s) at HEAD and those of {} counted with syn; the totals are {before} before and {after} now",
+                    files.len(),
+                    base.how()
+                )),
+            );
+        }
+    }
+    Ok(findings)
+}
+
 fn vendored(path: &str) -> bool {
     let segments: Vec<&str> = path.split('/').collect();
     segments[..segments.len() - 1]
@@ -199,6 +307,10 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     let mut notes = vec![format!(
         "{ID}: {allowed} allow and {ignored} ignore attribute(s) carry a reason and pass"
     )];
+    match ratchet(view, &files) {
+        Ok(rose) => findings.extend(rose),
+        Err(why) => notes.push(format!("{ID}: ratchet not run: {why}")),
+    }
     if !unparsed.is_empty() {
         notes.push(format!(
             "{ID}: {} file(s) could not be parsed and were not read: {}",
@@ -324,5 +436,119 @@ mod tests {
     fn the_line_is_the_attributes_own() {
         let (found, _) = run("fn a() {}\n\n#[allow(unused)]\nfn b() {}\n");
         assert_eq!(found[0].location.as_ref().and_then(|l| l.line), Some(3));
+    }
+
+    fn ratchet(now: &[(&str, &str)], then: Option<&[(&str, &str)]>) -> (Vec<Finding>, Vec<String>) {
+        match judge(&RepoView::from_files_with_base(now, then)) {
+            Verdict::Noted(f, n) => (f, n),
+            _ => panic!("not a noted verdict"),
+        }
+    }
+
+    const ONE_ALLOW: &str = "#[allow(dead_code, reason = \"kept\")]\nfn f() {}\n";
+    const TWO_ALLOWS: &str = "#[allow(dead_code, reason = \"kept\")]\nfn f() {}\n#[allow(unused, reason = \"kept\")]\nfn g() {}\n";
+
+    #[test]
+    fn a_branch_that_adds_a_suppression_with_a_reason_is_a_finding() {
+        let (found, _) = ratchet(
+            &[("src/lib.rs", TWO_ALLOWS)],
+            Some(&[("src/lib.rs", ONE_ALLOW)]),
+        );
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].severity, Severity::Medium);
+        assert!(found[0].summary.contains("allow"), "{:?}", found[0]);
+        assert!(found[0].summary.contains("from 1 to 2"), "{:?}", found[0]);
+        assert_eq!(
+            found[0].location.as_ref().map(|l| l.file.as_str()),
+            Some("src/lib.rs")
+        );
+    }
+
+    #[test]
+    fn an_ignore_is_counted_apart_from_an_allow() {
+        let (found, _) = ratchet(
+            &[("src/lib.rs", "#[test]\n#[ignore = \"live\"]\nfn t() {}\n")],
+            Some(&[("src/lib.rs", ONE_ALLOW)]),
+        );
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].summary.contains("ignore"), "{:?}", found[0]);
+    }
+
+    #[test]
+    fn the_same_count_or_fewer_is_clean_and_a_moved_suppression_is_not_new() {
+        // equal
+        assert!(ratchet(
+            &[("src/lib.rs", ONE_ALLOW)],
+            Some(&[("src/lib.rs", ONE_ALLOW)])
+        )
+        .0
+        .is_empty());
+        // fewer
+        assert!(ratchet(
+            &[("src/lib.rs", ONE_ALLOW)],
+            Some(&[("src/lib.rs", TWO_ALLOWS)])
+        )
+        .0
+        .is_empty());
+        // the file was renamed: the total is what is compared
+        assert!(ratchet(
+            &[("src/new.rs", ONE_ALLOW)],
+            Some(&[("src/old.rs", ONE_ALLOW)])
+        )
+        .0
+        .is_empty());
+    }
+
+    #[test]
+    fn a_new_file_with_a_suppression_counts_against_a_base_without_it() {
+        let (found, _) = ratchet(
+            &[("src/lib.rs", ONE_ALLOW), ("src/new.rs", ONE_ALLOW)],
+            Some(&[("src/lib.rs", ONE_ALLOW)]),
+        );
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(
+            found[0].location.as_ref().map(|l| l.file.as_str()),
+            Some("src/new.rs")
+        );
+    }
+
+    #[test]
+    fn every_file_that_gained_one_is_reported_so_one_cannot_hide_another() {
+        let (found, _) = ratchet(
+            &[("a/x.rs", ONE_ALLOW), ("src/y.rs", ONE_ALLOW)],
+            Some(&[(
+                "a/x.rs",
+                "fn f() {}
+",
+            )]),
+        );
+        let files: Vec<_> = found
+            .iter()
+            .filter_map(|f| f.location.as_ref().map(|l| l.file.as_str()))
+            .collect();
+        assert_eq!(files, ["a/x.rs", "src/y.rs"], "{found:?}");
+    }
+
+    #[test]
+    fn without_a_base_the_ratchet_is_a_stated_gap_not_a_clean_pass() {
+        let (found, notes) = ratchet(&[("src/lib.rs", TWO_ALLOWS)], None);
+        assert!(found.is_empty());
+        assert!(
+            notes.iter().any(|n| n.contains("ratchet not run")),
+            "{notes:?}"
+        );
+    }
+
+    #[test]
+    fn a_base_file_that_does_not_parse_is_a_gap_not_zero() {
+        let (found, notes) = ratchet(
+            &[("src/lib.rs", ONE_ALLOW)],
+            Some(&[("src/lib.rs", "#[allow(((\n")]),
+        );
+        assert!(found.is_empty());
+        assert!(
+            notes.iter().any(|n| n.contains("ratchet not run")),
+            "{notes:?}"
+        );
     }
 }
