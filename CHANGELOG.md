@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.20 - 2026-10-23 (proposed)
+
+CI pins moved to the published 0.8.18: `portfolio.yml` `CODERIPPER_VERSION` and the `ci.yml` self-call (`portfolio.yml@95fb4cc`, the merge that has the 0.8.18 workflow). No code change.
+
 ## 0.8.18 - 2026-10-23 (proposed)
 
 Self-hosted and trigger lints (`docs/portfolio-ci-coverage.md` build order 5, second row), added to `ci-security`.
