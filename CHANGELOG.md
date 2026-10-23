@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.8.22 - 2026-10-23 (proposed)
+
+Fix: `portfolio.yml` on a self-hosted Windows runner. `shell: bash` resolved to `C:\WINDOWS\system32\bash.exe`, the WSL launcher ("no installed distributions"), so the first step failed before coderipper ran (found by ThinkersFoundation-site#14, run 40005533893; it hit every private Windows repository). A new first step, run only on Windows in Windows PowerShell, finds Git for Windows' `bash.exe` (beside `git.exe`, else `C:\Program Files\Git\bin`), puts its directory first on `PATH` for the later steps, and fails with a message naming the missing install if neither exists. Linux and macOS runners skip it. Not yet run on a self-hosted Windows runner: callers must try the new pin there before moving to it.
+
 ## 0.8.21 - 2026-10-23 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@c665210`, the merge of 0.8.20, whose workflow installs 0.8.19 (the pin before it ran 0.8.17). No code change.
