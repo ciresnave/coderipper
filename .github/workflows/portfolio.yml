@@ -28,6 +28,11 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Portfolio runs never use a compiler wrapper. A self-hosted runner can inherit another user's `RUSTC_WRAPPER` (sccache) that the
+  # runner account cannot execute, which fails `cargo install` before it compiles anything; an empty value turns it off (harmless on
+  # a hosted runner).
+  RUSTC_WRAPPER: ""
+  CARGO_BUILD_RUSTC_WRAPPER: ""
   # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
   CODERIPPER_VERSION: 0.8.19
 
@@ -40,6 +45,27 @@ jobs:
       run:
         shell: bash
     steps:
+      # On Windows, `shell: bash` finds the first `bash` on PATH, and on a machine with WSL that is C:\WINDOWS\system32\bash.exe, the WSL
+      # launcher ("no installed distributions"). Put Git for Windows' bash first for every later step; the step itself runs in Windows
+      # PowerShell, which every Windows runner has, so it needs no bash. Not a literal `shell:` path: `shell:` takes no expression, and
+      # a literal would break the Linux and macOS runners.
+      - name: Use Git for Windows' bash
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $candidates = @()
+          $git = Get-Command git -ErrorAction SilentlyContinue
+          if ($git) { $candidates += (Join-Path (Split-Path (Split-Path $git.Source)) 'bin') }
+          $candidates += 'C:\Program Files\Git\bin'
+          foreach ($dir in $candidates) {
+            if (Test-Path (Join-Path $dir 'bash.exe')) {
+              Add-Content -Path $env:GITHUB_PATH -Value $dir
+              Write-Output "bash: $dir\bash.exe"
+              exit 0
+            }
+          }
+          Write-Output "::error::Git for Windows' bash.exe was not found (looked beside git.exe and in C:\Program Files\Git\bin); install Git for Windows on this runner"
+          exit 1
       - name: Refuse untrusted code on a runner that is not GitHub-hosted
         env:
           RUNS_ON: ${{ inputs.runs-on }}
@@ -71,6 +97,8 @@ jobs:
           coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || code=$?
           cat "$RUNNER_TEMP/sweep.stderr" >&2
           # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
-          # repository with no Rust crate (nothing to look at) and the rule this step skips on purpose.
-          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          # repository with no Rust crate (nothing to look at), the rule this step skips on purpose, and the two rules that compare
+          # a branch with its base (the lint-suppression ratchet, version-and-changelog) on a run of the default branch, where there
+          # is no base to compare with (their note ends "a run on the default branch").
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
