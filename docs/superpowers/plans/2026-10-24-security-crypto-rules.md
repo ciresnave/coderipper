@@ -115,7 +115,7 @@ replacement, so it cannot conflict with a protocol's specification. A rule that 
 ## 5. Measurement
 
 **Detector.** A throwaway `syn` visitor (`security-prototype/secproto-main.rs.txt`, not shipped), run over every non-test `.rs` file `git ls-files`
-lists (and `git archive` of `origin/main` for the lane repositories, read-only) in **eight repositories**: auth-framework `ae1328b4` (357 files), synapse
+lists (and `git archive` of `origin/main` for the lane repositories, read-only) in **eight repositories**: auth-framework `origin/main` of 2026-10-23 (357 files), synapse
 `861dc15` (196), mlmf `cedff18` (165), lightbulb `e1f9d3d` (136), lsp-bridge `8773679` (24), and fuel `5a00e3a`, baracuda `8e162f7`, Unpopped `21e6279` (the
 depth-1 clones of the performance measurement).
 
