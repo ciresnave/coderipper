@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.22 - 2026-10-24 (proposed)
+
+The `ci.yml` self-call is repinned to `portfolio.yml@e40c8557`, the merge of 0.9.21, whose workflow installs 0.9.20 (the pin before it ran 0.9.6). No code change.
+
 ## 0.9.21 - 2026-10-24 (proposed)
 
 **CI: `portfolio.yml` installs coderipper 0.9.20** (published 2026-10-24, read back from crates.io), the first release whose Rust checks do not need a target to link, so callers building with `DOCS_RS=1` (baracuda) stop failing with "linking with cc failed". Callers repin to the merge of this change.
