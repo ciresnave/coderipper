@@ -344,6 +344,32 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
+id = "dependency-freshness"
+title = "Locked dependencies are at their newest versions"
+domain = "SUP"
+statement = "Every package in the lockfile is at the newest version the registry has: a package with a newer compatible version, or one a manifest requirement holds below a newer release, is reported unless a waiver carries the reason."
+rationale = "A dependency left behind collects fixes it does not have, and the cost of catching up grows with each release it skips; the owner's rule is the newest versions at all times, and only the lockfile says what a build uses."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+aliases = []
+remediation = "Run `cargo update` for a compatible bump, raise the manifest's requirement for a newer major, or waive the package with an [[allow]] entry (file = \"Cargo.lock\", symbol = the package name) whose reason says what holds it back and who owns the wait."
+related = ["SUP-001", "SUP-002"]
+lifecycle = "experimental"
+checked_today = "Cargo only: `cargo update --dry-run --verbose` against Cargo.lock lists each package with a newer compatible version and each package a manifest requirement holds below a newer release. A dependency a workspace member declares is Medium, a transitive one Low. A project with no Cargo.lock gets an Info finding. Run on a schedule (network tier), not per pull request. Not judged: npm, pip, Maven and Gradle lockfiles, a pre-release newer than the locked version, a git or path dependency, and whether a newer version is better."
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
 id = "licence"
 title = "Licence file, matching manifest, SPDX headers, organisation as holder"
 domain = "SUP"

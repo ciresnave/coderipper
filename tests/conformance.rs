@@ -392,10 +392,10 @@ fn rust_proofs() -> Vec<(String, Verdict)> {
 }
 
 #[test]
-fn the_rust_module_earns_four_of_its_five_claims() {
+fn the_rust_module_earns_four_of_its_six_claims() {
     let proofs = rust_proofs();
     let verdict = |id: &str| proofs.iter().find(|(r, _)| r == id).map(|(_, v)| v.clone());
-    assert_eq!(proofs.len(), 5, "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(proofs.len(), 6, "one verdict per claimed rule: {proofs:?}");
     for id in [
         "reachability",
         "unused-parameters",
@@ -412,6 +412,8 @@ fn the_rust_module_earns_four_of_its_five_claims() {
         "{:?}",
         verdict("ci-protection-presence")
     );
+    // Likewise: its check reads a registry, which a fixture directory cannot stand in for.
+    assert_eq!(verdict("dependency-freshness"), Some(Verdict::NoFixture));
 }
 
 #[test]
