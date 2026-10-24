@@ -78,7 +78,7 @@ acceptable) is a number each organization chooses for itself.
 | WSP-008 | Conventions do not drift between repositories | N | catalog record; no check yet (planned: native comparison of generic config files) |
 | WSP-009 | Repositories forced to release together | H | catalog record; no check yet (needs a human judgment over release history) |
 | `version-consistency` | One version across a project | legacy | legacy check: every package of a project shares one version unless it tracks another project; relates to WSP-003 only partly |
-| `ci-protection-presence` | The default branch enforces required checks | legacy | legacy check: reads branch protection and flags rules that require nothing; no catalog rule covers it, nearest context is the supply-chain CI-hardening rule SUP-008 and the layered-gates rule GOV-008 |
+| `ci-protection-presence` | The default branch enforces required checks | legacy | legacy check: reads branch protection and flags rules that require nothing, and (0.9.27) repository settings that differ from the portfolio's (squash-only, delete-branch-on-merge, admin bypass kept, no force-push or deletion; a fork is skipped); no catalog rule covers it, nearest context is the supply-chain CI-hardening rule SUP-008 and the layered-gates rule GOV-008 |
 
 ## Further reading
 

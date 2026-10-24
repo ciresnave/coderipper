@@ -64,7 +64,16 @@ impl Github for Forge {
         let rest = path.split_once('/').unwrap().1.split_once('/').unwrap().1;
         let rest = rest.split_once('/').map_or("", |(_, r)| r);
         match rest {
-            "" => Ok(json!({ "default_branch": "main", "archived": false, "private": false })),
+            "" => Ok(json!({
+                "default_branch": "main", "archived": false, "private": false, "fork": false,
+                "allow_squash_merge": true, "allow_merge_commit": false, "allow_rebase_merge": false,
+                "delete_branch_on_merge": true
+            })),
+            "branches/main/protection" => Ok(json!({
+                "enforce_admins": { "enabled": false },
+                "allow_force_pushes": { "enabled": false },
+                "allow_deletions": { "enabled": false }
+            })),
             "branches/main" => Ok(branch(serves_protection)),
             r if r.starts_with("rules/branches/") => Ok(json!([])),
             other => Err(ApiError::new(

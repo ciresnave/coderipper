@@ -27,6 +27,10 @@ impl Github for Fake {
             if path.contains("/rules/branches/") {
                 return Ok(json!([]));
             }
+            // the portfolio's settings unless a test says otherwise
+            if path.ends_with("/protection") {
+                return Ok(branch_settings(false, false, false));
+            }
             Err(ApiError::new(
                 Some(404),
                 format!("no canned answer for {path}"),
@@ -75,7 +79,20 @@ fn run_with(
 }
 
 fn repo_info(default_branch: &str) -> Value {
-    json!({ "default_branch": default_branch, "archived": false, "private": false })
+    json!({
+        "default_branch": default_branch, "archived": false, "private": false, "fork": false,
+        "allow_squash_merge": true, "allow_merge_commit": false, "allow_rebase_merge": false,
+        "delete_branch_on_merge": true
+    })
+}
+
+/// Real shape of `GET branches/main/protection` (the fields the settings audit reads).
+fn branch_settings(enforce_admins: bool, force_pushes: bool, deletions: bool) -> Value {
+    json!({
+        "enforce_admins": { "enabled": enforce_admins },
+        "allow_force_pushes": { "enabled": force_pushes },
+        "allow_deletions": { "enabled": deletions }
+    })
 }
 
 /// Real shape: a protected branch requiring three contexts, enforced for non-admins.
@@ -546,7 +563,8 @@ fn a_branch_name_is_percent_encoded_in_the_url_except_for_slashes() {
 fn the_subject_uses_githubs_canonical_name_not_the_origins_spelling() {
     // An `[[allow]]` entry is written with the canonical name; an origin spelled `Acme/Widgets` must match it.
     let repo = repo_with_origin(Some("git@github.com:Acme/Widgets.git"));
-    let info = json!({ "full_name": "acme/widgets", "default_branch": "main", "archived": false });
+    let mut info = repo_info("main");
+    info["full_name"] = json!("acme/widgets");
     let (result, _) = run_with(
         repo.path(),
         vec![
@@ -644,4 +662,141 @@ fn the_finding_says_what_the_rules_lookup_actually_answered() {
         !detail.contains("0 rule(s)"),
         "must not claim a rule count it never read: {detail}"
     );
+}
+
+const PROTECTION: &str = "repos/acme/widgets/branches/main/protection";
+
+/// Runs over a protected branch whose repository document is `info` and whose protection document is `settings`.
+fn audit(info: Value, settings: Value) -> (anyhow::Result<Vec<Finding>>, Vec<String>) {
+    let repo = repo_with_origin(Some(ORIGIN));
+    run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(info)),
+            (BRANCH, Ok(protected_branch())),
+            (PROTECTION, Ok(settings)),
+        ],
+    )
+}
+
+#[test]
+fn the_portfolios_own_settings_are_clean_the_negative_control() {
+    let (result, asked) = audit(repo_info("main"), branch_settings(false, false, false));
+    assert!(result.unwrap().is_empty());
+    assert!(asked.iter().any(|p| p == PROTECTION), "{asked:?}");
+}
+
+#[test]
+fn each_setting_that_differs_is_its_own_finding_the_positive_control() {
+    let mut info = repo_info("main");
+    info["allow_merge_commit"] = json!(true);
+    info["allow_rebase_merge"] = json!(true);
+    info["allow_squash_merge"] = json!(false);
+    info["delete_branch_on_merge"] = json!(false);
+    let (result, _) = audit(info, branch_settings(true, true, true));
+    let findings = result.unwrap();
+    assert_eq!(findings.len(), 7, "{findings:#?}");
+    assert!(findings.iter().all(|f| f.severity == Severity::Medium));
+    let text: String = findings.iter().map(|f| f.detail.clone()).collect();
+    for key in [
+        "allow_squash_merge",
+        "allow_merge_commit",
+        "allow_rebase_merge",
+        "delete_branch_on_merge",
+        "enforce_admins",
+        "allow_force_pushes",
+        "allow_deletions",
+    ] {
+        assert!(text.contains(&format!("`{key}")), "{key} in {text}");
+    }
+    let subjects = subjects(&findings);
+    assert_eq!(
+        subjects
+            .iter()
+            .filter(|s| *s == "acme/widgets@main")
+            .count(),
+        3
+    );
+    assert_eq!(subjects.iter().filter(|s| *s == "acme/widgets").count(), 4);
+}
+
+#[test]
+fn admins_who_can_bypass_are_the_wanted_state_not_a_finding() {
+    // CireSnave 2026-09-18: enforce_admins is OFF on every protected branch.
+    let (result, _) = audit(repo_info("main"), branch_settings(false, false, false));
+    assert!(result.unwrap().is_empty());
+    let (result, _) = audit(repo_info("main"), branch_settings(true, false, false));
+    let findings = result.unwrap();
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].summary.contains("admins cannot bypass"));
+}
+
+#[test]
+fn merge_settings_a_token_cannot_see_are_an_error_never_clean() {
+    let mut info = repo_info("main");
+    info.as_object_mut().unwrap().remove("allow_squash_merge");
+    let (result, _) = audit(info, branch_settings(false, false, false));
+    let message = format!("{:#}", result.unwrap_err());
+    assert!(message.contains("allow_squash_merge"), "{message}");
+}
+
+#[test]
+fn a_protection_reply_without_a_setting_is_an_error_and_a_failed_read_is_one_too() {
+    let (result, _) = audit(
+        repo_info("main"),
+        json!({ "enforce_admins": { "enabled": false } }),
+    );
+    assert!(format!("{:#}", result.unwrap_err()).contains("allow_force_pushes"));
+
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(protected_branch())),
+            (
+                PROTECTION,
+                Err(ApiError::new(
+                    Some(403),
+                    "Must have admin rights to Repository.",
+                )),
+            ),
+        ],
+    );
+    assert!(format!("{:#}", result.unwrap_err()).contains("admin"));
+}
+
+#[test]
+fn a_fork_is_not_audited_at_all() {
+    let mut info = repo_info("main");
+    info["fork"] = json!(true);
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, asked) = run_with(repo.path(), vec![(REPO, Ok(info))]);
+    let findings = result.unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].severity, Severity::Info);
+    assert!(findings[0].summary.contains("fork"));
+    assert_eq!(asked, vec![REPO.to_string()]);
+}
+
+#[test]
+fn a_branch_governed_only_by_rulesets_gets_the_repository_audit_alone() {
+    let mut info = repo_info("main");
+    info["allow_merge_commit"] = json!(true);
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, asked) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(info)),
+            (BRANCH, Ok(unprotected_branch())),
+            (
+                "repos/acme/widgets/rules/branches/main?per_page=100",
+                Ok(rules_requiring_checks()),
+            ),
+        ],
+    );
+    let findings = result.unwrap();
+    assert_eq!(findings.len(), 1, "{findings:#?}");
+    assert!(findings[0].detail.contains("allow_merge_commit"));
+    assert!(!asked.iter().any(|p| p == PROTECTION), "{asked:?}");
 }

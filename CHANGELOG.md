@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.27 - 2026-10-24 (proposed)
+
+**`ci-protection-presence` also audits repository settings** (coverage doc section 4, build order 5, the settings-audit extension).
+
+- One **Medium** finding per setting that differs from CireSnave's (6.5; CLAUDE.md 3 and 4): `allow_squash_merge` must be on, `allow_merge_commit` and `allow_rebase_merge` off, `delete_branch_on_merge` on; and on a branch with classic protection `enforce_admins` must be **off** (admins keep a bypass, 2026-09-18), `allow_force_pushes` and `allow_deletions` off.
+- A branch governed only by rulesets gets the repository-level audit alone (ruleset `non_fast_forward`/`deletion` rules are not read yet).
+- **A fork is skipped** with one Info finding (6.5: forks he has not taken over are not his). A taken-over fork is not told apart.
+- Reading needs admin on the repository: a reply without a field, or a failed `branches/<b>/protection` read, is an error, never clean. **A caller whose token lacks admin now gets an error from this check where it got a verdict before.** The portfolio sweep runs as the PM with admin; the repo's own CI already skips the rule.
+- Tests: `each_setting_that_differs_is_its_own_finding_the_positive_control`, `the_portfolios_own_settings_are_clean_the_negative_control`, `admins_who_can_bypass_are_the_wanted_state_not_a_finding`, `merge_settings_a_token_cannot_see_are_an_error_never_clean`, `a_protection_reply_without_a_setting_is_an_error_and_a_failed_read_is_one_too`, `a_fork_is_not_audited_at_all`, `a_branch_governed_only_by_rulesets_gets_the_repository_audit_alone`.
+
 ## 0.9.26 - 2026-10-24 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@ee9c3950`, the merge of 0.9.25, whose workflow installs 0.9.24 (the pin before it ran 0.9.20). No code change.

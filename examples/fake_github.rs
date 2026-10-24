@@ -19,7 +19,11 @@ struct Fake;
 impl Github for Fake {
     fn get(&self, path: &str) -> Result<Value, ApiError> {
         match path {
-            "repos/acme/widgets" => Ok(json!({ "default_branch": "main", "archived": false })),
+            "repos/acme/widgets" => Ok(json!({
+                "default_branch": "main", "archived": false, "fork": false,
+                "allow_squash_merge": true, "allow_merge_commit": false, "allow_rebase_merge": false,
+                "delete_branch_on_merge": true
+            })),
             "repos/acme/widgets/branches/main" => Ok(json!({
                 "name": "main",
                 "commit": { "sha": "b69e34e4eaf803ea4b34405518805cc32b6814ce" },

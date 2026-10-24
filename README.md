@@ -148,7 +148,10 @@ requires no status checks: protection missing, or enabled but with `enforcement_
 contexts. It never trusts `protected`, which is `true` on branches that enforce nothing. It is a network check, so it
 runs under `coderipper sweep` or by name, never in `fast`. It cannot silently pass: no `origin`, a non-GitHub origin, an
 API failure, or a reply without the `protection` object (hidden from a token without push access to a private
-repository) is an error; an archived repository and one with no commits yet each get an `Info` note. To accept a
+repository) is an error; an archived repository, a fork and one with no commits yet each get an `Info` note. Since 0.9.27 it
+also reports, at `Medium`, each repository setting that differs from the portfolio's (squash-only merges, merged branches
+deleted, and on the default branch admins able to bypass, no force-push, no deletion); reading those needs admin on the
+repository. To accept a
 repository on purpose, use an `[[allow]]` entry with `check = "ci-protection-presence"`,
 `file = "github:branch-protection"` and `symbol = "owner/repo@branch"` (the finding is then waived, with your reason shown).
 
