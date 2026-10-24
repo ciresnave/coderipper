@@ -1,0 +1,29 @@
+name: Portfolio workflow tracks the release
+
+# portfolio.yml installs one pinned CodeRipper version. This job fails when that version is not the newest one published on crates.io, which is how a
+# workflow gets left behind while fixes are published (0.9.6 against 0.9.14). It is a scheduled check, not a pull-request gate: a pull request that
+# changes code is merged first and published after, so for a short time the workflow is legitimately one release behind. See tests/portfolio_version.rs.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  drift:
+    name: portfolio.yml installs the newest published release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Compare with crates.io
+        env:
+          CODERIPPER_RELEASE_CHECK: "1"
+        run: cargo test --locked --test portfolio_version -- --nocapture
