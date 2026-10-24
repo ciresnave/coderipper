@@ -25,7 +25,18 @@ pub fn inject_sentinel(worktree_root: &Path) -> anyhow::Result<String> {
             return Ok(format!("src/{candidate}"));
         }
     }
-    anyhow::bail!("neither src/lib.rs nor src/main.rs exists under {worktree_root:?}")
+    // no `src/lib.rs` or `src/main.rs`: the first library or binary root cargo reports (a `[[bin]]` with a `path` outside `src/`)
+    if let Some(relative) = crate::package::root_files(worktree_root)
+        .ok()
+        .and_then(|roots| roots.into_iter().next())
+    {
+        let path = worktree_root.join(&relative);
+        let mut content = std::fs::read_to_string(&path)?;
+        content.push_str(&format!("\npub(crate) fn {SENTINEL_SYMBOL}() {{}}\n"));
+        std::fs::write(&path, content)?;
+        return Ok(relative);
+    }
+    anyhow::bail!("neither src/lib.rs nor src/main.rs exists under {worktree_root:?}, and cargo reports no target root")
 }
 
 #[cfg(test)]

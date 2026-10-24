@@ -6,6 +6,19 @@ use std::path::Path;
 /// would silence the very lints the sentinel exists to prove are working.
 pub const SENTINEL_FN: &str = "coderipper_unused_return_sentinel_7d41";
 
+fn append_sentinel(path: &Path) -> anyhow::Result<()> {
+    let mut content = std::fs::read_to_string(path)?;
+    content.push_str(&format!(
+        "\n#[allow(dead_code)]\n\
+         #[must_use = \"CR:{SENTINEL_TAG}\"] #[deprecated(note = \"CR:{SENTINEL_TAG}\")]\n\
+         fn {SENTINEL_FN}() -> i32 {{ 1 }}\n\
+         #[allow(dead_code)]\n\
+         fn {SENTINEL_FN}_caller() {{ {SENTINEL_FN}(); }}\n"
+    ));
+    std::fs::write(path, content)?;
+    Ok(())
+}
+
 /// Appends a function tagged exactly like every real one, plus a caller that discards its value,
 /// to `src/lib.rs` (preferred) or `src/main.rs`. If this run's build does not report BOTH the
 /// ignored call and the use of this function, the crate is suppressing one of the two lints
@@ -15,19 +28,19 @@ pub fn inject_sentinel(worktree_root: &Path) -> anyhow::Result<String> {
     for candidate in ["lib.rs", "main.rs"] {
         let path = worktree_root.join("src").join(candidate);
         if path.exists() {
-            let mut content = std::fs::read_to_string(&path)?;
-            content.push_str(&format!(
-                "\n#[allow(dead_code)]\n\
-                 #[must_use = \"CR:{SENTINEL_TAG}\"] #[deprecated(note = \"CR:{SENTINEL_TAG}\")]\n\
-                 fn {SENTINEL_FN}() -> i32 {{ 1 }}\n\
-                 #[allow(dead_code)]\n\
-                 fn {SENTINEL_FN}_caller() {{ {SENTINEL_FN}(); }}\n"
-            ));
-            std::fs::write(&path, content)?;
+            append_sentinel(&path)?;
             return Ok(format!("src/{candidate}"));
         }
     }
-    anyhow::bail!("neither src/lib.rs nor src/main.rs exists under {worktree_root:?}")
+    // no `src/lib.rs` or `src/main.rs`: the first library or binary root cargo reports (a `[[bin]]` with a `path` outside `src/`)
+    if let Some(relative) = crate::package::root_files(worktree_root)
+        .ok()
+        .and_then(|roots| roots.into_iter().next())
+    {
+        append_sentinel(&worktree_root.join(&relative))?;
+        return Ok(relative);
+    }
+    anyhow::bail!("neither src/lib.rs nor src/main.rs exists under {worktree_root:?}, and cargo reports no target root")
 }
 
 #[cfg(test)]
