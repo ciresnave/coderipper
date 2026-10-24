@@ -1,0 +1,407 @@
+//! Throwaway measurement tool for the security/crypto design document. NOT shipped code. Reads .rs paths (argv[2..]) under a repo root
+//! (argv[1]) and prints `repo<TAB>rule<TAB>file:line<TAB>source line` for each syntactic pattern. Types are unknown to syn, so every
+//! rule is a heuristic. Test code (`#[test]`, `#[cfg(test)]`, `tests/`, `benches/`, `examples/`, `build.rs`) is skipped.
+use proc_macro2::TokenTree;
+use quote::ToTokens;
+use std::collections::BTreeSet;
+use syn::spanned::Spanned;
+use syn::visit::{self, Visit};
+use syn::*;
+
+const SECRET_WORDS: &[&str] = &[
+    "password", "passwd", "secret", "token", "api_key", "apikey", "private_key", "privkey", "credential", "bearer", "passphrase",
+];
+/// Words that contain a secret word but are not one (LLM tokens, token counts, lifetimes, ...).
+const NOT_SECRET: &[&str] = &[
+    "tokens", "token_count", "num_tokens", "max_tokens", "n_tokens", "token_id", "token_ids", "tokenizer", "token_type", "token_len",
+    "tokenize", "tokenization", "eos_token", "bos_token", "pad_token", "unk_token", "next_token", "prev_token", "token_idx", "token_kind",
+    "tokenstream", "secret_len", "secret_count",
+];
+
+/// v3: a name is a secret only by its LAST segment (`token_endpoint`, `password_hash`, `credential_type` are not), or by a known two-segment
+/// key name (`api_key`, `private_key`, ...). Segments are split on `_`.
+fn is_secret_name(name: &str) -> bool {
+    let l = name.to_lowercase();
+    if l == "private" || l == "priv_key" || l == "privkey" {
+        return true;
+    }
+    if NOT_SECRET.iter().any(|n| l == *n || l.starts_with(&format!("{n}_")) || l.ends_with(&format!("_{n}"))) {
+        return false;
+    }
+    let segs: Vec<&str> = l.split('_').filter(|s| !s.is_empty()).collect();
+    let Some(last) = segs.last() else { return false };
+    if matches!(*last, "password" | "passwd" | "passphrase" | "secret" | "token" | "credential" | "credentials" | "bearer" | "apikey" | "privkey") {
+        return true;
+    }
+    if segs.len() >= 2 {
+        let pair = format!("{}_{}", segs[segs.len() - 2], last);
+        if matches!(
+            pair.as_str(),
+            "api_key" | "private_key" | "secret_key" | "signing_key" | "encryption_key" | "master_key" | "hmac_key" | "access_key" | "session_key" | "client_secret"
+        ) {
+            return true;
+        }
+    }
+    false
+}
+
+fn squash(a: &impl ToTokens) -> String {
+    a.to_token_stream().to_string().replace(' ', "")
+}
+
+fn is_test_attr(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|a| {
+        let s = squash(a);
+        s == "#[test]" || s.contains("cfg(test)") || s.contains("tokio::test") || s.starts_with("#[bench")
+    })
+}
+
+struct V {
+    /// names bound in the current fn to a non-empty literal (`let key_bytes = b"...";`)
+    literal_locals: std::collections::HashSet<String>,
+    out: Vec<(String, usize)>,
+    /// the file mentions an AEAD crate (aes_gcm, chacha20poly1305, aead, ring::aead)
+    aead_file: bool,
+}
+
+impl V {
+    fn hit(&mut self, rule: &str, line: usize) {
+        self.out.push((rule.to_string(), line));
+    }
+    fn collect_literals(&mut self, block: &Block) {
+        self.literal_locals.clear();
+        struct L<'a>(&'a mut std::collections::HashSet<String>);
+        impl<'ast> Visit<'ast> for L<'_> {
+            fn visit_local(&mut self, l: &'ast Local) {
+                if let (Pat::Ident(pi), Some(init)) = (&l.pat, &l.init) {
+                    if is_nonempty_literal(&init.expr) {
+                        self.0.insert(pi.ident.to_string());
+                    }
+                }
+                visit::visit_local(self, l);
+            }
+        }
+        L(&mut self.literal_locals).visit_block(block);
+    }
+}
+
+fn literal_or_local(e: &Expr, locals: &std::collections::HashSet<String>) -> bool {
+    is_nonempty_literal(e)
+        || matches!(e, Expr::Path(p) if p.path.get_ident().is_some_and(|i| locals.contains(&i.to_string())))
+        || matches!(e, Expr::Reference(r) if literal_or_local(&r.expr, locals))
+}
+
+fn is_nonempty_literal(e: &Expr) -> bool {
+    match e {
+        Expr::Lit(l) => match &l.lit {
+            Lit::Str(s) => !s.value().is_empty(),
+            Lit::ByteStr(b) => !b.value().is_empty(),
+            _ => false,
+        },
+        Expr::Reference(r) => is_nonempty_literal(&r.expr),
+        Expr::MethodCall(m) if matches!(m.method.to_string().as_str(), "as_bytes" | "to_vec" | "into" | "to_string" | "as_ref") => {
+            is_nonempty_literal(&m.receiver)
+        }
+        _ => false,
+    }
+}
+
+fn walk_tokens(ts: proc_macro2::TokenStream, f: &mut dyn FnMut(&proc_macro2::Ident)) {
+    for t in ts {
+        match t {
+            TokenTree::Ident(i) => f(&i),
+            TokenTree::Group(g) => walk_tokens(g.stream(), f),
+            _ => {}
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for V {
+    fn visit_item_mod(&mut self, i: &'ast ItemMod) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        visit::visit_item_mod(self, i);
+    }
+    fn visit_item_fn(&mut self, i: &'ast ItemFn) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        self.collect_literals(&i.block);
+        visit::visit_item_fn(self, i);
+    }
+    fn visit_impl_item_fn(&mut self, i: &'ast ImplItemFn) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        self.collect_literals(&i.block);
+        visit::visit_impl_item_fn(self, i);
+    }
+    fn visit_item_enum(&mut self, e: &'ast ItemEnum) {
+        let derives_debug = e.attrs.iter().any(|a| {
+            let t = squash(a);
+            t.starts_with("#[derive(") && t.contains("Debug")
+        });
+        for v in &e.variants {
+            for f in &v.fields {
+                let Some(name) = f.ident.as_ref().map(|i| i.to_string()) else { continue };
+                if !is_secret_name(&name) {
+                    continue;
+                }
+                let ty = squash(&f.ty);
+                let plain = matches!(ty.as_str(), "String" | "Vec<u8>" | "Option<String>" | "Option<Vec<u8>>") || ty.starts_with("[u8;");
+                if plain {
+                    let fline = f.ident.as_ref().map_or(0, |i| i.span().start().line);
+                    if derives_debug {
+                        self.hit("debug-prints-secret-field", fline);
+                    }
+                    self.hit("secret-field-not-zeroized", fline);
+                    break;
+                }
+            }
+        }
+        visit::visit_item_enum(self, e);
+    }
+    fn visit_expr_struct(&mut self, s: &'ast ExprStruct) {
+        // `Payload { msg, aad: b"" }`: an AEAD call with explicit empty associated data
+        if s.path.segments.last().is_some_and(|x| x.ident == "Payload") {
+            for f in &s.fields {
+                if matches!(&f.member, Member::Named(i) if i == "aad") {
+                    let v = squash(&f.expr);
+                    if matches!(v.as_str(), "b\"\"" | "&[]" | "\"\"" | "&b\"\"") {
+                        self.hit("aead-empty-aad", s.path.span().start().line);
+                    }
+                }
+            }
+        }
+        visit::visit_expr_struct(self, s);
+    }
+    fn visit_item_const(&mut self, c: &'ast ItemConst) {
+        // const FOO_KEY: &[u8] = b"...";
+        if is_secret_name(&c.ident.to_string()) && is_nonempty_literal(&c.expr) {
+            self.hit("hardcoded-secret:const", c.ident.span().start().line);
+        }
+        visit::visit_item_const(self, c);
+    }
+    fn visit_item_static(&mut self, c: &'ast ItemStatic) {
+        if is_secret_name(&c.ident.to_string()) && is_nonempty_literal(&c.expr) {
+            self.hit("hardcoded-secret:const", c.ident.span().start().line);
+        }
+        visit::visit_item_static(self, c);
+    }
+    fn visit_item_struct(&mut self, s: &'ast ItemStruct) {
+        let derives_debug = s.attrs.iter().any(|a| {
+            let t = squash(a);
+            t.starts_with("#[derive(") && t.contains("Debug")
+        });
+        let zeroizes = s.attrs.iter().any(|a| {
+            let t = squash(a);
+            t.contains("Zeroize") || t.contains("ZeroizeOnDrop")
+        });
+        let line = s.ident.span().start().line;
+        for f in &s.fields {
+            let Some(name) = f.ident.as_ref().map(|i| i.to_string()) else { continue };
+            if !is_secret_name(&name) {
+                continue;
+            }
+            let ty = squash(&f.ty);
+            let plain = matches!(
+                ty.as_str(),
+                "String" | "Vec<u8>" | "Option<String>" | "Option<Vec<u8>>" | "&str" | "&'staticstr" | "Box<str>"
+            ) || ty.starts_with("[u8;");
+            if !plain {
+                continue;
+            }
+            let fline = f.ident.as_ref().map_or(line, |i| i.span().start().line);
+            if derives_debug {
+                self.hit("debug-prints-secret-field", fline);
+            }
+            if !zeroizes {
+                self.hit("secret-field-not-zeroized", fline);
+            }
+            break;
+        }
+        visit::visit_item_struct(self, s);
+    }
+    fn visit_expr_call(&mut self, c: &'ast ExprCall) {
+        if let Expr::Path(p) = &*c.func {
+            let last = p.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
+            let line = p.span().start().line;
+            if matches!(
+                last.as_str(),
+                "from_secret" | "from_base64_secret" | "new_from_slice" | "from_slice" | "from_bytes" | "from_hmac_secret" | "from_ed_der"
+            ) && c.args.iter().any(|a| literal_or_local(a, &self.literal_locals))
+            {
+                self.hit("hardcoded-key-material", line);
+            }
+            if last == "new" && squash(&c.func).contains("hmac::Key") && c.args.iter().any(|a| literal_or_local(a, &self.literal_locals)) {
+                self.hit("hardcoded-key-material", line);
+            }
+        }
+        visit::visit_expr_call(self, c);
+    }
+    fn visit_expr_method_call(&mut self, m: &'ast ExprMethodCall) {
+        let name = m.method.to_string();
+        let line = m.method.span().start().line;
+        match name.as_str() {
+            "danger_accept_invalid_certs" | "danger_accept_invalid_hostnames" => {
+                // `.danger_accept_invalid_certs(false)` is the safe call
+                if !matches!(m.args.first(), Some(Expr::Lit(l)) if matches!(&l.lit, Lit::Bool(b) if !b.value)) {
+                    self.hit("tls-verification-off", line);
+                }
+            }
+            "dangerous" => self.hit("tls-verification-off", line),
+            "from_secret" | "new_from_slice" | "from_slice" if m.args.iter().any(|a| literal_or_local(a, &self.literal_locals)) => {
+                self.hit("hardcoded-key-material", line)
+            }
+            "encrypt" | "decrypt" if self.aead_file && m.args.len() == 2 => {
+                // the AEAD API with no associated data: `cipher.encrypt(&nonce, plaintext)`; the AAD form passes a `Payload { msg, aad }`
+                let second = squash(&m.args[1]);
+                if !second.contains("Payload") && !second.contains("aad") {
+                    self.hit("aead-without-aad", line);
+                }
+            }
+            "unwrap" | "expect" => {}
+            _ => {}
+        }
+        visit::visit_expr_method_call(self, m);
+    }
+    fn visit_expr_binary(&mut self, b: &'ast ExprBinary) {
+        if matches!(b.op, BinOp::Eq(_) | BinOp::Ne(_)) {
+            let leaf = |e: &Expr| -> Option<String> {
+                match e {
+                    Expr::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
+                    Expr::Field(f) => match &f.member {
+                        Member::Named(i) => Some(i.to_string()),
+                        _ => None,
+                    },
+                    Expr::MethodCall(m) if matches!(m.method.to_string().as_str(), "as_bytes" | "as_str" | "as_ref" | "unwrap" | "expose_secret") => {
+                        match &*m.receiver {
+                            Expr::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
+                            Expr::Field(f) => match &f.member {
+                                Member::Named(i) => Some(i.to_string()),
+                                _ => None,
+                            },
+                            _ => None,
+                        }
+                    }
+                    Expr::Reference(r) => match &*r.expr {
+                        Expr::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
+                        _ => None,
+                    },
+                    _ => None,
+                }
+            };
+            let (l, r) = (leaf(&b.left), leaf(&b.right));
+            let lit = |e: &Expr| matches!(e, Expr::Lit(_)) || squash(e) == "None";
+            if !lit(&b.left) && !lit(&b.right) {
+                let secretish = |n: &Option<String>| {
+                    n.as_deref().is_some_and(|n| {
+                        let l = n.to_lowercase();
+                        (is_secret_name(n) || l.contains("hmac") || l.contains("signature") || l.contains("digest") || l == "mac" || l.ends_with("_mac"))
+                            && !l.contains("len")
+                            && !l.contains("type")
+                            && !l.contains("count")
+                    })
+                };
+                if secretish(&l) && secretish(&r) {
+                    self.hit("non-constant-time-compare", b.op.span().start().line);
+                }
+            }
+        }
+        visit::visit_expr_binary(self, b);
+    }
+    fn visit_macro(&mut self, m: &'ast Macro) {
+        let name = m.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
+        let line = m.path.span().start().line;
+        if matches!(name.as_str(), "info" | "debug" | "warn" | "error" | "trace" | "println" | "eprintln" | "log") {
+            // the secret-named name must be logged AS the value: not a receiver (`token.user_id`), and also inline `{password}` in a format string
+            let mut hit = false;
+            let toks: Vec<TokenTree> = m.tokens.clone().into_iter().collect();
+            fn scan(toks: &[TokenTree], hit: &mut bool) {
+                for (idx, t) in toks.iter().enumerate() {
+                    match t {
+                        TokenTree::Ident(i) if is_secret_name(&i.to_string()) => {
+                            let receiver = matches!(toks.get(idx + 1), Some(TokenTree::Punct(p)) if p.as_char() == '.');
+                            let callee = matches!(toks.get(idx + 1), Some(TokenTree::Group(g)) if g.delimiter() == proc_macro2::Delimiter::Parenthesis);
+                            if !receiver && !callee {
+                                *hit = true;
+                            }
+                        }
+                        TokenTree::Literal(l) => {
+                            let s = l.to_string();
+                            if s.starts_with('"') {
+                                for part in s.split('{').skip(1) {
+                                    let name: String = part.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+                                    if !name.is_empty() && is_secret_name(&name) {
+                                        *hit = true;
+                                    }
+                                }
+                            }
+                        }
+                        TokenTree::Group(g) => {
+                            let inner: Vec<TokenTree> = g.stream().into_iter().collect();
+                            scan(&inner, hit);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            scan(&toks, &mut hit);
+            if hit {
+                self.hit("secret-named-value-in-log", line);
+            }
+        }
+        visit::visit_macro(self, m);
+    }
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let root = std::path::PathBuf::from(&args[1]);
+    let repo = root.file_name().unwrap().to_string_lossy().to_string();
+    let mut seen = BTreeSet::new();
+    for rel in &args[2..] {
+        if rel.contains("/tests/")
+            || rel.starts_with("tests/")
+            || rel.contains("/benches/")
+            || rel.contains("/examples/")
+            || rel.ends_with("build.rs")
+        {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(root.join(rel)) else { continue };
+        let Ok(file) = syn::parse_file(&text) else {
+            eprintln!("unparsed\t{rel}");
+            continue;
+        };
+        let lines: Vec<String> = text.lines().map(str::to_string).collect();
+        let aead_file = ["aes_gcm", "chacha20poly1305", "aead::", "ring::aead", "aes_gcm_siv", "xchacha20"].iter().any(|k| text.contains(k));
+        let mut v = V { out: vec![], aead_file, literal_locals: Default::default() };
+        v.visit_file(&file);
+        for (rule, line) in v.out {
+            if seen.insert((rel.clone(), rule.clone(), line)) {
+                let src = lines
+                    .get(line.wrapping_sub(1))
+                    .map(|s| s.trim().chars().take(140).collect::<String>())
+                    .unwrap_or_default();
+                println!("{repo}\t{rule}\t{rel}:{line}\t{src}");
+            }
+        }
+        // weak algorithms: by the crate or type name, in `use` lines and paths (text level)
+        for (i, l) in lines.iter().enumerate() {
+            let t = l.trim_start();
+            if t.starts_with("//") {
+                continue;
+            }
+            let weak = ["md5::", "Md5::", "sha1::", "Sha1::", "des::", "Rc4", "rc4::", "Ecb<", "ecb::"];
+            // a match counts only at a word start: `des::` inside `codes::` or `strides::` is not the DES crate
+            let at_word = |w: &str| t.match_indices(w).any(|(i, _)| i == 0 || !t[..i].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_'));
+            if (t.starts_with("use ") || t.contains("::new(") || t.contains("::digest(") || t.contains("::compute(")) && weak.iter().any(|w| at_word(w)) {
+                if seen.insert((rel.clone(), "weak-algorithm".to_string(), i + 1)) {
+                    println!("{repo}\tweak-algorithm\t{rel}:{}\t{}", i + 1, t.chars().take(140).collect::<String>());
+                }
+            }
+        }
+    }
+}

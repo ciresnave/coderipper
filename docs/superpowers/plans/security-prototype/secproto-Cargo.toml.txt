@@ -1,0 +1,12 @@
+[package]
+name = "secproto"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+syn = { version = "2", features = ["full", "visit", "extra-traits"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+quote = "1"
+
+[workspace]

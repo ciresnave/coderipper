@@ -1,0 +1,53 @@
+// Control for the security prototype. Lines marked MUST fire; lines marked MUSTNOT must stay silent.
+use aes_gcm::aead::{Aead, Payload};
+use md5::Md5; // MUST: weak-algorithm
+
+const SIGNING_SECRET: &[u8] = b"dev-signing-key"; // MUST: hardcoded-secret:const
+const MAX_TOKENS: usize = 4096; // MUSTNOT: not a secret
+const API_NAME: &str = "service"; // MUSTNOT: not a secret name
+
+#[derive(Debug)]
+pub struct Creds {
+    pub user: String,
+    pub password: String, // MUST: debug-prints-secret-field + secret-field-not-zeroized (reported at the struct)
+}
+
+#[derive(Debug, ZeroizeOnDrop)]
+pub struct Zeroed {
+    pub secret: String, // MUST: debug-prints-secret-field only (it zeroizes)
+}
+
+pub struct Safe {
+    pub password: Zeroizing<String>, // MUSTNOT: wrapped type
+    pub token_count: usize,          // MUSTNOT: not a secret
+}
+
+pub fn everything(provided_token: &str, expected_token: &str, password: &str, tokens: usize, cipher: &Cipher, nonce: &Nonce, msg: &[u8]) {
+    let _k = EncodingKey::from_secret(b"dev-key"); // MUST: hardcoded-key-material
+    let _ok = EncodingKey::from_secret(&runtime_secret()); // MUSTNOT: not a literal
+    let _c = reqwest::Client::builder().danger_accept_invalid_certs(true); // MUST: tls-verification-off
+    let _d = reqwest::Client::builder().danger_accept_invalid_certs(false); // MUSTNOT: the safe call
+    let _e = cipher.encrypt(nonce, msg); // MUST: aead-without-aad
+    let _f = cipher.encrypt(nonce, Payload { msg, aad: b"ctx" }); // MUSTNOT: carries AAD
+    if provided_token == expected_token {} // MUST: non-constant-time-compare
+    if tokens == 3 {} // MUSTNOT
+    info!("login with {}", password); // MUST: secret-named-value-in-log
+    info!("generated {} tokens", tokens); // MUSTNOT: LLM tokens are not secrets
+}
+
+#[derive(Debug)]
+pub enum Keys {
+    Rsa { private: Vec<u8>, public: Vec<u8> }, // MUST: debug-prints-secret-field + secret-field-not-zeroized (the #61/#265 shapes)
+    Plain { name: String },                    // MUSTNOT
+}
+
+pub fn local_key() {
+    let key_bytes = b"change-me-in-production";
+    let _p = EncodingKey::from_secret(key_bytes); // MUST: hardcoded-key-material via a local literal (the #222 shape)
+    let runtime = load();
+    let _q = EncodingKey::from_secret(&runtime); // MUSTNOT
+}
+
+pub fn empty_aad(cipher: &Cipher, nonce: &Nonce, msg: &[u8]) {
+    let _a = cipher.decrypt(nonce, Payload { msg, aad: b"" }); // MUST: aead-empty-aad
+}
