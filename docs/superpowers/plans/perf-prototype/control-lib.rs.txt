@@ -1,0 +1,57 @@
+use std::cell::RefCell;
+use std::collections::LinkedList;
+use std::io::Write;
+use std::rc::Rc;
+
+pub struct Nodes {
+    pub a: Vec<Box<Node>>,
+    pub b: Rc<RefCell<Node>>,
+    pub c: LinkedList<u32>,
+}
+pub struct Node(pub u32);
+
+#[repr(C)]
+pub struct Padded {
+    a: u8,
+    b: u64,
+    c: u8,
+}
+
+#[inline(always)]
+pub fn fast(v: &[u32], i: usize) -> u32 {
+    // for speed
+    unsafe { *v.get_unchecked(i) }
+}
+
+pub fn everything(items: &[String], other: &Vec<String>, db: &Db) -> String {
+    let mut out = String::new();
+    let mut v = Vec::new();
+    for x in items {
+        v.push(x.len());
+    }
+    for x in items {
+        let re = regex::Regex::new("a+").unwrap();
+        let _s = format!("{x}");
+        let _t = x.to_string();
+        let _c = x.clone();
+        let _n = Vec::<u8>::new();
+        out += &x[..];
+        if other.contains(x) {}
+        db.execute("select 1");
+        for y in items {
+            let _ = (x, y, &re);
+        }
+    }
+    let w: Vec<u32> = (0..3).collect::<Vec<_>>().iter().map(|x| *x).collect();
+    let _ = w;
+    let mut f = std::fs::File::create("x").unwrap();
+    for x in items {
+        writeln!(f, "{x}").unwrap();
+    }
+    out
+}
+
+pub struct Db;
+impl Db {
+    pub fn execute(&self, _q: &str) {}
+}

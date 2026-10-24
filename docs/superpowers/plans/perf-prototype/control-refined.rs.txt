@@ -1,0 +1,38 @@
+use std::collections::HashSet;
+
+fn fallible(_x: &str) -> Result<(), String> {
+    Ok(())
+}
+
+pub fn refined(items: &[String], set: &HashSet<String>, v: &Vec<String>) -> Result<(), String> {
+    for x in items {
+        // error path: must NOT be reported as an allocation in a loop
+        fallible(x).map_err(|e| format!("bad {x}: {e}"))?;
+        // a set: must NOT be reported as a linear search
+        if set.contains(x) {}
+        // a Vec: MUST be reported
+        if v.contains(x) {}
+    }
+    let mut early = Vec::new();
+    for x in items {
+        if x.is_empty() {
+            continue;
+        }
+        // an early exit means the length is not evident: must NOT be reported
+        early.push(x.len());
+    }
+    let mut evident = Vec::new();
+    for x in items {
+        // one push per turn over a collection: MUST be reported
+        evident.push(x.len());
+    }
+    let _ = (early, evident);
+    Ok(())
+}
+
+fn main() {
+    // `main` is a cold path: must NOT be reported
+    for i in 0..3 {
+        let _s = format!("{i}");
+    }
+}

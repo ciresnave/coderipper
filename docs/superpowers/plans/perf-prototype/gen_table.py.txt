@@ -1,0 +1,121 @@
+"""Builds the per-item verdict table of the precision-sample document from the same seeded order show.py uses."""
+import random
+
+T, F = "true", "false"
+V = {
+    "loop:format!": {
+        **{i: (F, "a weight-name string is the lookup key, one per tensor at model load") for i in (1, 2, 3, 4, 6, 7, 8, 9)},
+        **{i: (F, "generated CUDA source text is the output") for i in (5, 10)},
+    },
+    "loop:clone": {
+        1: (F, "an owned Vec the callee takes by value"),
+        2: (F, "a Shape by value to the node builder"),
+        3: (F, "a Shape by value to the node builder"),
+        4: (F, "copied out of a lock or borrow scope"),
+        5: (F, "an Arc-backed tensor handle: a cheap clone"),
+        6: (F, "copied out of a lock or borrow scope"),
+        7: (F, "moved into the job list"),
+        8: (F, "used again after the move"),
+        9: (F, "a Shape by value to the node builder"),
+        10: (F, "an Arc-backed tensor handle: a cheap clone"),
+        11: (F, "a Shape by value per layer"),
+        12: (F, "a Shape by value to the node builder"),
+    },
+    "loop:alloc-new": {
+        **{i: (F, "a `vec![..]` argument the node builder takes by value") for i in (1, 2, 3, 4, 5, 6, 8, 10)},
+        7: (F, "a per-step substitution map, rebuilt each step by design (a comment says so)"),
+        9: (F, "an owned input list, extended on the next lines"),
+    },
+    "loop:to_string": {
+        **{i: (F, "an owned String field or element that has to own its text") for i in (1, 2, 3, 4, 6, 7, 8, 9, 10)},
+        5: (F, "an error value that owns its text (an error path)"),
+    },
+    "loop:to_owned/to_vec": {
+        1: (F, "owned copy out of a lock guard's scope"),
+        2: (T, "allocates `Object::Unicode(key.to_owned())` per element only to compare; a `matches!` needs no copy"),
+        3: (F, "an owned `dtypes_vec` stored in the ledger record"),
+        4: (F, "an owned `dtypes_vec` stored in the ledger record"),
+        5: (T, "`dims` is only extended into another Vec: `extend_from_slice` on the borrowed dims needs no copy"),
+        6: (F, "an owned `dtypes_vec` stored in the ledger record"),
+        7: (T, "`strides` is only borrowed by the call: a slice of `b.strides` needs no copy"),
+        8: (T, "`dims` is only borrowed by `summarize`: the view's shape slice needs no copy"),
+        9: (F, "stored in the table"),
+        10: (F, "an owned `dtypes_vec` stored in the ledger record"),
+        11: (F, "owned and mutated afterwards"),
+        12: (F, "an owned `dtypes_vec` stored in the ledger record"),
+        13: (F, "owned and mutated on the next line"),
+        14: (F, "an owned Vec stored in the record"),
+        15: (T, "`dims` is only read and printed: the borrowed slice needs no copy"),
+        16: (F, "borrow of `g` may conflict with later mutation; not shown to be avoidable"),
+        17: (F, "borrow of `g` may conflict with later mutation; not shown to be avoidable"),
+        18: (F, "copy of a temporary Shape's dims; not shown to be avoidable"),
+        19: (F, "an owned Vec returned"),
+        20: (T, "`got` is only compared and printed: the borrowed slice needs no copy"),
+    },
+    "loop:contains(vec)": {i: (F, "a Vec bounded by a small fixed domain (backends, devices, axes, kernel names): a set would not help") for i in range(1, 13)},
+    "loop:iter-linear-search": {
+        1: (F, "a predicate over every cluster member (clique building), not a lookup"),
+        2: (T, "a keyed lookup (`claim`) in a growing ledger, repeated per record: quadratic, a map by claim fixes it"),
+        3: (F, "non-maximum suppression: an overlap predicate over kept boxes, inherent to the algorithm"),
+        4: (F, "a few include paths"),
+        5: (F, "a short fixed list of op names"),
+        6: (F, "a predicate over rules (`matches`), not an equality lookup"),
+        7: (F, "readers of one node: a handful"),
+        8: (F, "a few backends"),
+        9: (F, "a predicate over every cluster member (clique building), not a lookup"),
+        10: (F, "a predicate over a few backends"),
+    },
+    "vec-new-then-push-loop": {
+        1: (T, "pushes once per turn over `0..n_bottleneck`: `with_capacity(n_bottleneck)`"),
+        2: (T, "pushes once per turn over `0..depths[si]`"),
+        3: (T, "one push per element of `unique` (checked: the `?` leaves early only on error)"),
+        4: (T, "pushes once per turn over `0..n_res`"),
+        5: (F, "other pushes sit in nested loops and conditions: the length is not evident"),
+        6: (T, "one push per element of `unique`"),
+        7: (T, "one push per element of `unique`"),
+        8: (T, "one push per element of `unique`"),
+        9: (F, "the code deliberately avoids `with_capacity(len)` because `len` is untrusted (a comment says so)"),
+    },
+    "nested-loop-same-collection": {
+        1: (F, "a cost table over backend pairs: the cross product is the intent"),
+        2: (T, "for every node, a scan of every node for readers of its target: quadratic, a consumer index fixes it"),
+        3: (F, "a dtype x dtype cast table: the cross product is the intent"),
+    },
+    "collect-then-iterate": {
+        1: (F, "collects into a `HashSet` to deduplicate, then back into a Vec: the type change is the point"),
+        2: (F, "collects into a `HashSet` to deduplicate, then back into a Vec: the type change is the point"),
+    },
+    "unbuffered-io": {
+        1: (T, "`writeln!` per kernel path into an unbuffered `File` (a build script: small and cold)"),
+        2: (T, "`writeln!` per object path into an unbuffered `File` (a response file: small and cold)"),
+    },
+}
+ORDER = [
+    "loop:format!", "loop:clone", "loop:alloc-new", "loop:to_string", "loop:to_owned/to_vec", "loop:contains(vec)",
+    "loop:iter-linear-search", "vec-new-then-push-loop", "nested-loop-same-collection", "collect-then-iterate", "unbuffered-io",
+]
+out = []
+summary = []
+for rule in ORDER:
+    rows = []
+    for repo in ["fuel", "baracuda", "Unpopped"]:
+        for line in open(f"out2_{repo}.tsv", encoding="utf-8"):
+            p = line.rstrip("\n").split("\t")
+            if len(p) >= 4 and p[1] == rule:
+                rows.append(p)
+    rows.sort(key=lambda r: (r[0], r[2]))
+    random.Random(2026).shuffle(rows)
+    judged = sorted(V[rule])
+    tp = sum(1 for i in judged if V[rule][i][0] == T)
+    summary.append((rule, len(rows), len(judged), tp))
+    out.append(f"\n#### `{rule}` ({len(rows)} findings; {len(judged)} judged, {tp} true)\n")
+    out.append("| # | site | verdict | why |\n|---|---|---|---|")
+    for i in judged:
+        repo, _, loc, _ = rows[i - 1]
+        v, why = V[rule][i]
+        out.append(f"| {i} | {repo} `{loc}` | {v} | {why} |")
+print("SUMMARY")
+for rule, pop, n, tp in summary:
+    print(f"| `{rule}` | {pop} | {n} | {tp} | {100 * tp // n}% |")
+print("TABLES")
+print("\n".join(out))
