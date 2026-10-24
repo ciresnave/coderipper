@@ -97,9 +97,9 @@ impl RewrittenWorktree {
             "{} is not in the repository's HEAD commit (is it committed?); the checks analyze HEAD",
             project_root.display()
         );
-        crate::package::require_package_as(&guard.root, project_root)?;
+        let package = crate::package::require_package_as(&guard.root, project_root)?;
 
-        guard.rewrite_src(&mut rewrite)?;
+        guard.rewrite_src(&package.roots, &mut rewrite)?;
         Ok(guard)
     }
 
@@ -127,23 +127,40 @@ impl RewrittenWorktree {
             "{} is not in the repository's HEAD commit (is it committed?); the checks analyze HEAD",
             project_root.display()
         );
-        crate::package::require_package_as(&guard.root, project_root)?;
-        guard.rewrite_src(&mut rewrite)?;
+        let package = crate::package::require_package_as(&guard.root, project_root)?;
+        guard.rewrite_src(&package.roots, &mut rewrite)?;
         Ok(guard)
     }
 
-    /// Rewrites every `.rs` file under the package's `src/` with `rewrite(relative_path, source)`, in sorted order.
-    fn rewrite_src<F>(&self, rewrite: &mut F) -> anyhow::Result<()>
+    /// Rewrites every `.rs` file under the package's `src/` with `rewrite(relative_path, source)`, in sorted order. A package with no
+    /// `src/` (only `[[bin]]` or `[lib]` entries with a `path`, such as an `examples` package) has its library and binary root files
+    /// rewritten instead (`roots`, from `cargo metadata`).
+    fn rewrite_src<F>(&self, roots: &[String], rewrite: &mut F) -> anyhow::Result<()>
     where
         F: FnMut(&str, &str) -> anyhow::Result<String>,
     {
         let src = self.root.join("src");
-        anyhow::ensure!(
-            src.is_dir(),
-            "{} has no `src/` directory: this package's targets (`[[bin]]`, `[[example]]` or `[lib]` with a `path`) are outside `src/`, which the Rust checks do not support yet, so none of them was judged",
-            self.root.display()
-        );
-        let mut files = walk_rs_files(&src)?;
+        let mut files = if src.is_dir() {
+            walk_rs_files(&src)?
+        } else {
+            anyhow::ensure!(
+                !roots.is_empty(),
+                "{} has no `src/` directory and no library or binary target, so there is no source for the Rust checks to read",
+                self.root.display()
+            );
+            let mut files = Vec::new();
+            for relative in roots {
+                let path = self.root.join(relative);
+                anyhow::ensure!(
+                    path.is_file(),
+                    "{} names the target root `{relative}`, which is not a file in the checked-out commit",
+                    self.root.display()
+                );
+                no_file_modules(&path, relative)?;
+                files.push(path);
+            }
+            files
+        };
         files.sort();
         for entry in files {
             let relative = entry
@@ -155,6 +172,35 @@ impl RewrittenWorktree {
         }
         Ok(())
     }
+}
+
+/// A target root outside `src/` that declares a file module (`mod name;`) has the module's file beside it, which would be neither
+/// rewritten nor read: the result for that package would look complete and not be. Refuse instead, and say why.
+fn no_file_modules(path: &Path, relative: &str) -> anyhow::Result<()> {
+    fn first_file_module(items: &[syn::Item]) -> Option<String> {
+        for item in items {
+            if let syn::Item::Mod(m) = item {
+                match &m.content {
+                    None => return Some(m.ident.to_string()),
+                    Some((_, inner)) => {
+                        if let Some(found) = first_file_module(inner) {
+                            return Some(found);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+    let source = std::fs::read_to_string(path)?;
+    let file = syn::parse_file(&source)
+        .map_err(|e| anyhow::anyhow!("{relative} does not parse as Rust: {e}"))?;
+    if let Some(name) = first_file_module(&file.items) {
+        anyhow::bail!(
+            "{relative} is a target root outside `src/` and declares the file module `{name}`; modules of such a target are not supported yet, so none of the package's Rust checks ran"
+        );
+    }
+    Ok(())
 }
 
 impl Drop for RewrittenWorktree {

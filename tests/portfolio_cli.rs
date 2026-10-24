@@ -310,37 +310,44 @@ fn a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_r
 }
 
 #[test]
-fn a_package_whose_targets_are_outside_src_says_so_instead_of_a_bare_os_error() {
+fn a_package_whose_targets_are_outside_src_is_analysed_from_its_cargo_targets() {
     // baracuda's `examples` package: only `[[bin]]` entries with a `path` at the package root, no `src/`
     let repo = common::git_repo_with(&[
         (
             "Cargo.toml",
-            "[package]
-name = \"ex\"
-version = \"0.0.0\"
-edition = \"2021\"
-publish = false
-
-[[bin]]
-name = \"hello\"
-path = \"hello.rs\"
-",
+            "[package]\nname = \"ex\"\nversion = \"0.0.0\"\nedition = \"2021\"\npublish = false\n\n[[bin]]\nname = \"hello\"\npath = \"hello.rs\"\n",
         ),
-        (
-            "Cargo.lock",
-            "version = 4
-",
-        ),
-        (
-            "LICENSE",
-            "MIT License
-",
-        ),
+        ("Cargo.lock", "version = 4\n"),
+        ("LICENSE", "MIT License\n"),
         (
             "hello.rs",
-            "fn main() {}
-",
+            "pub fn unused_helper() -> i32 { 2 }\nfn g() -> i32 { 1 }\nfn main() { g(); }\n",
         ),
+    ]);
+    // all three Rust checks run on the root file cargo names, each with its sentinel: a result, not an error
+    sweep_portfolio(
+        &repo,
+        &["--skip-rule", "ci-protection-presence=no forge in a test"],
+    )
+    .assert()
+    .code(0)
+    .stdout(predicate::str::contains("`unused_helper` has zero callers"))
+    .stdout(predicate::str::contains("(unused-return-values)"))
+    .stderr(predicate::str::contains("os error").not())
+    .stderr(predicate::str::contains("check error").not());
+}
+
+#[test]
+fn a_target_outside_src_with_a_file_module_is_refused_by_name_not_half_read() {
+    let repo = common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[package]\nname = \"ex\"\nversion = \"0.0.0\"\nedition = \"2021\"\npublish = false\n\n[[bin]]\nname = \"hello\"\npath = \"hello.rs\"\n",
+        ),
+        ("Cargo.lock", "version = 4\n"),
+        ("LICENSE", "MIT License\n"),
+        ("hello.rs", "mod helper;\nfn main() { helper::f(); }\n"),
+        ("helper.rs", "pub fn f() {}\n"),
     ]);
     sweep_portfolio(
         &repo,
@@ -348,7 +355,9 @@ path = \"hello.rs\"
     )
     .assert()
     .code(3)
-    .stderr(predicate::str::contains("has no `src/` directory"))
+    .stderr(predicate::str::contains(
+        "declares the file module `helper`",
+    ))
     .stderr(predicate::str::contains("os error").not());
 }
 

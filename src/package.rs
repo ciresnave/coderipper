@@ -36,6 +36,9 @@ pub(crate) struct Package {
     /// cargo's package id, as it appears in `compiler-message` lines (`package_id`).
     pub id: String,
     pub dir: PathBuf,
+    /// The root source file of every library and binary target, relative to `dir` with `/` separators, libraries first, then
+    /// binaries by path. Where `src/lib.rs` and `src/main.rs` are not the answer (a `[[bin]]` with a `path` at the package root).
+    pub roots: Vec<String>,
 }
 
 pub(crate) struct Metadata {
@@ -61,11 +64,13 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
         .flatten()
         .filter_map(|p| {
             let manifest_path = PathBuf::from(p["manifest_path"].as_str()?);
+            let dir = manifest_path.parent()?.to_path_buf();
             Some(Package {
                 name: p["name"].as_str()?.to_string(),
                 version: p["version"].as_str()?.to_string(),
                 id: p["id"].as_str()?.to_string(),
-                dir: manifest_path.parent()?.to_path_buf(),
+                roots: target_roots(p, &dir),
+                dir,
                 manifest_path,
             })
         })
@@ -74,6 +79,46 @@ pub(crate) fn metadata(dir: &Path) -> anyhow::Result<Metadata> {
         workspace_root: PathBuf::from(json["workspace_root"].as_str().unwrap_or_default()),
         packages,
     })
+}
+
+/// The root files of the library and binary targets of the package at `dir` (see [`Package::roots`]).
+pub(crate) fn root_files(dir: &Path) -> anyhow::Result<Vec<String>> {
+    Ok(require_package_as(dir, dir)?.roots)
+}
+
+/// The root source file of each library and binary target in a `cargo metadata` package entry, relative to the package directory.
+fn target_roots(package: &serde_json::Value, dir: &Path) -> Vec<String> {
+    let mut libs = Vec::new();
+    let mut bins = Vec::new();
+    for target in package["targets"].as_array().into_iter().flatten() {
+        let kinds: Vec<&str> = target["kind"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|k| k.as_str())
+            .collect();
+        let Some(src) = target["src_path"].as_str() else {
+            continue;
+        };
+        let Ok(rel) = Path::new(src).strip_prefix(dir) else {
+            continue;
+        };
+        let rel = rel.to_string_lossy().replace('\\', "/");
+        if kinds.iter().any(|k| {
+            matches!(
+                *k,
+                "lib" | "rlib" | "dylib" | "cdylib" | "staticlib" | "proc-macro"
+            )
+        }) {
+            libs.push(rel);
+        } else if kinds.contains(&"bin") {
+            bins.push(rel);
+        }
+    }
+    bins.sort();
+    libs.extend(bins);
+    libs.dedup();
+    libs
 }
 
 /// `(workspace root, every member)` of the cargo workspace containing `dir`, members sorted by directory so the
