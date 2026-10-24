@@ -7,8 +7,9 @@
 >
 > **Headline.** Of the seven incidents the portfolio's own history records (section 1), a throwaway detector tells the commit *before* from the commit *after*
 > on **five** (hard-coded key material, twice; Debug that prints a secret; unzeroized key material, twice), and cannot on **two** (an AAD that omits
-> metadata; a username in a log line), which are not statically checkable and the document says so. On today's code, **one rule clears the gate**
-> (`secret-field-not-zeroized`, 25 of 30 where a reviewer would act, 83%), **one is a clean inventory that no one should act on** (weak algorithms: every
+> metadata; a username in a log line), which are not statically checkable and the document says so. On today's code, **no rule clears the gate**.
+> The best candidate, `secret-field-not-zeroized`, was 25 of 30 where a reviewer would act (83%) in the first sample, **but 22 of those 30 were auth-framework**;
+> a fresh 30 drawn outside it is **14 of 30 (47%)** (section 5b). **One is a clean inventory that no one should act on** (weak algorithms: every
 > use is mandated by a protocol), and the name-based rules that looked most natural (a secret-named value in a log line, a hard-coded secret constant)
 > **fail badly until their matcher is tightened, and still do not clear**. The measurement also found places in auth-framework worth a reviewer's time, one of
 > them a real vulnerability; they were reported privately (section 7).
@@ -72,7 +73,7 @@ All of them are readings of the syntax tree (`syn` for Rust). **None can see typ
 | SEC-004c | **Weak algorithm in use** | `md5`, `sha1`, `des`, `rc4`, ECB at a word boundary in `use` and constructor lines | Exact, but **an inventory, not a defect**: protocols mandate MD5 (RADIUS), SHA-1 (HOTP, WS-Security, the HIBP range API). Severity Info; a waiver cites the protocol |
 | SEC-004d | **AEAD without associated data** | `.encrypt(nonce, x)` / `.decrypt(nonce, x)` with two arguments in a file that uses an AEAD crate; `Payload { aad: b"" }` | Fires on the project's own `decrypt(&envelope, key)` wrapper (3 of 7): needs the receiver's type. Whether AAD is *required* is a protocol fact (JWE requires it), not a syntax one |
 | SEC-004e | **Non-constant-time comparison of a secret** | `==`/`!=` where both operands end in a secret-named or MAC-like identifier | Name-based: fires on a message digest compared for ack matching and on LLM token ids. The match is on the **last segment**, which removed most of the noise |
-| SEC-011 | **Secret field not zeroized** | a struct or enum-variant field whose name's last segment is `password`, `passwd`, `passphrase`, `secret`, `token`, `credential`, `bearer`, or `api_key`, `private_key`, `signing_key`, ... , typed `String`, `Vec<u8>`, `Option<..>` or `[u8; N]`, in a type with no `Zeroize`/`ZeroizeOnDrop` | **The one rule that clears the gate.** FP causes: a CSRF token, a response token, a parser's DSL token |
+| SEC-011 | **Secret field not zeroized** | a struct or enum-variant field whose name's last segment is `password`, `passwd`, `passphrase`, `secret`, `token`, `credential`, `bearer`, or `api_key`, `private_key`, `signing_key`, ... , typed `String`, `Vec<u8>`, `Option<..>` or `[u8; N]`, in a type with no `Zeroize`/`ZeroizeOnDrop` | **Does not clear the gate across owners** (83% in auth-framework, 47% outside it; section 5b). FP causes: a bare `token` that is a DSL token, a vocabulary token, a lock id or a one-time code; a public key; an audit name |
 | SEC-008a | **Debug prints a secret** | `derive(Debug)` on a type with a SEC-011-shaped field | 50% on the census: `token` is also a DSL token, a pagination cursor, an ACME challenge |
 | SEC-008b | **A secret logged as the value** | a log macro whose arguments name a secret as the value (not a receiver such as `token.user_id`), including an inline `{password}` | After tightening, 3 findings in 8 repositories; see section 5 |
 | SEC-012 | **Panic on untrusted input** | `unwrap`, `expect`, `panic!`, indexing, slicing, `as` truncation **inside a function declared as an entry point** (`[security] entry_points`) | **Not measured here.** Without a declared entry point the whole crate would be reported; the rule exists only with the declaration. Reuses Clippy's restriction lints (`unwrap_used`, `expect_used`, `indexing_slicing`, `cast_possible_truncation`) |
@@ -138,7 +139,8 @@ that no reviewer would act on) applies to SEC-011 only, which reached 30.
 | rule | matcher | findings | judged | right | acts | reading |
 |---|---|---|---|---|---|---|
 | `secret-field-not-zeroized` (SEC-011) | v2 | 146 | 12 | 8 (67%) | 5 (42%) | substring names: hashes, public keys and ids matched |
-| | **v3** | 113 | **30** | 28 (93%) | **25 (83%)** | **clears the gate**: 22 of the 30 are auth-framework, the rest synapse (3), mlmf (2), fuel (2), lightbulb (1) |
+| | **v3**, first sample | 113 | **30** | 28 (93%) | **25 (83%)** | 22 of the 30 are auth-framework, the rest synapse (3), mlmf (2), fuel (2), lightbulb (1) |
+| | **v3**, re-sample outside auth-framework | 54 | **30** | 19 (63%) | **14 (47%)** | **fails the gate**; the 7th non-actionable finding comes at row 10 (3 of 10); section 5b |
 | `debug-prints-secret-field` (SEC-008a) | v2 | 40 | 14 | 3 (21%) | 3 (21%) | 7 false at row 11 |
 | | v3 | 20 | 20 (census) | 10 (50%) | 10 (50%) | `token` as a DSL token, a cursor, a challenge |
 | `secret-named-value-in-log` (SEC-008b) | v2 | 89 | 12 | 0 | 0 | the secret-named word was only the receiver of a field (`token.user_id`) |
@@ -153,12 +155,72 @@ that no reviewer would act on) applies to SEC-011 only, which reached 30.
 
 **Not measured:** SEC-012, SEC-013 and the injection subset of SEC-001 (section 2).
 
+### 5b. Re-sample outside auth-framework (the PM's ask after #137 merged)
+
+The first sample's 83% was three quarters one repository, which wrote the zeroize policy. The re-sample draws from **every other repository**: the same eight
+minus auth-framework (synapse 6, mlmf 4, lightbulb 5, fuel 4, baracuda 1 findings) plus the distinct primary repositories under `C:\Projects` that have Rust
+source (HumboldtUnifiedKidTracker 16, KISS 5, commy 5, agentlife 3, commy-wire 2, consent 2, auto-discovery 1; each read as a `git archive` of `origin/main`,
+and the many git worktree copies of the same repositories left out). **Pool: 54 findings in 12 repositories.** Thirty were judged in a seeded order
+(`random.Random(7)`), by the same two marks as the first sample.
+
+**Result: 19 of 30 right (63%), 14 of 30 where a reviewer would act (47%). The gate is not met.** The stopping rule would have stopped at row 10 (the 7th
+non-actionable finding), at 3 of 10. The mix of the 30: Humboldt 7, mlmf 4, KISS 4, synapse 4, lightbulb 2, agentlife 2, fuel 2, commy 2, and one each of
+consent, auto-discovery and commy-wire.
+
+**Why it fell.** Fifteen of the 30 are a field named exactly `token`, and a reviewer would act on four of them (a registry token, a cluster sync token, a
+sync message, a JWT in a wire enum); the other eleven are a lexer or DSL token, a vocabulary entry, a witness token, a test vector, a lock-guard id, or a
+one-time reset, recovery or TOTP code in a request body. Three more are not credentials (a public signing key in a certificate summary, the NAME of a secret in an
+audit record, a classification key token). The fields named `password`, `api_key`, `credential`, `private_key`, `tsig_secret` and `client_secret` were right 11
+of 11 and acted on 10 of 11 (the one exception is a CLI flag).
+
+**A hypothesis, not a result (v4).** Drop the bare `token` and keep `access_token`, `refresh_token`, `auth_token`, `bearer_token`, `api_token`,
+`session_token`. On these same 30 that leaves 13 findings, 10 where a reviewer would act (77%), and loses the four credential `token` fields. **That figure is
+circular: the exclusion was read off this sample.** It becomes a result only on a fresh 30 outside both samples; the plan (section 8) says so.
+
+The verdicts, one row each (`right` = a credential-shaped secret, not an identifier or a public value; `acts` = a reviewer would add zeroize, by the rule
+of the first sample):
+
+| # | site | right | acts | why |
+|---|---|---|---|---|
+| 1 | mlmf `src/distributed_loader.rs:449` | yes | yes | an SMTP `password` |
+| 2 | lightbulb `src/bin/lightbulb-cli.rs:18` | yes | no | a CLI `--api-key` argument |
+| 3 | HumboldtUnifiedKidTracker `backend/src/auth/oauth.rs:24` | yes | no | an OAuth ID token in a deserialized extra-fields struct: an identity assertion, short-lived |
+| 4 | HumboldtUnifiedKidTracker `backend/src/routes/reset_factor.rs:45` | yes | no | a one-time reset-link token in a request body |
+| 5 | consent `crates/with-secret/src/audit.rs:15` | no | no | the secret's NAME in an audit record (the file says NEVER the value) |
+| 6 | mlmf `src/distributed.rs:370` | yes | yes | an `api_key` in a config |
+| 7 | HumboldtUnifiedKidTracker `backend/src/routes/reset_factor.rs:224` | yes | no | a TOTP-step token in a request body, one-time |
+| 8 | agentlife `src/lock.rs:56` | no | no | a file-lock token, a random id, not a credential |
+| 9 | HumboldtUnifiedKidTracker `backend/src/routes/totp_routes.rs:40` | yes | yes | a `password` in a request body |
+| 10 | fuel `fuel-dispatch/src/fkc/error.rs:136` | no | no | a DSL token in a parser error |
+| 11 | mlmf `crates/mlmf-source-hub/src/lib.rs:124` | yes | yes | a registry `token` kept in a source struct |
+| 12 | KISS `conformance/src/bundle_envelope.rs:129` | no | no | a classification key token, an identifier |
+| 13 | KISS `conformance/src/reference_vectors.rs:214` | no | no | a test vector's token |
+| 14 | HumboldtUnifiedKidTracker `backend/src/routes/recovery_codes.rs:128` | yes | no | a one-time recovery-code token in a request body |
+| 15 | lightbulb `src/api/admin.rs:873` | yes | yes | the raw `api_key` returned once on rotation |
+| 16 | synapse `src/certificate.rs:479` | no | no | a 32-byte PUBLIC signing key in a validated-chain summary |
+| 17 | synapse `src/transport/mod.rs:190` | yes | yes | a TURN `credential` |
+| 18 | fuel `fuel-dispatch/src/fkc/error.rs:176` | no | no | a DSL token in a parser error |
+| 19 | KISS `conformance/src/namespace_vocabulary.rs:43` | no | no | a witness token in a validation error |
+| 20 | agentlife `crates/lane-restart/src/launcher_gate.rs:205` | no | no | a lock-guard token, a random id |
+| 21 | commy `src/clustering.rs:86` | yes | yes | a cluster sync token (bearer) |
+| 22 | synapse `src/synapse/auth/utils.rs:34` | yes | yes | a `private_key` as `Vec<u8>` |
+| 23 | HumboldtUnifiedKidTracker `backend/src/routes/staff.rs:21` | yes | yes | a staff `password` in a request body |
+| 24 | auto-discovery `src/config/env.rs:39` | yes | yes | a TSIG shared `secret` from the environment |
+| 25 | mlmf `crates/mlmf-hf-tokenizer/src/lib.rs:63` | no | no | a vocabulary token |
+| 26 | HumboldtUnifiedKidTracker `backend/src/config.rs:16` | yes | yes | an OAuth `client_secret` |
+| 27 | KISS `conformance/src/namespace_vocabulary.rs:45` | no | no | a witness token in a validation error |
+| 28 | commy `src/clustering.rs:28` | yes | yes | a cluster sync message carrying a bearer token |
+| 29 | synapse `src/transport/nat_traversal.rs:32` | yes | yes | a TURN `password` |
+| 30 | commy-wire `src/lib.rs:162` | yes | yes | a JWT carried in a wire credential enum |
+
 ## 6. What the numbers say
 
-- **SEC-011 is the rule that matches the owner's policy and the code.** 83% of the sampled findings are credentials that a reviewer would zeroize. The
-  population (113 in these eight repositories, 93 of them in auth-framework) is large, so it would be reported, not blocking, and that is the point of the
-  per-project opt-out count.
-- **Tightening a name matcher moved the whole family.** The same rule went from 42% to 83% by matching the last segment of a field name. The same idea
+- **SEC-011 matches the owner's policy where the code is a credential library, and not elsewhere.** In auth-framework 83% of the sampled findings are
+  credentials a reviewer would zeroize; outside it only 47% are. The difference is the bare field name `token`, which means a credential in an authentication
+  library and a lexer token, a vocabulary entry, a lock id or a one-time code in most other code (section 5b). **The first version of this bullet and of the
+  headline said the rule cleared the gate; that was true of a sample that was three quarters one repository, and is withdrawn.**
+- **Tightening a name matcher moved the whole family, but only so far.** In the first sample the same rule went from 42% to 83% by matching the last segment of a
+  field name; outside auth-framework that matcher is 47% (section 5b), because the last segment `token` is the problem. The same idea
   did not rescue the log rule, whose failure is that the *value* is rarely the secret.
 - **Weak algorithms are an inventory.** Every one of the ten is a protocol's own requirement. A rule that cannot be acted on belongs at Info with a reason,
   or in `cargo-deny`-style policy, not in a count that grows a backlog.
@@ -177,15 +239,14 @@ verdicts stand. This section is replaced by the sites once the fix is released.
 
 | order | rule | ships | needs first |
 |---|---|---|---|
-| 1 | SEC-011 secret field not zeroized | default-on | `[security] secret_names` / `not_secret_names`; the Zeroizing/derive/impl-Drop recognition; fixture pair; re-sample on a repository outside this one author's |
+| 1 | SEC-011 secret field not zeroized | **opt-in**, until a matcher that drops the bare `token` clears a fresh 30 outside both samples | `[security] secret_names` / `not_secret_names`; the Zeroizing/derive/impl-Drop recognition; fixture pair; the v4 matcher of section 5b, validated |
 | 2 | SEC-004a hard-coded key material, SEC-004b TLS off | default-on (exact syntax, two incident controls) | fixture pairs, including the local-literal form |
 | 3 | SEC-004c weak algorithm | default-on at **Info**, waiver with a protocol reason | the reason requirement |
 | 4 | SEC-008a, SEC-004d, SEC-004e, SEC-008b | opt-in | receiver types for SEC-004d; a decision on bare `token` for SEC-008a |
 | 5 | SEC-012, SEC-013 | opt-in | `[security] entry_points`; a measurement of each on the three repositories that parse untrusted files (fuel, mlmf, baracuda) |
 | 6 | SEC-001 injection, traversal, zip-slip | delegated first | a CodeQL or Semgrep module; the native subset after it |
 
-**Open points for the PM.** (1) Is a rule that is right 93% of the time and acted on 83% of the time, but whose population is 93 findings in one repository, to be
-default-on before it has been sampled on a repository of another owner? (2) Weak algorithms at Info: a count, or silent unless asked? (3) Should the
+**Open points for the PM.** (1) *Answered by section 5b: no, SEC-011 is not default-on; it was sampled on other repositories and fell to 47%.* (2) Weak algorithms at Info: a count, or silent unless asked? (3) Should the
 auth-framework lane be given section 7 as a task, or does the PM route it?
 
 ## 9. Reproduce
