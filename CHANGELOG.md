@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.29 - 2026-10-24 (proposed)
+
+**Docs only: the spec-to-roadmap audit** (PM task, 2026-10-24). `ROADMAP.md` gains 53 rows for work that a spec, plan or README describes and the roadmap did not name (16 need a decision), each with its source, a status checked against the code, and what is read in full against in part. Three stale statements in `ROADMAP.md` are corrected (six native Rust checks, the unreproducible "96", `dependency-freshness` built). No code changed.
+
 ## 0.9.28 - 2026-10-24 (proposed)
 
 **New check `dependency-freshness`** (coverage doc section 4, build order 6): is every package in `Cargo.lock` at the newest version the registry has? CireSnave's rule, CLAUDE.md 9: *"I want all of my projects' dependencies on their most recent versions at all times."*

@@ -25,11 +25,11 @@ request; refreshed 2026-10-20 against `main@ea58701` (0.8.3) at the PM's task. T
 - **One engine, three faces.** The library, `coderipper` and `cargo coderipper` are built and published
   (crates.io lists 0.6.3, 0.6.9, 0.6.11 and 0.6.14 as not yanked, read 2026-10-14). The hosted service is **design only: nothing is
   built, and nothing is built until CireSnave gives a separate go** (`docs/superpowers/plans/2026-10-12-hosted-service.md`).
-- **Rules that run.** Five native Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`,
-  `ci-protection-presence`); five language-neutral native rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); six rules run by
+- **Rules that run.** Six native Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`,
+  `ci-protection-presence`, `dependency-freshness` since 0.9.28); five language-neutral native rules (SUP-001, SUP-011, DOC-005, DOC-009, WSP-001); six rules run by
   a pinned third-party tool through the delegation framework (SEC-002 gitleaks, SUP-002 and SEC-006 osv-scanner, DOC-010 lychee,
   SUP-008 zizmor, API-006 buf). Every rule except `ci-protection-presence` has a seeded defect and a clean twin under `conformance/` (it needs a forge: its pair is `tests/fixtures/forge/` run by `tests/ci_protection_fixture.rs` over a stub forge, so the built-in module does not claim it as `proof`).
-- **Not built.** The TypeScript and Python modules (multi-language P4, P5), the remaining 96 unscheduled native rules, the
+- **Not built.** The TypeScript and Python modules (multi-language P4, P5), the remaining unscheduled native rules (the "96" of 2026-10-20 could not be reproduced on 2026-10-24: see M13 in the audit below),
   and every hosted-service component (the configuration layers, designed in `2026-10-13-configuration-layers.md`, were built in 0.6.21).
 - **The default ruleset is still the five classic checks.** CireSnave's ruling (board 144) is that the default becomes all rules,
   which is a breaking release; as of 2026-10-20 it is **closer but not ready**: WSP-001 is on 11 repositories, DOC-009 on none and SUP-008 on 5 (97 findings),
@@ -89,7 +89,7 @@ CireSnave, 2026-10-23, verbatim: *"I think everything except possibly the AI-ass
 | 6 | **API and semver** | (a) a public enum without `#[non_exhaustive]`; (b) a public change with no version change (`cargo-semver-checks` is the model, and CI already has a "public API matched by the version" job); (c) a public function with no `# Panics` or `# Safety` section | fuel: `WeightStorage` | overlaps family 13 (doc presence); one rule, two families, counted once |
 | 7 | **Correctness and concurrency** | (a) a lossy `as` cast; (b) a lock guard held across `.await`, and a blocking call in an `async fn`; (c) a fixed-window rate limiter, and a network client built with no timeout | lightbulb: fixed-window rate limits | (b) overlaps Clippy (`await_holding_lock`); require the lint and add only what it lacks |
 | 8 | **Schema versus query** | (a) a SQL literal selecting a column that no migration creates; (b) a migration runner with no lock, so two instances can migrate at once; (c) a migration edited after it was released (checksum against the base) | auth-framework #147 | needs a migrations parser first; (c) reads the merge-base, like the `lint-suppression` ratchet |
-| 9 | **Supply-chain policy** | (a) a git or path dependency (CireSnave's sources rule); (b) a dependency behind the newest release (his latest-versions rule); (c) an advisory, a yanked version, an unmaintained crate | his two standing rules, quoted in `C:\Projects\CLAUDE.md` 9 | **mostly built**: `SUP-004` (a), `SUP-002` and `SEC-006` (c). Not built: the scheduled staleness check (b), `docs/portfolio-ci-coverage.md` build order 6, run on a schedule, not per pull request |
+| 9 | **Supply-chain policy** | (a) a git or path dependency (CireSnave's sources rule); (b) a dependency behind the newest release (his latest-versions rule); (c) an advisory, a yanked version, an unmaintained crate | his two standing rules, quoted in `C:\Projects\CLAUDE.md` 9 | **mostly built**: `SUP-004` (a), `SUP-002` and `SEC-006` (c). The staleness check (b) is built as `dependency-freshness` (0.9.28, Cargo only). Not built: the scheduled workflow that runs it, `docs/portfolio-ci-coverage.md` build order 6, on a schedule, not per pull request (audit row C6) |
 | 10 | **Portability** | (a) target-specific code with no fallback (a `cfg(unix)` item used unconditionally); (b) a hard-coded path separator in a path join; (c) line endings disagreeing with `.gitattributes` | the path-rewriting and CRLF costs recorded in `C:\Projects\CLAUDE.md` 2 | the Windows exit-3 of fuel (`fuel-cuda-backend`, `fuel-metal-kernels` cannot build there, ROADMAP 2026-10-15) is an environment limit, not this family |
 | 11 | **Repository hygiene** | (a) no `SECURITY.md`; (b) no CODEOWNERS (`WSP-001`, built); (c) a `TODO` or `FIXME` with no issue link | `WSP-001`: 11 repositories on 2026-10-20 | (b) is the control for the whole family: it exists, and has a conformance pair |
 | 12 | **Non-Rust stacks** | web accessibility (an image with no `alt`, a form control with no label, a missing `lang`, a skipped heading level), security headers (CSP, HSTS in a server config), and the language-neutral families above through the TypeScript module (item 8) | none supplied | static accessibility catches a minority of real problems; the doc says that |
@@ -149,6 +149,101 @@ Recommendation (a design choice, which does not depend on those facts): a **smal
 
 Families 1 to 4 each get a design document in the order above (the first is security and cryptography). Families 5 to 14 are scheduled only after those, and after the precision gate has been run on the first two families' rules.
 
+
+## Spec-to-roadmap audit (2026-10-24, against `main@102e19f`, 0.9.28)
+
+At the PM's task (CireSnave's idea): every piece of work that a spec, plan or README describes and this file did not name. **This lane adds the rows and starts none of them.**
+**Read in full:** 21 documents (the audit-host and multi-language specs; the programme, three-faces, configuration-layers, redaction, hosted-service, runner-isolation, performance, performance-precision, provenance, security-crypto, reachability-project-scope and unused-parameters plans; the terms-of-service draft; the triage README and its two vocabulary files; the two portfolio-triage reports; `docs/portfolio-ci-coverage.md`). **Read in part, plus a grep of the whole file for deferred, not-yet and out-of-scope wording:** 7 plans (unused-return-values, allowlist-stale-entries, version-consistency, ci-protection-presence, workspace-members, reachability-lib-plus-bin, workspace-flag-and-build-cache). **By keyword or table-row extraction only:** `README.md`, the 26 `docs/rules/*.md` pages, `CHANGELOG.md`. **Not read:** the triage `.tsv` data and its Python tools, the conformance fixtures' READMEs. The statuses below were checked by grep against `src/`, `rules/`, `tests/` and `CHANGELOG.md` at the ref above; a status was not re-run beyond that. Source column: `audit` = `2026-09-30-audit-host-design.md`, `mld` = `2026-10-07-multi-language-design.md`, `prog` = `2026-10-07-multi-language-programme.md`, `3f` = `2026-10-04-three-faces.md`, `cfg` = `2026-10-13-configuration-layers.md`, `hs` = `2026-10-12-hosted-service.md`, `ri` = `2026-10-13-runner-isolation.md`, `cov` = `docs/portfolio-ci-coverage.md`.
+
+**Call** = needs a decision from CireSnave (through the PM); each is in the [ASK] that came with this PR.
+
+### The Rust checks and the host
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| E1 | Cached per-project symbol index, so `Portfolio`-scope `fast` checks read a cache, not N trees | audit 60-64 | open | |
+| E2 | Reachability portfolio scope (sub-pass B): rustdoc-JSON public surface plus cross-repository reference search | audit 120-135; reachability-project-scope plan 62 | open (no `Portfolio`-scope check exists) | |
+| E3 | Severity-ranked brief mode (top N plus omitted count) | audit 90-95 | open (`--summary`, 0.9.8, counts per rule only) | |
+| E4 | `until_fixed` links and "no match in N runs" waivers | audit 164-179; allowlist plan 19-23 | held: needs a run-history store that does not exist | |
+| E5 | A qualified `subject`, so same-named methods in one file do not share an allowlist entry (`reachability`, `unused-return-values`; `unused-parameters` has it) | audit 181; urv plan 111 | open | |
+| E6 | A finding with no `subject` cannot be allowlisted | allowlist plan 88 | open, minor | |
+| E7 | One check declaring two depths (shallow `fast`, deep `sweep`) under one id | audit 276-283 | open (no depth field in `src/check.rs`) | |
+| C1 | Reachability limits: `pub` items in a bin when a lib exists, custom `[lib] path`, a lib item used only from a `#[cfg(test)]` module, macro-made identifiers, a test-only caller not rescuing, the line-based `pub` downgrade | reachability plans; `reachability/mod.rs` 23-39 | open | |
+| C2 | `unused-return-values` limits: functions inside `macro_rules!`, only `src/` rewritten, HEAD only | urv plan 108-111 | open | |
+| C3 | `unused-parameters` limits: the `_`-prefix blind spot, trait declarations, default bodies and closures, targets with a custom `path`; shape (b) for languages with no built-in lint | unused-parameters plan 22-24, 102-104; audit 255-274 | open | |
+| C4 | `version-consistency` for `package.json` and `pyproject.toml`, and an npm SDK paired with a crate (6.6a) | audit 206; version-consistency plan 82; cov 15 | open | |
+| C5 | `ci-protection-presence`: ruleset `non_fast_forward`/`deletion`; required reviews and signed commits; required-check names matched against the workflows; non-default branches; non-GitHub forges; rate limits; a taken-over fork told from a plain fork | audit 229; ci-protection plan 87; CHANGELOG 0.9.27 | open | |
+| C6 | `dependency-freshness`: **the check is done (0.9.28, #151, Cargo only)**. Open: the scheduled workflow that runs it (with SUP-002, SEC-006 and DOC-010 link rot), and npm, pip, Maven and Gradle lockfiles | audit 209-216; cov 37, 60 | check done; schedule and other ecosystems open | |
+| C7 | Workspace runs: members whose targets lie outside the package directory; a relative out-of-repository path dependency in the throwaway checkout; per-member times; **the incremental cache that the 2026-10-15 ruling named as "the lever" (no row built it)**; parallel members; a `--scope` list of repositories | workspace plans 122-124, 157, 491, 521-526; ROADMAP "Where it stands" | open; the `--scope` list is held by the PM | `--scope` |
+| C8 | `patent-index-match` does not read `yarn.lock`, `pnpm-lock.yaml`, `go.sum`, `gradle.lockfile` | README; CHANGELOG 0.9.24 | open | |
+| C9 | Residue the rules say they do not judge: SUP-004 (a run-time `..` join, `version` on in-repository path dependencies, a registry allowlist), `licence` (other owners' names, manifests below the root, whether a copied header is the origin's), `ci-security`, `version-and-changelog`, `lint-suppression` (`#[expect]`, macro bodies), a nested `[buf] baseline` | README 250-262, 497; cov 32-35 | open | |
+| C10 | Coverage-doc rules never built: `deny.toml` present and `cargo deny check` run (a **blocking** row), GOV-002 waivers counted (partial: `--summary`), README has the five parts, DOC-001 CONTRIBUTING and `missing_docs`, TST-001, a per-repository fork switch for the `portfolio` profile, the `version-deferred` label | cov 36, 39, 43-46, 67, 70 | open | |
+
+### Modules, languages, tools
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| M1 | External-module discovery (a `modules/` directory in the tool cache, an explicit configured path) and installing a module with lock entry, checksum and consent | mld 187-212 | open (CHANGELOG 0.3.1: "nothing selects an external module yet") | |
+| M2 | `[languages] ts = { enabled, required = true }` (a missing module is exit 3) and `[rules.ID]` overrides (`level`, `threshold`, `reason`) | mld 162-169; prog 42 | open (`--skip-rule ID=WHY` is a partial substitute) | |
+| M3 | `--min-coverage <pct>` as an opt-in floor (the "gaps never fail a run" half is done) | mld 372; prog Q7 | open | yes |
+| M4 | `--untrusted` and `untrusted_refused` for rules that execute project code, with sandbox attestation | mld 440-446 | open; belongs with item 9 | |
+| M5 | Process-tree kill by Windows job object, or cgroup/subreaper on Unix (today `taskkill /T` / a process group) | mld 313-315; `module/external.rs` 39 | open | |
+| M6 | The rest of the install policy (P6): consent prompt, `tools bundle`, `tools install --from`, update-by-lock-bump tooling, `cargo`/`npm`/`pip` installers | mld 393-423; prog 85-92 | open (item 8 names P6 only in general) | |
+| M7 | SEC-009 (checkov), the seventh P3 delegation: declined 2026-10-09 (no Python prerequisite); README says "on the roadmap in that form" and this file had no row | prog 52-54; README 384-389 | held by the PM ruling; reopens only if checkov ships a standalone binary | yes |
+| M8 | The programme's unanswered questions: Q3 (the language after TypeScript and Python), Q4 (the module language), Q6 (an architecture-intent spec), Q8 (restrictive-licence tools), Q10 (the LLM tier), Q12 (which rules are native), Q13 (does "build natively" forbid delegating). Q7 and Q14 are answered (0.5.0, 0.9.0) | prog 151-196 | open: no recorded ruling found by grep | yes |
+| M9 | Per-language triage of the 125 rules outside the first batch; 121 native cells "to write" (13 neutral, 28 Rust, 40 TypeScript, 40 Python) | prog 22-24; triage README 61-82 | open | |
+| M10 | First-batch items never built: WSP-008 (cross-codebase), a `cargo vet`-style SUP-013 | triage README 132-158 | open | |
+| M11 | Licence findings that block bundling or hosting: Semgrep Registry rules (SEC-001, TypeScript SEC-004) and `eslint-plugin-sonarjs` are NOT-COVERED cells | triage README 95-100 | open | |
+| M12 | Replace `ring` (C and assembly, via `rustls` in `ureq`) with a pure-Rust provider | README 421 | open | yes |
+| M13 | The 203 catalog rules whose pages say "no check yet" (214 rows, 11 built). The "96 unscheduled native rules" in "Where it stands" is a number with no list behind it and could not be reproduced from the pages; 41 rows name a native build, and many name a tool to delegate to (cargo-semver-checks, cargo-public-api, squawk, dependency-cruiser, jscpd, knip, vulture, cargo-machete, deptry, Bandit, cargo-geiger, cargo-deny licenses and bans, Checkov, Clippy and Ruff lints) | `docs/rules/*.md` | open | |
+
+### Faces, configuration, redaction
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| F1 | `cargo coderipper`: `-p/--package`, `--manifest-path`, `--sweep` and `--check <id>` as flags, the `short` message format | 3f 5, 123-135 | open (only the subcommands exist) | |
+| F2 | A working-tree snapshot mode (checks read committed HEAD); a `compiler-message`-shaped output for editors | 3f 137-142 | open | |
+| F3 | A typed error enum in place of `anyhow::Error` in `Check::run` | 3f 59 | deferred | |
+| F4 | Enforcing `max_runtime_minutes` (the ceilings are only reported); the dotless `/etc/coderipper/coderipper.toml` spelling; pinning `profile` against a repository's choice | cfg 135-163; CHANGELOG 0.6.21 | open; pinning waits for a hosted operator | |
+| F5 | Redaction: on by default in hosted mode; stripping the scratch-directory prefix and escaping on render | redaction plan 93-106; CHANGELOG 0.6.11 | held by item 9 | |
+
+### Hosted service (all held by CireSnave's separate go, item 9)
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| H1 | Result document and JSON schema, the ingest validator as a library function; metrics that must exist before the runner opens | hs 173-183, 299-302 | open | |
+| H2 | Face A: GitHub Action, OIDC upload endpoint, dashboard, retention setting; needs the site's stack, which is "not decided here" | hs 178 | open | yes |
+| H3 | The community post: route (a) copy button and prefill, or route (c) the service posts; the Community lane's `Idempotency-Key` on `POST /posts` (a DB migration CireSnave applies); whether a return-to-dashboard redirect is wanted | hs 134-169 | open; held by the Community lane | yes |
+| H4 | Sandbox spike on a chosen provider, the hostile fixture set, whether a home PC runs jobs in v1, emulation arm C, the spot-check rate for non-operator runners, the unmeasured isolation overheads | hs 181, 297; ri 224-275 | open | yes |
+| H5 | Build the runner agent, the default-deny proxy and per-repository domain approvals; the launch-gate fixtures per host class | ri 97-203 | open | |
+| H6 | DOC-010 off and osv-scanner limited to the OSV host in hosted v1; re-verify the `buf` and `zizmor` network and plugin use | hs 78-88 | open | yes |
+| H7 | The terms of service: CireSnave's approval, no lawyer review (no funds), eleven unqualified assumptions, the contact values, the renderer, installer and stored acceptance text, the unverified Copyright Office and Arizona-law points | ToS draft 3-6, 44-46, 108-121, 401-402 | open | yes |
+| H8 | Any change to the per-account concurrency cap of 2 | hs 107 | held | yes, only if changed |
+
+### Rule families (designs merged, nothing built)
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| R1 | Performance: build PRF-020 first, then PRF-009/015/019, then the opt-in rules; `[perf] hot_paths`, `[perf] benchmarks` and a `// coderipper: hot` marker; the loader rejects a waiver with no benchmark link; rewrite PRF-012, 014, 015 and sample small populations to 30; fix the design document's 4-of-12 and default-on lines | performance plans | open (not scheduled) | marker syntax, PRF numbering, `unbuffered-io` default-on |
+| R2 | Provenance: SUP-015 (default-on), SUP-018, SUP-014 (needs `[provenance] own`), SUP-019 (network), SUP-016, SUP-017; route the unrecorded assets in fuel, Humboldt, vulkane, baracuda, unisql, amt and candlelight to their lanes | provenance plan 100-120 | open | record schema, SUP-019 vs cargo-deny, routing |
+| R3 | Security: SEC-011 (opt-in, needs the v4 matcher and a fresh 30), SEC-004a-c default-on, 004d/e and 008a/b opt-in, SEC-012/013 (need `[security] entry_points`), SEC-001 as a delegated CodeQL or Semgrep module; the weak-algorithm waiver check; section 7 waits for the auth-framework fix release | security plan 104, 230-250 | open; section 7 held | weak algorithms at Info, routing section 7 |
+| R4 | A shared `cargo deny` `[bans]` list on direct backend crates outside PersistAnt | cov 47 | open | |
+
+### Docs that disagree with the code (also sent as a [FINDING])
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| D1 | Eleven built rules still read "no check yet" on their `docs/rules` page: API-006, DOC-005, DOC-009, DOC-010, SEC-006, SUP-001, SUP-002, SUP-004, SUP-008, SUP-011, WSP-001 | `docs/rules/*.md` | open | |
+| D2 | Stale status lines: the audit-host spec says "nothing implemented"; the multi-language spec and programme say "no code is written"; both keep `classic` as the default (0.9.0 made `extended` the default); the three-faces plan says `--deny` defaults to never-fail (0.5.0 made it `info`); the triage README says "zero rules are earned"; `cov` 16 says the settings audit is missing; the performance design still shows its first sample and default-on list; the security plan section 4 and the provenance plan counts (75 data files, 45 after 0.9.19) | the named documents | open | |
+| D3 | `README.md` 255 says lockfiles are not judged by `patent-index-match`; `reachability/mod.rs` 38 says a nested `--project` analyses the repository root | README; `src/checks/reachability/mod.rs` | open | |
+
+### Other lanes' work the triage records (report-only here)
+
+| # | Work | Source | Status | Call |
+|---|---|---|---|---|
+| T1 | WSP-001: CODEOWNERS on 11 repositories, the owner handle for ThinkersJournal and EvansLaboratories repositories, and the `approvals-ciresnave` profile repository | portfolio-triage 2026-10-14 26-28 | open (the owning lanes) | yes (handle) |
+| T2 | SUP-008: whether `actions/*` is exempt from pinning, and waiver versus digest for service-container images (`auth-framework` has 8) | triage 76-77; q14 17 | open | yes |
+| T3 | Meeting the bar for the default: SUP-001 edits, SUP-008, `public_api` declarations for published libraries, 3119 lint-suppression findings (1428 `#[ignore]` with no reason, at 2026-10-16); reachability unread on `amt`, `consent`, `vulkane`, `candlelight`, and the other Rust rules not run portfolio-wide | q14 29-45 | open (the owning lanes); the release shipped anyway (0.9.0) | |
 
 ## Who consumes it, and who should
 
