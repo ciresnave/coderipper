@@ -1,0 +1,61 @@
+"""Throwaway (family 2): (M1) upstream URLs that name a BRANCH, in headers and records; (M2) whether a record that covers a data file carries the SHA-256 of
+the committed bytes. Read through git plumbing at origin/main."""
+import hashlib
+import os
+import re
+import subprocess
+import sys
+
+BRANCH_URL = re.compile(r"https?://(?:github\.com|raw\.githubusercontent\.com|gitlab\.com|huggingface\.co)/[^\s)\]>\"'`]*?(?:/blob/|/raw/|/tree/|/resolve/)(master|main|develop|HEAD)/[^\s)\]>\"'`]*", re.I)
+RAW_BRANCH = re.compile(r"https?://raw\.githubusercontent\.com/[^/\s]+/[^/\s]+/(master|main|develop|HEAD)/[^\s)\]>\"'`]*", re.I)
+TEXT_EXT = {"rs", "md", "txt", "toml", "c", "h", "cc", "cpp", "hpp", "cu", "cuh", "py", "js", "ts", "metal", "glsl", "comp", "wgsl", "yml", "yaml", "json", "pin", "lock"}
+SKIP = ("target/", "node_modules/", ".git/", "CHANGELOG.md", "ROADMAP.md")
+
+
+def git(repo, *args, raw=False):
+    out = subprocess.run(["git", "-C", repo, *args], capture_output=True).stdout
+    return out if raw else out.decode("utf-8", "replace")
+
+
+def main():
+    name = sys.argv[1]
+    repo = "C:/Projects/" + name
+    br = "origin/main"
+    if not git(repo, "rev-parse", "-q", "--verify", br).strip():
+        br = "origin/master"
+    files = []
+    for line in git(repo, "ls-tree", "-r", "-l", br).splitlines():
+        meta, _, path = line.partition("\t")
+        parts = meta.split()
+        if len(parts) > 3 and parts[3].isdigit():
+            files.append((path, int(parts[3])))
+    for path, size in files:
+        base = os.path.basename(path)
+        ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+        if size > 400_000 or ext not in TEXT_EXT or any(s in path for s in SKIP) or path.startswith("docs/gaps"):
+            continue
+        text = git(repo, "show", f"{br}:{path}")
+        for m in list(BRANCH_URL.finditer(text)) + list(RAW_BRANCH.finditer(text)):
+            line_no = text[: m.start()].count("\n") + 1
+            print(f"{name}\tbranch-url\t{path}:{line_no}\t{m.group(0)[:110]}")
+            break
+    # M2: records that cover a data file, and whether they carry the file's SHA-256
+    for path, size in files:
+        base = os.path.basename(path)
+        ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+        if ext not in {"safetensors", "gguf", "bin", "npy", "npz", "pt", "onnx", "png", "jpg", "jpeg", "gif", "json", "pem"} or size < 1024:
+            continue
+        if any(s in path for s in SKIP):
+            continue
+        d = os.path.dirname(path)
+        rec = [p for p, _ in files if os.path.dirname(p) == d and re.search(r"(PROVENANCE|NOTICE|ATTRIBUTION|SOURCES|CREDITS)|\.PIN$|\.provenance", os.path.basename(p), re.I)]
+        if not rec:
+            continue
+        digest = hashlib.sha256(git(repo, "show", f"{br}:{path}", raw=True)).hexdigest()
+        body = "\n".join(git(repo, "show", f"{br}:{r}").lower() for r in rec)
+        has_any = bool(re.search(r"\b[0-9a-f]{64}\b", body))
+        has_own = digest in body
+        print(f"{name}\trecord-hash\t{path}\tany64hex={'yes' if has_any else 'NO'}; own-bytes-hash={'yes' if has_own else 'NO'}; record={os.path.basename(rec[0])}")
+
+
+main()
