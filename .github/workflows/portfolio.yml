@@ -89,8 +89,55 @@ jobs:
       - name: Install protoc (GitHub-hosted Linux runners)
         if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
+      # The release is built once per machine and version, not once per run, and never into `~/.cargo/bin`: parallel runs on one self-hosted
+      # runner share that directory, and a running `coderipper.exe` cannot be replaced ("Access is denied", Humboldt#131). Each run builds
+      # into its own `--root` under `RUNNER_TEMP`; the finished tree is then published to a version-keyed cache directory by a rename, so two
+      # runs that race both end with a complete copy (the loser discards its own), and a half-written tree is never visible. A cached
+      # binary is used only if `--version` reports exactly this release. A GitHub-hosted runner starts empty, so the directory is kept
+      # between runs by the two cache steps around this one; a self-hosted runner simply keeps it.
+      - name: Restore the CodeRipper binary cache (GitHub-hosted runners)
+        if: runner.environment == 'github-hosted'
+        id: bin-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/coderipper-bin
+          key: coderipper-bin-${{ runner.os }}-${{ runner.arch }}-${{ env.CODERIPPER_VERSION }}
       - name: Install coderipper from crates.io
-        run: cargo install coderipper --version "$CODERIPPER_VERSION" --locked
+        run: |
+          cache_root="${CODERIPPER_BIN_CACHE:-$HOME/.cache/coderipper-bin}"
+          cache="$cache_root/$CODERIPPER_VERSION-$RUNNER_OS-$RUNNER_ARCH"
+          exe=coderipper
+          if [ "$RUNNER_OS" = Windows ]; then exe=coderipper.exe; fi
+          # usable <dir>: the binary exists and is exactly this release (a partial or foreign copy is not used)
+          usable() { [ -x "$1/bin/$exe" ] && "$1/bin/$exe" --version 2>/dev/null | grep -qF "$CODERIPPER_VERSION"; }
+          if usable "$cache"; then
+            echo "using the cached coderipper $CODERIPPER_VERSION at $cache"
+            bin="$cache/bin"
+          else
+            build="$RUNNER_TEMP/coderipper-build"
+            rm -rf "$build"
+            cargo install coderipper --version "$CODERIPPER_VERSION" --locked --root "$build"
+            bin="$build/bin"
+            mkdir -p "$cache_root"
+            staging="$cache.new.$$"
+            rm -rf "$staging"
+            # an existing copy that is not this release is damaged (the directory is keyed by version): clear it
+            if [ -e "$cache" ] && ! usable "$cache"; then rm -rf "$cache" 2>/dev/null || true; fi
+            if cp -R "$build" "$staging"; then
+              # another run may have published first: keep its copy and drop ours; never write over a binary that may be running
+              if [ ! -e "$cache" ]; then mv "$staging" "$cache" 2>/dev/null || true; fi
+              # a rename that lost the race moved ours INTO the winner's directory: take it back out
+              rm -rf "$cache/$(basename "$staging")" "$staging"
+              if usable "$cache"; then bin="$cache/bin"; fi
+            fi
+          fi
+          echo "$bin" >> "$GITHUB_PATH"
+      - name: Save the CodeRipper binary cache (GitHub-hosted runners)
+        if: always() && runner.environment == 'github-hosted' && steps.bin-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/coderipper-bin
+          key: coderipper-bin-${{ runner.os }}-${{ runner.arch }}-${{ env.CODERIPPER_VERSION }}
       # `--no-config`: the runner's own configuration files do not decide the result; the repository's `.coderipper.toml` still does
       # (`[[allow]]` entries carry a reason and an owner and are reviewed in the pull request that adds them).
       # `ci-protection-presence` reads branch protection, which this job's token cannot see; the PM's sweep runs it.
