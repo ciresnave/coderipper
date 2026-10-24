@@ -58,12 +58,12 @@ No rule in this domain is run by the current release; every row below is a catal
 | DOC-002 | Documentation examples build and run | X | catalog record; no check yet (needs running project code) |
 | DOC-003 | Components carry a purpose and an owner in the spec | A | catalog record; no check yet (needs a declared architecture) |
 | DOC-004 | Significant architectural changes come with a decision record | P | catalog record; no check yet; planned: a native check diffing dependency edges and looking for a record in the change |
-| DOC-005 | Decision-record statuses and links are consistent | N | catalog record; no check yet; planned: a native parser of record front matter for status and supersession links |
+| DOC-005 | Decision-record statuses and links are consistent | N | built: native; decision records in an `adr`, `adrs` or `decisions` directory state a valid status and supersession links point both ways |
 | DOC-006 | Docs and comments match current behaviour | L | catalog record; no check yet (needs a language-model judgement) |
 | DOC-007 | Diagrams that have drifted from the dependency graph | A | catalog record; no check yet (needs a declared architecture) |
 | DOC-008 | Changes users can see get changelog entries | N | catalog record; no check yet; planned: a native check that the changelog is touched when non-test source changes |
-| DOC-009 | A glossary exists and terms are used consistently | N | catalog record; no check yet; planned: a native text search for glossary presence and term use (consistency in general needs judgement) |
-| DOC-010 | Documentation links resolve | N | catalog record; no check yet; planned: lychee (external links need network) |
+| DOC-009 | A glossary exists and terms are used consistently | N | built: native; a repository with ten or more pages under `docs/` has a glossary, and no term is defined twice in it. Whether code and documents use the terms the same way is judgement and is not checked |
+| DOC-010 | Documentation links resolve | N | built: delegated to lychee (`--profile extended`); external links need the network, so they belong to the sweep tier |
 
 ## Further reading
 

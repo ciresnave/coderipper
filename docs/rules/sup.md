@@ -66,17 +66,17 @@ governance domain. Procedural macros and build scripts both execute whatever the
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| SUP-001 | Lockfile committed, CI resolves strictly from it | N | no check yet (catalog record only; planned: read lockfile names and CI install flags as text) |
-| SUP-002 | Dependencies free of known advisories | N | no check yet (catalog record only; planned: osv-scanner, cargo-audit) |
+| SUP-001 | Lockfile committed, CI resolves strictly from it | N | built: native; Cargo binaries and private npm packages have a committed lockfile and GitHub Actions workflows install only in strict mode (`--locked`, `npm ci`, `--frozen-lockfile`). Other ecosystems and CI systems are not checked |
+| SUP-002 | Dependencies free of known advisories | N | built: delegated to osv-scanner against the OSV database on the day of the run; needs the tool and the network |
 | SUP-003 | Dependency licences satisfy policy | N | no check yet (catalog record only; planned: cargo-deny licenses (Rust); no check yet elsewhere) |
-| SUP-004 | Dependencies only from approved sources | N | no check yet (catalog record only; planned: cargo-deny sources (Rust); manifest scans elsewhere) |
+| SUP-004 | Dependencies only from approved sources | N | built: native; Cargo and npm dependencies that are not a published version (path outside the repository, git) and `[patch]`/`[replace]` paths, plus `include!`, `#[path]` and `CARGO_MANIFEST_DIR` joins that leave the crate. The registry allowlist is not judged |
 | SUP-005 | Limit on multiple versions of one dependency | N | no check yet (catalog record only; planned: cargo-deny bans, npm ls) |
 | SUP-006 | Declared dependencies that are never used | P | no check yet (catalog record only; planned: cargo-machete, knip, deptry; needs import resolution) |
 | SUP-007 | Justification record for each new dependency | M | no check yet (catalog record only; needs a human decision) |
-| SUP-008 | CI workflows pinned and least-privileged | N | no check yet (catalog record only; planned: zizmor) |
+| SUP-008 | CI workflows pinned and least-privileged | N | built: delegated to zizmor (actions and images not pinned to a hash or digest, broad token permissions) on workflows and action definitions; a missing tool is a reported gap |
 | SUP-009 | Release produces and stores an SBOM | N | no check yet (catalog record only; planned: look for a generation step in release workflows) |
 | SUP-010 | Signed artifacts with build provenance | N | no check yet (catalog record only; planned: look for signing and provenance steps (the level is a human choice)) |
-| SUP-011 | Third-party code excluded from own analysis | N | no check yet (catalog record only; planned: compare vendored directories with exclusion config) |
+| SUP-011 | Third-party code excluded from own analysis | N | built: native; vendored directories (`vendor`, `third_party`, `node_modules`, ...) are named in the codecov, codacy, sonar-project, eslintignore or deepsource configuration; whether the name is an exclusion is not judged |
 | SUP-012 | New package names screened for squatting | N | no check yet (catalog record only; planned: registry existence, age and similarity lookups) |
 | SUP-013 | Audited versions only in sensitive tiers | M | no check yet (catalog record only; audit records are human artifacts; cargo-vet is the model) |
 

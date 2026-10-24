@@ -68,7 +68,7 @@ is flagged contested. Several checks need the project to be compiled or run, so 
 | API-003 | Version number matches kind of change | P | no check yet (catalog record only; planned: compare the bump with the API-001 result) |
 | API-004 | Deprecation notices carry full lifecycle data | P | no check yet (catalog record only; planned: parse deprecation attributes and docs) |
 | API-005 | Serialized formats tested for old and new readers | X | no check yet (catalog record only; needs the project's tests to run) |
-| API-006 | Schema changes obey evolution rules | N | no check yet (catalog record only; planned: buf for protobuf; other formats need their own tools) |
+| API-006 | Schema changes obey evolution rules | N | built: delegated to buf (`buf breaking` against the merge-base; `--profile extended`); a missing tool is a reported gap. Other schema formats need their own tools |
 | API-007 | Database migrations safe step by step | P | no check yet (catalog record only; planned: squawk (Postgres); sequencing review needs an LLM) |
 | API-008 | Public API exposes no third-party types | P | no check yet (catalog record only; planned: scan public signatures; related to ARC-006) |
 | API-009 | Extension points flagged on exported enums and structs | P | no check yet (catalog record only; planned: clippy restriction lints (Rust); no equivalent in TypeScript) |
