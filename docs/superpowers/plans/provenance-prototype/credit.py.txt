@@ -1,0 +1,39 @@
+import collections, re, subprocess, os
+STOP = {"text", "authors", "contributors", "rights", "reserved", "license", "this", "file", "line", "that", "with", "from", "team", "copyright", "notice", "the", "and", "all", "inc", "affiliates", "mit", "see", "next", "for", "its", "are", "has", "not", "owed", "glob", "such", "over", "names", "licence", "header", "owns", "own", "commit", "provenance", "readme"}
+
+
+def git(repo, *a):
+    return subprocess.run(["git", "-C", repo, *a], capture_output=True).stdout.decode("utf-8", "replace")
+
+
+g = collections.defaultdict(list)
+for l in open("code_all.tsv", encoding="utf-8"):
+    p = l.rstrip("\n").split("\t")
+    if len(p) >= 4 and p[1] == "foreign-copyright":
+        g[(p[0], p[3].split("; own=")[0])].append(p[2])
+NOTICE = re.compile(r"(NOTICE|THIRD|LICEN[CS]E|COPYING|ATTRIBUTION|CREDITS|PROVENANCE|README)", re.I)
+cache = {}
+
+
+def notice_text(repo):
+    if repo in cache:
+        return cache[repo]
+    root = "C:/Projects/" + repo
+    br = "origin/main"
+    if not git(root, "rev-parse", "-q", "--verify", br).strip():
+        br = "origin/master"
+    names = [l.partition("\t")[2] for l in git(root, "ls-tree", "-r", "-l", br).splitlines()]
+    txt = []
+    for n in names:
+        if NOTICE.search(os.path.basename(n)) and (n.lower().endswith((".md", ".txt")) or "." not in os.path.basename(n) or os.path.basename(n).upper().startswith(("LICENSE", "NOTICE", "COPYING", "THIRD"))):
+            txt.append(git(root, "show", f"{br}:{n}").lower()[:400000])
+    cache[repo] = "\n".join(txt)
+    return cache[repo]
+
+
+for (repo, who), ps in sorted(g.items(), key=lambda kv: -len(kv[1])):
+    toks = [t for t in re.findall(r"[A-Za-z][A-Za-z\-]{2,}", who) if t.lower() not in STOP]
+    txt = notice_text(repo)
+    hit = [t for t in toks if t.lower() in txt]
+    status = "credited" if hit else "NOT NAMED"
+    print(f"{len(ps):3d} {repo:14s} {who[:48]:48s} -> {status} {hit[:2]} (notice text {len(txt)} chars)")
