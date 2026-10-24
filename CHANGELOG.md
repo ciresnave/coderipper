@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.21 - 2026-10-24 (proposed)
+
+**CI: `portfolio.yml` installs coderipper 0.9.20** (published 2026-10-24, read back from crates.io), the first release whose Rust checks do not need a target to link, so callers building with `DOCS_RS=1` (baracuda) stop failing with "linking with cc failed". Callers repin to the merge of this change.
+
 ## 0.9.20 - 2026-10-24 (proposed)
 
 **Fix: the Rust checks no longer need the target to link.** `unused-return-values`, `unused-parameters` and `reachability` built with `cargo build --all-targets`, so with `DOCS_RS=1` a bin or example that needs a native part the skipped build script did not produce (baracuda's `kernels-sys` symbols) compiled but failed with "linking with cc failed", and the rules reported the crate as unbuildable (baracuda run 40098520475: 21 errors at 0.9.6, 4 at 0.9.14). They now run `cargo check` (same lints, no codegen, no link). Test: `a_target_that_cannot_link_does_not_break_the_analysis` (a bin calling an undefined extern symbol: red on `cargo build`, green on `cargo check`, and the lint is still reported). The cross-run staleness tests now look in `.rmeta` as well as `.rlib`, since `check` writes metadata only.
