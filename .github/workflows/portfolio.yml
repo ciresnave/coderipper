@@ -33,8 +33,10 @@ env:
   # a hosted runner).
   RUSTC_WRAPPER: ""
   CARGO_BUILD_RUSTC_WRAPPER: ""
-  # The published release the sweep installs: the newest one, and the first with the version-and-changelog rule in the profile.
-  CODERIPPER_VERSION: 0.9.6
+  # The published release the sweep installs: THE NEWEST ONE on crates.io. It was left at 0.9.6 while 0.9.7 to 0.9.14 were published, and no workflow SHA
+  # could reach those fixes. `tests/portfolio_version.rs` keeps it from drifting (offline: well formed, not ahead of Cargo.toml; online, in the scheduled
+  # `release-drift.yml`: equal to the newest published version). Bump it in the change that follows each publish, then repin the callers.
+  CODERIPPER_VERSION: 0.9.14
 
 jobs:
   portfolio:
