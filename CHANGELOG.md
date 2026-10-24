@@ -6,6 +6,13 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.23 - 2026-10-24 (proposed)
+
+**`patent-index-match` reads agent-safety-bed 1.4.0** (was 1.2.0; upstream commit `3074b3c`, `data/patent-tiers.PIN` records version, commit and sha256, and the data, `LICENSE` and `NOTICE` are copied from that commit unchanged: upstream's copyright line now reads "Thinker's Journal" where our 1.2.0 copy said "Eric Evans").
+
+- **What changes in findings:** the same 66 entries and the same package names (74 names, 18 entries with none), but 1.4.0 re-graded the evidence behind each entry ("reported, not verified" where no patent database was searched), so the `action` of 28 entries moved: 29 entries are now `flag-for-review` (was 1), `allow` 13 (was 26), `allow-with-conditions` 14 (was 21), `separate-component` 7 (was 15), `avoid` still 3. A dependency that was silent (`allow`) or Low can now be Medium: e.g. `cadical`, `llama_cpp_2`, `stable-baselines3`, `pyro`, `swe-bench` are Medium. `avoid` (High) is unchanged: `gensim` and the other two. **The portfolio floor for the rule is High, so no caller's gate changes**; the extended profile reports more Medium findings.
+- Tests: the two tests that named severities (`cargo_names_match_by_hyphen_underscore_and_by_package_rename`, `pyproject_pep621_optional_groups_and_poetry_are_read`) now expect the 1.4.0 grades; `the_pinned_index_matches_its_pin` checks the new sha256.
+
 ## 0.9.22 - 2026-10-24 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@e40c8557`, the merge of 0.9.21, whose workflow installs 0.9.20 (the pin before it ran 0.9.6). No code change.

@@ -621,12 +621,14 @@ mod tests {
     fn cargo_names_match_by_hyphen_underscore_and_by_package_rename() {
         let m = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n\n[dependencies]\nllama_cpp_2 = \"0.1\"\nz = { package = \"z3-sys\", version = \"0.1\" }\nserde = \"1\"\n\n[dev-dependencies]\ncadical = \"0.1\"\n";
         let found = run(&[("Cargo.toml", m)]);
-        // llama.cpp and Z3 are allow-with-conditions (Low); CaDiCaL is allow (silent)
+        // Z3 is allow-with-conditions (Low); llama.cpp and CaDiCaL are flag-for-review (Medium) since index 1.4.0 marked entries
+        // "reported, not verified" (they were allow-with-conditions and allow in 1.2.0)
         assert_eq!(
             pairs(&found),
             [
-                (Severity::Low, "llama_cpp_2".to_string()),
-                (Severity::Low, "z3-sys".to_string())
+                (Severity::Low, "z3-sys".to_string()),
+                (Severity::Medium, "cadical".to_string()),
+                (Severity::Medium, "llama_cpp_2".to_string())
             ]
         );
     }
@@ -646,9 +648,9 @@ mod tests {
         assert_eq!(
             pairs(&found),
             [
-                (Severity::Low, "stable-baselines3".to_string()),
                 (Severity::Low, "z3-solver".to_string()),
                 (Severity::Medium, "openhands_ai".to_string()),
+                (Severity::Medium, "stable-baselines3".to_string()),
                 (Severity::High, "gensim".to_string()),
             ]
         );
