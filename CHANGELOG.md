@@ -9,6 +9,11 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 ## 0.9.10 - 2026-10-24 (proposed)
 
 Docs only: `docs/superpowers/plans/2026-10-24-performance-rules-precision.md`, the precision sample of the performance (`PRF`) candidate rules (the PM's task: 30 per rule). **No rule clears the gate** (at least 80% true positives on at least 30 findings): the allocation-in-loop family is 0 of 42, `to_owned`/`to_vec` 6 of 20, linear-search forms 1 of 22, `vec-new-then-push` 7 of 9 (a census), `unbuffered-io` 2 of 2 (a census). The detector (a throwaway, with two positive controls and a seeded order), every verdict and its reason, and the rule changes that follow are in the document; the detector and controls are kept under `perf-prototype/` as `.txt`. Restates the design document's 12-finding sample as 3 of 12 under the stricter rubric. Nothing is built.
+## 0.9.9 - 2026-10-24 (proposed)
+
+A package with no `src/` is analysed from its cargo targets (the PM's ruling after baracuda's `examples`, which has only `[[bin]]` entries with a `path` at the package root and made all three Rust checks die with a bare "os error 3" until 0.9.6 named the cause). `cargo metadata` gives each library and binary target's root file (`Package::roots`, libraries first); when `src/` does not exist the rewrite reads and rewrites those root files, and the sentinels (positive controls) go into them: `reachability` and `unused-return-values` into the first root, `unused-parameters` into every root. Checked on the real layout: `check reachability`, `unused-parameters` and `unused-return-values` on baracuda's `examples` at 8e162f7 now run and report no issues (unused-parameters notes that `cutlass_gemm.rs` and `forge_hello.rs` are not built: their `required-features` are off).
+
+**Still refused, by name:** a root file outside `src/` that declares a file module (`mod helper;`), because the module's file would be neither rewritten nor read and the result would look complete and not be; the error names the file and the module. Tests: `a_package_whose_targets_are_outside_src_is_analysed_from_its_cargo_targets` (the layout, all three checks run, a seeded unused function and an ignored return are found) and `a_target_outside_src_with_a_file_module_is_refused_by_name_not_half_read`.
 
 ## 0.9.8 - 2026-10-23 (proposed)
 
