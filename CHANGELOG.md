@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.10 - 2026-10-24 (proposed)
+
+Docs only: `docs/superpowers/plans/2026-10-24-performance-rules-precision.md`, the precision sample of the performance (`PRF`) candidate rules (the PM's task: 30 per rule). **No rule clears the gate** (at least 80% true positives on at least 30 findings): the allocation-in-loop family is 0 of 42, `to_owned`/`to_vec` 6 of 20, linear-search forms 1 of 22, `vec-new-then-push` 7 of 9 (a census), `unbuffered-io` 2 of 2 (a census). The detector (a throwaway, with two positive controls and a seeded order), every verdict and its reason, and the rule changes that follow are in the document; the detector and controls are kept under `perf-prototype/` as `.txt`. Restates the design document's 12-finding sample as 3 of 12 under the stricter rubric. Nothing is built.
+
 ## 0.9.8 - 2026-10-23 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@66d358e1`, the merge of 0.9.7 (its workflow installs 0.9.6, which has `DOCS_RS` handling and the "not judged" note; the pin before it ran 0.8.19).

@@ -1,0 +1,478 @@
+//! Throwaway measurement tool for the perf-rules design doc. NOT shipped code. Reads a list of .rs paths (argv[2..]) under a repo root (argv[1])
+//! and prints `repo<TAB>rule<TAB>file:line<TAB>source line` for each syntactic pattern. Types are unknown to syn, so every rule is a heuristic.
+use quote::ToTokens;
+use std::collections::BTreeSet;
+use syn::spanned::Spanned;
+use syn::visit::{self, Visit};
+use syn::*;
+
+struct V {
+    depth: usize,
+    loops: Vec<String>,
+    out: Vec<(String, usize)>,
+    /// > 0 inside an error path (a `map_err`-style closure, an `Err(..)` argument, `fn main`, a `fmt` impl): allocation rules are silent there
+    cold: usize,
+    /// identifiers of the current fn known to hold a Vec or slice (parameters and lets with an evident type)
+    vecish: std::collections::HashSet<String>,
+}
+
+fn norm(e: &Expr) -> Option<String> {
+    let mut e = e;
+    loop {
+        match e {
+            Expr::Reference(r) => e = &r.expr,
+            Expr::Paren(p) => e = &p.expr,
+            Expr::MethodCall(m)
+                if matches!(m.method.to_string().as_str(), "iter" | "iter_mut" | "into_iter") && m.args.is_empty() =>
+            {
+                e = &m.receiver
+            }
+            Expr::Path(_) | Expr::Field(_) => {
+                return Some(e.to_token_stream().to_string().replace(' ', ""))
+            }
+            _ => return None,
+        }
+    }
+}
+
+fn squash(a: &impl ToTokens) -> String {
+    a.to_token_stream().to_string().replace(' ', "")
+}
+
+fn is_test_attr(attrs: &[Attribute]) -> bool {
+    attrs.iter().any(|a| {
+        let s = squash(a);
+        s == "#[test]" || s.contains("cfg(test)") || s.contains("tokio::test") || s.starts_with("#[bench")
+    })
+}
+
+fn type_is_vecish(t: &Type) -> bool {
+    match t {
+        Type::Reference(r) => type_is_vecish(&r.elem),
+        Type::Slice(_) => true,
+        Type::Path(p) => p.path.segments.last().is_some_and(|s| s.ident == "Vec"),
+        _ => false,
+    }
+}
+
+fn init_is_vecish(e: &Expr) -> bool {
+    let s = squash(e);
+    s.starts_with("Vec::new(") || s.starts_with("Vec::with_capacity(") || s.starts_with("vec!") || s.contains(".collect::<Vec<") || s.ends_with(".to_vec()")
+}
+
+impl V {
+    fn collect_vecish(&mut self, sig: &Signature, block: &Block) {
+        self.vecish.clear();
+        for input in &sig.inputs {
+            if let FnArg::Typed(pt) = input {
+                if let Pat::Ident(pi) = &*pt.pat {
+                    if type_is_vecish(&pt.ty) {
+                        self.vecish.insert(pi.ident.to_string());
+                    }
+                }
+            }
+        }
+        struct L<'a>(&'a mut std::collections::HashSet<String>);
+        impl<'ast> Visit<'ast> for L<'_> {
+            fn visit_local(&mut self, l: &'ast Local) {
+                let ident = match &l.pat {
+                    Pat::Ident(pi) => Some(pi.ident.to_string()),
+                    Pat::Type(pt) => match &*pt.pat {
+                        Pat::Ident(pi) if type_is_vecish(&pt.ty) => Some(pi.ident.to_string()),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let (Some(name), Some(init)) = (ident, &l.init) {
+                    if init_is_vecish(&init.expr) || matches!(&l.pat, Pat::Type(_)) {
+                        self.0.insert(name);
+                    }
+                }
+                visit::visit_local(self, l);
+            }
+        }
+        L(&mut self.vecish).visit_block(block);
+    }
+    fn hit(&mut self, rule: &str, line: usize) {
+        self.out.push((rule.to_string(), line));
+    }
+    fn in_loop(&self) -> bool {
+        self.depth > 0
+    }
+    /// File/TcpStream opened in a fn that does line/chunk I/O in a loop with no BufReader/BufWriter/LineWriter named in it.
+    fn fn_buffering(&mut self, block: &Block, line: usize) {
+        let t = squash(block);
+        let opens = t.contains("File::open(")
+            || t.contains("File::create(")
+            || t.contains("TcpStream::connect(")
+            || t.contains("OpenOptions::new()");
+        let buffered = t.contains("BufReader") || t.contains("BufWriter") || t.contains("LineWriter");
+        let small_io = t.contains(".read_line(")
+            || t.contains(".write_all(")
+            || t.contains("write!(")
+            || t.contains("writeln!(")
+            || t.contains(".read_exact(");
+        let spaced = block.to_token_stream().to_string();
+        let looped = (spaced.contains("for ") && spaced.contains(" in ")) || spaced.contains("while ") || spaced.contains("loop {");
+        if opens && small_io && !buffered && looped {
+            self.hit("unbuffered-io", line);
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for V {
+    fn visit_item_mod(&mut self, i: &'ast ItemMod) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        visit::visit_item_mod(self, i);
+    }
+    fn visit_item_fn(&mut self, i: &'ast ItemFn) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        let line = i.sig.ident.span().start().line;
+        if i.attrs.iter().any(|a| squash(a).contains("inline(always)")) {
+            self.hit("claim:inline-always", line);
+        }
+        self.fn_buffering(&i.block, line);
+        let saved = (self.depth, std::mem::take(&mut self.loops));
+        self.depth = 0;
+        self.collect_vecish(&i.sig, &i.block);
+        let cold = i.sig.ident == "main";
+        if cold {
+            self.cold += 1;
+        }
+        visit::visit_item_fn(self, i);
+        if cold {
+            self.cold -= 1;
+        }
+        self.depth = saved.0;
+        self.loops = saved.1;
+    }
+    fn visit_impl_item_fn(&mut self, i: &'ast ImplItemFn) {
+        if is_test_attr(&i.attrs) {
+            return;
+        }
+        let line = i.sig.ident.span().start().line;
+        if i.attrs.iter().any(|a| squash(a).contains("inline(always)")) {
+            self.hit("claim:inline-always", line);
+        }
+        self.fn_buffering(&i.block, line);
+        let saved = (self.depth, std::mem::take(&mut self.loops));
+        self.depth = 0;
+        self.collect_vecish(&i.sig, &i.block);
+        let cold = i.sig.ident == "fmt";
+        if cold {
+            self.cold += 1;
+        }
+        visit::visit_impl_item_fn(self, i);
+        if cold {
+            self.cold -= 1;
+        }
+        self.depth = saved.0;
+        self.loops = saved.1;
+    }
+    fn visit_item_struct(&mut self, i: &'ast ItemStruct) {
+        let repr_c = i.attrs.iter().any(|a| squash(a).contains("repr(C"));
+        if repr_c {
+            if let Some((size, packed)) = repr_c_size(&i.fields) {
+                if size > packed && (size - packed) * 4 >= size {
+                    self.hit("repr-c-padding", i.ident.span().start().line);
+                }
+            }
+        }
+        visit::visit_item_struct(self, i);
+    }
+    fn visit_type_path(&mut self, t: &'ast TypePath) {
+        if let Some(seg) = t.path.segments.last() {
+            let name = seg.ident.to_string();
+            if let PathArguments::AngleBracketed(ab) = &seg.arguments {
+                let first = ab.args.first();
+                if name == "Vec" {
+                    if let Some(GenericArgument::Type(Type::Path(inner))) = first {
+                        if let Some(s2) = inner.path.segments.last() {
+                            if s2.ident == "Box" {
+                                // Box<dyn Trait> is a deliberate trait-object vector, not pointer chasing of data
+                                let is_dyn = matches!(&s2.arguments, PathArguments::AngleBracketed(a2)
+                                    if matches!(a2.args.first(), Some(GenericArgument::Type(Type::TraitObject(_)))));
+                                if !is_dyn {
+                                    self.hit("pointer-chasing:Vec<Box<T>>", seg.ident.span().start().line);
+                                }
+                            }
+                        }
+                    }
+                }
+                if name == "Rc" {
+                    if let Some(GenericArgument::Type(Type::Path(inner))) = first {
+                        if inner.path.segments.last().is_some_and(|s| s.ident == "RefCell") {
+                            self.hit("pointer-chasing:Rc<RefCell<T>>", seg.ident.span().start().line);
+                        }
+                    }
+                }
+            }
+            if name == "LinkedList" {
+                self.hit("pointer-chasing:LinkedList", seg.ident.span().start().line);
+            }
+        }
+        visit::visit_type_path(self, t);
+    }
+    fn visit_expr_for_loop(&mut self, f: &'ast ExprForLoop) {
+        self.visit_expr(&f.expr);
+        let key = norm(&f.expr);
+        let line = f.for_token.span.start().line;
+        if let Some(k) = &key {
+            if self.loops.contains(k) {
+                self.hit("nested-loop-same-collection", line);
+            }
+        }
+        self.loops.push(key.unwrap_or_default());
+        self.depth += 1;
+        self.visit_block(&f.body);
+        self.depth -= 1;
+        self.loops.pop();
+    }
+    fn visit_expr_while(&mut self, w: &'ast ExprWhile) {
+        self.depth += 1;
+        self.loops.push(String::new());
+        visit::visit_expr_while(self, w);
+        self.loops.pop();
+        self.depth -= 1;
+    }
+    fn visit_expr_loop(&mut self, w: &'ast ExprLoop) {
+        self.depth += 1;
+        self.loops.push(String::new());
+        visit::visit_expr_loop(self, w);
+        self.loops.pop();
+        self.depth -= 1;
+    }
+    fn visit_block(&mut self, b: &'ast Block) {
+        // `let mut v = Vec::new();` followed in the same block by a `for` that pushes onto `v` (with_capacity candidate)
+        for (i, s) in b.stmts.iter().enumerate() {
+            if let Stmt::Local(l) = s {
+                if let (Pat::Ident(pi), Some(init)) = (&l.pat, &l.init) {
+                    let rhs = squash(&init.expr);
+                    if rhs == "Vec::new()" || (rhs.starts_with("Vec::<") && rhs.ends_with("::new()")) {
+                        let name = pi.ident.to_string();
+                        for later in b.stmts.iter().skip(i + 1).take(3) {
+                            if let Stmt::Expr(Expr::ForLoop(fl), _) = later {
+                                let body = squash(&fl.body);
+                                // the length is evident when the loop runs over a range or a collection and always pushes once per turn
+                                let evident = matches!(&*fl.expr, Expr::Range(_)) || norm(&fl.expr).is_some();
+                                let direct_push = fl.body.stmts.iter().any(|s| {
+                                    matches!(s, Stmt::Expr(Expr::MethodCall(mc), _)
+                                        if mc.method == "push" && squash(&mc.receiver) == name)
+                                });
+                                let exits_early = body.contains("continue") || body.contains("break") || body.contains("return");
+                                if evident && direct_push && !exits_early {
+                                    self.hit("vec-new-then-push-loop", l.let_token.span.start().line);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        visit::visit_block(self, b);
+    }
+    fn visit_expr_method_call(&mut self, m: &'ast ExprMethodCall) {
+        let name = m.method.to_string();
+        let line = m.method.span().start().line;
+        if self.in_loop() {
+            match name.as_str() {
+                "clone" if m.args.is_empty() && self.cold == 0 => self.hit("loop:clone", line),
+                "to_string" if m.args.is_empty() && self.cold == 0 => self.hit("loop:to_string", line),
+                "to_owned" | "to_vec" if m.args.is_empty() && self.cold == 0 => self.hit("loop:to_owned/to_vec", line),
+                "contains"
+                    if m.args.len() == 1
+                        && matches!(&*m.receiver, Expr::Path(p) if p.path.get_ident().is_some_and(|i| self.vecish.contains(&i.to_string()))) =>
+                {
+                    self.hit("loop:contains(vec)", line)
+                }
+                "position" | "find" | "any" | "all"
+                    if matches!(&*m.receiver, Expr::MethodCall(r) if r.method == "iter") =>
+                {
+                    self.hit("loop:iter-linear-search", line)
+                }
+                "execute" | "query" | "query_one" | "query_as" | "fetch_one" | "fetch_all" | "fetch_optional"
+                | "query_row" | "send" => self.hit("loop:db/network-call", line),
+                _ => {}
+            }
+        }
+        if (name == "iter" || name == "into_iter") && m.args.is_empty() {
+            if let Expr::MethodCall(r) = &*m.receiver {
+                if r.method == "collect" {
+                    self.hit("collect-then-iterate", line);
+                }
+            }
+        }
+        if matches!(
+            name.as_str(),
+            "get_unchecked" | "get_unchecked_mut" | "unwrap_unchecked" | "from_utf8_unchecked"
+        ) {
+            self.hit("claim:unchecked", line);
+        }
+        // an error path: the closure of `map_err` and its kin runs only when something failed
+        if matches!(
+            name.as_str(),
+            "map_err" | "ok_or_else" | "unwrap_or_else" | "or_else" | "map_or_else" | "expect_err"
+        ) {
+            self.visit_expr(&m.receiver);
+            self.cold += 1;
+            for a in &m.args {
+                self.visit_expr(a);
+            }
+            self.cold -= 1;
+            return;
+        }
+        visit::visit_expr_method_call(self, m);
+    }
+    fn visit_expr_call(&mut self, c: &'ast ExprCall) {
+        if let Expr::Path(p) = &*c.func {
+            let s = squash(p);
+            let line = p.span().start().line;
+            if self.in_loop() {
+                if s.ends_with("Regex::new") || s.ends_with("RegexSet::new") {
+                    self.hit("loop:regex-compile", line);
+                } else if s == "String::from" && self.cold == 0 {
+                    self.hit("loop:String::from", line);
+                } else if self.cold > 0 {
+                    // allocation in an error path: not reported
+                } else if (s.starts_with("Vec::<") || s.starts_with("HashMap::<")) && s.ends_with("::new") {
+                    self.hit("loop:alloc-new", line);
+                } else if matches!(
+                    s.as_str(),
+                    "Vec::new" | "String::new" | "Box::new" | "HashMap::new" | "HashSet::new" | "BTreeMap::new"
+                ) {
+                    self.hit("loop:alloc-new", line);
+                } else if s == "reqwest::get" || s == "ureq::get" {
+                    self.hit("loop:db/network-call", line);
+                }
+            }
+        }
+        if matches!(&*c.func, Expr::Path(p) if p.path.is_ident("Err")) {
+            self.cold += 1;
+            visit::visit_expr_call(self, c);
+            self.cold -= 1;
+            return;
+        }
+        visit::visit_expr_call(self, c);
+    }
+    fn visit_macro(&mut self, m: &'ast Macro) {
+        let name = m.path.segments.last().map(|s| s.ident.to_string()).unwrap_or_default();
+        if self.in_loop() {
+            let line = m.path.span().start().line;
+            match name.as_str() {
+                "format" if self.cold == 0 => self.hit("loop:format!", line),
+                "vec" if self.cold == 0 => self.hit("loop:alloc-new", line),
+                _ => {}
+            }
+        }
+        visit::visit_macro(self, m);
+    }
+    fn visit_expr_binary(&mut self, b: &'ast ExprBinary) {
+        if self.in_loop() && matches!(b.op, BinOp::AddAssign(_)) {
+            let stringy = match &*b.right {
+                Expr::Reference(_) => true,
+                Expr::Lit(l) => matches!(l.lit, Lit::Str(_)),
+                Expr::Macro(m) => m.mac.path.is_ident("format"),
+                _ => false,
+            };
+            if stringy {
+                self.hit("loop:string-concat(+=)", b.op.span().start().line);
+            }
+        }
+        visit::visit_expr_binary(self, b);
+    }
+}
+
+fn prim(t: &Type) -> Option<usize> {
+    if let Type::Path(p) = t {
+        let n = p.path.segments.last()?.ident.to_string();
+        return Some(match n.as_str() {
+            "u8" | "i8" | "bool" => 1,
+            "u16" | "i16" => 2,
+            "u32" | "i32" | "f32" | "char" => 4,
+            "u64" | "i64" | "f64" | "usize" | "isize" => 8,
+            "u128" | "i128" => 16,
+            _ => return None,
+        });
+    }
+    None
+}
+
+/// (size with C layout, size with no padding) for a struct of primitive fields only.
+fn repr_c_size(f: &Fields) -> Option<(usize, usize)> {
+    let mut sizes = Vec::new();
+    for field in f.iter() {
+        sizes.push(prim(&field.ty)?);
+    }
+    if sizes.len() < 2 {
+        return None;
+    }
+    let align = *sizes.iter().max()?;
+    let mut off: usize = 0;
+    for s in &sizes {
+        off = off.div_ceil(*s) * s + s;
+    }
+    let c = off.div_ceil(align) * align;
+    let packed = sizes.iter().sum::<usize>().div_ceil(align) * align;
+    Some((c, packed))
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let root = std::path::PathBuf::from(&args[1]);
+    let repo = root.file_name().unwrap().to_string_lossy().to_string();
+    let mut seen = BTreeSet::new();
+    for rel in &args[2..] {
+        if rel.contains("/tests/")
+            || rel.starts_with("tests/")
+            || rel.contains("/benches/")
+            || rel.contains("/examples/")
+            || rel.ends_with("build.rs")
+        {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(root.join(rel)) else { continue };
+        let Ok(file) = syn::parse_file(&text) else {
+            eprintln!("unparsed\t{rel}");
+            continue;
+        };
+        let lines: Vec<String> = text.lines().map(str::to_string).collect();
+        let mut v = V { depth: 0, loops: vec![], out: vec![], cold: 0, vecish: Default::default() };
+        v.visit_file(&file);
+        for (rule, line) in v.out {
+            if seen.insert((rel.clone(), rule.clone(), line)) {
+                let src = lines
+                    .get(line.wrapping_sub(1))
+                    .map(|s| s.trim().chars().take(140).collect::<String>())
+                    .unwrap_or_default();
+                println!("{repo}\t{rule}\t{rel}:{line}\t{src}");
+            }
+        }
+        // performance claims written in comments
+        for (i, l) in lines.iter().enumerate() {
+            let t = l.trim_start();
+            if t.starts_with("//") || t.starts_with("/*") || t.starts_with('*') {
+                let low = t.to_lowercase();
+                if [
+                    "for speed",
+                    "for performance",
+                    "perf hack",
+                    "avoid the cost",
+                    "faster than",
+                    "hot path",
+                    "optimization",
+                    "optimisation",
+                ]
+                .iter()
+                .any(|k| low.contains(k))
+                {
+                    println!("{repo}\tclaim:comment\t{rel}:{}\t{}", i + 1, t.chars().take(140).collect::<String>());
+                }
+            }
+        }
+    }
+}
