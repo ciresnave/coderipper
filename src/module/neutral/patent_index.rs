@@ -16,14 +16,20 @@
 //! dependencies and dependency groups; Poetry tables), `requirements*.txt`, `pom.xml` (each `<dependency>` by `groupId:artifactId`;
 //! a property placeholder is compared as written) and `build.gradle[.kts]` (each quoted `group:artifact[:version]` string). The directories the other rules skip are skipped.
 //!
-//! **What it cannot see:** a Gradle version catalog (`libs.versions.toml`) or a coordinate built from variables; lockfiles and transitive
-//! dependencies; a technique implemented in the project's own source or copied in; a package the index lists under no name
+//! **Lockfiles (transitive dependencies):** `Cargo.lock`, `package-lock.json` (lockfileVersion 1, 2 and 3), `poetry.lock`, `uv.lock` and
+//! `Pipfile.lock` list every package that is resolved, so a package that no manifest declares (a transitive dependency) can match the
+//! index too. A locked match that a manifest in the repository also declares is reported once, from the manifest. A match found only in a
+//! lockfile is graded one step below the index's action (High is Medium, Medium and Low are Low) and at low confidence: the repository may
+//! not choose it, so it must not fail a gate that a direct dependency would. `yarn.lock`, `pnpm-lock.yaml`, `go.sum` and `gradle.lockfile`
+//! are not read. Gradle version catalogs (`*.versions.toml`, `[libraries]`) are read as manifests.
+//!
+//! **What it cannot see:** a coordinate built from variables; a lockfile format listed above as not read; a technique implemented in the project's own source or copied in; a package the index lists under no name
 //! (`match` is empty for 18 of 66 entries); code vendored in a skipped directory; a manifest that does not parse (named in a note).
 
 use super::{conflict_marker::SKIPPED, RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use serde::Deserialize;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 use toml::Value;
 
@@ -215,12 +221,43 @@ struct Scan<'a> {
     manifests: usize,
     declared: usize,
     matched: usize,
+    /// Every `(registry, normalised name)` a manifest declares: a lockfile entry in this set is reported from the manifest, not again.
+    direct: BTreeSet<(Eco, String)>,
+    /// Lockfiles read, and the packages they list.
+    locks: usize,
+    locked: usize,
+    /// Locked packages already reported, so one package in two lockfiles (or at two versions) is one finding.
+    reported_locked: BTreeSet<(Eco, String)>,
 }
 
 impl Scan<'_> {
     /// One declared dependency `name` (with the extras it asks for) in `file`.
     fn dependency(&mut self, eco: Eco, file: &str, text: &str, name: &str, extras: &[String]) {
         self.declared += 1;
+        self.direct.insert((eco, normalise(eco, name)));
+        self.check(eco, file, text, name, extras, None);
+    }
+
+    /// One package `name` at `version` that a lockfile resolves. Silent when a manifest declares it (that finding is the direct one).
+    fn locked_package(&mut self, eco: Eco, file: &str, text: &str, name: &str, version: &str) {
+        self.locked += 1;
+        let key = (eco, normalise(eco, name));
+        if self.direct.contains(&key) || !self.reported_locked.insert(key) {
+            return;
+        }
+        self.check(eco, file, text, name, &[], Some(version));
+    }
+
+    /// Compares `name` with the index. `locked` is `Some(version)` for a lockfile entry: graded one step lower, at low confidence.
+    fn check(
+        &mut self,
+        eco: Eco,
+        file: &str,
+        text: &str,
+        name: &str,
+        extras: &[String],
+        locked: Option<&str>,
+    ) {
         let index = loaded();
         let Some(hits) = index.by_name.get(&(eco, normalise(eco, name))) else {
             return;
@@ -231,27 +268,43 @@ impl Scan<'_> {
             }
             self.matched += 1;
             let entry = &index.entries[*i];
-            let Some(severity) = severity(&entry.action) else {
+            let Some(mut severity) = severity(&entry.action) else {
                 continue;
             };
+            if locked.is_some() {
+                severity = match severity {
+                    Severity::High => Severity::Medium,
+                    other => other.min(Severity::Low),
+                };
+            }
+            let quoted = format!("\"{name}\"");
             let line = text
                 .lines()
-                .position(|l| l.contains(name))
+                .position(|l| l.contains(&quoted))
+                .or_else(|| text.lines().position(|l| l.contains(name)))
                 .and_then(|n| u32::try_from(n + 1).ok());
+            let (what, confidence, lock_note) = match locked {
+                Some(version) => (
+                    format!("locked package `{name}` {version} (declared by no manifest read, so probably transitive)"),
+                    Confidence::Low,
+                    " It is in a lockfile and no manifest in this repository declares it, so you may not choose it; the severity is one step below the index's action.",
+                ),
+                None => (format!("dependency `{name}`"), Confidence::Medium, ""),
+            };
             self.findings.push(
                 Finding::new(
                     ID,
                     severity,
-                    Confidence::Medium,
+                    confidence,
                     self.view.name(),
                     format!(
-                        "{file}: dependency `{name}` is an index match for `{}` ({}; tier {}, action {}, licence {})",
+                        "{file}: {what} is an index match for `{}` ({}; tier {}, action {}, licence {})",
                         entry.id, entry.technique, entry.tier, entry.action, entry.license
                     ),
                     format!(
                         "{} Index match only, from agent-safety-bed {} ({}): not legal advice, not a patent clearance or a finding of infringement, \
-                         and a dependency with no match is not cleared. Follow the index's action for `{}`, or waive this with an `[[allow]]` \
-                         entry (file = the manifest, symbol = the package) that records who reviewed it.",
+                         and a dependency with no match is not cleared.{lock_note} Follow the index's action for `{}`, or waive this with an `[[allow]]` \
+                         entry (file = the manifest or lockfile, symbol = the package) that records who reviewed it.",
                         entry.note,
                         index.version,
                         &index.commit[..index.commit.len().min(12)],
@@ -449,6 +502,131 @@ impl Scan<'_> {
     }
 }
 
+impl Scan<'_> {
+    /// A Gradle version catalog (`*.versions.toml`): each `[libraries]` entry is `"group:artifact:version"`, `{ module = "group:artifact" }`
+    /// or `{ group = "..", name = ".." }`.
+    fn version_catalog(&mut self, file: &str, text: &str) {
+        let Ok(root) = text.parse::<toml::Table>() else {
+            self.notes
+                .push(format!("{file} does not parse as TOML, so it was not read"));
+            return;
+        };
+        self.manifests += 1;
+        let Some(libraries) = root.get("libraries").and_then(Value::as_table) else {
+            return;
+        };
+        for spec in libraries.values() {
+            let coordinate = match spec {
+                Value::String(s) => s.split(':').take(2).collect::<Vec<_>>().join(":"),
+                Value::Table(t) => match (t.get("module"), t.get("group"), t.get("name")) {
+                    (Some(Value::String(m)), _, _) => m.clone(),
+                    (_, Some(Value::String(g)), Some(Value::String(n))) => format!("{g}:{n}"),
+                    _ => continue,
+                },
+                _ => continue,
+            };
+            self.dependency(Eco::Maven, file, text, &coordinate, &[]);
+        }
+    }
+
+    /// `Cargo.lock`, `poetry.lock` and `uv.lock`: `[[package]]` tables with a `name` and `version`. A Cargo package with no `source` is
+    /// a workspace or path crate (the repository's own code), and a uv package whose source is `virtual` or `editable` is the project itself.
+    fn toml_lock(&mut self, eco: Eco, file: &str, text: &str) {
+        let Ok(root) = text.parse::<toml::Table>() else {
+            self.notes
+                .push(format!("{file} does not parse as TOML, so it was not read"));
+            return;
+        };
+        self.locks += 1;
+        let Some(packages) = root.get("package").and_then(Value::as_array) else {
+            return;
+        };
+        for package in packages.iter().filter_map(Value::as_table) {
+            let Some(name) = package.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let source = package.get("source");
+            let own = match eco {
+                Eco::Cargo => source.is_none(),
+                _ => source
+                    .and_then(Value::as_table)
+                    .is_some_and(|s| s.contains_key("virtual") || s.contains_key("editable")),
+            };
+            if own {
+                continue;
+            }
+            let version = package
+                .get("version")
+                .and_then(Value::as_str)
+                .unwrap_or("?");
+            self.locked_package(eco, file, text, name, version);
+        }
+    }
+
+    /// `package-lock.json`: lockfileVersion 2 and 3 key `packages` by `node_modules/<name>` path (the last `node_modules/` segment is the
+    /// name; an entry's own `name` is an alias target); version 1 nests `dependencies` by name.
+    fn package_lock(&mut self, file: &str, text: &str) {
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(text) else {
+            self.notes
+                .push(format!("{file} does not parse as JSON, so it was not read"));
+            return;
+        };
+        self.locks += 1;
+        let version_of = |v: &serde_json::Value| {
+            v.get("version")
+                .and_then(|x| x.as_str())
+                .unwrap_or("?")
+                .to_string()
+        };
+        if let Some(packages) = json.get("packages").and_then(|p| p.as_object()) {
+            for (path, entry) in packages.iter().filter(|(p, _)| !p.is_empty()) {
+                // a workspace member is linked from outside `node_modules`: the repository's own code
+                if entry.get("link").and_then(|l| l.as_bool()) == Some(true)
+                    || !path.contains("node_modules/")
+                {
+                    continue;
+                }
+                let name = entry
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or_else(|| path.rsplit("node_modules/").next().unwrap_or(path));
+                self.locked_package(Eco::Npm, file, text, name, &version_of(entry));
+            }
+        } else if let Some(deps) = json.get("dependencies").and_then(|d| d.as_object()) {
+            let mut stack: Vec<(&String, &serde_json::Value)> = deps.iter().collect();
+            while let Some((name, entry)) = stack.pop() {
+                self.locked_package(Eco::Npm, file, text, name, &version_of(entry));
+                if let Some(nested) = entry.get("dependencies").and_then(|d| d.as_object()) {
+                    stack.extend(nested.iter());
+                }
+            }
+        }
+    }
+
+    /// `Pipfile.lock`: `default` and `develop` map a package name to `{ "version": "==x" }`.
+    fn pipfile_lock(&mut self, file: &str, text: &str) {
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(text) else {
+            self.notes
+                .push(format!("{file} does not parse as JSON, so it was not read"));
+            return;
+        };
+        self.locks += 1;
+        for section in ["default", "develop"] {
+            let Some(packages) = json.get(section).and_then(|s| s.as_object()) else {
+                continue;
+            };
+            for (name, entry) in packages {
+                let version = entry
+                    .get("version")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .trim_start_matches('=');
+                self.locked_package(Eco::Pypi, file, text, name, version);
+            }
+        }
+    }
+}
+
 fn is_requirements(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
     name.ends_with(".txt")
@@ -465,9 +643,23 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         manifests: 0,
         declared: 0,
         matched: 0,
+        direct: BTreeSet::new(),
+        locks: 0,
+        locked: 0,
+        reported_locked: BTreeSet::new(),
     };
-    for path in view.paths().iter().filter(|p| !skipped(p)) {
+    // Lockfiles are read after every manifest, so a locked package a manifest declares is known to be direct.
+    let mut lockfiles: Vec<&String> = Vec::new();
+    let paths = view.paths();
+    for path in paths.iter().filter(|p| !skipped(p)) {
         let name = path.rsplit('/').next().unwrap_or(path);
+        if matches!(
+            name,
+            "Cargo.lock" | "package-lock.json" | "poetry.lock" | "uv.lock" | "Pipfile.lock"
+        ) {
+            lockfiles.push(path);
+            continue;
+        }
         if !matches!(
             name,
             "Cargo.toml"
@@ -477,6 +669,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 | "build.gradle"
                 | "build.gradle.kts"
         ) && !is_requirements(path)
+            && !name.ends_with(".versions.toml")
         {
             continue;
         }
@@ -489,6 +682,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             "pyproject.toml" => scan.pyproject(path, &text),
             "pom.xml" => scan.pom(path, &text),
             "build.gradle" | "build.gradle.kts" => scan.gradle(path, &text),
+            n if n.ends_with(".versions.toml") => scan.version_catalog(path, &text),
             _ => {
                 scan.manifests += 1;
                 for line in text.lines() {
@@ -497,19 +691,33 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             }
         }
     }
-    if scan.manifests == 0 && scan.notes.is_empty() {
+    for path in lockfiles {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let Some(text) = view.read(path) else {
+            continue;
+        };
+        match name {
+            "Cargo.lock" => scan.toml_lock(Eco::Cargo, path, &text),
+            "poetry.lock" | "uv.lock" => scan.toml_lock(Eco::Pypi, path, &text),
+            "package-lock.json" => scan.package_lock(path, &text),
+            _ => scan.pipfile_lock(path, &text),
+        }
+    }
+    if scan.manifests == 0 && scan.locks == 0 && scan.notes.is_empty() {
         return Verdict::NotApplicable(
-            "no Cargo.toml, package.json, pyproject.toml, pom.xml, Gradle build file or requirements file outside vendored and fixture directories".into(),
+            "no Cargo.toml, package.json, pyproject.toml, pom.xml, Gradle build file, version catalog, requirements file or lockfile outside vendored and fixture directories".into(),
         );
     }
     let index = loaded();
     let positive = format!(
-        "{} manifest(s) read, {} declared dependencies compared with {} index entries (agent-safety-bed {}), {} matched",
+        "{} manifest(s) read, {} declared dependencies compared with {} index entries (agent-safety-bed {}), {} matched; {} lockfile(s) read, {} locked package(s) compared",
         scan.manifests,
         scan.declared,
         index.entries.len(),
         index.version,
-        scan.matched
+        scan.matched,
+        scan.locks,
+        scan.locked
     );
     let mut notes = scan.notes;
     notes.push(positive.clone());
@@ -697,6 +905,126 @@ mod tests {
                 (Severity::Low, "org.drools:drools-core".to_string()),
             ]
         );
+    }
+
+    #[test]
+    fn a_gradle_version_catalog_is_read_in_all_three_library_forms() {
+        let catalog = "[versions]\ndrools = \"9\"\n[libraries]\na = \"org.drools:drools-core:9.0\"\nb = { module = \"org.apache.jena:jena-arq\", version.ref = \"drools\" }\nc = { group = \"org.drools\", name = \"drools-core\" }\nd = { module = \"junit:junit\" }\n";
+        let f = run(&[("gradle/libs.versions.toml", catalog)]);
+        assert_eq!(
+            pairs(&f),
+            vec![
+                (Severity::Low, "org.apache.jena:jena-arq".to_string()),
+                (Severity::Low, "org.drools:drools-core".to_string()),
+                (Severity::Low, "org.drools:drools-core".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_locked_package_no_manifest_declares_is_one_step_lower_and_low_confidence() {
+        // gensim is `avoid` (High) when declared; only in a lockfile it is Medium. Cargo.lock: cadical is flag-for-review (Medium), Low when only locked.
+        let poetry = "[[package]]\nname = \"Gensim\"\nversion = \"4.3.0\"\n\n[[package]]\nname = \"requests\"\nversion = \"2.33.0\"\n";
+        let cargo = "[[package]]\nname = \"cadical\"\nversion = \"0.1.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n";
+        let f = run(&[("poetry.lock", poetry), ("Cargo.lock", cargo)]);
+        assert_eq!(
+            pairs(&f),
+            vec![
+                (Severity::Low, "cadical".to_string()),
+                (Severity::Medium, "gensim".to_string())
+            ]
+        );
+        assert!(f.iter().all(|f| f.confidence == Confidence::Low), "{f:?}");
+        let g = f.iter().find(|f| f.summary.contains("Gensim")).unwrap();
+        assert!(g.summary.contains("locked package"), "{}", g.summary);
+        assert!(g.summary.contains("4.3.0"), "{}", g.summary);
+        assert_eq!(g.location.as_ref().and_then(|l| l.line), Some(2));
+    }
+
+    #[test]
+    fn a_package_a_manifest_declares_is_reported_once_from_the_manifest() {
+        let f = run(&[
+            ("requirements.txt", "gensim>=4\n"),
+            (
+                "poetry.lock",
+                "[[package]]\nname = \"gensim\"\nversion = \"4.3.0\"\n",
+            ),
+        ]);
+        assert_eq!(pairs(&f), vec![(Severity::High, "gensim".to_string())]);
+        assert!(
+            f[0].summary.contains("requirements.txt"),
+            "{}",
+            f[0].summary
+        );
+        // the same package in two lockfiles is one finding
+        let g = run(&[
+            (
+                "a/poetry.lock",
+                "[[package]]\nname = \"gensim\"\nversion = \"4.3.0\"\n",
+            ),
+            (
+                "b/uv.lock",
+                "[[package]]\nname = \"gensim\"\nversion = \"4.2.0\"\n",
+            ),
+        ]);
+        assert_eq!(g.len(), 1, "{g:?}");
+    }
+
+    #[test]
+    fn the_projects_own_packages_in_a_lockfile_are_not_judged() {
+        // a Cargo package with no `source` is a workspace or path crate; a uv package with a virtual or editable source is the project
+        let cargo = "[[package]]\nname = \"cadical\"\nversion = \"0.1.0\"\n";
+        let uv = "[[package]]\nname = \"gensim\"\nversion = \"0.1.0\"\nsource = { virtual = \".\" }\n\n[[package]]\nname = \"z3-solver\"\nversion = \"1\"\nsource = { editable = \".\" }\n";
+        match judge(&RepoView::from_files(&[
+            ("Cargo.lock", cargo),
+            ("uv.lock", uv),
+        ])) {
+            Verdict::Noted(f, notes) => {
+                assert!(f.is_empty(), "{f:?}");
+                assert!(
+                    notes
+                        .iter()
+                        .any(|n| n.contains("2 lockfile(s) read, 0 locked package(s) compared")),
+                    "{notes:?}"
+                );
+            }
+            _ => panic!("lockfiles alone are readable"),
+        }
+    }
+
+    #[test]
+    fn package_lock_v3_v1_and_pipfile_lock_are_read() {
+        let v3 = r#"{"lockfileVersion":3,"packages":{"":{"name":"app"},"node_modules/left-pad":{"version":"1.0.0"},"node_modules/a/node_modules/z3-solver":{"version":"5.0.0"},"node_modules/zz":{"name":"@google/adk","version":"1.0.0"},"packages/app":{"version":"1"},"node_modules/ws":{"link":true,"resolved":"ws"}}}"#;
+        let v1 = r#"{"lockfileVersion":1,"dependencies":{"left-pad":{"version":"1.0.0","dependencies":{"z3-solver":{"version":"5.0.0"}}}}}"#;
+        let pipfile = r#"{"default":{"gensim":{"version":"==4.3.0"}},"develop":{"requests":{"version":"==2.33.0"}}}"#;
+        let a = run(&[("package-lock.json", v3)]);
+        assert_eq!(pairs(&a), vec![(Severity::Low, "z3-solver".to_string())]);
+        assert!(a[0].summary.contains("5.0.0"), "{}", a[0].summary);
+        let b = run(&[("web/package-lock.json", v1)]);
+        assert_eq!(pairs(&b), vec![(Severity::Low, "z3-solver".to_string())]);
+        let c = run(&[("Pipfile.lock", pipfile)]);
+        assert_eq!(pairs(&c), vec![(Severity::Medium, "gensim".to_string())]);
+        assert!(
+            c[0].summary.contains("4.3.0") && !c[0].summary.contains("=="),
+            "{}",
+            c[0].summary
+        );
+    }
+
+    #[test]
+    fn an_unparseable_lockfile_is_a_note_not_a_clean_run() {
+        match judge(&RepoView::from_files(&[("Cargo.lock", "[[package\n")])) {
+            Verdict::Noted(f, notes) => {
+                assert!(f.is_empty());
+                assert!(
+                    notes
+                        .iter()
+                        .any(|n| n.contains("Cargo.lock does not parse")),
+                    "{notes:?}"
+                );
+            }
+            _ => panic!("an unparseable lockfile must be noted"),
+        }
     }
 
     #[test]
