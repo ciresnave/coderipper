@@ -1,0 +1,70 @@
+"""Throwaway measurement for the provenance design (family 2). NOT shipped code. For each repository (origin/main, read through git plumbing) list
+tracked data/binary files and whether a provenance record covers them. Output: TSV lines repo, path, size, covered(by what), ext."""
+import os
+import re
+import subprocess
+import sys
+
+DATA_EXT = {
+    "safetensors", "gguf", "bin", "npy", "npz", "pt", "pth", "onnx", "ckpt", "h5", "pb", "parquet", "arrow", "feather", "tflite", "wasm",
+    "so", "dll", "a", "lib", "dylib", "png", "jpg", "jpeg", "gif", "webp", "ico", "bmp", "pdf", "ttf", "otf", "woff", "woff2", "zip",
+    "tar", "gz", "tgz", "7z", "mp3", "wav", "mp4", "db", "sqlite", "pem", "der", "p12", "dat", "model", "vocab", "tiktoken", "spm",
+}
+TEXT_DATA_EXT = {"json", "jsonl", "csv", "tsv", "txt", "xml", "yaml", "yml", "toml", "md", "html", "svg"}
+TEXT_DATA_MIN = 100 * 1024  # a text file this large under a data-ish directory is data, not code
+RECORD_NAME = re.compile(r"(PROVENANCE|NOTICE|LICEN[CS]E|COPYING|ATTRIBUTION|SOURCES|THIRD[-_ ]?PARTY|CREDITS)|\.PIN$|\.provenance", re.I)
+SKIP_DIRS = ("target/", "node_modules/", ".git/", "vendor/", "docs/", ".github/")
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", repo, *args], capture_output=True).stdout.decode("utf-8", "replace")
+
+
+def main():
+    repo, name = sys.argv[1], sys.argv[2]
+    br = "origin/main"
+    if not git(repo, "rev-parse", "-q", "--verify", br).strip():
+        br = "origin/master"
+    listing = git(repo, "ls-tree", "-r", "-l", br)
+    files = []
+    for line in listing.splitlines():
+        meta, _, path = line.partition("\t")
+        parts = meta.split()
+        if len(parts) < 4 or parts[1] != "blob":
+            continue
+        files.append((path, int(parts[3]) if parts[3].isdigit() else 0))
+    records = [p for p, _ in files if RECORD_NAME.search(os.path.basename(p))]
+    record_text = {}
+    for r in records:
+        sz = dict(files)[r]
+        if sz < 200_000:
+            record_text[r] = git(repo, "show", f"{br}:{r}").lower()
+    mentions = "\n".join(record_text.values())
+    for path, size in files:
+        base = os.path.basename(path)
+        ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+        is_data = ext in DATA_EXT or (ext in TEXT_DATA_EXT and size >= TEXT_DATA_MIN and any(k in path.lower() for k in ("fixture", "data", "corpus", "testdata", "assets", "models", "weights")))
+        if not is_data or size < 1024:
+            continue
+        if any(path.startswith(d) or ("/" + d) in path for d in SKIP_DIRS):
+            continue
+        if RECORD_NAME.search(base):
+            continue
+        # covered: a record in the same directory or any ancestor, or a record that names the file or its directory
+        d = os.path.dirname(path)
+        covered = ""
+        while True:
+            # the repository's own LICENSE at its root says nothing about a third-party data file: it is not a provenance record
+            near = [r for r in records if os.path.dirname(r) == d and not (d == "" and re.search(r"^(LICEN[CS]E|COPYING)", os.path.basename(r), re.I))]
+            if near:
+                covered = "record:" + near[0]
+                break
+            if not d:
+                break
+            d = os.path.dirname(d)
+        if not covered and (base.lower() in mentions or (os.path.dirname(path).lower() and os.path.dirname(path).lower() in mentions)):
+            covered = "named-in-record"
+        print(f"{name}\t{path}\t{size}\t{covered or '-'}\t{ext}")
+
+
+main()

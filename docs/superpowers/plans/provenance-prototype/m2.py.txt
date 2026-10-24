@@ -1,0 +1,24 @@
+import hashlib, os, re, subprocess, sys
+def git(repo, *a, raw=False):
+    o = subprocess.run(["git", "-C", repo, *a], capture_output=True).stdout
+    return o if raw else o.decode("utf-8", "replace")
+EXT = {"safetensors","gguf","bin","npy","npz","pt","onnx","png","jpg","jpeg","gif","json","pem"}
+SKIP = ("target/", "node_modules/", ".git/", "CHANGELOG.md", "ROADMAP.md")
+for name in sys.argv[1:]:
+    repo = "C:/Projects/" + name
+    br = "origin/main" if git(repo, "rev-parse", "-q", "--verify", "origin/main").strip() else "origin/master"
+    files = {}
+    for line in git(repo, "ls-tree", "-r", "-l", br).splitlines():
+        meta, _, path = line.partition("\t")
+        p = meta.split()
+        if len(p) > 3 and p[3].isdigit(): files[path] = (p[2], int(p[3]))
+    for path, (blob, size) in files.items():
+        base = os.path.basename(path); ext = base.rsplit(".", 1)[-1].lower() if "." in base else ""
+        if ext not in EXT or size < 1024 or any(s in path for s in SKIP): continue
+        d = os.path.dirname(path)
+        rec = [p for p in files if os.path.dirname(p) == d and re.search(r"(PROVENANCE|NOTICE|ATTRIBUTION|SOURCES|CREDITS)|\.PIN$|\.provenance", os.path.basename(p), re.I)]
+        if not rec: continue
+        body = "\n".join(git(repo, "show", f"{br}:{r}").lower() for r in rec)
+        sha = hashlib.sha256(git(repo, "show", f"{br}:{path}", raw=True)).hexdigest()
+        by = "sha256" if sha in body else ("git-blob-id" if blob in body or blob[:12] in body else "NONE")
+        print(f"{name}\t{path}\t{by}\t{'has-a-64hex' if re.search(r'[0-9a-f]{64}', body) else ''}")

@@ -1,0 +1,79 @@
+"""Throwaway measurement for the provenance design (family 2), the code half. NOT shipped code. For each repository (origin/main via git plumbing):
+ (1) vendored directories (vendor/, third_party/, external/, extern/, deps/) holding source, and whether a LICENSE/NOTICE sits with them;
+ (2) source files whose first 40 lines carry an SPDX id or a copyright line that is not the repository's own;
+ (3) the licence words the provenance records and READMEs use that conflict with the repository's licence (GPL, AGPL, CC-BY-NC, proprietary).
+Output TSV: repo, kind, path, detail."""
+import os
+import re
+import subprocess
+import sys
+
+SRC_EXT = {"rs", "c", "h", "cc", "cpp", "hpp", "cu", "cuh", "py", "js", "ts", "go", "java", "glsl", "comp", "wgsl", "metal"}
+VENDOR = ("vendor/", "third_party/", "third-party/", "external/", "extern/", "deps/")
+OWN_SPDX = re.compile(r"MIT|Apache-2\.0", re.I)
+
+
+def git(repo, *args):
+    return subprocess.run(["git", "-C", repo, *args], capture_output=True).stdout.decode("utf-8", "replace")
+
+
+def main():
+    repo, name = sys.argv[1], sys.argv[2]
+    br = "origin/main"
+    if not git(repo, "rev-parse", "-q", "--verify", br).strip():
+        br = "origin/master"
+    files = [line.partition("\t")[2] for line in git(repo, "ls-tree", "-r", "-l", br).splitlines()]
+    sizes = {}
+    for line in git(repo, "ls-tree", "-r", "-l", br).splitlines():
+        meta, _, path = line.partition("\t")
+        parts = meta.split()
+        sizes[path] = int(parts[3]) if len(parts) > 3 and parts[3].isdigit() else 0
+    # the repository's own licence, from the root manifest
+    own = ""
+    for manifest in ("Cargo.toml", "package.json", "pyproject.toml"):
+        if manifest in sizes:
+            m = re.search(r'"?license"?\s*[:=]\s*"([^"]+)"', git(repo, "show", f"{br}:{manifest}"))
+            if m:
+                own = m.group(1)
+                break
+    # (1) vendored directories
+    vend = {}
+    for p in files:
+        for v in VENDOR:
+            if p.startswith(v) or ("/" + v) in p:
+                top = p[: p.index(v) + len(v)] if p.startswith(v) else p[: p.index("/" + v) + 1 + len(v)]
+                vend.setdefault(top, []).append(p)
+    for top, ps in sorted(vend.items()):
+        src = [p for p in ps if p.rsplit(".", 1)[-1].lower() in SRC_EXT]
+        if not src:
+            continue
+        # one level below the vendor root is one vendored project; a licence file at the root or in that project covers it
+        projects = {}
+        for p in ps:
+            rest = p[len(top):]
+            proj = rest.split("/", 1)[0] if "/" in rest else ""
+            projects.setdefault(proj, []).append(p)
+        for proj, pp in sorted(projects.items()):
+            if not any(p.rsplit(".", 1)[-1].lower() in SRC_EXT for p in pp):
+                continue
+            has = any(re.search(r"(LICEN[CS]E|COPYING|NOTICE)", os.path.basename(p), re.I) for p in pp) or any(
+                re.search(r"(LICEN[CS]E|COPYING|NOTICE)", os.path.basename(p), re.I) and os.path.dirname(p).rstrip("/") == top.rstrip("/") for p in ps)
+            print(f"{name}\tvendored\t{top}{proj}\t{len(pp)} files; licence/notice={'yes' if has else 'NO'}; own={own or '?'}")
+    # (2) foreign headers
+    for p in files:
+        if p.rsplit(".", 1)[-1].lower() not in SRC_EXT or sizes.get(p, 0) > 400_000:
+            continue
+        head = "\n".join(git(repo, "show", f"{br}:{p}").splitlines()[:40]) if sizes.get(p, 0) else ""
+        spdx = re.search(r"SPDX-License-Identifier:\s*([^\n*]+)", head)
+        if spdx:
+            ids = spdx.group(1).strip()
+            if not OWN_SPDX.search(ids) or ("GPL" in ids and "LGPL" not in ids):
+                print(f"{name}\tforeign-spdx\t{p}\t{ids[:60]}; own={own or '?'}")
+        for m in re.finditer(r"copyright\s*(?:\(c\)|©)?\s*(?:\d{4}[-, ]*)*\s*([A-Z][^\n]{3,60})", head, re.I):
+            who = m.group(1).strip()
+            if not re.search(r"ciresnave|eric evans|cire|evans lab|evans labor|thinkers", who, re.I):
+                print(f"{name}\tforeign-copyright\t{p}\t{who[:60]}; own={own or '?'}")
+                break
+
+
+main()
