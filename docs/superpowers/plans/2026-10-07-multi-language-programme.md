@@ -1,6 +1,6 @@
 # Multi-language programme — phased plan, estimates, open questions
 
-**Status: proposed, approval pending: board item 144. Nothing in it is approved, and no code is written against it.** Documentation only. Companion to `docs/superpowers/specs/2026-10-07-multi-language-design.md`
+**Status (2026-10-24): P1 to P3 are built; P4 to P7 are not (see `ROADMAP.md` items 8 and the audit rows M1 to M13). The default profile has been `extended` since 0.9.0, not `classic`; Q7 and Q14 are answered. Below is the 2026-10-07 text.** Originally: proposed, board item 144. Companion to `docs/superpowers/specs/2026-10-07-multi-language-design.md`
 (the design) and `docs/superpowers/triage/` (the rule classification). Written 2026-10-07 by the CodeRipper lane.
 
 Labels: **MEASURED** = checked in this session at the ref named; **ASSUMED** = reasoned, not checked; **ESTIMATE** = a forecast, with

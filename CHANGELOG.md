@@ -8,7 +8,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ## 0.9.30 - 2026-10-24 (proposed)
 
-**Docs only: audit rows D1 and half of D3.** The eleven built rules (API-006, DOC-005, DOC-009, DOC-010, SEC-006, SUP-001, SUP-002, SUP-004, SUP-008, SUP-011, WSP-001) no longer read "no check yet" on their `docs/rules` pages; each row says native or delegated and what is checked, taken from the rule's `checked_today`. The README's `patent-index-match` row now says lockfiles and Gradle version catalogs are read (0.9.24) and names the four lockfile kinds that are not. Still open: D2 (stale status banners in six specs and plans) and the `reachability/mod.rs` doc comment (a code change).
+**Docs only: audit rows D1 and half of D3.** The eleven built rules (API-006, DOC-005, DOC-009, DOC-010, SEC-006, SUP-001, SUP-002, SUP-004, SUP-008, SUP-011, WSP-001) no longer read "no check yet" on their `docs/rules` pages; each row says native or delegated and what is checked, taken from the rule's `checked_today`. The README's `patent-index-match` row now says lockfiles and Gradle version catalogs are read (0.9.24) and names the four lockfile kinds that are not. Also D2: the stale status lines of the audit-host, multi-language and programme, three-faces and triage documents, the coverage doc's settings-audit row, and two supersession notes (performance, security). Still open: the `reachability/mod.rs` doc comment (a code change) and the provenance plan's data-file counts, which this lane could not re-verify.
 
 ## 0.9.29 - 2026-10-24 (proposed)
 
