@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.14 - 2026-10-24 (proposed)
+
+Fix (commy reported the portfolio job red on `main`): the `lint-suppression` ratchet on a run of the default branch now says **`ratchet not applicable: HEAD is the merge-base ... (a run on the default branch)`**, not `ratchet not run: ...`. There is no branch to compare on `main`, so nothing failed to run; `portfolio.yml` fails a job on any "not run:" note, and only a text exception for this one note kept `main` green. A real gap (no base found, a base file that cannot be read or parsed) still says `ratchet not run`, and the job still fails on it. Tests: the note for each case, and `the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_run` (a repository whose `origin/main` is its own `main` says not applicable; the same repository on a branch that adds a suppression runs the ratchet and reports it).
+
+**commy's red run has a second cause that no release fixes:** commy calls `portfolio.yml@c665210`, the 0.8.19-era workflow, whose guard predates the exception added in 0.8.22 (it fails on the default-branch note). A repository on that pin must repin to a `portfolio.yml` of 0.8.22 or later; the 0.9.14 wording makes the exception unnecessary for the next pin.
+
 ## 0.9.13 - 2026-10-24 (proposed)
 
 Docs only: the re-sample of the unzeroized-secret rule (SEC-011) outside auth-framework, as the PM asked after 0.9.12. A fresh 30 drawn from 54 findings in 12 repositories is **14 of 30 where a reviewer would act (47%), 19 of 30 right (63%)**; the first sample's 83% was 22 parts auth-framework in 30. **Withdrawn:** 0.9.12's headline and plan said the rule clears the gate and ships default-on; it does not, and is opt-in until a matcher that drops the bare field name `token` clears a fresh 30 outside both samples. The retraction is made in the design document's headline, catalogue row, results table, section 6, plan and open points, and in the 0.9.12 entry below. A v4 matcher (77% on the same 30, 10 of 13) is recorded as a hypothesis only, because it was read off that sample. The sampler and table generator are added under `security-prototype/`.

@@ -145,11 +145,30 @@ fn tally(text: &str) -> Option<Vec<(bool, u32)>> {
     )
 }
 
-/// A suppression-ratchet run: the findings, or the reason it did not run.
-fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, String> {
+/// Why a suppression-ratchet run produced nothing: a run on the default branch has no branch to compare (nothing to judge, not a gap),
+/// anything else is a gap (no base found, a file that could not be read).
+enum Skip {
+    NotApplicable(String),
+    Gap(String),
+}
+
+impl Skip {
+    /// The note for the run's output. A gap says "not run" (the portfolio workflow fails a job on it); a run on the default branch says
+    /// "not applicable", which is not a rule that failed to run.
+    fn note(&self) -> String {
+        match self {
+            Skip::NotApplicable(why) => format!("{ID}: ratchet not applicable: {why}"),
+            Skip::Gap(why) => format!("{ID}: ratchet not run: {why}"),
+        }
+    }
+}
+
+/// A suppression-ratchet run: the findings, or why it produced none.
+fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, Skip> {
     let base = match view.base() {
         Base::Tree(base) => base,
-        Base::SameAsHead(why) | Base::Gap(why) => return Err(why),
+        Base::SameAsHead(why) => return Err(Skip::NotApplicable(why)),
+        Base::Gap(why) => return Err(Skip::Gap(why)),
     };
     // a file that cannot be counted (at HEAD or at the base) makes the comparison unsound: say so instead of reading it as zero
     let counted = |text: &str| {
@@ -167,10 +186,16 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, String> {
         .filter(|p| p.ends_with(".rs") && !vendored(p))
     {
         let Some(text) = base.read(path) else {
-            return Err(format!("{path} could not be read at {}", base.how()));
+            return Err(Skip::Gap(format!(
+                "{path} could not be read at {}",
+                base.how()
+            )));
         };
         let Some(sites) = counted(&text) else {
-            return Err(format!("{path} could not be parsed at {}", base.how()));
+            return Err(Skip::Gap(format!(
+                "{path} could not be parsed at {}",
+                base.how()
+            )));
         };
         then[0] += kinds(&sites, true);
         then[1] += kinds(&sites, false);
@@ -180,10 +205,10 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, String> {
     let mut rose: [Vec<(&str, u32)>; 2] = [Vec::new(), Vec::new()];
     for path in files {
         let Some(text) = view.read(path) else {
-            return Err(format!("{path} could not be read"));
+            return Err(Skip::Gap(format!("{path} could not be read")));
         };
         let Some(sites) = counted(&text) else {
-            return Err(format!("{path} could not be parsed"));
+            return Err(Skip::Gap(format!("{path} could not be parsed")));
         };
         let before = base
             .read(path)
@@ -309,7 +334,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     )];
     match ratchet(view, &files) {
         Ok(rose) => findings.extend(rose),
-        Err(why) => notes.push(format!("{ID}: ratchet not run: {why}")),
+        Err(skip) => notes.push(skip.note()),
     }
     if !unparsed.is_empty() {
         notes.push(format!(
@@ -527,6 +552,21 @@ mod tests {
             .filter_map(|f| f.location.as_ref().map(|l| l.file.as_str()))
             .collect();
         assert_eq!(files, ["a/x.rs", "src/y.rs"], "{found:?}");
+    }
+
+    #[test]
+    fn a_default_branch_run_is_not_applicable_and_a_missing_base_is_not_run() {
+        let na = Skip::NotApplicable("HEAD is the merge-base (a run on the default branch)".into())
+            .note();
+        assert!(
+            na.contains("ratchet not applicable") && !na.contains("not run"),
+            "{na}"
+        );
+        let gap = Skip::Gap("the repository has no origin/main".into()).note();
+        assert!(
+            gap.contains("ratchet not run") && !gap.contains("not applicable"),
+            "{gap}"
+        );
     }
 
     #[test]
