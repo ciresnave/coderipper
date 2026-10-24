@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.11 - 2026-10-24 (proposed)
+
+Fix (Humboldt#131, run 538a60c): `portfolio.yml` no longer installs into `~/.cargo/bin`. On a shared self-hosted runner `cargo install coderipper` failed with "failed to move ... coderipper.exe to ...\.cargoin\coderipper.exe: Access is denied (os 5)": parallel runs share that directory and a running executable cannot be replaced; the compile also took 13m43s on every run.
+
+- Each run builds with `--root $RUNNER_TEMP/coderipper-build` and prepends the resulting `bin` to `PATH` (through `GITHUB_PATH`).
+- The finished tree is published to a version-keyed cache, `${CODERIPPER_BIN_CACHE:-$HOME/.cache/coderipper-bin}/<version>-<os>-<arch>`, by a rename: a run that finds a usable copy compiles nothing; two runs that race both finish with a complete copy (the loser removes its staging copy, and one that was moved *into* the winner's directory is taken back out); a half-written tree is never visible. A cached binary is used only if `--version` reports exactly the pinned release; a damaged copy is cleared and rebuilt. Nothing is written over a binary that may be running.
+- On a GitHub-hosted runner the cache directory is restored and saved by `actions/cache` (v6.1.0, the pin `ci.yml` already uses), keyed on the OS, architecture and version; a self-hosted runner just keeps the directory.
+- Checked locally with a fake `cargo` that sleeps three seconds: two concurrent runs both exit 0 and publish one copy (two builds, as expected, since both started before either finished); a third run uses the cache and calls `cargo` zero times; no staging directory is left behind; a copy whose `--version` is wrong is replaced; `~/.cargo` is never created. **Not yet run on a Windows self-hosted runner**: the Windows path differs only in the `.exe` name, and the run that proves it is two concurrent pull-request runs on the Humboldt runner.
+
 ## 0.9.8 - 2026-10-23 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@66d358e1`, the merge of 0.9.7 (its workflow installs 0.9.6, which has `DOCS_RS` handling and the "not judged" note; the pin before it ran 0.8.19).
