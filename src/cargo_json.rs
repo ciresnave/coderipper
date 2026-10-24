@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! Runs `cargo build --all-targets --message-format=json` and parses rustc's diagnostics, keeping
+//! Runs `cargo check --all-targets --message-format=json` and parses rustc's diagnostics, keeping
 //! the parts a check needs: the lint code, the primary span's line AND column, and the text of each
 //! direct child note (where a `#[must_use = "..."]` reason string shows up).
 
@@ -373,7 +373,8 @@ pub(crate) fn compose_rustflags(existing: &str, extra: &str) -> String {
     format!("{existing} {extra}").trim().to_string()
 }
 
-/// Builds every target of the package at `root` and parses cargo's JSON diagnostics. `extra_rustflags`
+/// Checks (`cargo check`: compiles, never links) every target of the package at `root` and parses cargo's JSON diagnostics. No link, because
+/// the checks read lints, and a target whose native part is missing (a skipped nvcc under `DOCS_RS=1`) compiles but cannot link. `extra_rustflags`
 /// is appended to the caller's `RUSTFLAGS`; `CARGO_ENCODED_RUSTFLAGS` is removed because cargo prefers
 /// it and it would drop the flags.
 pub(crate) fn build_all_targets(
@@ -438,7 +439,7 @@ fn build_with(
     cargo
         // `-p`: build THIS package even when the workspace's `default-members` name others
         .args([
-            "build",
+            "check",
             "-p",
             &package.name,
             target_arg,
@@ -783,6 +784,47 @@ mod tests {
         let out =
             build_all_targets(&ws.path().join("b"), None, CAP_LINTS, &Default::default()).unwrap();
         assert!(out.is_broken(), "{:?}", out.diagnostics.len());
+    }
+
+    #[test]
+    fn a_target_that_cannot_link_does_not_break_the_analysis() {
+        // A bin whose native symbol is never defined (what a skipped nvcc/build script leaves under `DOCS_RS=1`) compiles but
+        // cannot link. The checks read lints, so they must not need a link.
+        let tmp = tempfile::tempdir().unwrap();
+        let files = [
+            (
+                "Cargo.toml",
+                "[package]
+name = \"p\"
+version = \"0.1.0\"
+edition = \"2021\"
+",
+            ),
+            (
+                "src/lib.rs",
+                "pub fn warn(x: i32) {}
+",
+            ),
+            (
+                "src/main.rs",
+                "extern \"C\" { fn coderipper_undefined_native_symbol(); }
+fn main() { unsafe { coderipper_undefined_native_symbol() } }
+",
+            ),
+        ];
+        for (name, contents) in files {
+            let path = tmp.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, contents).unwrap();
+        }
+        let out = build_all_targets(tmp.path(), None, CAP_LINTS, &Default::default()).unwrap();
+        assert!(!out.is_broken(), "{}", out.stderr_tail);
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code.as_deref() == Some("unused_variables")),
+            "the lint must still be reported"
+        );
     }
 
     #[test]

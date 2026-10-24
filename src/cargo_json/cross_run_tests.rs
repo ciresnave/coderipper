@@ -66,13 +66,16 @@ fn rlibs(dir: &Path, out: &mut Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             rlibs(&path, out);
-        } else if path.extension().is_some_and(|e| e == "rlib") {
+        } else if path
+            .extension()
+            .is_some_and(|e| e == "rlib" || e == "rmeta")
+        {
             out.push(path);
         }
     }
 }
 
-/// Does any `lib<KRATE>-*.rlib` under the cache contain `needle`?
+/// Does any `lib<KRATE>-*.rlib` or `.rmeta` (the build is a `cargo check`, which writes metadata only) under the cache contain `needle`?
 fn artifact_has(cache: &Path, needle: &str) -> bool {
     let mut files = Vec::new();
     rlibs(cache, &mut files);
