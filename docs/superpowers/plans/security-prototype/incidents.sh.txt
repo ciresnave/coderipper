@@ -1,0 +1,13 @@
+# Extract the files an incident commit changed, before (SHA^) and after (SHA), and run the prototype on each side.
+# usage: bash incidents.sh <repo-dir> <sha> <name>   (the repo is read through git, never its working tree)
+repo_dir=$1; sha=$2; name=$3
+for side in pre post; do
+  ref=$sha; [ "$side" = pre ] && ref="$sha^"
+  d="$name/$side"; mkdir -p "$d"
+  for f in $(git -C "$repo_dir" diff-tree --no-commit-id --name-only -r "$sha" -- 'src/*.rs'); do
+    mkdir -p "$d/$(dirname "$f")"
+    git -C "$repo_dir" show "$ref:$f" > "$d/$f" 2>/dev/null || : > "$d/$f"
+  done
+  files=$(cd "$d" && find . -name '*.rs' | sed 's|^\./||')
+  echo "$name $side: $(secproto "$PWD/$d" $files | cut -f2 | sort | uniq -c | tr '\n' ';')"
+done

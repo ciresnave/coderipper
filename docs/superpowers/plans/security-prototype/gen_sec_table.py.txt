@@ -1,0 +1,141 @@
+"""Builds the per-item verdict tables of the security precision document from the same seeded order show_sec.py uses.
+P = the detector is right (the code has the property the rule names). A = a reviewer would act (change the code, not only waive it)."""
+import random
+
+Y, N = "yes", "no"
+V = {
+    "secret-field-not-zeroized": {
+        1: (Y, Y, "an unzeroized `password` in a basic-auth config"),
+        2: (Y, Y, "an unzeroized `client_secret` in a credential variant"),
+        3: (Y, N, "a per-request CSRF token in a template: not zeroize-worthy"),
+        4: (Y, N, "a CLI `--api-key` argument (already in the process arguments)"),
+        5: (Y, Y, "an unzeroized `access_token`"),
+        6: (Y, Y, "an unzeroized bearer `auth_token`"),
+        7: (Y, Y, "an unzeroized security token value"),
+        8: (Y, Y, "an unzeroized SMS-provider `auth_token`"),
+        9: (Y, Y, "an unzeroized `access_token`"),
+        10: (Y, Y, "an unzeroized `api_key`"),
+        11: (Y, N, "a signed JARM response token handed to the client, not a stored credential"),
+        12: (Y, Y, "an unzeroized registry `token`"),
+        13: (Y, Y, "an unzeroized cached session `token`"),
+        14: (Y, Y, "a CLI `password` kept in a field"),
+        15: (Y, Y, "an unzeroized OAuth `access_token`"),
+        16: (Y, Y, "an unzeroized `password`"),
+        17: (N, N, "a DSL token in a parser error, not a credential"),
+        18: (Y, Y, "an unzeroized `subject_token`"),
+        19: (Y, Y, "an unzeroized `private_key` as `Vec<u8>`"),
+        20: (Y, Y, "an unzeroized SAML `private_key`"),
+        21: (Y, Y, "an unzeroized `new_refresh_token`"),
+        22: (Y, Y, "an unzeroized `subject_token`"),
+        23: (Y, Y, "an unzeroized SMS-provider `auth_token`"),
+        24: (Y, Y, "an unzeroized `access_token` in a server response"),
+        25: (Y, Y, "an unzeroized SMS-provider `auth_token`"),
+        26: (Y, Y, "an unzeroized `secret_access_key` (a field kept only for configuration compatibility)"),
+        27: (N, N, "a DSL token in a parser error, not a credential"),
+        28: (Y, Y, "an unzeroized `access_token`"),
+        29: (Y, Y, "an unzeroized SMTP `password`"),
+        30: (Y, Y, "an unzeroized TURN `password`"),
+    },
+    "debug-prints-secret-field": {
+        1: (N, N, "a DSL token in a parser error"),
+        2: (N, N, "a pagination continuation token, an opaque cursor"),
+        3: (N, N, "an ACME challenge token, public by protocol"),
+        4: (N, N, "an OAuth 1.0 token identifier; the secret beside it is `Zeroizing`"),
+        5: (N, N, "a vocabulary token"),
+        6: (N, N, "a DSL token in a parser error"),
+        7: (Y, Y, "`derive(Debug)` on CLI arguments that hold an `api_key`"),
+        8: (N, N, "a DSL token in a parser error"),
+        9: (Y, Y, "`derive(Debug)` on a TURN server with a `credential`"),
+        10: (N, N, "a DSL token in a parser error"),
+        11: (Y, Y, "`derive(Debug)` on a response that holds the raw `api_key`"),
+        12: (Y, Y, "`derive(Debug)` on a config with an `api_key`"),
+        13: (Y, Y, "`derive(Debug)` on a response that holds the new raw `api_key`"),
+        14: (Y, Y, "`derive(Debug)` on an SMTP config with a `password`"),
+        15: (Y, Y, "`derive(Debug)` on a config with an `api_key`"),
+        16: (Y, Y, "`derive(Debug)` on a TURN server with a `password`"),
+        17: (Y, Y, "`derive(Debug)` on a key pair with a `private_key`"),
+        18: (N, N, "a 32-byte public signing key in a validated-chain summary"),
+        19: (Y, Y, "`derive(Debug)` on a config with a `jwt_secret`"),
+        20: (N, N, "a CUDA architecture token"),
+    },
+    "hardcoded-secret:const": {
+        1: (N, N, "a log-marker constant named `NOTICE_TOKEN`"),
+        2: (N, N, "the file name `signing.key.pem`"),
+        3: (N, N, "a documented placeholder, 'not a credential'"),
+        4: (N, N, "a gate-marker constant named `NOTICE_TOKEN`"),
+        5: (N, N, "a `typ` claim value"),
+    },
+    "non-constant-time-compare": {
+        1: (N, N, "LLM token ids"),
+        2: (N, N, "a message digest compared for ack matching, public data"),
+        3: (Y, Y, "a continuation token compared with `!=`: a timing-comparable secret"),
+        4: (Y, Y, "a stored access token compared with `!=`"),
+    },
+    "secret-named-value-in-log": {
+        1: (Y, N, "a key generator that prints the private key on purpose ('keep this secret')"),
+        2: (N, N, "a marker constant named `NOTICE_TOKEN`"),
+        3: (Y, Y, "logs the first ten characters of a bearer token"),
+    },
+    "aead-without-aad": {
+        1: (N, N, "the project's own `decrypt(&envelope, key)` wrapper, which binds its AAD inside"),
+        2: (Y, N, "ChaCha20-Poly1305 with no associated data; no binding requirement stated"),
+        3: (Y, Y, "JWE content encryption with no AAD: RFC 7516 makes the protected header the AAD"),
+        4: (N, N, "the project's own `decrypt` wrapper"),
+        5: (N, N, "the project's own `decrypt` wrapper"),
+        6: (Y, Y, "JWE content decryption with no AAD: RFC 7516 makes the protected header the AAD"),
+        7: (Y, N, "ChaCha20-Poly1305 with no associated data; no binding requirement stated"),
+    },
+    "weak-algorithm": {
+        1: (Y, N, "HOTP is HMAC-SHA-1 by RFC 4226"),
+        2: (Y, N, "the WS-Security UsernameToken digest is SHA-1 by the specification"),
+        3: (Y, N, "RADIUS authenticators are MD5 by RFC 2865"),
+        4: (Y, N, "RADIUS response authenticator, MD5 by RFC 2865"),
+        5: (N, N, "inside a test"),
+        6: (Y, N, "RADIUS accounting authenticator, MD5 by RFC 2866"),
+        7: (Y, N, "the Have I Been Pwned range API takes a SHA-1 prefix"),
+        8: (Y, N, "the same SHA-1 import"),
+        9: (Y, N, "the same WS-Security SHA-1 import"),
+        10: (Y, N, "the same RADIUS MD5 import"),
+    },
+    "tls-verification-off": {
+        1: (Y, Y, "a QUIC client that accepts any server certificate (`DangerAcceptAnyServerCert`)"),
+        2: (Y, N, "a configuration switch passed through (`accept_invalid_certs`); the default is the thing to check"),
+    },
+    "hardcoded-key-material": {
+        1: (Y, Y, "a development key used as the verification key when the environment variable is unset: the shape #218 and #222 removed elsewhere"),
+    },
+    "aead-empty-aad": {
+        1: (Y, N, "the legacy v0 envelope decrypt, empty AAD by format, kept for migration (documented in the code)"),
+    },
+}
+ORDER = [
+    "secret-field-not-zeroized", "debug-prints-secret-field", "secret-named-value-in-log", "non-constant-time-compare", "aead-without-aad",
+    "aead-empty-aad", "weak-algorithm", "tls-verification-off", "hardcoded-key-material", "hardcoded-secret:const",
+]
+repos = ["auth-framework", "synapse", "mlmf", "lightbulb", "lsp-bridge", "fuel", "baracuda", "Unpopped"]
+summary, out = [], []
+for rule in ORDER:
+    rows = []
+    for repo in repos:
+        for line in open(f"out_{repo}.tsv", encoding="utf-8"):
+            p = line.rstrip("\n").split("\t")
+            if len(p) >= 4 and p[1] == rule:
+                rows.append(p)
+    rows.sort(key=lambda r: (r[0], r[2]))
+    random.Random(2026).shuffle(rows)
+    judged = sorted(V[rule])
+    assert len(judged) <= len(rows), (rule, len(judged), len(rows))
+    pt = sum(1 for i in judged if V[rule][i][0] == Y)
+    at = sum(1 for i in judged if V[rule][i][1] == Y)
+    summary.append((rule, len(rows), len(judged), pt, at))
+    out.append(f"\n#### `{rule}` ({len(rows)} findings; {len(judged)} judged; detector right {pt}, reviewer acts {at})\n")
+    out.append("| # | site | right | acts | why |\n|---|---|---|---|---|")
+    for i in judged:
+        repo, _, loc, _ = rows[i - 1]
+        p, a, why = V[rule][i]
+        out.append(f"| {i} | {repo} `{loc}` | {p} | {a} | {why} |")
+print("SUMMARY")
+for rule, pop, n, pt, at in summary:
+    print(f"{rule}|{pop}|{n}|{pt}|{at}|{100 * pt // n}%|{100 * at // n}%")
+print("TABLES")
+print("\n".join(out))

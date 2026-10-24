@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.12 - 2026-10-24 (proposed)
+
+Docs only: `docs/superpowers/plans/2026-10-24-security-crypto-rules.md`, the design and measurement for family 1 (security and cryptography) of the ROADMAP's next rule families. Eleven rules with precision notes; a throwaway detector validated against **seven recorded incidents** in auth-framework and synapse (it separates the commit before from the commit after on five, and the document says the other two are not statically checkable); a measurement on eight repositories. **One rule clears the precision gate** (unzeroized secret fields: 25 of 30 where a reviewer would act); weak algorithms are an inventory (all ten are protocol-mandated); the name-based log and hard-coded-constant rules do not clear. Reports five places in auth-framework worth a reviewer's time, to verify. Nothing is built; the detector and controls are kept under `security-prototype/` as `.txt`.
+
 ## 0.9.9 - 2026-10-24 (proposed)
 
 A package with no `src/` is analysed from its cargo targets (the PM's ruling after baracuda's `examples`, which has only `[[bin]]` entries with a `path` at the package root and made all three Rust checks die with a bare "os error 3" until 0.9.6 named the cause). `cargo metadata` gives each library and binary target's root file (`Package::roots`, libraries first); when `src/` does not exist the rewrite reads and rewrites those root files, and the sentinels (positive controls) go into them: `reachability` and `unused-return-values` into the first root, `unused-parameters` into every root. Checked on the real layout: `check reachability`, `unused-parameters` and `unused-return-values` on baracuda's `examples` at 8e162f7 now run and report no issues (unused-parameters notes that `cutlass_gemm.rs` and `forge_hello.rs` are not built: their `required-features` are off).
