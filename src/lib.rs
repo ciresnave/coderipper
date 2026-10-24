@@ -1199,7 +1199,8 @@ mod tests {
                 "unused-return-values",
                 "unused-parameters",
                 "version-consistency",
-                "ci-protection-presence"
+                "ci-protection-presence",
+                "dependency-freshness"
             ]
         );
     }
@@ -1304,6 +1305,8 @@ mod tests {
                 ("version-consistency", check::Unit::Repository),
                 // reads one GitHub repository's settings: one finding per repository, not per member
                 ("ci-protection-presence", check::Unit::Repository),
+                // one lockfile per workspace: one finding per locked package, not per member
+                ("dependency-freshness", check::Unit::Repository),
             ]
         );
     }

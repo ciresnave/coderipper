@@ -543,7 +543,7 @@ fn a_program_that_does_not_exist_is_an_error() {
     assert_error(&result, "the module's hello");
 }
 
-fn the_rust_module_describes_the_five_checks() {
+fn the_rust_module_describes_the_six_checks() {
     let checks = coderipper::registered_checks();
     let hello = coderipper::module::RustModule::new(&checks)
         .describe()
@@ -557,7 +557,8 @@ fn the_rust_module_describes_the_five_checks() {
             "unused-return-values",
             "unused-parameters",
             "version-consistency",
-            "ci-protection-presence"
+            "ci-protection-presence",
+            "dependency-freshness"
         ]
     );
     assert_eq!(hello.languages, ["rust"]);
@@ -650,8 +651,8 @@ fn run_tests(args: &[String]) -> ExitCode {
             a_program_that_does_not_exist_is_an_error,
         ),
         (
-            "the_rust_module_describes_the_five_checks",
-            the_rust_module_describes_the_five_checks,
+            "the_rust_module_describes_the_six_checks",
+            the_rust_module_describes_the_six_checks,
         ),
     ];
     // `cargo test <substring>` passes the substrings through; flags (`--nocapture`, ...) are ignored

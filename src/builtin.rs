@@ -20,16 +20,19 @@ pub enum BuiltinCheck {
     VersionConsistency,
     /// `ci-protection-presence`.
     CiProtectionPresence,
+    /// `dependency-freshness`.
+    DependencyFreshness,
 }
 
 impl BuiltinCheck {
     /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 5] = [
+    pub const ALL: [BuiltinCheck; 6] = [
         Self::Reachability,
         Self::UnusedReturnValues,
         Self::UnusedParameters,
         Self::VersionConsistency,
         Self::CiProtectionPresence,
+        Self::DependencyFreshness,
     ];
 
     /// The check's stable id: what `Check::id` returns for the check this builds.
@@ -40,6 +43,7 @@ impl BuiltinCheck {
             Self::UnusedParameters => crate::rule_id::UNUSED_PARAMETERS,
             Self::VersionConsistency => crate::rule_id::VERSION_CONSISTENCY,
             Self::CiProtectionPresence => crate::rule_id::CI_PROTECTION_PRESENCE,
+            Self::DependencyFreshness => crate::rule_id::DEPENDENCY_FRESHNESS,
         }
     }
 
@@ -57,7 +61,7 @@ impl BuiltinCheck {
             | Self::UnusedParameters
             | Self::UnusedReturnValues
             | Self::VersionConsistency => true,
-            Self::CiProtectionPresence => false,
+            Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
 
@@ -69,6 +73,7 @@ impl BuiltinCheck {
             Self::UnusedParameters => Box::new(checks::UnusedParametersCheck::new()),
             Self::VersionConsistency => Box::new(checks::VersionConsistencyCheck::new()),
             Self::CiProtectionPresence => Box::new(checks::CiProtectionPresenceCheck::new()),
+            Self::DependencyFreshness => Box::new(checks::DependencyFreshnessCheck::new()),
         }
     }
 }
@@ -91,6 +96,6 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 5);
+        assert_eq!(all.len(), 6);
     }
 }

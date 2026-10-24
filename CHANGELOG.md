@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.28 - 2026-10-24 (proposed)
+
+**New check `dependency-freshness`** (coverage doc section 4, build order 6): is every package in `Cargo.lock` at the newest version the registry has? CireSnave's rule, CLAUDE.md 9: *"I want all of my projects' dependencies on their most recent versions at all times."*
+
+- Reads `cargo update --dry-run --verbose` (never writes the lockfile): a package with a newer compatible version, and one a manifest requirement holds below a newer release, is one finding each. A dependency a workspace member declares is **Medium**, a transitive one **Low**. `Adding` lines are not staleness.
+- Network tier (a sweep check), meant for a schedule: a PR would turn red the day any dependency published. A package that cannot move is waived with `[[allow]]` (`check = "dependency-freshness"`, `file = "Cargo.lock"`, `symbol` = the package name) and its reason.
+- No `Cargo.lock` is one Info finding; a cargo failure, or output with no sign the dry run finished, is an error, never clean. Cargo only: npm, pip, Maven and Gradle lockfiles are not read.
+- **`coderipper sweep` runs one more check**, so a sweep with `--deny info` now fails on any stale dependency. This repository's lockfile was brought current in the same change.
+- Tests: `each_package_behind_is_one_finding_and_adding_is_not_staleness`, `a_fresh_lockfile_is_empty_and_a_cargo_failure_is_an_error`, `no_lockfile_is_an_info_finding_not_a_clean_run`, `updating_and_unchanged_behind_lines_are_read_and_the_rest_is_not`.
+
 ## 0.9.27 - 2026-10-24 (proposed)
 
 **`ci-protection-presence` also audits repository settings** (coverage doc section 4, build order 5, the settings-audit extension).

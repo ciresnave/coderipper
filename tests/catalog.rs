@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! The rule catalog (multi-language design §4): records are data, parsed strictly, and the five built-in checks each have
+//! The rule catalog (multi-language design §4): records are data, parsed strictly, and the six built-in checks each have
 //! one that agrees with what the check declares about itself.
 
 use coderipper::catalog::{Catalog, CatalogError, Domain, Lifecycle};
@@ -48,8 +48,8 @@ fn every_registered_check_has_a_record() {
     let registered = coderipper::registered_checks();
     assert_eq!(
         registered.len(),
-        5,
-        "positive control: the five built-in checks"
+        6,
+        "positive control: the six built-in checks"
     );
     for check in registered {
         assert!(

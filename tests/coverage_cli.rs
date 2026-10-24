@@ -223,9 +223,9 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks, the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match and licence
     assert_eq!(rust["covered"], 16);
-    // reachability's claim and the six delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006 (no tool is installed in the empty tools directory
+    // ci-protection-presence, dependency-freshness and the six delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006 (no tool is installed in the empty tools directory
     // this run uses)
-    assert_eq!(rust["claimed_unproven"], 7);
+    assert_eq!(rust["claimed_unproven"], 8);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
