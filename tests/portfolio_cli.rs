@@ -483,3 +483,50 @@ public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
         ))
         .stdout(predicate::str::contains("public_api_crates").not());
 }
+
+fn run_git(dir: &std::path::Path, args: &[&str]) {
+    let status = std::process::Command::new("git")
+        .args(["-c", "user.email=t@t", "-c", "user.name=t"])
+        .args(args)
+        .current_dir(dir)
+        .status()
+        .unwrap();
+    assert!(status.success(), "git {args:?}");
+}
+
+/// A repository whose `origin/main` is its own `main`, as in a CI run of the default branch.
+fn repo_on_main() -> tempfile::TempDir {
+    let repo = common::git_repo_with(&[
+        ("LICENSE", "MIT License\n"),
+        ("src/lib.rs", "pub fn f() {}\n"),
+    ]);
+    run_git(repo.path(), &["branch", "-M", "main"]);
+    let path = repo.path().to_str().unwrap().to_string();
+    run_git(repo.path(), &["remote", "add", "origin", &path]);
+    run_git(repo.path(), &["fetch", "-q", "origin"]);
+    repo
+}
+
+#[test]
+fn the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_run() {
+    let repo = repo_on_main();
+    portfolio(&repo, &[])
+        .assert()
+        .stderr(predicate::str::contains("ratchet not applicable"))
+        .stderr(predicate::str::contains("a run on the default branch"))
+        .stderr(predicate::str::contains("ratchet not run").not());
+    // the control: the same repository on a branch that adds a suppression compares against the base and runs the ratchet
+    run_git(repo.path(), &["checkout", "-q", "-b", "feature"]);
+    std::fs::write(
+        repo.path().join("src/extra.rs"),
+        "#[allow(dead_code, reason = \"kept for the plugin ABI\")]\nfn unused() {}\n",
+    )
+    .unwrap();
+    run_git(repo.path(), &["add", "-A"]);
+    run_git(repo.path(), &["commit", "-q", "-m", "add a suppression"]);
+    portfolio(&repo, &[])
+        .assert()
+        .stderr(predicate::str::contains("ratchet not applicable").not())
+        .stderr(predicate::str::contains("ratchet not run").not())
+        .stdout(predicate::str::contains("(lint-suppression)"));
+}
