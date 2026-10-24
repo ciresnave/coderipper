@@ -10,8 +10,8 @@
 > metadata; a username in a log line), which are not statically checkable and the document says so. On today's code, **one rule clears the gate**
 > (`secret-field-not-zeroized`, 25 of 30 where a reviewer would act, 83%), **one is a clean inventory that no one should act on** (weak algorithms: every
 > use is mandated by a protocol), and the name-based rules that looked most natural (a secret-named value in a log line, a hard-coded secret constant)
-> **fail badly until their matcher is tightened, and still do not clear**. The measurement also found five places in auth-framework worth a reviewer's
-> time (section 7).
+> **fail badly until their matcher is tightened, and still do not clear**. The measurement also found places in auth-framework worth a reviewer's time, one of
+> them a real vulnerability; they were reported privately (section 7).
 
 ## 1. The incidents, and what each tells us
 
@@ -27,6 +27,30 @@ parent and at the commit itself (`incidents.sh`, below).
 | auth-framework #66 to #72 (`8c3b1b14`, `a281f6ef`, `16d269da`, `8aa88268`) | secret-string fields of config, protocol and GUI types not zeroized | secret field not zeroized | 10 (and 8 Debug) | **5** (and 3) |
 | auth-framework #133 `825e1b42` | the AEAD's associated data did not bind the envelope's algorithm and key id (format v2 does) | **none: not statically checkable** | the same | the same |
 | synapse #186 `6a2962e` | a username in a bcrypt-failure log line | **none: a username is not a secret by name** | none | none |
+
+**The raw detector output for all seven incidents, as measured** (final matcher; every rule's count on the files the fix commit changed, at its parent
+and at the commit; `-` means no finding of that rule; a count for a rule the incident is not about is background that the fix did not touch):
+
+| incident | side | files | `hardcoded-key-material` | `debug-prints-secret-field` | `secret-field-not-zeroized` | `aead-without-aad` | `aead-empty-aad` | `non-constant-time-compare` |
+|---|---|---|---|---|---|---|---|---|
+| #218 JARM | before | 1 | **4** | 2 | 2 | 2 | - | - |
+| | after | 1 | **-** | 2 | 2 | 2 | - | - |
+| #222 JWT introspection | before | 1 | **2** | - | - | - | - | - |
+| | after | 1 | **-** | - | - | - | - | - |
+| #133 AAD format v2 | before | 5 | - | 4 | 4 | 2 | 1 | - |
+| | after | 5 | - | 4 | 4 | 2 | **1** | - |
+| #265 Debug redaction | before | 15 | - | **1** | 27 | 2 | - | 1 |
+| | after | 15 | - | **-** | 27 | 2 | - | 1 |
+| #61 key material | before | 1 | - | 1 | **3** | - | - | - |
+| | after | 1 | - | 1 | **2** | - | - | - |
+| #66 to #72 tier 2 | before | 4 | - | **8** | **10** | - | - | - |
+| | after | 4 | - | **3** | **5** | - | - | - |
+| synapse #186 | before | 1 | - | - | - | - | - | - |
+| | after | 1 | - | - | - | - | - | - |
+
+Bold marks the cells that carry the incident. Read it as: #218, #222, #265, #61 and #66 to #72 change in the direction and the rule the fix is about; **#133 does not
+change** (the empty-AAD legacy path is deliberately still there) and **#186 shows nothing on either side** (a username is not a secret by name). The "files"
+column counts the `src` files each commit changed (tests excluded).
 
 Two things these rows establish. First, the detector's counts fall on the fixes that removed a concrete, syntactic defect, which is the best evidence
 available that the rule means what it says. Second, **#133 is a class of defect no source scan sees**: whether the associated data should include a given
@@ -141,20 +165,13 @@ that no reviewer would act on) applies to SEC-011 only, which reached 30.
 - **The incidents that matter most are the ones source text cannot see** (#133, #186). The family needs the delegated, taint-based tools for those, and the
   roadmap should say that the native subset is a floor.
 
-## 7. What the measurement found in auth-framework (to verify, `origin/main` `ae1328b4`)
+## 7. What the measurement found in auth-framework
 
-The detector was written against this repository's history, so it is no surprise that it finds the same shapes still there. These are reported, **not
-claimed**: each is a reading of a few lines, and the owner may have a reason.
-
-1. `src/server/oidc/oidc_extensions.rs:1069`: `DecodingKey::from_secret("shared_signals_development_key_not_for_production".as_ref())` as the verification key when
-   `SHARED_SIGNALS_VERIFICATION_KEY` is unset, the shape #218 and #222 removed elsewhere (the code logs a security warning and continues).
-2. `src/api/oauth2.rs:1229`: logs the first ten characters of a bearer token (`&req.token[..10.min(req.token.len())]`).
-3. `src/protocols/gnap.rs:865` and `src/auth.rs:1356`: a continuation token and a stored access token compared with `!=`, which is not constant time.
-4. `src/server/oidc/oidc_advanced_jarm.rs:801` and `:1152`: A256GCM content encryption and decryption with no associated data; RFC 7516 makes the protected header the AAD.
-5. `src/security/enhanced_crypto.rs:84` and `:119`: ChaCha20-Poly1305 encrypt and decrypt with no associated data (no binding requirement is stated there).
-
-The 22 auth-framework SEC-011 findings in the sample (section 10) are a separate matter: the zeroize policy of #61 to #72 applied to fields those commits did
-not reach.
+The detector was written against this repository's history, so it finds, in the current auth-framework, shapes that the history's fixes removed
+elsewhere. **The list was routed privately to the auth-framework lane through the PM and is not printed here**: the repository is public, and one of the
+readings was confirmed as a real vulnerability whose fix is in progress. The rows of section 10 for the rules that touch those readings (a secret logged,
+a non-constant-time compare, an AEAD call without associated data, hard-coded key material) therefore say "site withheld until the fix is released"; their
+verdicts stand. This section is replaced by the sites once the fix is released.
 
 ## 8. Plan
 
@@ -247,7 +264,7 @@ rule's findings. Sites are `repository path:line` at the refs of section 5.
 |---|---|---|---|---|
 | 1 | synapse `src/bin/client.rs:353` | yes | no | a key generator that prints the private key on purpose ('keep this secret') |
 | 2 | lightbulb `src/test_notice.rs:175` | no | no | a marker constant named `NOTICE_TOKEN` |
-| 3 | auth-framework `src/api/oauth2.rs:1229` | yes | yes | logs the first ten characters of a bearer token |
+| 3 | auth-framework (site withheld until the fix is released) | yes | yes | logs the first ten characters of a bearer token |
 
 #### `non-constant-time-compare` (4 findings; 4 judged; detector right 2, reviewer acts 2)
 
@@ -255,20 +272,20 @@ rule's findings. Sites are `repository path:line` at the refs of section 5.
 |---|---|---|---|---|
 | 1 | fuel `fuel-transformers/src/dev_tools/qwen3_yardstick.rs:333` | no | no | LLM token ids |
 | 2 | synapse `src/transport/manager.rs:644` | no | no | a message digest compared for ack matching, public data |
-| 3 | auth-framework `src/protocols/gnap.rs:865` | yes | yes | a continuation token compared with `!=`: a timing-comparable secret |
-| 4 | auth-framework `src/auth.rs:1356` | yes | yes | a stored access token compared with `!=` |
+| 3 | auth-framework (site withheld until the fix is released) | yes | yes | a continuation token compared with `!=`: a timing-comparable secret |
+| 4 | auth-framework (site withheld until the fix is released) | yes | yes | a stored access token compared with `!=` |
 
 #### `aead-without-aad` (7 findings; 7 judged; detector right 4, reviewer acts 2)
 
 | # | site | right | acts | why |
 |---|---|---|---|---|
-| 1 | auth-framework `src/storage/encryption.rs:1310` | no | no | the project's own `decrypt(&envelope, key)` wrapper, which binds its AAD inside |
-| 2 | auth-framework `src/security/enhanced_crypto.rs:84` | yes | no | ChaCha20-Poly1305 with no associated data; no binding requirement stated |
-| 3 | auth-framework `src/server/oidc/oidc_advanced_jarm.rs:801` | yes | yes | JWE content encryption with no AAD: RFC 7516 makes the protected header the AAD |
-| 4 | auth-framework `src/storage/encryption.rs:1430` | no | no | the project's own `decrypt` wrapper |
-| 5 | auth-framework `src/storage/encryption.rs:1025` | no | no | the project's own `decrypt` wrapper |
-| 6 | auth-framework `src/server/oidc/oidc_advanced_jarm.rs:1152` | yes | yes | JWE content decryption with no AAD: RFC 7516 makes the protected header the AAD |
-| 7 | auth-framework `src/security/enhanced_crypto.rs:119` | yes | no | ChaCha20-Poly1305 with no associated data; no binding requirement stated |
+| 1 | auth-framework (site withheld until the fix is released) | no | no | the project's own `decrypt(&envelope, key)` wrapper, which binds its AAD inside |
+| 2 | auth-framework (site withheld until the fix is released) | yes | no | ChaCha20-Poly1305 with no associated data; no binding requirement stated |
+| 3 | auth-framework (site withheld until the fix is released) | yes | yes | JWE content encryption with no AAD: RFC 7516 makes the protected header the AAD |
+| 4 | auth-framework (site withheld until the fix is released) | no | no | the project's own `decrypt` wrapper |
+| 5 | auth-framework (site withheld until the fix is released) | no | no | the project's own `decrypt` wrapper |
+| 6 | auth-framework (site withheld until the fix is released) | yes | yes | JWE content decryption with no AAD: RFC 7516 makes the protected header the AAD |
+| 7 | auth-framework (site withheld until the fix is released) | yes | no | ChaCha20-Poly1305 with no associated data; no binding requirement stated |
 
 #### `aead-empty-aad` (1 findings; 1 judged; detector right 1, reviewer acts 0)
 
@@ -302,7 +319,7 @@ rule's findings. Sites are `repository path:line` at the refs of section 5.
 
 | # | site | right | acts | why |
 |---|---|---|---|---|
-| 1 | auth-framework `src/server/oidc/oidc_extensions.rs:1069` | yes | yes | a development key used as the verification key when the environment variable is unset: the shape #218 and #222 removed elsewhere |
+| 1 | auth-framework (site withheld until the fix is released) | yes | yes | a development key used as the verification key when the environment variable is unset: the shape #218 and #222 removed elsewhere |
 
 #### `hardcoded-secret:const` (5 findings; 5 judged; detector right 0, reviewer acts 0)
 
