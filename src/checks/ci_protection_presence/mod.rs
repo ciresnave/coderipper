@@ -19,6 +19,13 @@
 //! Network tier: it runs under `coderipper sweep` or `coderipper check ci-protection-presence`, never in
 //! `fast`. Reads only (`gh api` GETs), as whichever account `gh` has active; it never switches accounts.
 //!
+//! **Settings audit (0.9.27).** Beside the required-checks question, one `Medium` finding per repository setting that differs from
+//! CireSnave's (6.5; CLAUDE.md 3 and 4): `allow_squash_merge` on, `allow_merge_commit` and `allow_rebase_merge` off,
+//! `delete_branch_on_merge` on (all from `repos/<slug>`), and, when classic protection is enabled, `enforce_admins` OFF (admins keep
+//! a bypass, 2026-09-18), `allow_force_pushes` off and `allow_deletions` off (from `branches/<branch>/protection`). A branch governed
+//! only by rulesets gets the repository-level audit alone. These fields need admin on the repository: an answer that omits one is an
+//! error. A **fork** is excluded from everything here (6.5: forks he has not taken over are not his): one `Info` finding says so.
+//!
 //! **A check that cannot see must not report clean.** No `origin`, an origin that is not GitHub, an API
 //! failure, or a reply that omits the `protection` object (GitHub hides it from tokens without push
 //! access to a private repo) is an error. The two honest non-findings, each an `Info` finding saying so: an
@@ -107,6 +114,32 @@ impl Check for CiProtectionPresenceCheck {
         // The name an `[[allow]]` entry is written with is GitHub's, not the origin URL's spelling.
         let canonical = canonical_name(&info, slug);
 
+        // Not ours (CireSnave 2026-09-17): a fork that was never renamed or taken over gets no extra CI or protection.
+        if info["fork"].as_bool() == Some(true) {
+            return Ok(vec![info_finding(
+                &canonical,
+                None,
+                format!("{canonical} is a fork, so it is not audited for protection or settings"),
+                format!("GET repos/{slug} reported `fork: true`; CireSnave's rule (6.5) excludes a fork he has not renamed or taken over in its README, and a fork he has taken over is not told apart here"),
+            )]);
+        }
+
+        let (mut findings, classic) = self.presence(slug, &canonical, branch)?;
+        findings.extend(self.audit_settings(slug, &canonical, branch, &info, classic)?);
+        Ok(findings)
+    }
+}
+
+impl CiProtectionPresenceCheck {
+    /// Whether the default branch enforces required checks. The flag is whether classic branch protection is enabled, which
+    /// the settings audit reads next; it is false for an empty repository or a branch governed only by rulesets (the
+    /// settings audited are classic-protection fields).
+    fn presence(
+        &self,
+        slug: &str,
+        canonical: &str,
+        branch: &str,
+    ) -> anyhow::Result<(Vec<Finding>, bool)> {
         let branch_path = format!("repos/{slug}/branches/{}", encode_path(branch));
         let doc = match self.api.get(&branch_path) {
             Ok(doc) => doc,
@@ -116,11 +149,11 @@ impl Check for CiProtectionPresenceCheck {
                 let commits_path = format!("repos/{slug}/commits?per_page=1");
                 return match self.api.get(&commits_path) {
                     Err(c) if c.kind() == ApiErrorKind::EmptyRepository => {
-                        Ok(vec![info_finding(&canonical,
+                        Ok((vec![info_finding(canonical,
                             Some(branch),
                             format!("{canonical} has no commits yet, so its default branch `{branch}` does not exist to protect"),
                             format!("GET {branch_path} answered 404 and GET {commits_path} answered 409 \"{}\"", c.message),
-                        )])
+                        )], false))
                     }
                     Err(c) => anyhow::bail!(
                         "GET {branch_path} answered 404 and the repository's emptiness could not be confirmed: \
@@ -162,7 +195,7 @@ impl Check for CiProtectionPresenceCheck {
             .unwrap_or(0);
 
         if level != "off" && required > 0 {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), enabled));
         }
 
         // Classic branch protection requires nothing. A repository ruleset can require checks WITHOUT any
@@ -180,7 +213,7 @@ impl Check for CiProtectionPresenceCheck {
                     )
                 })?;
                 if ruleset_requires_checks(list) {
-                    return Ok(Vec::new());
+                    return Ok((Vec::new(), enabled));
                 }
                 format!(
                     "GET {rules_path}: {} rule(s), none requiring status checks or workflows",
@@ -216,12 +249,12 @@ impl Check for CiProtectionPresenceCheck {
              evidence: it is true for a branch whose rules require no checks.)",
             flag.map_or("absent".to_string(), |f| f.to_string())
         );
-        Ok(vec![Finding {
+        Ok((vec![Finding {
             check_id: CHECK_ID.into(),
             claim: crate::finding::Claim::Absence,
             severity: Severity::High,
             confidence: Confidence::High,
-            project: project_of(&canonical),
+            project: project_of(canonical),
             location: Some(Location {
                 file: SETTINGS_FILE.into(),
                 line: None,
@@ -236,7 +269,148 @@ impl Check for CiProtectionPresenceCheck {
                 doc["name"].as_str().unwrap_or(branch)
             )),
             member: None,
-        }])
+        }], enabled))
+    }
+}
+
+impl CiProtectionPresenceCheck {
+    /// CireSnave's repository settings (6.5; CLAUDE.md 3 and 4): admins can bypass (`enforce_admins` off), the default branch
+    /// refuses force-pushes and deletion, merges are squash-only, and a merged branch is deleted. One finding per setting
+    /// that differs. `classic` is whether classic protection is enabled; only then is the branch endpoint read, and a branch
+    /// governed only by rulesets gets the repository-level audit alone.
+    ///
+    /// Reading these needs admin on the repository, so an answer that omits them is an error, never clean.
+    fn audit_settings(
+        &self,
+        slug: &str,
+        canonical: &str,
+        branch: &str,
+        info: &serde_json::Value,
+        classic: bool,
+    ) -> anyhow::Result<Vec<Finding>> {
+        let mut findings = Vec::new();
+
+        // Repository-level merge settings, from the `repos/{slug}` document already read.
+        let repo_flag = |key: &str| -> anyhow::Result<bool> {
+            info[key].as_bool().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "GitHub's answer for repos/{slug} has no `{key}`, so the merge settings cannot be read (they need admin \
+                     on the repository); not reporting clean"
+                )
+            })
+        };
+        let wants: [(&str, bool, &str); 4] = [
+            (
+                "allow_squash_merge",
+                true,
+                "squash merging is off, but this portfolio squash-merges",
+            ),
+            (
+                "allow_merge_commit",
+                false,
+                "merge commits are allowed, but merges here are squash-only",
+            ),
+            (
+                "allow_rebase_merge",
+                false,
+                "rebase merging is allowed, but merges here are squash-only",
+            ),
+            (
+                "delete_branch_on_merge",
+                true,
+                "a merged branch is not deleted automatically",
+            ),
+        ];
+        for (key, want, why) in wants {
+            let have = repo_flag(key)?;
+            if have != want {
+                findings.push(settings_finding(
+                    canonical,
+                    canonical.to_string(),
+                    format!("{canonical}: {why}"),
+                    format!(
+                        "`{key}` is {have} on repos/{slug}; the portfolio wants {want} (CLAUDE.md 3 and 4: repositories squash-merge, \
+                         and a merged branch is deleted)"
+                    ),
+                    format!("GET repos/{slug} answered with all four merge settings present, so they were readable"),
+                ));
+            }
+        }
+
+        if !classic {
+            return Ok(findings);
+        }
+        let path = format!("repos/{slug}/branches/{}/protection", encode_path(branch));
+        let doc = self.api.get(&path).map_err(|e| {
+            anyhow::anyhow!(
+                "cannot read {path} from GitHub: {e} (it needs admin on the repository)"
+            )
+        })?;
+        let on = |key: &str| -> anyhow::Result<bool> {
+            doc[key]["enabled"].as_bool().ok_or_else(|| {
+                anyhow::anyhow!("GitHub's answer for {path} has no `{key}.enabled`; cannot tell whether it is set")
+            })
+        };
+        let subject = format!("{canonical}@{branch}");
+        let branch_wants: [(&str, bool, &str, &str); 3] = [
+            (
+                "enforce_admins",
+                false,
+                "admins cannot bypass the protection",
+                "CireSnave 2026-09-18: admins keep a bypass, to unstick a stuck repository",
+            ),
+            (
+                "allow_force_pushes",
+                false,
+                "force-pushes are allowed",
+                "the template protection allows no force-push",
+            ),
+            (
+                "allow_deletions",
+                false,
+                "the branch can be deleted",
+                "the template protection allows no deletion",
+            ),
+        ];
+        for (key, want, why, rule) in branch_wants {
+            let have = on(key)?;
+            if have != want {
+                findings.push(settings_finding(
+                    canonical,
+                    subject.clone(),
+                    format!("{canonical}: the default branch `{branch}`: {why}"),
+                    format!("`{key}.enabled` is {have} on {path}; the portfolio wants {want} ({rule}; 6.5)"),
+                    format!("GET {path} answered with `{key}` present, so the setting was readable"),
+                ));
+            }
+        }
+        Ok(findings)
+    }
+}
+
+/// A settings finding: not a file, so it carries the same `github:` location as the presence finding.
+fn settings_finding(
+    canonical: &str,
+    subject: String,
+    summary: String,
+    detail: String,
+    control: String,
+) -> Finding {
+    Finding {
+        check_id: CHECK_ID.into(),
+        claim: crate::finding::Claim::Presence,
+        severity: Severity::Medium,
+        confidence: Confidence::High,
+        project: project_of(canonical),
+        location: Some(Location {
+            file: SETTINGS_FILE.into(),
+            line: None,
+        }),
+        subject: Some(subject),
+        summary,
+        detail,
+        positive_control: Some(control),
+        member: None,
     }
 }
 
