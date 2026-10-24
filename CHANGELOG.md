@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.9 - 2026-10-24 (proposed)
+
+A package with no `src/` is analysed from its cargo targets (the PM's ruling after baracuda's `examples`, which has only `[[bin]]` entries with a `path` at the package root and made all three Rust checks die with a bare "os error 3" until 0.9.6 named the cause). `cargo metadata` gives each library and binary target's root file (`Package::roots`, libraries first); when `src/` does not exist the rewrite reads and rewrites those root files, and the sentinels (positive controls) go into them: `reachability` and `unused-return-values` into the first root, `unused-parameters` into every root. Checked on the real layout: `check reachability`, `unused-parameters` and `unused-return-values` on baracuda's `examples` at 8e162f7 now run and report no issues (unused-parameters notes that `cutlass_gemm.rs` and `forge_hello.rs` are not built: their `required-features` are off).
+
+**Still refused, by name:** a root file outside `src/` that declares a file module (`mod helper;`), because the module's file would be neither rewritten nor read and the result would look complete and not be; the error names the file and the module. Tests: `a_package_whose_targets_are_outside_src_is_analysed_from_its_cargo_targets` (the layout, all three checks run, a seeded unused function and an ignored return are found) and `a_target_outside_src_with_a_file_module_is_refused_by_name_not_half_read`.
+
 ## 0.9.8 - 2026-10-23 (proposed)
 
 The `ci.yml` self-call is repinned to `portfolio.yml@66d358e1`, the merge of 0.9.7 (its workflow installs 0.9.6, which has `DOCS_RS` handling and the "not judged" note; the pin before it ran 0.8.19).

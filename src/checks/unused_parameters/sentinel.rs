@@ -39,9 +39,23 @@ pub fn inject_sentinels(worktree_root: &Path) -> anyhow::Result<Vec<String>> {
             written.push(format!("src/{root}"));
         }
     }
+    // no target root under `src/`: every library and binary root cargo reports (a `[[bin]]` with a `path` outside `src/`)
+    if written.is_empty() {
+        for relative in crate::package::root_files(worktree_root).unwrap_or_default() {
+            let path = worktree_root.join(&relative);
+            if path.is_file() {
+                let mut content = std::fs::read_to_string(&path)?;
+                content.push_str(&format!(
+                    "\n#[allow(dead_code)]\nfn {SENTINEL_FN}({SENTINEL_ARG}: i32) {{}}\n"
+                ));
+                std::fs::write(&path, content)?;
+                written.push(relative);
+            }
+        }
+    }
     anyhow::ensure!(
         !written.is_empty(),
-        "no target root (src/lib.rs, src/main.rs, src/bin/*) exists under {worktree_root:?}"
+        "no target root (src/lib.rs, src/main.rs, src/bin/*, or a target cargo reports) exists under {worktree_root:?}"
     );
     Ok(written)
 }
