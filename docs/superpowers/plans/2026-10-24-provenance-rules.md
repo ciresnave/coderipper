@@ -9,8 +9,9 @@
 > **Headline.** The incident has **exactly one detector: a check of the licence a record claims against the licence the source publishes**, which needs
 > the network and belongs in the sweep tier. Every static rule below is silent on it, because the record existed, named the source and a pinned revision,
 > and claimed a licence compatible with the repository's. The static rules are worth writing for a different reason: the portfolio's committed data is
-> **small** (45 data files in 32 repositories) and **well kept** (30 of the 34 files with a record carry a content hash; no third-party copyright holder
-> in a file header was found uncredited, by a deliberately loose name match), and the rules find the few exceptions.
+> **small** (75 data files and fixtures in 32 repositories) and **mostly unrecorded** (42 of the 75 are not named by any provenance record, 24 of them example
+> assets in fuel copied from candle; where a record exists it is good: 31 of the 33 files it names carry a content hash, and no third-party copyright holder
+> in a file header was found uncredited, by a deliberately loose name match). The rules find the exceptions, and there are a lot of them.
 
 ## 1. The incident, replayed rule by rule
 
@@ -36,8 +37,8 @@ front matter ... say so) and its base model is Apache-2.0" and commits no weight
 
 | id (proposed) | rule | reads | tier |
 |---|---|---|---|
-| SUP-014 | **Committed data with no provenance record** | a tracked file with a data or binary extension (`safetensors`, `gguf`, `bin`, `npy`, `onnx`, `png`, `jpg`, `gif`, `ttf`, `wasm`, `pem`, `zip`, ...) of at least 1 KiB, or a text file of at least 100 KiB under a `fixture`/`data`/`corpus` directory, with no record in its directory or an ancestor and not named in any record. The repository's own root `LICENSE` is not a record | static |
-| SUP-015 | **A record with no hash of the committed bytes** | a record that covers a data file and contains neither its SHA-256 nor its git blob id (full, or at least 12 characters) | static |
+| SUP-014 | **Committed data with no provenance record** | a tracked file with a data or binary extension (`safetensors`, `gguf`, `bin`, `npy`, `onnx`, `png`, `jpg`, `gif`, `ttf`, `wasm`, `pem`, `zip`, ...) of at least 1 KiB, or a text file of at least 100 KiB under a `fixture`/`data`/`corpus` directory, that **no provenance record names**: a record covers a file only if it names the file's basename or shares its stem (`x.PROVENANCE.md` for `x.json`); a record in the same directory that names other files covers nothing, and neither does the repository's own root `LICENSE`. A README that merely mentions the file (a usage example) does not state an origin, and is reported as the weaker class "named only in a README" | static |
+| SUP-015 | **A record with no hash of the committed bytes** | a record that covers a data file and contains neither its SHA-256 nor its git blob id (the full value, or a prefix of at least 12 characters) | static |
 | SUP-016 | **A record that states no licence** | a record with no SPDX id and none of the licence names | static |
 | SUP-017 | **An upstream URL that names a branch** | `github.com/.../blob|tree|raw/(main|master|develop|HEAD)/...` or `raw.githubusercontent.com/.../main/...` in a header, a vendored file or a record, **next to a copying word** (copied, adapted, ported, derived, kernels from, regenerate) | static |
 | SUP-018 | **A foreign-headed file whose holder is not credited** | a source file whose header names a copyright holder or SPDX id that is not the repository's own, with the holder named in no `NOTICE`, `THIRD_PARTY`, `LICENSE*` or README of the repository | static |
@@ -55,7 +56,7 @@ not substitutes: neither looks at a data file or at what a record claims.
 - **Whether a claimed licence is the real one.** That is SUP-019, over the network, and it is only as good as the hub's metadata (a model card can be wrong).
 - **Whether a file is a derivative work**, and under what licence the derivative must be offered. The 8,728-byte slice is a verbatim copy; most real cases are not.
 - **Whether a use is within the licence** (an attribution clause, a non-commercial clause, field-of-use limits). A matrix can say "GPL data in an MIT repository"; it cannot say what a project may do.
-- **Whether an unlabelled image is the project's own.** SUP-014 asks for a record and cannot decide the answer (3 of the 13 findings below are the project's own logos).
+- **Whether an unlabelled image is the project's own.** SUP-014 asks for a record and cannot decide the answer (5 of the 42 findings below are the projects' own logos or output).
 - **Code copied without a header**, or with the header stripped. That is similarity detection against an index of upstream code, a different tool.
 
 ## 4. Scoping and the default-on policy
@@ -68,8 +69,9 @@ not substitutes: neither looks at a data file or at what a record claims.
 - **The network rule stays in the sweep tier**, as the policy says. It reads public metadata only, makes one request per distinct source, and reports a source it
   could not reach as a gap, never as a clean pass.
 - **Default-on under the ROADMAP's gate** (at least 80% where a reviewer would act, on at least 30 findings, in at least three repositories): **none of the
-  rules reaches 30 findings in the portfolio**, because the portfolio keeps few data files. They can only qualify by the policy's second clause (exact on the
-  syntax, nothing to sample): SUP-015 (4 findings, 4 right) and SUP-018 (no real finding left) qualify; SUP-014, SUP-016, SUP-017 do not.
+  rules reaches the gate**. SUP-014 has 42 findings in 11 repositories (a census): **32 right, 5 unclear, 5 not, so 76% on firm verdicts, below 80%**, and 24 of them are
+  in one repository. The other rules have 2, 4 and 42 raw findings. They can only qualify by the policy's second clause (exact on the syntax, nothing to
+  sample): SUP-015 (2 findings, 2 right) and SUP-018 (no real finding left) qualify; SUP-014, SUP-016, SUP-017 do not.
 
 ## 5. Measurement
 
@@ -77,35 +79,39 @@ not substitutes: neither looks at a data file or at what a record claims.
 (read through git plumbing, never a working tree): `scan.py` (data files and records), `m2.py` (hashes in records), `scan_urls.py` (branch URLs),
 `scan_code.py` and `credit.py` (foreign headers and credit). Censuses are read whole; SUP-017 has 42 findings and 21 were judged in a seeded order
 (`random.Random(2026)`), the stopping rule of the earlier samples reached (7 not right) at row 9. One reader judged; **every verdict has its reason
-below**. **Control, run on the incident:** the same tests applied to fuel's pre-rewrite commit `558864da` give: SUP-014 silent (a record sits in the directory), SUP-015 **fires** (neither the SHA-256 nor the git blob id of the 8,728 committed bytes is in the record), SUP-016 silent (it names Apache-2.0), SUP-017 silent (a pinned 40-hex revision, no branch URL). That is the section 1 table, measured and not assumed.
+below**. **Control, run on the incident:** the same tests applied to fuel's pre-rewrite commit `558864da` give: SUP-014 silent (the record names the file), SUP-015 **fires** (neither the SHA-256 nor the git blob id of the 8,728 committed bytes is in the record), SUP-016 silent (it names Apache-2.0), SUP-017 silent (a pinned 40-hex revision, no branch URL). That is the section 1 table, measured and not assumed.
 
 **Results.**
 
 | rule | findings in the portfolio | judged | right | reading |
 |---|---|---|---|---|
-| SUP-014 | 13 (of 45 data files) | 13 (census) | 8 yes, 2 unclear, 3 no | the 3 are the projects' own logos and a generated corpus: the case for `[provenance] own` |
-| SUP-015 | 4 (of 34 files that have a record) | 4 (census) | 4 | 30 of the 34 carry a SHA-256 or a git blob id; the 4 are two derived weight files, a reference JSON whose record holds a different blob's hash, and a WebAuthn fixture |
+| SUP-014 | 42 (of 75 data files and fixtures) | 42 (census) | 32 yes, 5 unclear, 5 no (76% firm) | 14 named by nothing and 28 only by a README usage mention; fuel 24, Humboldt 6, unisql 3, auth-framework 2, and one each in 6 more; the 5 not are the projects' own logos, own generated output and a test key; the 5 unclear are unattributed logos and clip art: the case for `[provenance] own` |
+| SUP-015 | 2 (of 33 files that a record names) | 2 (census) | 2 | 31 of the 33 carry a SHA-256, a prefix of one, or a git blob id; the 2 are fuel's two derived-weight fixtures (the WebAuthn fixture's record gives a 16-hex SHA-256 prefix, which the rule accepts; `qwen3_0_6b_cpu_reference.json`, which an earlier draft put here, has no record at all and is a SUP-014 finding) |
 | SUP-016 | 4 of 7 records state no licence | 4 (census) | 1 | 2 are the owner's own KISS corpus and 1 is a NOTICE whose `.PIN` states it |
 | SUP-017 | 42 in 9 repositories | 21 | 8 (38%) | READMEs, spec links and self-links are not provenance; every right one is a code comment, a vendored file or a NOTICE saying where it was copied from |
 | SUP-018 | 175 raw header hits, **0 shown uncredited** | 29 holder groups | 0 | every real third-party holder (Meta, Apple, ggml, Tri Dao, FlashInfer, ...) has a word of its name in a notice-like file of its repository (a generous match: a short word such as `van` would pass); 7 of the 29 groups are not names at all but prose that mentions "copyright", and the project's own organisation names are the rest |
 | SUP-019 | 1 (the incident) | 1 | 1 | the portfolio's current records agree with the hub (checked: the two Hugging Face repositories fuel's records cite) |
 
-**What the numbers say.** (1) The portfolio does this well: the exceptions are 13 files, and most are branding. (2) SUP-017's raw form is mostly links, and its
+**What the numbers say.** (1) The portfolio does this for its code and its records, **and not for its data files**: 42 of 75 are unrecorded, and the largest group is 24 example assets in fuel copied from candle (images, two videos, a voice file, a font). (2) SUP-017's raw form is mostly links, and its
 useful form is narrow: only a URL beside a copying word, in a code comment, vendored file or NOTICE. The 8 right ones all satisfy that; the narrowed rule is a
 **hypothesis**, read off this sample, and needs its own. (3) SUP-018 needs a better holder extractor before it is a rule: 7 of the 29 holder groups were not names
 at all, and the credit match is too generous to call "credited" a finding. (4) The one finding that matters most, the licence claim, is the one nothing static can make.
 
-**Findings for the owning lanes** (none is a vulnerability): Humboldt's six branding PNGs (rights to a client's logo, unrecorded), vulkane's `vulkan.jpeg`
-(possibly a Khronos mark, unverified), auth-framework's `tests/fixtures/test_private_key.pem` (no statement that it is a throwaway), amt's `logo.png` and
-candlelight's `candlelight.gif` (origin unstated), and fuel's two derived-weight fixtures (no digest in the record).
+**Findings for the owning lanes** (none is a vulnerability), 42 files; the routed rows are the PM's:
+
+- **fuel (24):** 21 example assets under `fuel-examples/examples/` (images, `test_video.mp4`, `hello.mp4`, `aoc.gif`, `voices.safetensors`, four bike photos), `roboto-mono-stripped.ttf` (a font whose licence must be kept), and `fuel-transformers/tests/fixtures/qwen3_0_6b_cpu_reference.json` (no record; the awq record beside it names a different file). Their README links to candle's examples: the origin is implied and no file states it or its licence. Plus the two bnb fixtures whose record carries no digest.
+- **HumboldtUnifiedKidTracker (6):** the Granville Elementary School logo and five icons derived from it; permission to use a school's mark is unrecorded.
+- **vulkane:** `vulkan.jpeg`, on inspection a painted Vulcan at an anvil in an image-generator style, **not** the Khronos logo an earlier draft guessed. **baracuda:** `assets/barracuda.png`, a photograph-grade underwater image. Neither has a source or licence recorded.
+- **unisql (3):** `assets/Unicycle-*.png`, vector clip-art style, origin unstated. **amt:** `logo.png`, a rendered gear and lightning bolt. **candlelight:** `candlelight.gif`, an animated flame. Origins unstated.
+- **Own work, a one-line record or `[provenance] own`:** auth-framework `auth-framework.png`, synapse `Synapse.jpeg`, KISS `conformance/corpus/ops-int-wrap.json`, lightbulb's golden JSON (self-describing: its own output, with a provenance block inside), and auth-framework's `test_private_key.pem` (its README says it was generated with `openssl genrsa`).
 
 ## 6. Plan
 
 | order | rule | ships | needs first |
 |---|---|---|---|
-| 1 | SUP-015 record without a content hash | default-on (exact; 4 of 4) | read a record's table rows and prose for a SHA-256 or blob id; fixture pair |
+| 1 | SUP-015 record without a content hash | default-on (exact; 2 of 2) | read a record's table rows and prose for a SHA-256 or blob id; fixture pair |
 | 2 | SUP-018 holder not credited | default-on once the extractor is fixed | an extractor that reads `Copyright (c) YEAR Holder` and SPDX only; 29 groups to re-check |
-| 3 | SUP-014 data file with no record | opt-in | `[provenance] own`; the extension list; a fixture pair |
+| 3 | SUP-014 data file that no record names | opt-in, then default-on if a fresh 30 outside fuel clears 80% | `[provenance] own`; the extension list; a fixture pair; the README-mention class at Info |
 | 4 | SUP-019 licence against the source | opt-in, sweep tier | a Hugging Face and a GitHub lookup with a cache; the gap behaviour; a seeded fixture on a stub forge |
 | 5 | SUP-016, SUP-017 | opt-in | the narrowed SUP-017 sampled on a fresh 30; SUP-016 only with the record schema |
 
@@ -117,23 +123,36 @@ unrecorded logos and the one test key: route these as small tasks?
 
 `right` = the detector is right; `acts` = a reviewer would change the repository (add a record, a digest, or a pinned reference).
 
-#### SUP-014: committed data with no record (13 findings, a census; right 8 yes, 2 unclear)
+#### SUP-014: committed data that no provenance record names (42 findings, a census; 32 right, 5 unclear, 5 not)
 
-| site | right | acts | why |
-|---|---|---|---|
-| HumboldtUnifiedKidTracker `frontend/static/branding/apple-touch-icon.png` | yes | yes | an icon derived from a client's logo; the right to use it is not recorded |
-| HumboldtUnifiedKidTracker `frontend/static/branding/favicon-64.png` | yes | yes | an icon derived from a client's logo |
-| HumboldtUnifiedKidTracker `frontend/static/branding/granville-logo.png` | yes | yes | a client's logo: its permission is a licence question |
-| HumboldtUnifiedKidTracker `frontend/static/branding/icon-192.png` | yes | yes | an icon derived from a client's logo |
-| HumboldtUnifiedKidTracker `frontend/static/branding/icon-512.png` | yes | yes | an icon derived from a client's logo |
-| HumboldtUnifiedKidTracker `frontend/static/branding/maskable-512.png` | yes | yes | an icon derived from a client's logo |
-| KISS `conformance/corpus/ops-int-wrap.json` | no | no | conformance vectors the project generates itself (its own commit message says so) |
-| amt `logo.png` | unclear | unclear | a 754 KB logo; whose it is is not stated anywhere |
-| candlelight `candlelight.gif` | unclear | unclear | a 678 KB animation; origin not stated |
-| vulkane `vulkan.jpeg` | yes | yes | named for the Vulkan logo, a Khronos trademark; unverified, which is the point |
-| auth-framework `auth-framework.png` | no | no | the project's own logo |
-| auth-framework `tests/fixtures/test_private_key.pem` | yes | yes | a private key with no statement that it is a throwaway test key |
-| synapse `Synapse.jpeg` | no | no | the project's own logo |
+Rows are grouped by directory (the files in a group have the same verdict and the same reason). `class`: **none** = named by nothing; **README** = named only by a README that uses the file.
+
+| repository, directory | files | class | right | acts | why |
+|---|---|---|---|---|---|
+| fuel `fuel-examples/examples/csm` | 1 (`voices.safetensors`) | README | yes | yes | voice prompts from the CSM example; no source or licence |
+| fuel `fuel-examples/examples/flux/assets` | 1 | README | yes | yes | an image from the flux example; no source or licence |
+| fuel `fuel-examples/examples/paddleocr-vl` | 6 (5 PNG, `test_video.mp4`) | README | yes | yes | OCR test images and a video; no source or licence |
+| fuel `fuel-examples/examples/parler-tts` | 1 (`hello.mp4`) | none | yes | yes | a video; no source or licence |
+| fuel `fuel-examples/examples/quantized/assets` | 1 (`aoc.gif`) | README | yes | yes | an animation; no source or licence |
+| fuel `fuel-examples/examples/segment-anything/assets` | 3 | README | yes | yes | images; no source or licence |
+| fuel `fuel-examples/examples/stable-diffusion/assets`, `stable-diffusion-3/assets` | 2 | README | yes | yes | generated or sample images; no source or licence |
+| fuel `fuel-examples/examples/trocr/assets` | 2 | README | yes | yes | images; no source or licence |
+| fuel `fuel-examples/examples/wuerstchen/assets` | 1 (`cat.jpg`) | README | yes | yes | a photograph; no source or licence |
+| fuel `fuel-examples/examples/yolo-v8/assets` | 4 (bike photographs) | README | yes | yes | photographs; no source or licence |
+| fuel `fuel-examples/examples/yolo-v8` | 1 (`roboto-mono-stripped.ttf`) | none | yes | yes | a font: its licence and notice must be kept |
+| fuel `fuel-transformers/tests/fixtures` | 1 (`qwen3_0_6b_cpu_reference.json`) | none | yes | yes | reference output of a third-party model; the record beside it names a different file |
+| HumboldtUnifiedKidTracker `frontend/static/branding` | 1 (`granville-logo.png`) | README | yes | yes | a school's logo: permission is a licence question |
+| HumboldtUnifiedKidTracker `frontend/static/branding` | 5 (icons) | none | yes | yes | icons derived from the school's logo |
+| vulkane `.` | 1 (`vulkan.jpeg`) | none | yes | yes | a painted Vulcan in an image-generator style; no source or licence |
+| baracuda `assets` | 1 (`barracuda.png`) | README | yes | yes | a photograph-grade image; no source or licence |
+| amt `.` | 1 (`logo.png`) | none | unclear | unclear | a rendered gear and lightning bolt; whose it is is not stated |
+| candlelight `.` | 1 (`candlelight.gif`) | README | unclear | unclear | an animated flame; origin not stated |
+| unisql `assets` | 3 (`Unicycle-*.png`) | none | unclear | unclear | vector clip-art style; origin not stated |
+| KISS `conformance/corpus` | 1 (`ops-int-wrap.json`) | none | no | no | conformance vectors the project generates itself |
+| auth-framework `.` | 1 (`auth-framework.png`) | README | no | no | the project's own logo |
+| auth-framework `tests/fixtures` | 1 (`test_private_key.pem`) | README | no | no | its README says it was generated with `openssl genrsa` for tests |
+| synapse `.` | 1 (`Synapse.jpeg`) | README | no | no | the project's own logo |
+| lightbulb `tests/fixtures/model_fuel_golden/v1` | 1 (`tinyllama_f32_greedy.json`) | none | no | no | the project's own past output, with a provenance block inside the file |
 
 #### SUP-017: an upstream URL that names a branch (42 findings; 21 judged, 8 right)
 
