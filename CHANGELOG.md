@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.25 - 2026-10-24 (proposed)
+
+**CI: `portfolio.yml` installs coderipper 0.9.24** (published 2026-10-24, read back from crates.io), so callers get `patent-index-match` on agent-safety-bed 1.4.0 and its lockfile and Gradle version catalog reading. No code change. Callers repin to the merge of this change.
+
 ## 0.9.24 - 2026-10-24 (proposed)
 
 **`patent-index-match` reads lockfiles and Gradle version catalogs**, so a package no manifest declares (a transitive dependency) can match the index. Follow-up to the rule's "cannot see" list; 0.9.23 (the 1.4.0 index data) ships in the same release.
