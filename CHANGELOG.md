@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.24 - 2026-10-24 (proposed)
+
+**`patent-index-match` reads lockfiles and Gradle version catalogs**, so a package no manifest declares (a transitive dependency) can match the index. Follow-up to the rule's "cannot see" list; 0.9.23 (the 1.4.0 index data) ships in the same release.
+
+- Read: `Cargo.lock`, `package-lock.json` (lockfileVersion 1, 2 and 3), `poetry.lock`, `uv.lock`, `Pipfile.lock`, and `*.versions.toml` (`[libraries]` as `"g:a:v"`, `{ module }` or `{ group, name }`; read as a manifest, so a match there is graded like a declared dependency). Not read: `yarn.lock`, `pnpm-lock.yaml`, `go.sum`, `gradle.lockfile`.
+- **A locked match is graded one step below the index's action and at low confidence** (High becomes Medium; Medium and Low become Low), because the repository may not choose a transitive package: a transitive `avoid` entry is a Medium finding and cannot fail the portfolio gate (floor High); a declared one still does. The summary says "locked package ... declared by no manifest read, so probably transitive".
+- A locked package that any manifest in the repository declares is reported once, from the manifest; one package in two lockfiles (or two versions) is one finding. The repository's own packages are not judged: a Cargo package with no `source`, a package-lock entry outside `node_modules/` or marked `link`, a uv package whose source is `virtual` or `editable`.
+- The note now reads "N lockfile(s) read, M locked package(s) compared"; a repository with only lockfiles is no longer "not applicable". An unparseable lockfile is a note, as for manifests.
+- Tests: `a_gradle_version_catalog_is_read_in_all_three_library_forms`, `a_locked_package_no_manifest_declares_is_one_step_lower_and_low_confidence`, `a_package_a_manifest_declares_is_reported_once_from_the_manifest`, `the_projects_own_packages_in_a_lockfile_are_not_judged`, `package_lock_v3_v1_and_pipfile_lock_are_read`, `an_unparseable_lockfile_is_a_note_not_a_clean_run`.
+
 ## 0.9.23 - 2026-10-24 (proposed)
 
 **`patent-index-match` reads agent-safety-bed 1.4.0** (was 1.2.0; upstream commit `3074b3c`, `data/patent-tiers.PIN` records version, commit and sha256, and the data, `LICENSE` and `NOTICE` are copied from that commit unchanged: upstream's copyright line now reads "Thinker's Journal" where our 1.2.0 copy said "Eric Evans").
