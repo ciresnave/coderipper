@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.50 - 2026-10-25 (proposed)
+
+**Docs: decision 285 recorded** (CireSnave's rulings of 2026-10-25 on the sixteen audit calls). New: `docs/superpowers/plans/2026-10-25-decision-285-rulings.md` (the 70% default-on threshold and the performance rules' positions, the valuable-and-unbuilt checks, the provenance record schema, the dashboard stack options, the cross-repository and result-cache plan) and `docs/hosted-service/sandbox-hardening-gate.md` (the checklist CireSnave approves before any submitted repository is built). The terms of service are marked approved; H3 and H8 are recorded in the hosted-service plan; ROADMAP rows C7, M8, M12, H2 to H8, R1 to R3, T1 and T2 carry their rulings. Also `Cargo.lock`: zip 9.1.0 to 9.1.1 (the `dependency-freshness` rule reports a locked crate that is behind, and the repository sweep fails on it). No behaviour changes.
+
 ## 0.9.48 - 2026-10-25 (proposed)
 
 **`version-and-changelog` accepts a list item as a changelog entry** (found by the auth-framework lane's portfolio run): a line such as `- 0.6.0-rc1 -- what changed` now names its version, as `## 0.6.0-rc1` and `[0.6.0-rc1]` already did; before, every version-bump PR to a repository whose changelog is a bullet list got "has no entry for Cargo.toml version X". The whole-token rule is unchanged (`0.6.0` is still not an entry for `0.6.0-rc1`, nor the reverse), and prose that merely mentions a version is still not an entry.
