@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.42 - 2026-10-25 (proposed)
+
+**Docs: hosted v1 runs with DOC-010 off and osv-scanner limited to the OSV host (CireSnave's H6 ruling); `buf` and `zizmor` re-verified for network and plugin use by reading the code.** No behaviour changes.
+
 ## 0.9.41 - 2026-10-25 (proposed)
 
 **`ci-protection-presence`: a ruleset-only default branch is audited for force-push and deletion** (audit row C5, part). A branch that passes on its rulesets alone (no classic protection) now gets one `Medium` finding for each of `non_fast_forward` and `deletion` that no active rule for the branch (`rules/branches/<branch>`) provides, read on its own so one present does not hide the other missing. One more GET in that case. A branch with classic protection is audited from its classic settings as before. Still open in C5: required reviews and signed commits, required-check names matched against the workflows, non-default branches, non-GitHub forges, rate limits, and telling a taken-over fork from a plain one.
