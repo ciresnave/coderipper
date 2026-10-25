@@ -202,7 +202,7 @@ fn the_default_format_is_still_the_human_text() {
 }
 
 #[test]
-fn the_human_text_says_the_percentage_of_rules_passed() {
+fn the_classic_run_says_the_percentage_of_rules_passed_on_stderr() {
     let repo = project_with_a_medium_finding();
     let out = coderipper()
         .args([
@@ -215,7 +215,7 @@ fn the_human_text_says_the_percentage_of_rules_passed() {
         .arg(repo.path())
         .output()
         .unwrap();
-    let text = String::from_utf8(out.stdout).unwrap();
+    let text = String::from_utf8(out.stderr).unwrap();
     assert!(
         text.contains("coderipper: rules passed: 0 of 1 that ran (0.0%)"),
         "{text}"

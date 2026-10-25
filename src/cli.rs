@@ -1064,13 +1064,19 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             }
             // On every run, whatever the profile: the share of the rules that ran that found nothing.
             let ran = crate::coverage::RunCounts::of(&result.outcomes);
-            match ran.passed_percent() {
-                Some(p) => println!(
+            // `classic` keeps its stdout exactly as it was (a contract), so there the line goes to stderr.
+            let line = match ran.passed_percent() {
+                Some(p) => format!(
                     "coderipper: rules passed: {} of {} that ran ({p:.1}%)",
                     ran.clean,
                     ran.ran()
                 ),
-                None => println!("coderipper: rules passed: no rule ran to a verdict"),
+                None => "coderipper: rules passed: no rule ran to a verdict".to_string(),
+            };
+            if reports.is_some() {
+                println!("{line}");
+            } else {
+                eprintln!("{line}");
             }
             if let Some(reports) = &reports {
                 print_coverage_human(reports, coverage == Some(CoverageMode::Full));

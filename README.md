@@ -250,7 +250,7 @@ least one source file among the files git tracks; a project outside git is not s
 the catalogue CodeRipper can check at all (its own completeness). *Rules passed* is, of the rules that **ran to a verdict** in this
 run, the share that found nothing: `clean / (clean + with findings)`. A rule that did not apply here, or could not run (a missing tool),
 is in neither count, so a gap neither raises nor lowers it; a rule counts once however many findings it has, so it is a metric for
-judging improvement over time, not a severity measure. The human output ends with `coderipper: rules passed: 7 of 9 that ran (77.8%)`;
+judging improvement over time, not a severity measure. The human output ends with `coderipper: rules passed: 7 of 9 that ran (77.8%)` (on stdout; under `classic`, whose stdout is unchanged, on stderr);
 `--message-format json` adds `rules_ran`, `rules_passed` and `rules_passed_percent` (`null` when no rule ran) to the summary line, and the
 coverage line's `run` object carries `passed_percent`. It never changes the exit code. An optional floor (`--min-coverage`) is still on the
 roadmap.
