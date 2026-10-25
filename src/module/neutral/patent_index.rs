@@ -1167,11 +1167,11 @@ mod tests {
 
     #[test]
     fn yarn_lock_classic_berry_scoped_and_aliased_entries_are_read() {
-        // z3-solver and @google/adk are npm names in the index
+        // z3-solver is an npm name in the index with a reported action; @google/adk is `allow`, so it is silent
         let classic = "# yarn lockfile v1
 
-\"@google/adk@^1.0.0\", \"@google/adk@^1.1.0\":
-  version \"1.2.0\"
+\"z3-solver@^5.0.0\", \"z3-solver@^5.1.0\":
+  version \"5.2.0\"
   resolved \"x\"
 
 left-pad@^1.0.0:
@@ -1184,15 +1184,15 @@ left-pad@^1.0.0:
   version: 5.1.0
   resolution: \"z3-solver@npm:5.1.0\"
 
-\"alias@npm:@google/adk@^1\":
-  version: 1.4.0
+\"alias@npm:z3-solver@^5\":
+  version: 5.1.0
 ";
         let a = run(&[("yarn.lock", classic)]);
         assert_eq!(a.len(), 1, "{a:?}");
-        assert!(a[0].summary.contains("@google/adk") && a[0].summary.contains("1.2.0"), "{}", a[0].summary);
+        assert!(a[0].summary.contains("z3-solver") && a[0].summary.contains("5.2.0"), "{}", a[0].summary);
         let b = run(&[("web/yarn.lock", berry)]);
-        // the alias names the same real package as a second entry, so one finding per package: z3-solver and @google/adk
-        assert_eq!(b.len(), 2, "{b:?}");
+        // the alias names the same real package as a second entry, so one finding per package
+        assert_eq!(b.len(), 1, "{b:?}");
         assert_eq!(yarn_spec_name("left-pad@^1.0.0").as_deref(), Some("left-pad"));
         assert_eq!(yarn_spec_name("@a/b@npm:^1").as_deref(), Some("@a/b"));
         assert_eq!(yarn_spec_name("x@npm:@a/b@^1").as_deref(), Some("@a/b"));
@@ -1207,17 +1207,17 @@ left-pad@^1.0.0:
         assert_eq!(pnpm_key("@scope/3d@1.0.0"), Some(("@scope/3d".into(), "1.0.0".into())));
         let v9 = "lockfileVersion: '9.0'
 packages:
-  '@google/adk@1.2.0':
+  z3-solver@5.0.0:
     resolution: {integrity: x}
   left-pad@1.0.0:
     resolution: {integrity: y}
 snapshots:
-  z3-solver@5.0.0: {}
+  gensim@4.3.0: {}
 ";
         let f = run(&[("pnpm-lock.yaml", v9)]);
-        // only `packages` is read: the one in `snapshots` is not, and left-pad is not in the index
+        // only `packages` is read: gensim is an index name but sits in `snapshots`, and left-pad is not in the index
         assert_eq!(f.len(), 1, "{f:?}");
-        assert!(f[0].summary.contains("@google/adk"), "{}", f[0].summary);
+        assert!(f[0].summary.contains("z3-solver"), "{}", f[0].summary);
     }
 
     #[test]
