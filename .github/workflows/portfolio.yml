@@ -88,6 +88,12 @@ jobs:
       # The analysis compiles the caller's crates, so a build script that needs `protoc` (prost-build; mlmf's) must find it. Only on a
       # GitHub-hosted Linux runner, where installing a package is routine; a self-hosted runner is the owner's machine and is left alone.
       # A crate whose build still fails is named as not judged, not reported clean.
+      # Log only: where the disk goes on a hosted runner (Fuel's job ran out, and the build-cache size measured elsewhere does not explain it). No
+      # step reads these numbers; `|| true` keeps a missing path from failing the job.
+      - name: Disk use before the install (log only)
+        run: |
+          df -h / || true
+          du -sm "$RUNNER_TEMP/coderipper-build" "$HOME/.cargo" "$HOME/.cache/coderipper-bin" 2>/dev/null || true
       - name: Install protoc (GitHub-hosted Linux runners)
         if: runner.os == 'Linux' && runner.environment == 'github-hosted'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
@@ -181,6 +187,13 @@ jobs:
           # is no base to compare with (their note ends "a run on the default branch").
           if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           exit "$code"
+      # Log only: where the disk goes on a hosted runner (Fuel's job ran out, and the build-cache size measured elsewhere does not explain it). No
+      # step reads these numbers; `|| true` keeps a missing path from failing the job.
+      - name: Disk use after the sweep (log only)
+        if: always()
+        run: |
+          df -h / || true
+          du -sm "$RUNNER_TEMP/coderipper-build" "$HOME/.cargo" "$HOME/.cache/coderipper-bin" 2>/dev/null || true
       - name: Save the build cache (GitHub-hosted runners)
         if: always() && runner.environment == 'github-hosted' && steps.build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
