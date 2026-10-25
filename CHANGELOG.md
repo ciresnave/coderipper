@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.46 - 2026-10-25 (proposed)
+
+**`patent-index-match`: a yarn or pnpm entry that is the repository's own code is not a registry package, and a bare `npm:` alias names its real package** (review of #164). A yarn Berry `name@workspace:`, `link:`, `file:`, `portal:`, `exec:`, tarball or git descriptor, and a pnpm key whose version is a path or an address, no longer match an index name as if they were the registry package of that name (`name@workspace:pkg` with `version: 0.0.0-use.local` was read as `name` at 0.0.0-use.local); `alias@npm:real` with no range reads as `real`. Red-first tests for both.
+
 ## 0.9.44 - 2026-10-25 (proposed)
 
 **Every run reports the percentage of rules passed** (audit row M3, CireSnave's ruling of 2026-10-25). Of the rules that ran to a verdict, the share that found nothing: the human output ends with `rules passed: N of M that ran (P%)`; the JSON summary line gains `rules_ran`, `rules_passed` and `rules_passed_percent` (`null` when no rule ran), and the coverage line's `run` object gains `passed_percent`. Rules that did not apply or could not run are in neither count; coverage (how much of the catalogue CodeRipper can check) is a separate number, defined beside it in the README. Never changes the exit code. **Not breaking** (new keys only); the golden summary-key test is updated. `--min-coverage` stays on the roadmap.
