@@ -405,6 +405,7 @@ fn fast_does_not_run_it_and_sweep_does() {
 fn rules_requiring_checks() -> Value {
     json!([
         { "type": "deletion", "ruleset_source_type": "Repository", "ruleset_id": 1 },
+        { "type": "non_fast_forward", "ruleset_source_type": "Repository", "ruleset_id": 1 },
         {
             "type": "required_status_checks",
             "parameters": {
@@ -609,12 +610,16 @@ fn the_larger_of_contexts_and_checks_counts() {
 #[test]
 fn a_required_workflows_ruleset_rule_also_requires_ci() {
     // Shape from GitHub's documentation of the `workflows` rule type (not yet seen on a real repo here).
-    let rules = json!([{
-        "type": "workflows",
-        "parameters": { "workflows": [ { "path": ".github/workflows/ci.yml", "repository_id": 1 } ] },
-        "ruleset_source_type": "Organization",
-        "ruleset_id": 7
-    }]);
+    let rules = json!([
+        {
+            "type": "workflows",
+            "parameters": { "workflows": [ { "path": ".github/workflows/ci.yml", "repository_id": 1 } ] },
+            "ruleset_source_type": "Organization",
+            "ruleset_id": 7
+        },
+        { "type": "deletion", "ruleset_source_type": "Organization", "ruleset_id": 7 },
+        { "type": "non_fast_forward", "ruleset_source_type": "Organization", "ruleset_id": 7 }
+    ]);
     let repo = repo_with_origin(Some(ORIGIN));
     let (result, _) = run_with(
         repo.path(),
@@ -799,4 +804,52 @@ fn a_branch_governed_only_by_rulesets_gets_the_repository_audit_alone() {
     assert_eq!(findings.len(), 1, "{findings:#?}");
     assert!(findings[0].detail.contains("allow_merge_commit"));
     assert!(!asked.iter().any(|p| p == PROTECTION), "{asked:?}");
+}
+
+/// A branch governed by rulesets alone, whose rules are `kinds` plus a required check, audited.
+fn ruleset_only_findings(kinds: &[&str]) -> Vec<coderipper::finding::Finding> {
+    let mut rules: Vec<Value> = kinds
+        .iter()
+        .map(|k| json!({ "type": k, "ruleset_source_type": "Repository", "ruleset_id": 1 }))
+        .collect();
+    rules.push(json!({
+        "type": "required_status_checks",
+        "parameters": { "required_status_checks": [ { "context": "ci / build" } ] },
+        "ruleset_source_type": "Repository",
+        "ruleset_id": 1
+    }));
+    let repo = repo_with_origin(Some(ORIGIN));
+    let (result, _) = run_with(
+        repo.path(),
+        vec![
+            (REPO, Ok(repo_info("main"))),
+            (BRANCH, Ok(unprotected_branch())),
+            (RULES, Ok(Value::Array(rules))),
+        ],
+    );
+    result.unwrap()
+}
+
+#[test]
+fn a_ruleset_only_branch_without_force_push_or_deletion_rules_gets_one_finding_each() {
+    let findings = ruleset_only_findings(&[]);
+    assert_eq!(findings.len(), 2, "{findings:#?}");
+    assert!(findings.iter().all(|f| f.severity == Severity::Medium));
+    assert!(findings[0].summary.contains("force-pushes are not blocked"));
+    assert!(findings[0].detail.contains("`non_fast_forward`"));
+    assert!(findings[1].summary.contains("can be deleted"));
+    assert!(findings[1].detail.contains("`deletion`"));
+}
+
+#[test]
+fn a_ruleset_only_branch_with_one_of_the_two_rules_is_told_about_the_other() {
+    // the control that each rule is read on its own: one present must not hide the other missing
+    let only_deletion = ruleset_only_findings(&["deletion"]);
+    assert_eq!(only_deletion.len(), 1, "{only_deletion:#?}");
+    assert!(only_deletion[0].detail.contains("`non_fast_forward`"));
+    let only_force = ruleset_only_findings(&["non_fast_forward"]);
+    assert_eq!(only_force.len(), 1, "{only_force:#?}");
+    assert!(only_force[0].detail.contains("`deletion`"));
+    // and both present is clean
+    assert!(ruleset_only_findings(&["deletion", "non_fast_forward"]).is_empty());
 }

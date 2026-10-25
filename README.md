@@ -167,7 +167,8 @@ API failure, or a reply without the `protection` object (hidden from a token wit
 repository) is an error; an archived repository, a fork and one with no commits yet each get an `Info` note. Since 0.9.27 it
 also reports, at `Medium`, each repository setting that differs from the portfolio's (squash-only merges, merged branches
 deleted, and on the default branch admins able to bypass, no force-push, no deletion); reading those needs admin on the
-repository. To accept a
+repository. Since 0.9.41 a default branch governed by rulesets alone (no classic protection) is also reported, at `Medium`, for each of
+force-push and deletion that no active ruleset rule blocks (rule types `non_fast_forward` and `deletion`). To accept a
 repository on purpose, use an `[[allow]]` entry with `check = "ci-protection-presence"`,
 `file = "github:branch-protection"` and `symbol = "owner/repo@branch"` (the finding is then waived, with your reason shown).
 
