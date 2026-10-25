@@ -40,3 +40,9 @@ owner = "fuel lane"
 ## Not decided here
 
 Whether a member skipped for a missing SDK should still have its non-building checks (SUP-004 sources, version) run on its manifest. Recommended: yes, later; the first version skips the member wholesale and says so.
+
+## Status (2026-10-25)
+
+- **A is built** (`[[skip_member]]`, 0.9.35, #158).
+- **B is not needed on the evidence, and not built.** The disk overflow reported for Fuel did not reproduce. Windows, the build cache for Fuel's 45 members: 3.8 GB (measured here). The first hosted Linux run of the pinned portfolio job (fuel#499, run 40186542506, coderipper 0.9.37, read by the Fuel lane from the job log): root filesystem 145 GB with 86 GB free before and 80 GB after, so the whole sweep cost about 6 GB (`coderipper-build` 4442 MB, `~/.cargo` 449 MB, binary cache 24 MB), and no "No space left". The "14 GB" runner figure was an assumption that does not hold for `ubuntu-latest`. The earlier failure was on 0.9.14. Reopen B only if a run again runs out of disk; the `df`/`du` steps in `portfolio.yml` (0.9.38) will show it.
+- The same run judged `fuel-aocl-cpu-backend` and `fuel-cuda-backend`; the one member not judged is `fuel-metal-kernels` (it compiles to nothing on Linux, so the per-run controls of three checks were not detected). That is what `[[skip_member]]` is for. It has no OS condition: `needs` names an executable, so an unconditional entry also skips the member on a macOS runner that could have judged it.
