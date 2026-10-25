@@ -134,3 +134,18 @@ fn the_workflow_installs_the_newest_published_release() {
         panic!("{why}");
     }
 }
+
+#[test]
+fn the_workflow_checks_that_the_installed_binary_is_the_pinned_release() {
+    // the control against a caller whose pinned SHA installed one release while the file said another: the step compares `--version` with
+    // the pin and fails the job, so removing it (or comparing with something else) is caught here
+    let step = WORKFLOW
+        .split("      - name: ")
+        .find(|s| s.starts_with("The installed coderipper is the pinned release"))
+        .expect("portfolio.yml has the step that checks the installed version");
+    assert!(step.contains("coderipper --version"), "{step}");
+    assert!(
+        step.contains("\"coderipper $CODERIPPER_VERSION\"") && step.contains("exit 1"),
+        "{step}"
+    );
+}
