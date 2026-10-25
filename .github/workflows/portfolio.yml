@@ -36,7 +36,7 @@ env:
   # The published release the sweep installs: THE NEWEST ONE on crates.io. It was left at 0.9.6 while 0.9.7 to 0.9.14 were published, and no workflow SHA
   # could reach those fixes. `tests/portfolio_version.rs` keeps it from drifting (offline: well formed, not ahead of Cargo.toml; online, in the scheduled
   # `release-drift.yml`: equal to the newest published version). Bump it in the change that follows each publish, then repin the callers.
-  CODERIPPER_VERSION: 0.9.24
+  CODERIPPER_VERSION: 0.9.37
 
 jobs:
   portfolio:
@@ -140,6 +140,13 @@ jobs:
             fi
           fi
           echo "$bin" >> "$GITHUB_PATH"
+      # Positive control: what is on PATH is the release this file names. A caller pinned a workflow SHA that installed 0.9.20 while its
+      # `CODERIPPER_VERSION` said 0.9.24; the install step's own check only decides whether a cached copy is reused.
+      - name: The installed coderipper is the pinned release
+        run: |
+          got="$(coderipper --version)"
+          echo "installed: $got; CODERIPPER_VERSION: $CODERIPPER_VERSION"
+          if [ "$got" != "coderipper $CODERIPPER_VERSION" ]; then echo "::error::the coderipper on PATH is '$got', not the pinned $CODERIPPER_VERSION"; exit 1; fi
       - name: Save the CodeRipper binary cache (GitHub-hosted runners)
         if: always() && runner.environment == 'github-hosted' && steps.bin-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
