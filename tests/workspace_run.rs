@@ -631,7 +631,7 @@ fn a_declared_skip_is_not_built_and_is_named_not_judged() {
     assert!(!out.stderr.contains("member beta ("), "{}", out.stderr);
     assert!(out.stderr.contains("member alpha ("), "{}", out.stderr);
     assert!(
-        out.stderr.contains("1 skipped by declaration"),
+        out.stderr.contains("1 skipped by [[skip_member]]"),
         "{}",
         out.stderr
     );

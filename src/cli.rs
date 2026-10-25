@@ -940,7 +940,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             &mut |name, index, total| eprintln!("coderipper: member {name} ({index}/{total})"),
         );
         eprintln!(
-            "coderipper: workspace: {} members analysed, {} with errors, {} skipped by declaration ([[skip_member]]; each is named in a \"not judged (declared skip)\" note)",
+            "coderipper: workspace: {} members analysed, {} with errors, {} skipped by [[skip_member]]",
             run.members, run.members_with_errors, run.members_skipped.len()
         );
         // a member that could not be built or run says nothing about its code: name each, so it is never mistaken for a clean one
