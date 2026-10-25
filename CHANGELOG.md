@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.31 - 2026-10-25 (proposed)
+
+**Tag every publish** (issue #94, "Tag the source"). `tools/release-tag.sh tag <version> --push` tags the commit a published version came from, read from the crate's `.cargo_vcs_info.json`; `check` fails when origin lacks the newest published version's tag, and `release-drift.yml` now runs it. `RELEASING.md` records the process. Tags `v0.9.20` and `v0.9.24` were created (annotated, pushed, read back). **No other version is tagged**: 27 of the 34 published versions carry no vcs info and 5 name a commit that is not in the repository, and a tag on a guess would be false.
+
 ## 0.9.30 - 2026-10-24 (proposed)
 
 **Docs only: audit rows D1 and half of D3.** The eleven built rules (API-006, DOC-005, DOC-009, DOC-010, SEC-006, SUP-001, SUP-002, SUP-004, SUP-008, SUP-011, WSP-001) no longer read "no check yet" on their `docs/rules` pages; each row says native or delegated and what is checked, taken from the rule's `checked_today`. The README's `patent-index-match` row now says lockfiles and Gradle version catalogs are read (0.9.24) and names the four lockfile kinds that are not. Also D2: the stale status lines of the audit-host, multi-language and programme, three-faces and triage documents, the coverage doc's settings-audit row, and two supersession notes (performance, security). Still open: the `reachability/mod.rs` doc comment (a code change) and the provenance plan's data-file counts, which this lane could not re-verify.

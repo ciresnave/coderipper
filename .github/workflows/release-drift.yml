@@ -23,6 +23,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: The newest published release has its tag
+        run: bash tools/release-tag.sh check
       - name: Compare with crates.io
         env:
           CODERIPPER_RELEASE_CHECK: "1"
