@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.38 - 2026-10-25 (proposed)
+
+**`portfolio.yml` logs disk use** (PM task, 2026-10-25): two log-only steps, `df -h /` and `du -sm` of the build directory, `~/.cargo` and the binary cache, before the install and (`if: always()`) after the sweep. Fuel's portfolio job runs out of disk on a hosted runner and a Windows measurement of the sweep's build cache (3.8 GB for Fuel's 45 members) does not explain it; callers cannot add steps to a reusable workflow, so the numbers have to come from here. No behaviour change; callers pick it up by moving their SHA.
+
 ## 0.9.37 - 2026-10-25 (proposed)
 
 **`licence`: a person as copyright holder is Info, not Medium** (PM task, 2026-10-25). CireSnave's standing ruling, relayed by the PM: *"All licenses/copyrights can name me"*. Both findings (a licence file, and source-file headers) keep their text but are Info and say it is a standing ruling, not a defect. The "no licence file" High, the manifest mismatch and the missing-SPDX Medium are unchanged. Checks that deny at Medium no longer fail on a holder line.
