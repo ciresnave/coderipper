@@ -45,6 +45,11 @@ fn manifest(name: &str, deps: &str) -> String {
 
 /// A virtual workspace whose members each have one function with an unused parameter (so `unused-parameters` reports each).
 fn workspace_of(members: &[(&str, &str)]) -> tempfile::TempDir {
+    workspace_with(members, &[])
+}
+
+/// [`workspace_of`] plus more committed files (a `.coderipper.toml`, say).
+fn workspace_with(members: &[(&str, &str)], extra: &[(&str, &str)]) -> tempfile::TempDir {
     let list: Vec<String> = members
         .iter()
         .map(|(dir, _)| format!("\"{dir}\""))
@@ -65,10 +70,11 @@ fn workspace_of(members: &[(&str, &str)]) -> tempfile::TempDir {
             ),
         ));
     }
-    let refs: Vec<(&str, &str)> = files
+    let mut refs: Vec<(&str, &str)> = files
         .iter()
         .map(|(a, b)| (a.as_str(), b.as_str()))
         .collect();
+    refs.extend_from_slice(extra);
     common::git_repo_with(&refs)
 }
 
@@ -576,6 +582,119 @@ fn a_workspace_run_does_not_report_what_a_dependent_member_uses() {
     );
     assert!(
         !lines.iter().any(|l| l.contains("`used_by_app`")),
+        "{}",
+        out.stdout
+    );
+}
+
+fn skip_entry(name: &str, needs: Option<&str>) -> String {
+    let needs = needs.map_or(String::new(), |t| {
+        format!(
+            "needs = \"{t}\"
+"
+        )
+    });
+    format!(
+        "[[skip_member]]
+name = \"{name}\"
+reason = \"links an SDK no hosted runner has\"
+owner = \"test lane\"
+{needs}"
+    )
+}
+
+fn skip_run(config: &str) -> Out {
+    let ws = workspace_with(
+        &[("one", "alpha"), ("two", "beta")],
+        &[(".coderipper.toml", config)],
+    );
+    run(&[
+        "check",
+        "unused-parameters",
+        "--workspace",
+        "--project",
+        path(ws.path()),
+    ])
+}
+
+#[test]
+fn a_declared_skip_is_not_built_and_is_named_not_judged() {
+    let out = skip_run(&skip_entry("beta", None));
+    assert!(out.ok, "{}", out.stderr);
+    assert!(
+        out.stderr.contains(
+            "beta: not judged (declared skip): links an SDK no hosted runner has (owner test lane; unconditional)"
+        ),
+        "{}",
+        out.stderr
+    );
+    assert!(!out.stderr.contains("member beta ("), "{}", out.stderr);
+    assert!(out.stderr.contains("member alpha ("), "{}", out.stderr);
+    assert!(
+        out.stderr.contains("1 skipped by [[skip_member]]"),
+        "{}",
+        out.stderr
+    );
+    // the member that was set aside reports nothing, and the other is still judged
+    assert_eq!(
+        labels(&out.stdout, "unused-parameters"),
+        ["alpha"],
+        "{}",
+        out.stdout
+    );
+    // a skip is not a failure to build
+    assert!(
+        !out.stderr
+            .contains("not judged (the member could not be built"),
+        "{}",
+        out.stderr
+    );
+}
+
+#[test]
+fn a_skip_whose_tool_is_present_builds_the_member() {
+    // `cargo` is on PATH wherever this test runs
+    let out = skip_run(&skip_entry("beta", Some("cargo")));
+    assert!(out.ok, "{}", out.stderr);
+    assert!(
+        !out.stderr.contains("not judged (declared skip):"),
+        "{}",
+        out.stderr
+    );
+    assert!(out.stderr.contains("member beta ("), "{}", out.stderr);
+    assert_eq!(
+        labels(&out.stdout, "unused-parameters").len(),
+        2,
+        "{}",
+        out.stdout
+    );
+}
+
+#[test]
+fn a_skip_whose_tool_is_absent_names_the_tool() {
+    let out = skip_run(&skip_entry("beta", Some("no-such-sdk-tool-for-coderipper")));
+    assert!(
+        out.stderr
+            .contains("needs `no-such-sdk-tool-for-coderipper`, which is not on PATH"),
+        "{}",
+        out.stderr
+    );
+    assert!(!out.stderr.contains("member beta ("), "{}", out.stderr);
+}
+
+#[test]
+fn a_skip_naming_no_member_is_a_finding() {
+    let out = skip_run(&skip_entry("gamma", None));
+    assert!(
+        out.stdout.contains(
+            "`[[skip_member]]` entry names `gamma`, which is no package of this workspace"
+        ),
+        "{}",
+        out.stdout
+    );
+    assert_eq!(
+        labels(&out.stdout, "unused-parameters").len(),
+        2,
         "{}",
         out.stdout
     );

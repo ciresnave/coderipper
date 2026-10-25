@@ -142,6 +142,20 @@ A package can also be silenced with an ordinary `[[allow]]` entry (check `versio
 manifest relative to the workspace root, `symbol` = the package name). Rust (cargo) manifests only; it reads the
 working tree, not HEAD.
 
+## Members that cannot be built where the run is
+
+`--workspace` builds every member, and a member whose build fails is "not judged" and fails the run. A member that can never build on the runner (it links an SDK the runner lacks) is declared in the repository's own `.coderipper.toml`, and then is not built:
+
+```toml
+[[skip_member]]
+name = "fuel-cuda-backend"        # the cargo package name
+needs = "nvcc"                    # optional: skipped only while this executable is not on PATH
+reason = "links the CUDA toolkit; no hosted runner has it"
+owner = "fuel lane"
+```
+
+`reason` and `owner` are required. Each run names the member, `fuel-cuda-backend: not judged (declared skip): <reason> (owner <owner>; needs `nvcc`, which is not on PATH)`, and counts it in the workspace line; it is not a failure. With `needs`, a runner that has the tool builds and judges the member. An entry that names no package of the workspace is an `allowlist` finding. Only the repository's own file is read for this key, and it hides no finding from a member that is built: a finding is waived with `[[allow]]`.
+
 ## CI and branch protection
 
 `coderipper check ci-protection-presence` reads GitHub's branch-protection settings for the repository `origin`

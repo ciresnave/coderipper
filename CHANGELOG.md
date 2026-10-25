@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.35 - 2026-10-25 (proposed)
+
+**`[[skip_member]]`: a declared, reasoned skip of a workspace member** (PM task 2026-10-25; Fuel's portfolio job fails on members that need an SDK a hosted runner lacks). An entry in the repository's `.coderipper.toml` (`name`, `reason`, `owner`, optional `needs` = an executable that must be absent from `PATH`) keeps `--workspace` from building that member. Each run says `<member>: not judged (declared skip): <reason> (owner ...)` and counts it; it is not a failure. A `needs` tool that is present means the member is built. An entry naming no package is an `allowlist` finding. `WorkspaceRun` gains `members_skipped` (the struct is `#[non_exhaustive]`). The build-cache bound (design part B) is not in this change. Design: `docs/member-footprint-design.md`.
+
 ## 0.9.34 - 2026-10-25 (proposed)
 
 **Docs only: design for the per-member footprint limit** (PM task, 2026-10-25; Fuel's portfolio job overflows a hosted runner and fails on members that need an SDK). `docs/member-footprint-design.md`: a declared, reasoned `[[skip_member]]` entry that reports a member "not judged" without failing the job, and a build cache bounded during a run. No code changed. 0.9.33 is proposed by #156; the PM allocates the number.
