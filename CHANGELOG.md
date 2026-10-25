@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.40 - 2026-10-25 (proposed)
+
+**Docs only: the per-member footprint design records that part B is not needed.** Fuel's first hosted Linux run of the pinned portfolio job (fuel#499) used about 6 GB of a 145 GB root filesystem with 80 GB free, and a Windows measurement of the build cache for 45 members gave 3.8 GB; the "14 GB" runner was an assumption. Part A (`[[skip_member]]`, 0.9.35) stands. `docs/member-footprint-design.md` has the numbers and the condition for reopening.
+
 ## 0.9.39 - 2026-10-25 (proposed)
 
 **`portfolio.yml` installs 0.9.37, and checks it did** (PM task, 2026-10-25; the change that follows each publish). `CODERIPPER_VERSION` moves from 0.9.24 to 0.9.37 (published and tagged, f26b741e), which brings `dependency-freshness`, `[[skip_member]]` and the licence-holder ruling to every caller that moves its SHA. New step: after the install, `coderipper --version` must equal `coderipper $CODERIPPER_VERSION` or the job fails and prints both (a caller once pinned a SHA that installed 0.9.20 while saying 0.9.24). A test keeps the step in the file.
