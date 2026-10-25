@@ -7,7 +7,7 @@
 //! - **Medium:** the version in the root `Cargo.toml` (`[package]`, else `[workspace.package]`) or `package.json` is the one the base
 //!   had.
 //! - **Medium:** a version that did change (or a manifest the base did not have) has no entry in the root `CHANGELOG*` / `CHANGES*`
-//!   file: a heading line, or a line that begins with the version, naming it as a whole token (`0.8.1` is not an entry for `0.8.12`,
+//!   file: a heading line, or a line (a list item included: `- 0.8.12 -- text`) that begins with the version, naming it as a whole token (`0.8.1` is not an entry for `0.8.12`,
 //!   and `1.0.0-rc.1` is not one for `1.0.0`). No changelog file at all is the same finding.
 //!
 //! **The base** is the merge-base of `HEAD` with `origin/HEAD`, else `origin/main`, else `origin/master`. The rule does not apply
@@ -85,13 +85,14 @@ fn names(line: &str, version: &str) -> bool {
 }
 
 /// The 1-based line of the changelog entry for `version`: a Markdown heading naming it, or a line that begins with it
-/// (`0.8.12`, `v0.8.12`, `[0.8.12]`).
+/// (`0.8.12`, `v0.8.12`, `[0.8.12]`, or any of these as a list item: `- 0.8.12 -- text`).
 fn entry_line(text: &str, version: &str) -> Option<u32> {
     text.lines()
         .position(|l| {
             let t = l.trim_start();
             let heading = t.starts_with('#')
-                || t.trim_start_matches(['[', 'v', 'V', '*'])
+                // `0.8.12`, `v0.8.12`, `[0.8.12]`, and a list item: `- 0.8.12 -- text`, `* 0.8.12`, `+ [v0.8.12]`
+                || t.trim_start_matches(['[', 'v', 'V', '*', '-', '+', ' '])
                     .starts_with(version);
             heading && names(l, version)
         })
@@ -272,6 +273,67 @@ mod tests {
             ("## Unreleased\n", false),
         ] {
             assert_eq!(entry_line(log, "0.2.0").is_some(), ok, "{log:?}");
+        }
+    }
+
+    #[test]
+    fn a_list_item_that_begins_with_the_version_is_an_entry() {
+        // auth-framework's changelog is a bullet list: `- 0.6.0-rc1 -- what changed`
+        for (log, version, ok) in [
+            (
+                "- 0.6.0-rc1 -- first candidate
+",
+                "0.6.0-rc1",
+                true,
+            ),
+            (
+                "  - 0.6.0 -- text
+",
+                "0.6.0",
+                true,
+            ),
+            (
+                "+ v0.6.0 text
+",
+                "0.6.0",
+                true,
+            ),
+            (
+                "- [0.6.0] text
+",
+                "0.6.0",
+                true,
+            ),
+            (
+                "-- 0.6.0 text
+",
+                "0.6.0",
+                true,
+            ),
+            (
+                "- 0.6.0-rc1 -- first candidate
+",
+                "0.6.0",
+                false,
+            ),
+            (
+                "- prose that mentions 0.6.0 in passing
+",
+                "0.6.0",
+                false,
+            ),
+            (
+                "- 0.6.01 -- x
+",
+                "0.6.0",
+                false,
+            ),
+        ] {
+            assert_eq!(
+                entry_line(log, version).is_some(),
+                ok,
+                "{log:?} for {version}"
+            );
         }
     }
 
