@@ -1,6 +1,8 @@
 # CodeRipper hosted service: Terms of Service template and takedown policy — DRAFT v2
 
-> **Status: a draft for CireSnave's approval. It is not legal advice and it has not been reviewed by a lawyer, and none is planned
+> **Approved 2026-10-25 (CireSnave, first-hand): *"Approve it. When we can afford a professional review, we will get one...but we can't just not release it before then."* The text below is approved to ship; the professional review is deferred until there are funds, and the "no lawyer has reviewed it" statement stays true and stays in the document until one has.**
+>
+> **Status before that ruling: a draft for CireSnave's approval. It is not legal advice and it has not been reviewed by a lawyer, and none is planned
 > (CireSnave, 2026-10-13: no funds, none willing to do it free).** It was written by an AI agent (the CodeRipper lane) from CireSnave's
 > rulings of 2026-10-12 and 2026-10-13 and the design in `docs/superpowers/plans/2026-10-12-hosted-service.md`. Nothing here is in
 > force and no service exists yet. v2 replaces v1 after two outside reviews of v1 (an AI rewrite and an AI critique of both); what was

@@ -115,7 +115,7 @@ errors, the redaction count and the policy that applied), built from the library
 | Anonymous abuse | **Login required** (his #4). `auth-framework` when ready; until then GitHub OAuth, which is also what answers "can this user push to this repository" |
 | Scanning someone else's repo and posting it | **v1 B scans only a public repository the logged-in user can push to**, verified through the GitHub API at submit time (PM, 2026-10-12). Private repositories use face A on their own CI |
 | One account starving the rest | **Fair share, not a cap** (his #3 and his scheduling ruling of 2026-10-12): a weight from recent use, expected run time and a site adjustment, lowered while a job waits (CireSnave 2026-10-13); see §10. Global backpressure on queue depth is a capacity limit, not a quota |
-| One account occupying every runner | **Per-account concurrent-job cap of 2.** A safety measure on parallelism, not a quota on total use; stated as such in the user-facing docs (PM, 2026-10-12). Any change is CireSnave's, because it sits beside "no limit" |
+| One account occupying every runner | **Per-account concurrent-job cap of 2.** A safety measure on parallelism, not a quota on total use; stated as such in the user-facing docs (PM, 2026-10-12). Any change is CireSnave's, because it sits beside "no limit". **Ruled 2026-10-25: *"H8: Agreed. Leave it."*** |
 | Outbound attacks from our runners | no egress during build (§3.3); the resolve proxy allows crates.io only |
 | Mining / pegged CPU | bounded by wall clock; flagged when CPU is saturated with no cargo progress; repeated timeouts deprioritise the account and can suspend it |
 | Hostile tarballs | extraction rules in §3.2; size cap |
@@ -155,8 +155,9 @@ expiry (it lives until its author deletes it, the account is removed, or moderat
   and the dashboard link reads "expired" (PM, 2026-10-12). Nothing on Community's side will remove it.
 - **Volume:** each published post triggers cache purges whose quota is scarce on Community's side. Face B must not post
   automatically at volume: posts are submitter-initiated, one per scan at most.
-- **Open, for CireSnave via the PM:** whether "post as a post on community" requires the service to post (route (c)) or accepts the
-  user posting a prepared summary (route (a)).
+- **Ruled 2026-10-25 (CireSnave, first-hand: *"H3: Yes."*, to the recommendation):** route (a), a copy button and a prefilled editor,
+  with no server-side return-to-dashboard redirect; route (c) is not built. The idempotency key and its migration stay Community's
+  lane, applied by CireSnave.
 
 ### 6.1 Outcome: route A agreed with the Community lane (2026-10-12)
 
