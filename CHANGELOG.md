@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.36 - 2026-10-25 (proposed)
+
+**Scheduled audits** (audit row C6, part): `.github/workflows/scheduled-audits.yml` runs `dependency-freshness`, SUP-002, SEC-006 and DOC-010 daily and on dispatch, built from this repository's source, and fails when a rule did not run. Each passes locally at 07ff52e. The portfolio-wide schedule in `portfolio.yml` waits for a published release with `dependency-freshness` (0.9.28 or later); npm, pip, Maven and Gradle lockfiles stay open.
+
 ## 0.9.35 - 2026-10-25 (proposed)
 
 **`[[skip_member]]`: a declared, reasoned skip of a workspace member** (PM task 2026-10-25; Fuel's portfolio job fails on members that need an SDK a hosted runner lacks). An entry in the repository's `.coderipper.toml` (`name`, `reason`, `owner`, optional `needs` = an executable that must be absent from `PATH`) keeps `--workspace` from building that member. Each run says `<member>: not judged (declared skip): <reason> (owner ...)` and counts it; it is not a failure. A `needs` tool that is present means the member is built. An entry naming no package is an `allowlist` finding. `WorkspaceRun` gains `members_skipped` (the struct is `#[non_exhaustive]`). The build-cache bound (design part B) is not in this change. Design: `docs/member-footprint-design.md`.

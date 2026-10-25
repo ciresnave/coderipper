@@ -1,0 +1,40 @@
+name: Scheduled audits
+
+# The checks whose answer changes without a push (docs/portfolio-ci-coverage.md section 2, "Scheduled workflow"): a dependency that has
+# a newer release (`dependency-freshness`, CireSnave's latest-versions rule), an advisory or a yanked or unmaintained crate (SUP-002,
+# SEC-006) and a link that has rotted (DOC-010). Not a pull-request gate: none of them depends on the diff, and a gate would turn red
+# whenever a dependency published a release. This repository runs CodeRipper built from its own source, so it needs no published release.
+# The shared `portfolio.yml` installs a published release that has these checks only from 0.9.28, so the portfolio-wide schedule waits
+# for that publish (ROADMAP audit row C6).
+on:
+  schedule:
+    - cron: "43 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audits:
+    name: dependency-freshness, SUP-002, SEC-006 and DOC-010
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - run: cargo build --locked --bin coderipper
+      # `--install-tools`: without it a missing delegated tool is a gap and the job would pass without having looked. A rule that did not
+      # run fails the job, as in portfolio.yml; the notes about this repository's own defective-on-purpose fixtures are not that.
+      - name: Run the four checks
+        run: |
+          code=0
+          for id in dependency-freshness SUP-002 SEC-006 DOC-010; do
+            ./target/debug/coderipper check "$id" --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/audits.stderr" || code=$?
+          done
+          cat "$RUNNER_TEMP/audits.stderr" >&2
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/audits.stderr"; then echo "::error::a check did not run (see the notes above)"; exit 1; fi
+          exit "$code"
