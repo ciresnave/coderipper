@@ -1,4 +1,4 @@
-//! `licence`: a licence file, a manifest that agrees with it, an SPDX identifier in each source file, and a holder that is not a person.
+//! `licence`: a licence file, a manifest that agrees with it, an SPDX identifier in each source file, and a holder (a person is allowed, and reported as information).
 //!
 //! **What this judges (EXPECTATIONS 6.4 and 6.4a, from the repository alone):**
 //! - **High, the one blocking finding:** no licence file at the repository root (`LICENSE*`, `LICENCE*`, `COPYING*`, `UNLICENSE*`, or a
@@ -7,8 +7,9 @@
 //!   manifest's `license` names an identifier that no licence file is named for (`LICENSE-MIT` for `MIT`; one generic `LICENSE` or
 //!   `COPYING` is accepted for any identifier, because its text is not read); source files with no `SPDX-License-Identifier` in
 //!   their first lines; a header whose identifier is neither one of the project's nor recorded in a `NOTICE`, `THIRD-PARTY` file or
-//!   `LICENSES/` entry (an origin record, 6.4a); a copyright line, in a licence file or a header, that names the owner as a person
-//!   rather than the organisation.
+//!   `LICENSES/` entry (an origin record, 6.4a).
+//! - **Info, a standing ruling and not a defect (the owner's ruling of 2026-10-25, relayed by the PM: "All licenses/copyrights can name me"):**
+//!   a copyright line, in a licence file or a header, that names the owner as a person. Earlier versions reported it as Medium.
 //!
 //! The per-file findings are one finding for the whole repository (its detail names the first few files and the count), because a
 //! finding per file would bury a repository with hundreds of them.
@@ -253,12 +254,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 findings.push(
                     Finding::new(
                         ID,
-                        Severity::Medium,
+                        Severity::Info,
                         Confidence::High,
                         project,
                         format!("{f} names a person as the copyright holder"),
                         format!(
-                            "The holder is the organisation, not a person (EXPECTATIONS 6.4). The line reads: {}",
+                            "Information, not a defect: CireSnave's standing ruling (2026-10-25, relayed by the PM) is \"All licenses/copyrights can name me\", so a person as holder is allowed. It is reported so a holder is never a surprise. The line reads: {}",
                             line.trim()
                         ),
                     )
@@ -377,12 +378,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         findings.push(
             Finding::new(
                 ID,
-                Severity::Medium,
+                Severity::Info,
                 Confidence::High,
                 project,
                 format!("{} source files name a person in a copyright line", personal_headers.len()),
                 format!(
-                    "The copyright holder is the organisation, not a person (EXPECTATIONS 6.4). Files: {}",
+                    "Information, not a defect: CireSnave's standing ruling (2026-10-25, relayed by the PM) is \"All licenses/copyrights can name me\", so a person as holder is allowed. Files: {}",
                     detail_list(&personal_headers)
                 ),
             )
@@ -561,7 +562,8 @@ mod tests {
             subjects(&found),
             vec!["copyright holder", "copyright holder"]
         );
-        assert!(found.iter().all(|f| f.severity == Severity::Medium));
+        // a standing ruling (CireSnave, 2026-10-25): a person as holder is information, not a defect
+        assert!(found.iter().all(|f| f.severity == Severity::Info));
     }
 
     #[test]
