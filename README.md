@@ -246,6 +246,15 @@ and it never changes the exit code. A language in your repository that has no mo
 profile (the default before 0.9.0) prints exactly what it always has, plus one stderr line when it finds a language it has no module for (a manifest and at
 least one source file among the files git tracks; a project outside git is not scanned).
 
+**The percentage of rules passed (every run, every profile).** Two different numbers, not to be confused. *Coverage* is how much of
+the catalogue CodeRipper can check at all (its own completeness). *Rules passed* is, of the rules that **ran to a verdict** in this
+run, the share that found nothing: `clean / (clean + with findings)`. A rule that did not apply here, or could not run (a missing tool),
+is in neither count, so a gap neither raises nor lowers it; a rule counts once however many findings it has, so it is a metric for
+judging improvement over time, not a severity measure. The human output ends with `coderipper: rules passed: 7 of 9 that ran (77.8%)`;
+`--message-format json` adds `rules_ran`, `rules_passed` and `rules_passed_percent` (`null` when no rule ran) to the summary line, and the
+coverage line's `run` object carries `passed_percent`. It never changes the exit code. An optional floor (`--min-coverage`) is still on the
+roadmap.
+
 ## Pull-request check: `--profile portfolio`
 
 The shared workflow (`portfolio.yml`) sweeps a cargo workspace member by member (`--workspace`, whenever the root `Cargo.toml` has a `[workspace]` table); a repository whose root is a package with members, or a virtual workspace, therefore sees findings in its members that a root-only run did not show. On a GitHub-hosted runner it keeps CodeRipper's build cache between runs.

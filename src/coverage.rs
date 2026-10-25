@@ -91,7 +91,22 @@ pub struct RunCounts {
 }
 
 impl RunCounts {
-    fn of(run: &[RuleRun]) -> Self {
+    /// Rules that ran to a verdict: the clean ones and the ones with findings. A rule that did not apply or gave no verdict is
+    /// in neither count, so a gap never lowers the pass rate and never raises it.
+    pub fn ran(&self) -> usize {
+        self.clean + self.findings
+    }
+
+    /// The share of the rules that ran that found nothing, as a percentage; `None` when no rule ran. This is a different number
+    /// from [`LanguageCoverage::percent_covered`]: coverage says how much of the catalog CodeRipper can check (its own
+    /// completeness), this says how much of what it checked passed (the project's state), and it is a metric for judging
+    /// improvement, not a verdict: a rule with one finding and a rule with fifty both count once as "not passed".
+    pub fn passed_percent(&self) -> Option<f64> {
+        (self.ran() > 0).then(|| self.clean as f64 * 100.0 / self.ran() as f64)
+    }
+
+    /// The outcomes of one run counted by kind.
+    pub fn of(run: &[RuleRun]) -> Self {
         let mut counts = Self::default();
         for r in run {
             match r.outcome {
@@ -351,6 +366,7 @@ impl LanguageCoverage {
                     "findings": run.findings,
                     "skipped": run.skipped,
                     "could_not_run": run.could_not_run,
+                    "passed_percent": run.passed_percent(),
                 }),
             );
         }
@@ -397,6 +413,9 @@ impl LanguageCoverage {
                 "   this run: {} clean, {} with findings, {} not run here, {} could not run",
                 run.clean, run.findings, run.skipped, run.could_not_run
             ));
+            if let Some(p) = run.passed_percent() {
+                line.push_str(&format!(" ({p:.1}% of the rules that ran passed)"));
+            }
         }
         line
     }

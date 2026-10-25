@@ -1062,6 +1062,16 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                     f.check_id
                 );
             }
+            // On every run, whatever the profile: the share of the rules that ran that found nothing.
+            let ran = crate::coverage::RunCounts::of(&result.outcomes);
+            match ran.passed_percent() {
+                Some(p) => println!(
+                    "coderipper: rules passed: {} of {} that ran ({p:.1}%)",
+                    ran.clean,
+                    ran.ran()
+                ),
+                None => println!("coderipper: rules passed: no rule ran to a verdict"),
+            }
             if let Some(reports) = &reports {
                 print_coverage_human(reports, coverage == Some(CoverageMode::Full));
             }
@@ -1112,12 +1122,16 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                     )
                 );
             }
+            let ran = crate::coverage::RunCounts::of(&result.outcomes);
             let mut summary = serde_json::json!({
                 "reason": "coderipper-summary",
                 "findings": result.findings.len(),
                 "waived": result.waived.len(),
                 "errors": result.errors,
                 "exit_code": code,
+                "rules_ran": ran.ran(),
+                "rules_passed": ran.clean,
+                "rules_passed_percent": ran.passed_percent(),
             });
             // Only when the run has a note (a rule not run for want of its tool, a count a rule set aside): the summary of every
             // other run keeps exactly its keys.

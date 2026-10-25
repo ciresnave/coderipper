@@ -88,9 +88,28 @@ fn golden_the_keys_of_a_finding_line_and_of_the_summary_line() {
     assert_eq!(keys(&lines[0]["location"]), ["file", "line"]);
     assert_eq!(
         keys(&lines[1]),
-        ["errors", "exit_code", "findings", "reason", "waived"],
-        "`waived` is the 0.5.0 schema addition"
+        [
+            "errors",
+            "exit_code",
+            "findings",
+            "reason",
+            "rules_passed",
+            "rules_passed_percent",
+            "rules_ran",
+            "waived"
+        ],
+        "`waived` is the 0.5.0 schema addition; the `rules_*` keys are the pass metric, on every run"
     );
+}
+
+#[test]
+fn the_summary_line_reports_the_percentage_of_rules_passed() {
+    let repo = project_with_a_medium_finding();
+    let (_, lines) = run_json(&["check", "unused-return-values"], repo.path());
+    let summary = &lines[1];
+    assert_eq!(summary["rules_ran"], 1);
+    assert_eq!(summary["rules_passed"], 0);
+    assert_eq!(summary["rules_passed_percent"], 0.0);
 }
 
 /// A finding line is the `Finding` fields plus `reason`. `positive_control` is `null` when absent; `member` is left out
@@ -180,4 +199,25 @@ fn the_default_format_is_still_the_human_text() {
         .assert()
         .code(0)
         .stdout(predicates::str::contains("[Medium/Medium]"));
+}
+
+#[test]
+fn the_human_text_says_the_percentage_of_rules_passed() {
+    let repo = project_with_a_medium_finding();
+    let out = coderipper()
+        .args([
+            "check",
+            "unused-return-values",
+            "--profile",
+            "classic",
+            "--project",
+        ])
+        .arg(repo.path())
+        .output()
+        .unwrap();
+    let text = String::from_utf8(out.stdout).unwrap();
+    assert!(
+        text.contains("coderipper: rules passed: 0 of 1 that ran (0.0%)"),
+        "{text}"
+    );
 }

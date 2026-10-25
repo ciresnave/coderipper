@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.44 - 2026-10-25 (proposed)
+
+**Every run reports the percentage of rules passed** (audit row M3, CireSnave's ruling of 2026-10-25). Of the rules that ran to a verdict, the share that found nothing: the human output ends with `rules passed: N of M that ran (P%)`; the JSON summary line gains `rules_ran`, `rules_passed` and `rules_passed_percent` (`null` when no rule ran), and the coverage line's `run` object gains `passed_percent`. Rules that did not apply or could not run are in neither count; coverage (how much of the catalogue CodeRipper can check) is a separate number, defined beside it in the README. Never changes the exit code. **Not breaking** (new keys only); the golden summary-key test is updated. `--min-coverage` stays on the roadmap.
+
 ## 0.9.43 - 2026-10-25 (proposed)
 
 **`patent-index-match` reads `yarn.lock`, `pnpm-lock.yaml` and `gradle.lockfile`** (audit row C8). Yarn classic and Berry (an `npm:` alias names the real package), pnpm lockfile versions 5, 6 and 9 (`packages` only; `snapshots` repeats it), and Gradle's `group:artifact:version=configs` lines. Like the other lockfiles, a package only a lockfile names is graded one step below the index's action at low confidence, and a package a manifest declares is reported once, from the manifest. **`go.sum` is not read, on purpose:** the pinned index lists crates, PyPI, npm and Maven names only, so a Go lockfile could match nothing; the note says so rather than implying coverage.
