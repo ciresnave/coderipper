@@ -20,8 +20,9 @@
 //! `Pipfile.lock` list every package that is resolved, so a package that no manifest declares (a transitive dependency) can match the
 //! index too. A locked match that a manifest in the repository also declares is reported once, from the manifest. A match found only in a
 //! lockfile is graded one step below the index's action (High is Medium, Medium and Low are Low) and at low confidence: the repository may
-//! not choose it, so it must not fail a gate that a direct dependency would. `yarn.lock`, `pnpm-lock.yaml`, `go.sum` and `gradle.lockfile`
-//! are not read. Gradle version catalogs (`*.versions.toml`, `[libraries]`) are read as manifests.
+//! not choose it, so it must not fail a gate that a direct dependency would. `yarn.lock` (classic and Berry), `pnpm-lock.yaml` (lockfile
+//! versions 5 to 9) and `gradle.lockfile` are read the same way. `go.sum` is **not** read: the index lists no Go module (it names crates, PyPI,
+//! npm and Maven packages only), so a Go lockfile could match nothing. Gradle version catalogs (`*.versions.toml`, `[libraries]`) are read as manifests.
 //!
 //! **What it cannot see:** a coordinate built from variables; a lockfile format listed above as not read; a technique implemented in the project's own source or copied in; a package the index lists under no name
 //! (`match` is empty for 18 of 66 entries); code vendored in a skipped directory; a manifest that does not parse (named in a note).
@@ -603,6 +604,69 @@ impl Scan<'_> {
         }
     }
 
+    /// `yarn.lock`, classic (`"name@^1", name@^2:` then `  version "1.2.3"`) and Berry (`"name@npm:^1":` then `  version: 1.2.3`). A header lists the
+    /// ranges that resolved to one version; the name is the same in each, except for an `npm:` alias, which names the real package.
+    fn yarn_lock(&mut self, file: &str, text: &str) {
+        self.locks += 1;
+        let mut name: Option<String> = None;
+        for line in text.lines() {
+            if line.starts_with('#') || line.trim().is_empty() {
+                continue;
+            }
+            if !line.starts_with(' ') {
+                name = line
+                    .trim_end_matches(':')
+                    .split(',')
+                    .next()
+                    .and_then(|spec| yarn_spec_name(spec.trim().trim_matches('"')));
+                continue;
+            }
+            let Some(rest) = line.trim().strip_prefix("version") else {
+                continue;
+            };
+            let version = rest.trim_start_matches(':').trim().trim_matches('"');
+            if let Some(name) = name.take() {
+                self.locked_package(Eco::Npm, file, text, &name, version);
+            }
+        }
+    }
+
+    /// `pnpm-lock.yaml`: the keys of `packages` are `/name/1.0.0` (version 5), `/name@1.0.0` (6) or `name@1.0.0` (9), with an optional
+    /// `(peer@2)` suffix; `snapshots` repeats them in 9 and is not read.
+    fn pnpm_lock(&mut self, file: &str, text: &str) {
+        let Ok(doc) = yaml_serde::from_str::<yaml_serde::Value>(text) else {
+            self.notes
+                .push(format!("{file} does not parse as YAML, so it was not read"));
+            return;
+        };
+        self.locks += 1;
+        let Some(packages) = doc.get("packages").and_then(|p| p.as_mapping()) else {
+            return;
+        };
+        for key in packages.keys().filter_map(|k| k.as_str()) {
+            if let Some((name, version)) = pnpm_key(key) {
+                self.locked_package(Eco::Npm, file, text, &name, &version);
+            }
+        }
+    }
+
+    /// `gradle.lockfile`: `group:artifact:version=configuration,..` per line; `#` comments and the `empty=` line are skipped.
+    fn gradle_lockfile(&mut self, file: &str, text: &str) {
+        self.locks += 1;
+        for line in text.lines().map(str::trim) {
+            let coordinate = line.split('=').next().unwrap_or("");
+            if line.starts_with('#') || line.starts_with("empty=") {
+                continue;
+            }
+            let mut parts = coordinate.split(':');
+            if let (Some(g), Some(a), Some(v)) = (parts.next(), parts.next(), parts.next()) {
+                if !g.is_empty() && !a.is_empty() {
+                    self.locked_package(Eco::Maven, file, text, &format!("{g}:{a}"), v);
+                }
+            }
+        }
+    }
+
     /// `Pipfile.lock`: `default` and `develop` map a package name to `{ "version": "==x" }`.
     fn pipfile_lock(&mut self, file: &str, text: &str) {
         let Ok(json) = serde_json::from_str::<serde_json::Value>(text) else {
@@ -625,6 +689,41 @@ impl Scan<'_> {
             }
         }
     }
+}
+
+/// The package a yarn lock header spec names: `@scope/name@^1` is `@scope/name`; `alias@npm:real@^1` is `real`; `name@npm:^1` is `name`.
+fn yarn_spec_name(spec: &str) -> Option<String> {
+    let at = spec.get(1..)?.find('@')? + 1;
+    let (name, range) = (&spec[..at], &spec[at + 1..]);
+    let target = match range.strip_prefix("npm:") {
+        Some(real) if real.get(1..).is_some_and(|r| r.contains('@')) => {
+            let end = real.get(1..)?.find('@')? + 1;
+            &real[..end]
+        }
+        _ => name,
+    };
+    (!target.is_empty()).then(|| target.to_string())
+}
+
+/// `(name, version)` of a pnpm `packages` key (see [`Scan::pnpm_lock`]); `None` for a key that is neither shape.
+fn pnpm_key(key: &str) -> Option<(String, String)> {
+    let key = key.trim_start_matches('/');
+    let key = key.split('(').next().unwrap_or(key);
+    // version 5: `name/1.0.0`, the version possibly followed by a `_peer@1` suffix; told from `@scope/name@1.0.0` by a version-looking tail
+    if let Some((name, tail)) = key.rsplit_once('/') {
+        let version = tail.split(['_', '@']).next().unwrap_or("");
+        if !name.is_empty()
+            && version.starts_with(|c: char| c.is_ascii_digit())
+            && version.contains('.')
+        {
+            return Some((name.to_string(), version.to_string()));
+        }
+    }
+    if let Some(at) = key.get(1..).and_then(|k| k.find('@')) {
+        let at = at + 1;
+        return Some((key[..at].to_string(), key[at + 1..].to_string()));
+    }
+    None
 }
 
 fn is_requirements(path: &str) -> bool {
@@ -655,7 +754,14 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let name = path.rsplit('/').next().unwrap_or(path);
         if matches!(
             name,
-            "Cargo.lock" | "package-lock.json" | "poetry.lock" | "uv.lock" | "Pipfile.lock"
+            "Cargo.lock"
+                | "package-lock.json"
+                | "poetry.lock"
+                | "uv.lock"
+                | "Pipfile.lock"
+                | "yarn.lock"
+                | "pnpm-lock.yaml"
+                | "gradle.lockfile"
         ) {
             lockfiles.push(path);
             continue;
@@ -700,6 +806,9 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             "Cargo.lock" => scan.toml_lock(Eco::Cargo, path, &text),
             "poetry.lock" | "uv.lock" => scan.toml_lock(Eco::Pypi, path, &text),
             "package-lock.json" => scan.package_lock(path, &text),
+            "yarn.lock" => scan.yarn_lock(path, &text),
+            "pnpm-lock.yaml" => scan.pnpm_lock(path, &text),
+            "gradle.lockfile" => scan.gradle_lockfile(path, &text),
             _ => scan.pipfile_lock(path, &text),
         }
     }
@@ -1054,6 +1163,99 @@ mod tests {
             )])),
             Verdict::NotApplicable(_)
         ));
+    }
+
+    #[test]
+    fn yarn_lock_classic_berry_scoped_and_aliased_entries_are_read() {
+        // z3-solver is an npm name in the index with a reported action; @google/adk is `allow`, so it is silent
+        let classic = "# yarn lockfile v1
+
+\"z3-solver@^5.0.0\", \"z3-solver@^5.1.0\":
+  version \"5.2.0\"
+  resolved \"x\"
+
+left-pad@^1.0.0:
+  version \"1.0.0\"
+";
+        let berry = "__metadata:
+  version: 8
+
+\"z3-solver@npm:^5.0.0\":
+  version: 5.1.0
+  resolution: \"z3-solver@npm:5.1.0\"
+
+\"alias@npm:z3-solver@^5\":
+  version: 5.1.0
+";
+        let a = run(&[("yarn.lock", classic)]);
+        assert_eq!(a.len(), 1, "{a:?}");
+        assert!(
+            a[0].summary.contains("z3-solver") && a[0].summary.contains("5.2.0"),
+            "{}",
+            a[0].summary
+        );
+        let b = run(&[("web/yarn.lock", berry)]);
+        // the alias names the same real package as a second entry, so one finding per package
+        assert_eq!(b.len(), 1, "{b:?}");
+        assert_eq!(
+            yarn_spec_name("left-pad@^1.0.0").as_deref(),
+            Some("left-pad")
+        );
+        assert_eq!(yarn_spec_name("@a/b@npm:^1").as_deref(), Some("@a/b"));
+        assert_eq!(yarn_spec_name("x@npm:@a/b@^1").as_deref(), Some("@a/b"));
+    }
+
+    #[test]
+    fn pnpm_lock_versions_5_6_and_9_keys_are_read() {
+        assert_eq!(
+            pnpm_key("/left-pad/1.0.0"),
+            Some(("left-pad".into(), "1.0.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("/@google/adk/1.2.0_react@17.0.0"),
+            Some(("@google/adk".into(), "1.2.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("/@google/adk@1.2.0(react@17.0.0)"),
+            Some(("@google/adk".into(), "1.2.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("z3-solver@5.0.0"),
+            Some(("z3-solver".into(), "5.0.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("@scope/3d@1.0.0"),
+            Some(("@scope/3d".into(), "1.0.0".into()))
+        );
+        let v9 = "lockfileVersion: '9.0'
+packages:
+  z3-solver@5.0.0:
+    resolution: {integrity: x}
+  left-pad@1.0.0:
+    resolution: {integrity: y}
+snapshots:
+  gensim@4.3.0: {}
+";
+        let f = run(&[("pnpm-lock.yaml", v9)]);
+        // only `packages` is read: gensim is an index name but sits in `snapshots`, and left-pad is not in the index
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].summary.contains("z3-solver"), "{}", f[0].summary);
+    }
+
+    #[test]
+    fn gradle_lockfile_coordinates_are_read_and_comments_skipped() {
+        let lock = "# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build.
+org.drools:drools-core:9.0.0=compileClasspath,runtimeClasspath
+junit:junit:4.13=testCompileClasspath
+empty=annotationProcessor
+";
+        let f = run(&[("app/gradle.lockfile", lock)]);
+        assert_eq!(
+            pairs(&f),
+            vec![(Severity::Low, "org.drools:drools-core".to_string())]
+        );
+        assert!(f[0].confidence == Confidence::Low);
     }
 
     #[test]
