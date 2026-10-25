@@ -1189,22 +1189,44 @@ left-pad@^1.0.0:
 ";
         let a = run(&[("yarn.lock", classic)]);
         assert_eq!(a.len(), 1, "{a:?}");
-        assert!(a[0].summary.contains("z3-solver") && a[0].summary.contains("5.2.0"), "{}", a[0].summary);
+        assert!(
+            a[0].summary.contains("z3-solver") && a[0].summary.contains("5.2.0"),
+            "{}",
+            a[0].summary
+        );
         let b = run(&[("web/yarn.lock", berry)]);
         // the alias names the same real package as a second entry, so one finding per package
         assert_eq!(b.len(), 1, "{b:?}");
-        assert_eq!(yarn_spec_name("left-pad@^1.0.0").as_deref(), Some("left-pad"));
+        assert_eq!(
+            yarn_spec_name("left-pad@^1.0.0").as_deref(),
+            Some("left-pad")
+        );
         assert_eq!(yarn_spec_name("@a/b@npm:^1").as_deref(), Some("@a/b"));
         assert_eq!(yarn_spec_name("x@npm:@a/b@^1").as_deref(), Some("@a/b"));
     }
 
     #[test]
     fn pnpm_lock_versions_5_6_and_9_keys_are_read() {
-        assert_eq!(pnpm_key("/left-pad/1.0.0"), Some(("left-pad".into(), "1.0.0".into())));
-        assert_eq!(pnpm_key("/@google/adk/1.2.0_react@17.0.0"), Some(("@google/adk".into(), "1.2.0".into())));
-        assert_eq!(pnpm_key("/@google/adk@1.2.0(react@17.0.0)"), Some(("@google/adk".into(), "1.2.0".into())));
-        assert_eq!(pnpm_key("z3-solver@5.0.0"), Some(("z3-solver".into(), "5.0.0".into())));
-        assert_eq!(pnpm_key("@scope/3d@1.0.0"), Some(("@scope/3d".into(), "1.0.0".into())));
+        assert_eq!(
+            pnpm_key("/left-pad/1.0.0"),
+            Some(("left-pad".into(), "1.0.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("/@google/adk/1.2.0_react@17.0.0"),
+            Some(("@google/adk".into(), "1.2.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("/@google/adk@1.2.0(react@17.0.0)"),
+            Some(("@google/adk".into(), "1.2.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("z3-solver@5.0.0"),
+            Some(("z3-solver".into(), "5.0.0".into()))
+        );
+        assert_eq!(
+            pnpm_key("@scope/3d@1.0.0"),
+            Some(("@scope/3d".into(), "1.0.0".into()))
+        );
         let v9 = "lockfileVersion: '9.0'
 packages:
   z3-solver@5.0.0:
