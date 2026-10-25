@@ -23,6 +23,19 @@ pub(crate) struct TrackEntry {
     pub reason: String,
 }
 
+/// `[[skip_member]]`: a workspace member this repository's `--workspace` run does not build, and says so every run ("not judged
+/// (declared skip)"). `name` is the cargo package name. `reason` and `owner` are required, like a waiver's. With `needs` the skip
+/// holds only while that executable is absent from `PATH`: a runner that has the tool builds and judges the member.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SkipMemberEntry {
+    pub name: String,
+    pub reason: String,
+    pub owner: String,
+    #[serde(default)]
+    pub needs: Option<String>,
+}
+
 /// `[[allow]]`: a waiver. Since 0.5.0 a finding fails the run unless an entry names it; a waived finding is still printed, with
 /// `reason`. `check`, `file` and `reason` are required. `symbol` narrows the waiver to the finding about that one symbol, and
 /// `lines` (`"12"` or `"10-20"`, inclusive) to findings reported at those lines; omit both to waive every finding of `check` in
@@ -233,6 +246,7 @@ fn line_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<LineRange
 pub struct Allowlist {
     entries: Vec<AllowEntry>,
     tracks: Vec<TrackEntry>,
+    skip_members: Vec<SkipMemberEntry>,
     buf_baseline: Option<String>,
 }
 
@@ -241,6 +255,7 @@ impl Allowlist {
         Self {
             entries: Vec::new(),
             tracks: Vec::new(),
+            skip_members: Vec::new(),
             buf_baseline: None,
         }
     }
@@ -258,6 +273,7 @@ impl Allowlist {
                     .chain(file.reachability.iter().flat_map(|r| r.entries(None)))
                     .collect(),
                 tracks: file.tracks,
+                skip_members: file.skip_member,
                 buf_baseline: file.buf.and_then(|b| b.baseline),
             },
             None => Self::empty(),
@@ -311,6 +327,12 @@ impl Allowlist {
         list.entries
             .extend(workspace_declarations_for(project_root));
         Ok(list)
+    }
+
+    /// The repository's own `[[skip_member]]` entries (a wide file's are not read: whether a member is built is the repository's
+    /// to say, and reviewed in its pull request).
+    pub(crate) fn skip_members(&self) -> &[SkipMemberEntry] {
+        &self.skip_members
     }
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {

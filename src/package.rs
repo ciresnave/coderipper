@@ -237,6 +237,32 @@ fn same_dir(a: &Path, b: &Path) -> bool {
     a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
 }
 
+/// Whether an executable called `tool` is in a `PATH` directory (on Windows also with one of the `PATHEXT` extensions). Used for
+/// a `[[skip_member]]` entry's `needs`: a name with a path separator is never a tool name, so it is not found.
+pub(crate) fn executable_on_path(tool: &str) -> bool {
+    if tool.is_empty() || tool.contains(['/', '\\']) {
+        return false;
+    }
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    let extensions: Vec<String> = if cfg!(windows) {
+        std::env::var("PATHEXT")
+            .unwrap_or_else(|_| ".EXE;.CMD;.BAT;.COM".into())
+            .split(';')
+            .map(str::to_string)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    std::env::split_paths(&path).any(|dir| {
+        dir.join(tool).is_file()
+            || extensions
+                .iter()
+                .any(|ext| !ext.is_empty() && dir.join(format!("{tool}{ext}")).is_file())
+    })
+}
+
 /// The package whose own directory is `dir`. A virtual workspace root, or any directory that is not
 /// a package's, is an error that names the members to choose from.
 #[cfg(test)]

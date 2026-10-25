@@ -19,7 +19,9 @@
 //! The wide files are read once by the command-line program and installed for the process ([`install`]). A library caller
 //! that never calls it sees no wide file at all, so a library run is exactly as hermetic as before.
 
-use crate::allowlist::{AllowEntry, BufSettings, ReachabilitySettings, TrackEntry};
+use crate::allowlist::{
+    AllowEntry, BufSettings, ReachabilitySettings, SkipMemberEntry, TrackEntry,
+};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -31,7 +33,7 @@ pub(crate) const FILE_NAME: &str = ".coderipper.toml";
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
-    "[[allow]], [[tracks]], [buf], [reachability] and profile";
+    "[[allow]], [[tracks]], [[skip_member]], [buf], [reachability] and profile";
 
 /// How findings are written to stdout (`--message-format`, and the key of the same name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -91,6 +93,9 @@ pub(crate) struct ConfigFile {
     pub allow: Vec<AllowEntry>,
     #[serde(default)]
     pub tracks: Vec<TrackEntry>,
+    /// `[[skip_member]]`: workspace members this repository does not build (see [`SkipMemberEntry`]).
+    #[serde(default)]
+    pub skip_member: Vec<SkipMemberEntry>,
     #[serde(default)]
     pub buf: Option<BufSettings>,
     /// `[reachability] public_api`: declared public API (see [`crate::allowlist::PublicApiEntry`]).

@@ -275,6 +275,39 @@ pub(crate) fn unknown_crate(entry: &AllowEntry, packages: &[&str], project: &str
     }
 }
 
+/// A `[[skip_member]]` entry whose `name` is no package of the workspace: it skips nothing, which is nearly always a misspelt name
+/// or a member that was removed, and a waiver that outlives its member would hide the next member given that name.
+pub(crate) fn unknown_skip_member(
+    entry: &crate::allowlist::SkipMemberEntry,
+    packages: &[&str],
+    project: &str,
+) -> Finding {
+    Finding {
+        check_id: ALLOWLIST_CHECK_ID.into(),
+        claim: crate::finding::Claim::Presence,
+        severity: Severity::Info,
+        confidence: Confidence::High,
+        project: project.to_string(),
+        location: Some(Location {
+            file: ".coderipper.toml".into(),
+            line: None,
+        }),
+        subject: Some(entry.name.clone()),
+        summary: format!(
+            "`[[skip_member]]` entry names `{}`, which is no package of this workspace",
+            entry.name
+        ),
+        detail: format!(
+            "This skip was written because: \"{}\" (owner {}). The workspace's packages are: {}. The name is the cargo package name, not the directory. Fix the spelling, or remove the entry if the member is gone.",
+            entry.reason,
+            entry.owner,
+            packages.join(", ")
+        ),
+        positive_control: None,
+        member: None,
+    }
+}
+
 fn stale(entry: &AllowEntry, raw_count: usize, project: &str) -> Finding {
     if let Some(name) = &entry.crate_scope {
         return Finding {

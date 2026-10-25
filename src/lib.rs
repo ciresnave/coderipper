@@ -168,6 +168,9 @@ pub struct WorkspaceRun {
     /// The names of those members, in the order they were analysed, so a report can say which ones could not be judged (a member whose
     /// build failed asserts nothing about its code).
     pub members_failed: Vec<String>,
+    /// The names of the members this repository's `[[skip_member]]` entries set aside, in workspace order: not built, so not judged,
+    /// and each said so in the run's notes ("not judged (declared skip)"). They are not failures.
+    pub members_skipped: Vec<String>,
 }
 
 /// Runs the checks over every member of the cargo workspace containing `ctx.project_root` (the root or any member).
@@ -286,6 +289,7 @@ pub fn run_workspace_in_with_tools_skipping(
                 members: 0,
                 members_with_errors: 0,
                 members_failed: Vec::new(),
+                members_skipped: Vec::new(),
             }
         }
     };
@@ -310,6 +314,7 @@ fn run_workspace_over_in(
         members: 0,
         members_with_errors: 0,
         members_failed: Vec::new(),
+        members_skipped: Vec::new(),
     };
     // before visiting any member: a wrong id would otherwise repeat its error once per member
     if let Some(problem) = check_list_problem(checks, &profile.extra_rules(), only_check_id) {
@@ -332,6 +337,7 @@ fn run_workspace_over_in(
             members,
             members_with_errors,
             members_failed: Vec::new(),
+            members_skipped: Vec::new(),
         };
     }
     let (root, members) = match package::workspace_members(&ctx.project_root) {
@@ -385,8 +391,42 @@ fn run_workspace_over_in(
                 members: 0,
                 members_with_errors: 0,
                 members_failed: Vec::new(),
+                members_skipped: Vec::new(),
             };
         }
+    };
+
+    // `[[skip_member]]`: a member the repository declares unbuildable here is named in a note and not run (not an error). An entry
+    // naming no member is a finding: a waiver that outlives its member would hide the next one given that name.
+    let skip_entries = Allowlist::load(&root)
+        .map(|list| list.skip_members().to_vec())
+        .unwrap_or_default();
+    let packages: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+    let project_name = root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let mut skipped_members: Vec<String> = Vec::new();
+    for entry in &skip_entries {
+        if !packages.contains(&entry.name.as_str()) {
+            findings.push(suppression::unknown_skip_member(
+                entry,
+                &packages,
+                &project_name,
+            ));
+        }
+    }
+    let skip_for = |name: &str| -> Option<String> {
+        let entry = skip_entries.iter().find(|e| e.name == name)?;
+        let condition = match entry.needs.as_deref() {
+            Some(tool) if package::executable_on_path(tool) => return None,
+            Some(tool) => format!("; needs `{tool}`, which is not on PATH"),
+            None => "; unconditional".to_string(),
+        };
+        Some(format!(
+            "{name}: not judged (declared skip): {} (owner {}{condition})",
+            entry.reason, entry.owner
+        ))
     };
 
     let total = members.len();
@@ -395,6 +435,11 @@ fn run_workspace_over_in(
     let mut failed_members: Vec<String> = Vec::new();
     session::with_session(&session, || {
         for (index, member) in members.iter().enumerate() {
+            if let Some(note) = skip_for(&member.name) {
+                notes.push(note);
+                skipped_members.push(member.name.clone());
+                continue;
+            }
             on_member(&member.name, index + 1, total);
             let run = run_checks_over_in(
                 profile,
@@ -495,6 +540,7 @@ fn run_workspace_over_in(
         members: analysed,
         members_with_errors: with_errors,
         members_failed: failed_members,
+        members_skipped: skipped_members,
     }
 }
 
