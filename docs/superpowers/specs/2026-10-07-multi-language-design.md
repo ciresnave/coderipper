@@ -1,6 +1,6 @@
 # CodeRipper — multi-language design (revision)
 
-**Status: proposed, approval pending: board item 144. Nothing in it is approved, and no code is written against it.** Documentation only.
+**Status (2026-10-24): P1 to P3 are built (module protocol 0.3.1, catalog, profiles, coverage line, tool cache, neutral module, delegations); P4 to P7 are not. The default profile has been `extended` since 0.9.0, not `classic` as this text proposes. Below is the 2026-10-07 text.** Originally: proposed, board item 144.
 Written 2026-10-07 by the CodeRipper lane. Supersedes parts of `2026-09-30-audit-host-design.md` (table in §0).
 
 Evidence labels used throughout: **MEASURED** = read or run in this session, at the ref named. **ASSUMED** = reasoned or

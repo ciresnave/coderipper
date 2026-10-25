@@ -103,7 +103,7 @@ Dropped as a rule: **a hard-coded secret constant by name** (`const X_TOKEN: &st
 - **Waivers need a reason that names the protocol or the owner** (`reason = "RADIUS (RFC 2865) mandates MD5"`); a weak-algorithm waiver without one is
   rejected by the loader (a **proposed** check, not built).
 - **Default-on under the ROADMAP's policy.** The precision gate (at least 80% where a reviewer would act, on at least 30 findings, in at least three
-  repositories) is met by SEC-011 only. SEC-004a and SEC-004b are **exact on their API names** and have too few findings to sample (1 and 2), so they
+  repositories) was met by SEC-011 only *(withdrawn by sections 5b and 6 below: SEC-011 ships opt-in)*. SEC-004a and SEC-004b are **exact on their API names** and have too few findings to sample (1 and 2), so they
   qualify only under the policy's second clause (exact syntax, nothing to sample) and by the two incident controls. Everything else ships **opt-in**.
 - **Reuse before writing.** Where Clippy or the compiler has the check (`unwrap_used`, `expect_used`, `indexing_slicing`, `cast_possible_truncation`, `unsafe_code`),
   require the lint to be enabled (the `lint-suppression` rule finds an `#[allow]` of it without a reason) and add only the scoping, the count, and the

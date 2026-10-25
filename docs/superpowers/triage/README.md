@@ -4,7 +4,7 @@ Companion to `docs/superpowers/specs/2026-10-07-multi-language-design.md` and
 `docs/superpowers/plans/2026-10-07-multi-language-programme.md`. Produced 2026-10-07 by the CodeRipper lane from the owner's
 "Clean Code & Clean Architecture: A Verifiable Engineering Knowledge Base" v2.0 (not copied here: rule IDs are cited and the labels and
 notes are our own wording; see "Provenance" below). **This is a plan, not coverage:** a status here says how a rule *could* be covered; nothing is earned until a
-module's seeded-defect fixture passes (design section 6.2). Zero rules are earned today.
+module's seeded-defect fixture passes (design section 6.2). As of 2026-10-24, 22 rules have a seeded-defect and clean pair under `conformance/` (see `ROADMAP.md`); the statuses below are the 2026-10-07 plan.
 
 ## Files
 

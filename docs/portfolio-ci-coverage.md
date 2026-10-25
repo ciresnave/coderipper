@@ -13,7 +13,7 @@ Classes: **CI** = a job can decide it from the repository (plus, where marked, t
 | Rule (source) | Class | Covered by | Gap |
 |---|---|---|---|
 | One version per project (CLAUDE.md 9; EXPECTATIONS 2.2, 6.6a) | CI | `version-consistency`, with `[[tracks]]` for the one cross-project exception | Cargo only; an npm SDK paired with a crate (6.6a) is not read |
-| CI and branch protection on every repo (6.5) | CI (network) | `ci-protection-presence` | Reads `required_status_checks` only. Does not check `enforce_admins=false`, force-push and deletion blocked, or forks excluded. Private repos hide `protection` from a token without push access (an error, not clean) |
+| CI and branch protection on every repo (6.5) | CI (network) | `ci-protection-presence` | Reads `required_status_checks`, and since 0.9.27 the settings audit (`enforce_admins` off, force-push and deletion blocked, squash-only, delete-branch-on-merge); forks are skipped. Private repos hide `protection` from a token without push access (an error, not clean) |
 | `Cargo.lock` and `--locked` in CI | CI | SUP-001 | Cargo and npm only |
 | CI actions pinned to SHAs, least-privilege permissions | CI | SUP-008 (zizmor) | none for the two named properties |
 | CODEOWNERS | CI | WSP-001 | none |

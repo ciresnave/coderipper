@@ -74,7 +74,7 @@ checks are implemented in CodeRipper at present, and none of them covers securit
 | SEC-003 | Authorization on every entry point | P | no check yet; planned: route inventory joined to auth middleware for TypeScript and Python; Rust needs framework mapping and a model |
 | SEC-004 | No cryptography misuse | P | no check yet; planned: a native source scan for Rust, Semgrep for TypeScript, Bandit for Python |
 | SEC-005 | Unsafe and native code inventory | P | no check yet; planned: cargo-geiger for Rust, native inventories for TypeScript and Python |
-| SEC-006 | No known exploitable dependency vulnerabilities | N | no check yet; planned: cargo-audit for Rust, osv-scanner for other languages (same check as SUP-002; needs network) |
+| SEC-006 | No known exploitable dependency vulnerabilities | N | built: delegated to osv-scanner, in the same run as SUP-002, narrowed to advisories of CVSS 7.0 or higher or with no score |
 | SEC-007 | A current threat model | M | no check yet (presence is checkable, currency needs a human decision) |
 | SEC-008 | No sensitive data in logs or telemetry | P | no check yet; planned: native heuristics for TypeScript and Python; Rust needs taint analysis |
 | SEC-009 | Least privilege in infrastructure definitions | N | no check yet; planned: Checkov through a language-neutral module |

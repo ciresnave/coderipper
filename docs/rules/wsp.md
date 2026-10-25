@@ -68,7 +68,7 @@ acceptable) is a number each organization chooses for itself.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| WSP-001 | Every repository is registered with an owner | N | catalog record; no check yet (planned: native check of a registry file and CODEOWNERS presence) |
+| WSP-001 | Every repository is registered with an owner | N | built: native; a `CODEOWNERS` file exists and names a default (`*`) owner. The importance-level inventory is not checked |
 | WSP-002 | Cross-repository dependencies point the right way and do not loop | A | catalog record; no check yet (needs a declared architecture) |
 | WSP-003 | Internal library versions stay within the skew policy | N | catalog record; no check yet (planned: native manifest comparison per ecosystem); the legacy check `version-consistency` overlaps in part |
 | WSP-004 | Widely used libraries are tested against their dependents before release | X | catalog record; no check yet (needs project code to run) |
