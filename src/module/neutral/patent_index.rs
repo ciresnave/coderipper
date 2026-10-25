@@ -691,14 +691,40 @@ impl Scan<'_> {
     }
 }
 
+/// What a yarn or pnpm range starts with when it points at the repository's own code or at something other than the registry.
+const LOCAL_RANGES: &[&str] = &[
+    "workspace:",
+    "link:",
+    "file:",
+    "portal:",
+    "exec:",
+    "http:",
+    "https:",
+    "git+",
+    "git:",
+    "github:",
+];
+
 /// The package a yarn lock header spec names: `@scope/name@^1` is `@scope/name`; `alias@npm:real@^1` is `real`; `name@npm:^1` is `name`.
 fn yarn_spec_name(spec: &str) -> Option<String> {
     let at = spec.get(1..)?.find('@')? + 1;
     let (name, range) = (&spec[..at], &spec[at + 1..]);
+    // the repository's own code (a workspace member, a linked or file dependency, a generated one) is not a registry package
+    if LOCAL_RANGES.iter().any(|p| range.starts_with(p)) {
+        return None;
+    }
     let target = match range.strip_prefix("npm:") {
+        // `npm:real@^1`: the real name ends at the `@` that starts the range (not at the scope's own leading `@`)
         Some(real) if real.get(1..).is_some_and(|r| r.contains('@')) => {
             let end = real.get(1..)?.find('@')? + 1;
             &real[..end]
+        }
+        // `npm:real`, a bare alias with no range: the whole rest is the real name; `npm:^1` (a range) leaves the name
+        Some(real)
+            if real.starts_with(|c: char| c.is_ascii_alphanumeric() || c == '@')
+                && !real.starts_with(|c: char| c.is_ascii_digit()) =>
+        {
+            real
         }
         _ => name,
     };
@@ -721,7 +747,12 @@ fn pnpm_key(key: &str) -> Option<(String, String)> {
     }
     if let Some(at) = key.get(1..).and_then(|k| k.find('@')) {
         let at = at + 1;
-        return Some((key[..at].to_string(), key[at + 1..].to_string()));
+        let version = &key[at + 1..];
+        // a version, not a path or a tarball address (`file:../x`, `link:`, `https://..`)
+        if !version.starts_with(|c: char| c.is_ascii_digit()) {
+            return None;
+        }
+        return Some((key[..at].to_string(), version.to_string()));
     }
     None
 }
@@ -1203,6 +1234,46 @@ left-pad@^1.0.0:
         );
         assert_eq!(yarn_spec_name("@a/b@npm:^1").as_deref(), Some("@a/b"));
         assert_eq!(yarn_spec_name("x@npm:@a/b@^1").as_deref(), Some("@a/b"));
+    }
+
+    #[test]
+    fn yarn_headers_that_are_the_repositorys_own_code_or_a_bare_alias_are_told_apart() {
+        // a workspace, link, file, portal or exec descriptor is not a registry package, whatever its name
+        for own in [
+            "z3-solver@workspace:packages/z3-solver",
+            "z3-solver@link:../z3-solver",
+            "z3-solver@file:../z3-solver",
+            "z3-solver@portal:../z3-solver",
+            "z3-solver@exec:./gen.js",
+        ] {
+            assert_eq!(yarn_spec_name(own), None, "{own}");
+        }
+        // a bare alias (no range after the real name) names the real package
+        assert_eq!(
+            yarn_spec_name("alias@npm:z3-solver").as_deref(),
+            Some("z3-solver")
+        );
+        assert_eq!(yarn_spec_name("alias@npm:@a/b").as_deref(), Some("@a/b"));
+        // end to end: a Berry workspace entry whose name is an index name reports nothing
+        let berry = "__metadata:
+  version: 8
+
+\"z3-solver@workspace:packages/z3-solver\":
+  version: 0.0.0-use.local
+";
+        assert!(run(&[("yarn.lock", berry)]).is_empty());
+    }
+
+    #[test]
+    fn pnpm_keys_that_are_local_paths_or_tarballs_are_not_registry_packages() {
+        for own in [
+            "z3-solver@file:../z3-solver",
+            "z3-solver@link:../z3-solver",
+            "/z3-solver@file:../z3-solver(react@17.0.0)",
+            "z3-solver@https://example.com/z3-solver-5.0.0.tgz",
+        ] {
+            assert_eq!(pnpm_key(own), None, "{own}");
+        }
     }
 
     #[test]
