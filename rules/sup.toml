@@ -373,7 +373,7 @@ scopes = ["first_party"]
 id = "licence"
 title = "Licence file, matching manifest, SPDX headers, organisation as holder"
 domain = "SUP"
-statement = "A repository carries a licence file at its root, its manifest's licence field is one a licence file is named for, each source file names its licence in an SPDX-License-Identifier header, and the copyright holder is the organisation, not a person."
+statement = "A repository carries a licence file at its root, its manifest's licence field is one a licence file is named for, each source file names its licence in an SPDX-License-Identifier header, and the copyright holder may be the owner as a person (CireSnave, 2026-10-25, relayed by the PM: \"All licenses/copyrights can name me\"); it is reported as information."
 rationale = "A consumer who copies one source file gets whatever that file says, and crates.io shows the manifest's licence field; a repository with no licence file grants nothing, and a header that is missing or disagrees leaves a copied file with no stated terms."
 evidence_tiers = ["V5"]
 evidence_strength = "C"
@@ -389,7 +389,7 @@ aliases = []
 remediation = "Add LICENSE-MIT and LICENSE-APACHE (or one LICENSE) at the root, put `SPDX-License-Identifier: MIT OR Apache-2.0` at the top of each source file, record any third-party file's origin and licence in NOTICE or THIRD-PARTY, and name the organisation as the holder."
 related = ["SUP-004"]
 lifecycle = "experimental"
-checked_today = "A licence file at the root (LICENSE*, LICENCE*, COPYING*, UNLICENSE*, LICENSES/) is High and the only finding that blocks a portfolio run; the root manifest's licence identifiers (Cargo.toml, package.json, pyproject.toml) each need a licence file named for them (one generic LICENSE is accepted for any); source files with no SPDX-License-Identifier in their first lines, a header naming a licence other than the project's with no NOTICE or THIRD-PARTY record, and a copyright line naming the owner as a person are Medium and report only. Not judged: the licence text, whether a copied file's header is the origin's, another owner's personal name, markup and data files, manifests below the root."
+checked_today = "A licence file at the root (LICENSE*, LICENCE*, COPYING*, UNLICENSE*, LICENSES/) is High and the only finding that blocks a portfolio run; the root manifest's licence identifiers (Cargo.toml, package.json, pyproject.toml) each need a licence file named for them (one generic LICENSE is accepted for any); source files with no SPDX-License-Identifier in their first lines, a header naming a licence other than the project's with no NOTICE or THIRD-PARTY record, are Medium and report only; a copyright line naming the owner as a person is Info (a standing ruling, not a defect). Not judged: the licence text, whether a copied file's header is the origin's, another owner's personal name, markup and data files, manifests below the root."
 
 [rule.applicability]
 languages = ["any"]

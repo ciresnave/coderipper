@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.37 - 2026-10-25 (proposed)
+
+**`licence`: a person as copyright holder is Info, not Medium** (PM task, 2026-10-25). CireSnave's standing ruling, relayed by the PM: *"All licenses/copyrights can name me"*. Both findings (a licence file, and source-file headers) keep their text but are Info and say it is a standing ruling, not a defect. The "no licence file" High, the manifest mismatch and the missing-SPDX Medium are unchanged. Checks that deny at Medium no longer fail on a holder line.
+
 ## 0.9.36 - 2026-10-25 (proposed)
 
 **Scheduled audits** (audit row C6, part): `.github/workflows/scheduled-audits.yml` runs `dependency-freshness`, SUP-002, SEC-006 and DOC-010 daily and on dispatch, built from this repository's source, and fails when a rule did not run. Each passes locally at 07ff52e. The portfolio-wide schedule in `portfolio.yml` waits for a published release with `dependency-freshness` (0.9.28 or later); npm, pip, Maven and Gradle lockfiles stay open.
