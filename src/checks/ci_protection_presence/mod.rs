@@ -23,7 +23,8 @@
 //! CireSnave's (6.5; CLAUDE.md 3 and 4): `allow_squash_merge` on, `allow_merge_commit` and `allow_rebase_merge` off,
 //! `delete_branch_on_merge` on (all from `repos/<slug>`), and, when classic protection is enabled, `enforce_admins` OFF (admins keep
 //! a bypass, 2026-09-18), `allow_force_pushes` off and `allow_deletions` off (from `branches/<branch>/protection`). A branch governed
-//! only by rulesets gets the repository-level audit alone. These fields need admin on the repository: an answer that omits one is an
+//! only by rulesets gets the repository-level audit alone, plus (0.9.41) one `Medium` finding when no active rule is of type
+//! `non_fast_forward` (force-push) or `deletion`. These fields need admin on the repository: an answer that omits one is an
 //! error. A **fork** is excluded from everything here (6.5: forks he has not taken over are not his): one `Info` finding says so.
 //!
 //! **A check that cannot see must not report clean.** No `origin`, an origin that is not GitHub, an API
@@ -125,7 +126,12 @@ impl Check for CiProtectionPresenceCheck {
         }
 
         let (mut findings, classic) = self.presence(slug, &canonical, branch)?;
+        let presence_clean = findings.is_empty();
         findings.extend(self.audit_settings(slug, &canonical, branch, &info, classic)?);
+        // A branch that passed on its rulesets alone (no classic protection) is audited for force-push and deletion there.
+        if presence_clean && !classic {
+            findings.extend(self.audit_ruleset_rules(slug, &canonical, branch)?);
+        }
         Ok(findings)
     }
 }
@@ -274,6 +280,65 @@ impl CiProtectionPresenceCheck {
 }
 
 impl CiProtectionPresenceCheck {
+    /// The ruleset half of the force-push and deletion settings (audit row C5): a default branch governed by rulesets alone is
+    /// protected against a force-push by a `non_fast_forward` rule and against deletion by a `deletion` rule in the active
+    /// rules for the branch (`rules/branches/<branch>`). One `Medium` finding per missing rule. A branch with classic protection
+    /// is audited from its classic settings instead, so the two are not mixed. Read as the account `gh` has; the rules endpoint
+    /// needs no admin, but an answer that is not a list is an error, never clean.
+    fn audit_ruleset_rules(
+        &self,
+        slug: &str,
+        canonical: &str,
+        branch: &str,
+    ) -> anyhow::Result<Vec<Finding>> {
+        let path = format!(
+            "repos/{slug}/rules/branches/{}?per_page=100",
+            encode_path(branch)
+        );
+        let rules = self
+            .api
+            .get(&path)
+            .map_err(|e| anyhow::anyhow!("cannot read {path} from GitHub: {e}"))?;
+        let list = rules.as_array().ok_or_else(|| {
+            anyhow::anyhow!(
+                "GitHub's answer for {path} is not a list of rules; not reporting clean"
+            )
+        })?;
+        let has = |kind: &str| list.iter().any(|rule| rule["type"].as_str() == Some(kind));
+        let subject = format!("{canonical}@{branch}");
+        let wants: [(&str, &str, &str); 2] = [
+            (
+                "non_fast_forward",
+                "force-pushes are not blocked by a ruleset",
+                "the template protection allows no force-push",
+            ),
+            (
+                "deletion",
+                "the branch can be deleted: no ruleset blocks deletion",
+                "the template protection allows no deletion",
+            ),
+        ];
+        Ok(wants
+            .into_iter()
+            .filter(|(kind, _, _)| !has(kind))
+            .map(|(kind, why, rule)| {
+                settings_finding(
+                    canonical,
+                    subject.clone(),
+                    format!("{canonical}: the default branch `{branch}`: {why}"),
+                    format!(
+                        "none of the {} active rule(s) for `{branch}` on {path} is of type `{kind}`; the portfolio wants one ({rule}; 6.5).                          This branch has no classic protection, so rulesets are what govern it",
+                        list.len()
+                    ),
+                    format!(
+                        "GET {path} answered with a list of {} rule(s), and a `required_status_checks` or `workflows` rule was among them, so rulesets govern this branch and the list was readable",
+                        list.len()
+                    ),
+                )
+            })
+            .collect())
+    }
+
     /// CireSnave's repository settings (6.5; CLAUDE.md 3 and 4): admins can bypass (`enforce_admins` off), the default branch
     /// refuses force-pushes and deletion, merges are squash-only, and a merged branch is deleted. One finding per setting
     /// that differs. `classic` is whether classic protection is enabled; only then is the branch endpoint read, and a branch

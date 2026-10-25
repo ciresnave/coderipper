@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.41 - 2026-10-25 (proposed)
+
+**`ci-protection-presence`: a ruleset-only default branch is audited for force-push and deletion** (audit row C5, part). A branch that passes on its rulesets alone (no classic protection) now gets one `Medium` finding for each of `non_fast_forward` and `deletion` that no active rule for the branch (`rules/branches/<branch>`) provides, read on its own so one present does not hide the other missing. One more GET in that case. A branch with classic protection is audited from its classic settings as before. Still open in C5: required reviews and signed commits, required-check names matched against the workflows, non-default branches, non-GitHub forges, rate limits, and telling a taken-over fork from a plain one.
+
 ## 0.9.40 - 2026-10-25 (proposed)
 
 **Docs only: the per-member footprint design records that part B is not needed.** Fuel's first hosted Linux run of the pinned portfolio job (fuel#499) used about 6 GB of a 145 GB root filesystem with 80 GB free, and a Windows measurement of the build cache for 45 members gave 3.8 GB; the "14 GB" runner was an assumption. Part A (`[[skip_member]]`, 0.9.35) stands. `docs/member-footprint-design.md` has the numbers and the condition for reopening.
