@@ -33,8 +33,8 @@
 //!   keyword split across two lines, keep rustc's `pub` exemption and are not reported. `rustfmt` writes neither.
 //! - **Analysis is HEAD-only**: uncommitted edits in the real working tree aren't seen (a property of
 //!   using a git worktree, not a bug).
-//! - **A `--project` pointing at a crate nested inside a larger repo** analyzes the enclosing repo's
-//!   root, not the nested crate's.
+//! - **A `--project` pointing at a crate nested inside a larger repo** analyzes that crate (cargo's diagnostic paths are
+//!   re-based from the workspace root); a directory that is not a package's own is refused with the member names.
 
 mod diagnostics;
 mod foreign;

@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.32 - 2026-10-25 (proposed)
+
+**Docs only: audit row D3 closed.** The `reachability/mod.rs` limitation note said a `--project` nested in a larger repo analyzes the enclosing root; it analyzes the nested crate (diagnostic paths re-based from the workspace root), and a directory that is not a package's own is refused with the member names. Comment change only.
+
 ## 0.9.31 - 2026-10-25 (proposed)
 
 **Tag every publish** (issue #94, "Tag the source"). `tools/release-tag.sh tag <version> --push` tags the commit a published version came from, read from the crate's `.cargo_vcs_info.json`; `check` fails when origin lacks the newest published version's tag, and `release-drift.yml` now runs it. `RELEASING.md` records the process. Tags `v0.9.20` and `v0.9.24` were created (annotated, pushed, read back). **No other version is tagged**: 27 of the 34 published versions carry no vcs info and 5 name a commit that is not in the repository, and a tag on a guess would be false.
