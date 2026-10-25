@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.34 - 2026-10-25 (proposed)
+
+**Docs only: design for the per-member footprint limit** (PM task, 2026-10-25; Fuel's portfolio job overflows a hosted runner and fails on members that need an SDK). `docs/member-footprint-design.md`: a declared, reasoned `[[skip_member]]` entry that reports a member "not judged" without failing the job, and a build cache bounded during a run. No code changed. 0.9.33 is proposed by #156; the PM allocates the number.
+
 ## 0.9.32 - 2026-10-25 (proposed)
 
 **Docs only: audit row D3 closed.** The `reachability/mod.rs` limitation note said a `--project` nested in a larger repo analyzes the enclosing root; it analyzes the nested crate (diagnostic paths re-based from the workspace root), and a directory that is not a package's own is refused with the member names. Comment change only.
