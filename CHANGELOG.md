@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.43 - 2026-10-25 (proposed)
+
+**`patent-index-match` reads `yarn.lock`, `pnpm-lock.yaml` and `gradle.lockfile`** (audit row C8). Yarn classic and Berry (an `npm:` alias names the real package), pnpm lockfile versions 5, 6 and 9 (`packages` only; `snapshots` repeats it), and Gradle's `group:artifact:version=configs` lines. Like the other lockfiles, a package only a lockfile names is graded one step below the index's action at low confidence, and a package a manifest declares is reported once, from the manifest. **`go.sum` is not read, on purpose:** the pinned index lists crates, PyPI, npm and Maven names only, so a Go lockfile could match nothing; the note says so rather than implying coverage.
+
 ## 0.9.42 - 2026-10-25 (proposed)
 
 **Docs: hosted v1 runs with DOC-010 off and osv-scanner limited to the OSV host (CireSnave's H6 ruling); `buf` and `zizmor` re-verified for network and plugin use by reading the code.** No behaviour changes.
