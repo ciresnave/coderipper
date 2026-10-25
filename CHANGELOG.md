@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.9.48 - 2026-10-25 (proposed)
+
+**`version-and-changelog` accepts a list item as a changelog entry** (found by the auth-framework lane's portfolio run): a line such as `- 0.6.0-rc1 -- what changed` now names its version, as `## 0.6.0-rc1` and `[0.6.0-rc1]` already did; before, every version-bump PR to a repository whose changelog is a bullet list got "has no entry for Cargo.toml version X". The whole-token rule is unchanged (`0.6.0` is still not an entry for `0.6.0-rc1`, nor the reverse), and prose that merely mentions a version is still not an entry.
+
 ## 0.9.46 - 2026-10-25 (proposed)
 
 **`patent-index-match`: a yarn or pnpm entry that is the repository's own code is not a registry package, and a bare `npm:` alias names its real package** (review of #164). A yarn Berry `name@workspace:`, `link:`, `file:`, `portal:`, `exec:`, tarball or git descriptor, and a pnpm key whose version is a path or an address, no longer match an index name as if they were the registry package of that name (`name@workspace:pkg` with `version: 0.0.0-use.local` was read as `name` at 0.0.0-use.local); `alias@npm:real` with no range reads as `real`. Red-first tests for both.
