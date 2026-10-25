@@ -75,11 +75,21 @@ scanned code is hostile.
 9. **Delegated tools that need the network are code-free but not free of risk.** `osv-scanner` (SUP-002/SEC-006) needs the OSV API;
    `lychee` (DOC-010) fetches arbitrary URLs written in the submitter's documents (server-side request forgery against our network).
    They run in a **separate job class that executes no repository code**, behind an allowlisting proxy that blocks private, loopback and
-   link-local ranges and the metadata address. **Recommendation: DOC-010 stays off in hosted v1** (it reports a gap there, which the
-   coverage table says); osv is allowlisted to the OSV host only.
+   link-local ranges and the metadata address. **Ruled 2026-10-25 (CireSnave, first-hand, answering the recommendation: "H6: Definitely!
+   Sooner rather than later, please."): hosted v1 runs with DOC-010 off (it reports a gap there, which the coverage table says), and
+   osv-scanner allowlisted to the OSV host only.** Nothing is built: both are service-side settings (a rule switched off, an egress
+   allowlist of `api.osv.dev`), to land with face B.
 
-Which checks run where (read from the checks' own behaviour in `three-faces.md` §3 and the delegation framework; the buf and zizmor
-rows are **not re-verified** for plugin or network use and must be before B opens):
+Which checks run where (read from the checks' own behaviour in `three-faces.md` §3 and the delegation framework). **`buf` and `zizmor`
+re-verified for network and plugin use on 2026-10-25, by reading the code at 0.9.41, not by running them behind a blocked network:**
+`zizmor` is always run with `--offline`, `--no-config` and `--no-ignores` (`src/module/delegate/zizmor.rs`, `check_args`), so it needs
+neither a token nor the network and loads no repository configuration. `buf` is run with an inline configuration given for both
+sides (`--config`, `--against-config`) that replaces every `buf.yaml` in the tree, and that configuration (`config()` in
+`src/module/delegate/buf.rs`) names only module paths and the `FILE` breaking rules, so a repository's `plugins:` or BSR `deps:`
+entries are never read; the environment is cleared to a short allowlist with no `BUF_TOKEN` (`src/module/delegate/mod.rs`), and a
+schema that imports a registry dependency becomes a reported gap instead of a fetch. **Not verified:** that buf 1.73.0 makes no
+network call of its own (an update check, telemetry) when run with that configuration; the hosted runner's egress block is what
+settles it, and the hostile-fixture set (`2026-10-13-runner-isolation.md`) should include a `buf.yaml` with a plugin and a BSR dependency.
 
 | Class | Rules | Why |
 |---|---|---|
