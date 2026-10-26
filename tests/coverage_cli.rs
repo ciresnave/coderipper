@@ -16,6 +16,8 @@ const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedit
 /// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
 const LOCK: &str = "version = 4\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\n";
 const OWNERS: &str = "* @example-owner\n";
+/// The patent sweep record the `patent-sweep-record` rule asks of a project with a publishable version (0.1.x here).
+const SWEEP: &str = "# Patent sweep: fixture 0.1.0\n## Ideas swept\n## Queries\n## Hits\n";
 
 /// A Rust project with nothing for any check to say, under either profile.
 fn clean_project() -> tempfile::TempDir {
@@ -23,6 +25,7 @@ fn clean_project() -> tempfile::TempDir {
         ("Cargo.toml", MANIFEST),
         ("Cargo.lock", LOCK),
         (".github/CODEOWNERS", OWNERS),
+        ("docs/PATENT-SWEEP.md", SWEEP),
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
@@ -37,6 +40,7 @@ fn polyglot_project() -> tempfile::TempDir {
         ("Cargo.toml", MANIFEST),
         ("Cargo.lock", LOCK),
         (".github/CODEOWNERS", OWNERS),
+        ("docs/PATENT-SWEEP.md", SWEEP),
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
@@ -60,6 +64,7 @@ fn project_with_a_medium_finding() -> tempfile::TempDir {
         ("Cargo.toml", MANIFEST),
         ("Cargo.lock", LOCK),
         (".github/CODEOWNERS", OWNERS),
+        ("docs/PATENT-SWEEP.md", SWEEP),
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
@@ -222,7 +227,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks, the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match and licence
-    assert_eq!(rust["covered"], 16);
+    assert_eq!(rust["covered"], 17);
     // ci-protection-presence, dependency-freshness and the seven delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 9);
@@ -230,7 +235,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
     // no TypeScript module, but the six language-neutral rules apply to it (the seven delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], 11);
+    assert_eq!(ts["covered"], 12);
     assert_eq!(ts["claimed_unproven"], 7);
     assert_eq!(
         ts["note"],
@@ -256,6 +261,7 @@ fn python_project() -> tempfile::TempDir {
         ("Cargo.toml", MANIFEST),
         ("Cargo.lock", LOCK),
         (".github/CODEOWNERS", OWNERS),
+        ("docs/PATENT-SWEEP.md", SWEEP),
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
@@ -291,7 +297,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
         .find(|l| l["language"] == "python")
         .unwrap_or_else(|| panic!("{text}"));
     // the five rules that read any file kind are covered; SUP-001 reads Cargo and npm files only
-    assert_eq!(py["covered"], 10, "{py}");
+    assert_eq!(py["covered"], 11, "{py}");
     let gaps: Vec<&str> = py["gaps"]
         .as_array()
         .unwrap()
@@ -304,7 +310,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 16, "{rust}");
+    assert_eq!(rust["covered"], 17, "{rust}");
 }
 
 #[test]

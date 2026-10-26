@@ -1,0 +1,5 @@
+# The seeded defect: a releasable version (0.3.1) and no docs/PATENT-SWEEP.md.
+
+[[expect]]
+rule = "patent-sweep-record"
+file = "docs/PATENT-SWEEP.md"
