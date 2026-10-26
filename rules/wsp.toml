@@ -294,3 +294,29 @@ checked_today = "The root Cargo.toml ([package] version, else [workspace.package
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "patent-sweep-record"
+title = "A project that can be released has a patent sweep on record for its version line"
+domain = "WSP"
+statement = "A repository whose root manifest declares a publishable version tracks docs/PATENT-SWEEP.md, and the record names a version in the same version line as the manifest's."
+rationale = "A patent that plainly overlaps what a project does is cheap to find before a release and expensive to find after. The record is the proof that someone looked, at which version, and what they found; a sweep of an earlier line says nothing about a new mechanism."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = []
+aliases = []
+remediation = "Run the patent sweep (PATENT-SWEEP-PROCESS.md): list the project's ideas, search patent sources with recorded queries, read the closest hits claim by claim, and record the result in docs/PATENT-SWEEP.md naming the version it covers. A project that will never be released opts out with an [[allow]] entry and a reason."
+related = ["version-and-changelog"]
+lifecycle = "experimental"
+checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version, unless publish = false) or package.json (version, unless private): docs/PATENT-SWEEP.md must be tracked and must name a version token in the manifest's version line (0.9 for 0.9.x before 1.0, the major after). Not judged: whether the sweep was good, whether the project has been published, manifests below the root, pyproject.toml."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
