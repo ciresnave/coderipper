@@ -1,0 +1,6 @@
+# The seeded defect: the Dockerfile's last USER is root (line 2), so the container runs with every privilege inside it (checkov CKV_DOCKER_8).
+
+[[expect]]
+rule = "SEC-009"
+file = "Dockerfile"
+line = 2

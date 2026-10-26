@@ -186,7 +186,7 @@ struct RunOpts {
     /// `coderipper-rule-summary` line before the `coderipper-summary` line. It changes no exit code.
     #[arg(long)]
     summary: bool,
-    /// Say that the tools the delegated rules need (`--profile extended`: gitleaks for SEC-002, osv-scanner for SUP-002 and SEC-006, lychee for DOC-010, zizmor for SUP-008, buf for API-006) may be downloaded into the tool
+    /// Say that the tools the delegated rules need (`--profile extended`: gitleaks for SEC-002, osv-scanner for SUP-002 and SEC-006, lychee for DOC-010, zizmor for SUP-008, checkov for SEC-009, buf for API-006) may be downloaded into the tool
     /// cache when they are not there. Without it nothing is downloaded or written, in CI or anywhere else, and a rule whose tool is
     /// missing is reported as not run (a gap; it never fails the run).
     #[arg(long)]

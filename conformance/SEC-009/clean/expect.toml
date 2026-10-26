@@ -1,0 +1,1 @@
+# A clean twin expects nothing: the rule must report nothing here. The same Dockerfile, apart from the last USER, which is an unprivileged user.

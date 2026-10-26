@@ -77,7 +77,7 @@ checks are implemented in CodeRipper at present, and none of them covers securit
 | SEC-006 | No known exploitable dependency vulnerabilities | N | built: delegated to osv-scanner, in the same run as SUP-002, narrowed to advisories of CVSS 7.0 or higher or with no score |
 | SEC-007 | A current threat model | M | no check yet (presence is checkable, currency needs a human decision) |
 | SEC-008 | No sensitive data in logs or telemetry | P | no check yet; planned: native heuristics for TypeScript and Python; Rust needs taint analysis |
-| SEC-009 | Least privilege in infrastructure definitions | N | no check yet; planned: Checkov through a language-neutral module |
+| SEC-009 | Least privilege in infrastructure definitions | N | built: delegated to checkov (37 checks: wildcard and administrator grants, privilege escalation, privileged and root containers, shared host namespaces, added capabilities) on tracked Terraform, Dockerfile, Kubernetes, CloudFormation, ARM, Bicep and Serverless files; a missing tool is a reported gap |
 | SEC-010 | Model-assisted review of risky changes | L | no check yet (advisory; needs a human decision) |
 
 ## Further reading

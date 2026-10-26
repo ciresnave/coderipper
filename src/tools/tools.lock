@@ -277,3 +277,42 @@ platform = "x86_64-macos"
 source   = "https://github.com/bufbuild/buf/releases/download/v1.73.0/buf-Darwin-x86_64"
 sha256   = "ff78d0ebf34180ebfa81d370275851ec630fcb088bf33e213fd723d0fd7444a6"
 licence  = "Apache-2.0"
+
+# checkov 3.3.30 (Apache-2.0): SEC-009. The release (https://github.com/bridgecrewio/checkov/releases/tag/3.3.30) ships one
+# standalone PyInstaller executable per platform in a zip, with no Python needed. The archive hashes are the ones the GitHub API
+# lists as each asset's digest (read 2026-10-25) and equal the hashes of the downloaded files; file_sha256 is the extracted
+# executable's. The release has no arm64 build, so none is pinned. (The Windows zip spells its member `dist//checkov.exe`; the lock
+# spells it `dist/checkov.exe`, which is how an archive entry is matched.)
+
+[[tool]]
+name        = "checkov"
+version     = "3.3.30"
+platform    = "x86_64-windows"
+source      = "https://github.com/bridgecrewio/checkov/releases/download/3.3.30/checkov_windows_X86_64.zip"
+sha256      = "9489cdea85861cb46b9e03ee08dd1c080895ebb381f1f3ebd07f29398dc647f4"
+licence     = "Apache-2.0"
+archive     = "zip"
+member      = "dist/checkov.exe"
+file_sha256 = "75b5a8ded3b544eaf14bd7f2be0c5f2314b7fcf2d81f2a4100e9b6cb331716d9"
+
+[[tool]]
+name        = "checkov"
+version     = "3.3.30"
+platform    = "x86_64-linux"
+source      = "https://github.com/bridgecrewio/checkov/releases/download/3.3.30/checkov_linux_X86_64.zip"
+sha256      = "c797cca544ce6cfc64b3edff2efa6e53982c0d540b6fdcf851f7fcc9bf040e7a"
+licence     = "Apache-2.0"
+archive     = "zip"
+member      = "dist/checkov"
+file_sha256 = "516e5e212f22fe52ee3943e4940fdf97b0ac7af4b7d1bbef07d83c010076c4ab"
+
+[[tool]]
+name        = "checkov"
+version     = "3.3.30"
+platform    = "x86_64-macos"
+source      = "https://github.com/bridgecrewio/checkov/releases/download/3.3.30/checkov_darwin_X86_64.zip"
+sha256      = "22844857d63d9e1ab1f649ae5c807d1b5f0570eab87ac26a35637ba647590807"
+licence     = "Apache-2.0"
+archive     = "zip"
+member      = "dist/checkov"
+file_sha256 = "305ebe4a3825cad1408ba8b0c493d691b3ac8ff8071acf183457b7a663e18568"
