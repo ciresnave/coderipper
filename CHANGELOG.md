@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.10.1 - 2026-10-26 (proposed)
+
+**CI: `portfolio.yml` installs 0.10.0** (`CODERIPPER_VERSION` 0.9.37 to 0.10.0, now on crates.io). The shared portfolio check of every repository that pins this workflow therefore runs the 0.10 rules, including the new `patent-sweep-record` (advisory) and `SEC-009` (a gap until checkov is installed). Callers pick it up by moving their workflow SHA to the merge commit. No code changes.
+
 ## 0.10.0 - 2026-10-26 (proposed) - BREAKING
 
 **Breaking** (before 1.0 the second number is the major): two rules are new and **on by default**, so a project that was clean under 0.9.x can have a finding it did not have (ROADMAP "Default-on policy", item 6).
