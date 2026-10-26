@@ -385,6 +385,9 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     if let Some(text) = crate::build_cache::render_stats(&crate::build_cache::take_stats()) {
         eprintln!("{}", crate::redact::scrub(&text));
     }
+    if let Some(text) = crate::result_cache::take_stats_line() {
+        eprintln!("{text}");
+    }
     ExitCode::from(match result {
         Ok(code) => code,
         Err(e) => {

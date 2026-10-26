@@ -67,7 +67,7 @@ impl Module for RustModule<'_> {
                 errored += 1;
                 continue;
             };
-            match check.run_noted(&ctx) {
+            match crate::result_cache::through(check.id(), &ctx, || check.run_noted(&ctx)) {
                 Ok((raw, notes)) => {
                     ran += 1;
                     findings += raw.len();
