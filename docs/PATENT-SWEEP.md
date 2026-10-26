@@ -1,7 +1,7 @@
 # Patent sweep: coderipper 0.9 @ 0ad0026
 
 Date: 2026-10-25; Run by: the coderipper lane, Claude Sonnet 5.5; Method: AI-assisted search and read; **NOT legal advice; NOT a freedom-to-operate opinion.**
-Version line covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
+Version lines covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`) and **0.10** (addendum below). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
 
 ## Ideas swept
 
@@ -81,6 +81,20 @@ Only patents whose **independent claims were read in full** are listed. Titles s
 
 - **Nothing in this record is waiting on a decision.** Hit 5 (US20210200834A1, Atlassian) concerned the unbuilt hosted service (face B) only; the PM read its claims from the USPTO page images and CireSnave ruled (decision 300 = A) that face B is built to the design rule in the verdict above. It blocks nothing in the command-line tool or the library. **Re-read hit 5 at grant, or when Google Patents answers for it** (its grant status was not checked), and re-sweep if face B's design changes how tools are chosen or bundled.
 - **Watches (not hits):** hit 10 (re-sweep if the pass percentage is used to rank) and hit 11 (re-sweep if default-on status is decided by software from finding counts).
+
+## Addendum: the 0.10 line (2026-10-26, 0.10.0 @ 2d5f055)
+
+Version line covered by this addendum: **0.10** (0.10.0 is `main` at `2d5f055`, which is 0.9.53, plus this release PR: the version number, the changelog and this addendum). The sweep above was made at 0.9.46 (`0ad0026`); five changes have merged since, read from `git log 0ad0026..2d5f055` and `git diff --stat 0ad0026..2d5f055 -- src`:
+
+| Change | Mechanism | New capability family? | Sweep result |
+|---|---|---|---|
+| `SEC-009` run by checkov (0.9.51, `src/module/delegate/checkov.rs`, `tools.lock`) | The delegated-tool framework of idea 5, applied to one more tool: a pinned, hash-verified standalone download; the same scrubbed child-process run; the tool's JSON mapped to findings by a fixed list of 37 check ids; a `checkov:skip` comment not honoured and flagged (idea 9); a report with parse errors makes a clean result a gap (the "not judged is not clean" rule of idea 5). | No: ideas 5 and 9 again; a mapping table and a different tool's output, no new mechanism. | Hits 1 to 14 stand. Hit 5 (US20210200834A1) is about choosing tool images by a property of the cloned files; the CLI still names the tool by rule from a lock, so nothing changes (ROADMAP H9 keeps the hosted design to its rule). |
+| `patent-sweep-record` rule (0.9.53, `src/module/neutral/patent_sweep.rs`) | A file-presence and shape check: the record exists, names the manifest's version line, has ideas, queries and hits headings, no `unread` verdict. | No: the same family as `version-and-changelog` (idea 12): a text rule over tracked files. | No new patent area; the record's own checks are plain text matching. |
+| `version-and-changelog` accepts a list item (0.9.48) | A wider text matcher for a changelog entry. | No: idea 12. | Hits stand. |
+| Decision-285 documents, `ROADMAP.md`, `Cargo.lock` zip 9.1.1 | Documentation and a dependency bump. | No. | None. |
+| The record itself (0.9.52) | Documentation. | No. | None. |
+
+The 0.10.0 release therefore adds no capability family, and the ideas, queries, hits and limitations above are unchanged. **Not covered by this addendum:** the result cache (keyed on the committed tree) and `--scope`, which are built after 0.10.0 and get their own addenda before they are released; the hosted service, which is unbuilt and held to ROADMAP H9.
 
 ## Limitations
 
