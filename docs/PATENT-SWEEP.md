@@ -121,6 +121,23 @@ Hits (independent claims read in full through `patent-claims.py`):
 
 **Hit 15 as read by the PM (2026-10-26; claims 1, 5 and 13 from the USPTO PDF; specification, priority and expiry unread).** Claim 1 needs a hash of a code snippet and a second, similar snippet; claims 5 and 13 need a hash of a "portion" of the source code. The cache keys on the whole committed tree plus toolchain and options, locally: a whole tree is arguably a "portion", so it is **not clearly outside claims 5 and 13**. This is a residual risk, not a clearance, and it is on the decisions board before 0.10.2 is published. **Design rules for the result cache, fixed by this reading:** (1) the key stays the whole committed tree plus toolchain plus options; (2) **no per-file, per-snippet or per-function hash keys**; (3) **no reuse of a prior result for a partly changed tree** (no partial or "similar" matches); (4) no shared or remote store (also hit 16). Any change to these rules needs a new sweep. The command-line tool and every other mechanism are unaffected.
 
+## Addendum: `--scope` (0.10.3, 2026-10-26)
+
+Version line covered by this addendum: **0.10**. `--scope FILE` (`run_scoped` in `src/cli.rs`) is swept before release, though it is a small mechanism.
+
+**Idea 18 (`--scope`).** Run one command over each repository a list file names (one path per line, comments and blank lines ignored, relative paths read from the list's directory), each repository analysed on its own under its own configuration; print a marker before each repository's output and a closing count; a repository that cannot be read is reported and the others still run; the exit code is the worst of them.
+
+| # | Idea | Query (2026-10-26, Google Patents through a web search restricted to `patents.google.com`) |
+|---|---|---|
+| Q29 | 18 | run code analysis over a list of repositories from a configuration file, aggregate results per repository and exit status |
+
+| # | Patent | Title | Assignee | Status (Google Patents) | Claim(s) read | Overlap | Our difference | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| 20 | US8806441B2 | Static code analysis | IBM | Expired, est. 2032-08 | 1 | Runs analysis from a request and merges tool outputs. | Expired. Claim 1 routes a request to a set of tools chosen by their capability for the categories requested, merges their outputs through tool-agnostic abstractions, performs a deep analysis on categories with many false positives, and reconfigures the tools from user feedback; `--scope` does none of this: it repeats the same command over a list. | clear |
+| 5 (again) | US20210200834A1 | Asynchronous static analysis system for a collaborative software development environment | Atlassian | see hit 5 | 1 | The result-list in Q29 describes running tools over every repository of an organization; claim 1 is the clone, choose-image-by-file-property and store flow. | `--scope` clones nothing, chooses no image and stores no result in a database: it runs the local command per directory. Hit 5's design rule (ROADMAP H9) is unchanged. | design-around (as hit 5) |
+
+Results listed by the search but whose claims were not read (for example WO2015085261A1, US8843882B1 on repository metrics) are not hits and are not cleared; the search limits above apply. A loop over a list of directories is common practice in shell scripts and build tools, and no patent found claims it as such.
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.
