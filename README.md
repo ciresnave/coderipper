@@ -200,6 +200,10 @@ same repository builds without the cache and says so. An error in one member (it
 the others still run; the process exits non-zero. If the shared checkout cannot be put back to a clean state the run stops
 and says which members were not analysed.
 
+## Many repositories in one command: `--scope`
+
+`coderipper sweep --scope portfolio.list` (also `fast` and `check ID`) runs the command over every repository a file lists, instead of one `--project`. The file has one path per line; `#` starts a comment, blank lines are ignored, a relative path is read from the directory of the file, and a repeated path runs once. Each repository is analysed on its own, under its own `.coderipper.toml`, exactly as `--project` would; `--workspace` and the other options apply to each. The output is grouped: `== scope: <repository> (i of n) ==` before each (a `coderipper-scope` line with `repository`, `index` and `of` under `--message-format json`), and a closing line, `coderipper: scope: N repositories, C clean, F with findings, X could not be run` (a `coderipper-scope-summary` line in JSON, with `exit_code`). A repository that cannot be read or run is reported on stderr and counted as could-not-run; the others still run. The exit code is the worst of them (3 over 1 over 0); a list that names no repository, or cannot be read, is a usage error (2), and `--scope` cannot be combined with `--project`. Used with the result cache (below), a weekly sweep of an unchanged portfolio re-analyses only the repositories whose committed tree changed.
+
 ## Build cache
 
 The checks that compile your package build it in a throwaway checkout. Without a cache every run recompiles every

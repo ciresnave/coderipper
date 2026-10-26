@@ -136,13 +136,19 @@ impl Conf {
 }
 
 /// What the three run subcommands (`fast`, `sweep`, `check`) share.
-#[derive(clap::Args)]
+#[derive(clap::Args, Clone)]
 struct RunOpts {
     /// Project to check. Defaults to the current directory. `reachability`, `unused-return-values` and `unused-parameters`
     /// analyse the committed tree (`HEAD`) in a throwaway worktree: uncommitted changes (tracked or untracked) are not analysed by
     /// them, and the run says so when there are any; `version-consistency` and API-006 read the working tree.
     #[arg(long)]
     project: Option<PathBuf>,
+    /// Run over every repository listed in FILE instead of one project: one path per line (`#` starts a comment, blank lines are
+    /// ignored; a relative path is read from the directory of FILE). Each repository is analysed on its own, under its own
+    /// `.coderipper.toml`, exactly as `--project` would; the output is grouped by repository with a marker line before each, a
+    /// repository that cannot be read is reported and the others still run, and the exit code is the worst of them (3 over 1 over 0).
+    #[arg(long, value_name = "FILE", conflicts_with = "project")]
+    scope: Option<PathBuf>,
     /// Check every member of the cargo workspace containing the project, not just the project.
     #[arg(long)]
     workspace: bool,
@@ -710,30 +716,9 @@ fn dispatch(
     conf: &Conf,
 ) -> anyhow::Result<u8> {
     match cli.command {
-        Command::Fast { opts } => run_and_report(
-            RunArgs {
-                opts,
-                tier: Tier::Fast,
-                only_check_id: None,
-            },
-            conf,
-        ),
-        Command::Sweep { opts } => run_and_report(
-            RunArgs {
-                opts,
-                tier: Tier::Sweep,
-                only_check_id: None,
-            },
-            conf,
-        ),
-        Command::Check { id, opts } => run_and_report(
-            RunArgs {
-                opts,
-                tier: Tier::Fast,
-                only_check_id: Some(id),
-            },
-            conf,
-        ),
+        Command::Fast { opts } => run_scoped(Tier::Fast, None, opts, conf),
+        Command::Sweep { opts } => run_scoped(Tier::Sweep, None, opts, conf),
+        Command::Check { id, opts } => run_scoped(Tier::Fast, Some(id), opts, conf),
         Command::Conformance {
             module,
             rule,
@@ -792,10 +777,127 @@ fn uncommitted_note(project: &Path) -> Option<String> {
     })
 }
 
+/// The repositories a `--scope` file lists, as paths: one per line, `#` comments and blank lines ignored, a relative path read from
+/// the directory of the file, a repeated one once. A file that lists none is a usage error (a typo must not pass for a clean run).
+fn read_scope(file: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    let text = std::fs::read_to_string(file)
+        .map_err(|e| UsageError(format!("--scope: cannot read {}: {e}", file.display())))?;
+    let base = file.parent().map(Path::to_path_buf).unwrap_or_default();
+    let mut repos: Vec<PathBuf> = Vec::new();
+    for line in text.lines() {
+        let line = line.split(" #").next().unwrap_or(line).trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let path = Path::new(line);
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            base.join(path)
+        };
+        if !repos.contains(&path) {
+            repos.push(path);
+        }
+    }
+    if repos.is_empty() {
+        return Err(UsageError(format!(
+            "--scope: {} lists no repository (one path per line)",
+            file.display()
+        ))
+        .into());
+    }
+    Ok(repos)
+}
+
+/// A run over one project (`--project`, or the current directory), or, with `--scope FILE`, over each repository the file lists.
+fn run_scoped(
+    tier: Tier,
+    only_check_id: Option<String>,
+    mut opts: RunOpts,
+    conf: &Conf,
+) -> anyhow::Result<u8> {
+    let Some(list) = opts.scope.take() else {
+        return run_and_report(
+            RunArgs {
+                opts,
+                tier,
+                only_check_id,
+            },
+            conf,
+        );
+    };
+    let repos = read_scope(&list)?;
+    let json = conf.message_format(opts.message_format) == MessageFormat::Json;
+    let total = repos.len();
+    let (mut clean, mut with_findings, mut could_not_run) = (0usize, 0usize, 0usize);
+    let mut worst = EXIT_CLEAN;
+    for (i, repo) in repos.into_iter().enumerate() {
+        let shown = crate::redact::scrub(&repo.display().to_string());
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "reason": "coderipper-scope",
+                    "repository": shown,
+                    "index": i + 1,
+                    "of": total,
+                })
+            );
+        } else {
+            println!("== scope: {shown} ({} of {total}) ==", i + 1);
+        }
+        let mut one = opts.clone();
+        one.project = Some(repo);
+        let code = match run_and_report(
+            RunArgs {
+                opts: one,
+                tier,
+                only_check_id: only_check_id.clone(),
+            },
+            conf,
+        ) {
+            Ok(code) => code,
+            // this repository could not be read or run: say so, and go on with the others
+            Err(e) => {
+                eprintln!(
+                    "coderipper: {shown}: {}",
+                    crate::redact::scrub(&format!("{e:#}"))
+                );
+                EXIT_COULD_NOT_RUN
+            }
+        };
+        match code {
+            EXIT_CLEAN => clean += 1,
+            EXIT_FINDINGS => with_findings += 1,
+            _ => could_not_run += 1,
+        }
+        worst = worst.max(code);
+    }
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "reason": "coderipper-scope-summary",
+                "repositories": total,
+                "clean": clean,
+                "with_findings": with_findings,
+                "could_not_run": could_not_run,
+                "exit_code": worst,
+            })
+        );
+    } else {
+        println!(
+            "coderipper: scope: {total} repositories, {clean} clean, {with_findings} with findings, {could_not_run} could not be run"
+        );
+    }
+    Ok(worst)
+}
+
 fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let RunArgs {
         opts:
             RunOpts {
+                scope: _,
                 project,
                 workspace,
                 portfolio_root,
