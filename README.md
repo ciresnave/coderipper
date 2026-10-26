@@ -405,12 +405,28 @@ the tracked `buf.yaml` and `buf.work.yaml` files (their directory, a v2 file's `
 project's directory. The repository cannot silence the rule: its `buf.yaml` (at the tree and at the baseline) is replaced by a configuration
 given on the command line. One finding per violation, at the file and line buf prints, with buf's rule id as the subject.
 
-### Rules waiting on a tool
+### Rule run by a tool: `SEC-009`
 
-`SEC-009` (infrastructure-as-code misconfiguration) is meant to be run by [checkov](https://github.com/bridgecrewio/checkov), which is
-a Python program with no standalone binary. **The decision (PM, 2026-10-09): CodeRipper will not require a Python installation and will
-not install checkov with `pip`.** The rule stays a reported coverage gap (`tool_unavailable_for_platform`, never a finding and never
-a failed run) until checkov ships a standalone binary or another route is justified. It is on the roadmap in that form.
+`SEC-009` (least privilege in infrastructure definitions) is run by [checkov](https://github.com/bridgecrewio/checkov) (Apache-2.0, an
+external process, never linked). CodeRipper installs the standalone single-file build that checkov's releases ship (a pinned,
+hash-verified download; no Python is needed), only with your say-so. **Which tools CodeRipper runs does not depend on the language they
+are written in** (CireSnave, 2026-10-25): a good tool is supported whatever it is written in. The 2026-10-09 decision not to
+require Python is withdrawn; checkov happens to ship a binary, and a tool that ships only as a Python package will be offered through
+an isolated, version- and hash-pinned environment, never silently and never into the system's Python (not built yet; see ROADMAP).
+
+```sh
+coderipper tools install checkov --install-tools     # once; or pass --install-tools to the run itself
+coderipper check SEC-009 --profile extended
+```
+
+It judges the project's **tracked** Terraform, Dockerfiles, and the YAML or JSON files of Kubernetes, CloudFormation, ARM, Bicep and
+Serverless definitions, offline, and runs only the checks that are this rule's wording: wildcard permissions and administrator
+grants (`*` actions, `AdministratorAccess`, privilege escalation) and elevated container privileges (privileged containers, shared
+host namespaces, added Linux capabilities, a container that runs as root). The rest of what checkov knows (encryption, logging,
+versioning, network exposure) is not reported as this rule. A wildcard grant, an administrator policy, a privileged container, a shared
+host namespace or a privilege escalation is `High`; running as root or adding a capability is `Medium`. checkov's releases have x86_64 builds for Windows, Linux and macOS only, so on an Apple-silicon Mac (or any other platform) the rule is a reported gap (`tool_unavailable_for_platform`), never a failure. A file checkov could not parse
+makes a clean result **not run**, never clean, as does a project with no infrastructure definition. The repository cannot silence the
+rule: a `#checkov:skip` comment (or the `checkov.io/skip` annotation) is not honoured, and the finding says so.
 
 ## Tools CodeRipper may install: `coderipper tools`
 
@@ -426,7 +442,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2, zizmor 1.30.1 and buf 1.73.0 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2, zizmor 1.30.1, buf 1.73.0 and checkov 3.3.30 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

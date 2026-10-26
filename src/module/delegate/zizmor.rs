@@ -88,7 +88,7 @@ fn select_inputs(listing: &str, root: &Path) -> Vec<OsString> {
 }
 
 /// `inputs` in groups whose names add up to at most [`ARGS_BUDGET`] bytes (a group has at least one).
-fn chunks(inputs: &[OsString]) -> Vec<&[OsString]> {
+pub(super) fn chunks(inputs: &[OsString]) -> Vec<&[OsString]> {
     let mut out = Vec::new();
     let (mut start, mut used) = (0, 0);
     for (i, input) in inputs.iter().enumerate() {

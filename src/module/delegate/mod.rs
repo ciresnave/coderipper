@@ -18,6 +18,7 @@
 //! The module is in process (the tool is the child), so a rule's findings belong to the result that follows them.
 
 mod buf;
+mod checkov;
 mod gitleaks;
 mod lychee;
 mod osv;
@@ -226,6 +227,11 @@ const RULES: &[Rule] = &[
         id: buf::RULE,
         tool: buf::TOOL,
         run: buf::run,
+    },
+    Rule {
+        id: checkov::RULE,
+        tool: checkov::TOOL,
+        run: checkov::run,
     },
 ];
 
