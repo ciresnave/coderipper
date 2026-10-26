@@ -79,6 +79,13 @@ scanned code is hostile.
    Sooner rather than later, please."): hosted v1 runs with DOC-010 off (it reports a gap there, which the coverage table says), and
    osv-scanner allowlisted to the OSV host only.** Nothing is built: both are service-side settings (a rule switched off, an egress
    allowlist of `api.osv.dev`), to land with face B.
+10. **One fixed runner image per job (a design rule from the patent sweep; CireSnave ruled A on decision 300, 2026-10-25).** Face B runs
+    every job in ONE fixed runner image that bundles the pinned tools. It **never adds a step that selects per-tool images from an image
+    store by a property of the submitted files** (a language, an extension), it **keeps the pinned-tarball fetch (no clone) of the
+    submitted repository**, and a job is **triggered by a user's submission only**. Why: US20210200834A1 (Atlassian) claims cloning a
+    repository, selecting from an image database the image packaging a tool for a detected property of its files, instantiating it and
+    storing the results; the PM read its claims from the USPTO page images and found the design as written not too close, with claim 9
+    broad (`docs/PATENT-SWEEP.md`, hit 5). Re-read at grant. This does not touch the command-line tool or the library.
 
 Which checks run where (read from the checks' own behaviour in `three-faces.md` §3 and the delegation framework). **`buf` and `zizmor`
 re-verified for network and plugin use on 2026-10-25, by reading the code at 0.9.41, not by running them behind a blocked network:**
