@@ -84,6 +84,7 @@ pub(crate) mod rule_id {
 }
 pub(crate) mod package;
 pub mod redact;
+pub(crate) mod result_cache;
 pub(crate) mod session;
 pub(crate) mod suppression;
 pub mod tools;

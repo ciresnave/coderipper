@@ -19,6 +19,8 @@ struct Run {
 fn run_cli(args: &[&str], envs: &[(&str, &str)]) -> Run {
     let mut cmd = Command::cargo_bin("coderipper").unwrap();
     cmd.args(args);
+    // these tests are about the build cache: a result served from the result cache would build nothing and print no cache line
+    cmd.env("CODERIPPER_RESULT_CACHE", "off");
     // about the build cache of one check, not the rules of the default profile
     if args.first() == Some(&"check") {
         cmd.args(["--profile", "classic"]);
