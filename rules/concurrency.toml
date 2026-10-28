@@ -139,9 +139,10 @@ kb_refs = []
 remediation = "Document a lock hierarchy and follow it, then back it with a deadlock detector or schedule-permutation tests; passes are evidence only, since only the explored schedules were checked."
 related = ["CON-001", "CON-002"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source (syn): a lock acquisition is X.lock(), X.read() or X.write() with no arguments whose receiver is self.field, self.a.b, self.shards[i] or a static; a guard held while another lock is acquired is an edge (a let-bound guard to the end of its block or drop, a temporary to the end of its statement); a cycle among the edges of the repository, or a lock taken while it is held, is a finding at Low confidence. Not judged: a lock reached through a local variable or a parameter, an edge made by a call, a guard moved into a function or closure, a macro body, ordering enforced by anything but the nesting, tests, benches, examples and vendored trees."
 
 [rule.applicability]
-languages = ["any"]
+languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]

@@ -22,6 +22,8 @@ mod checkov;
 mod gitleaks;
 mod lychee;
 mod osv;
+mod semver;
+mod squawk;
 mod zizmor;
 
 use std::path::{Path, PathBuf};
@@ -232,6 +234,16 @@ const RULES: &[Rule] = &[
         id: checkov::RULE,
         tool: checkov::TOOL,
         run: checkov::run,
+    },
+    Rule {
+        id: semver::RULE,
+        tool: semver::TOOL,
+        run: semver::run,
+    },
+    Rule {
+        id: squawk::RULE,
+        tool: squawk::TOOL,
+        run: squawk::run,
     },
 ];
 

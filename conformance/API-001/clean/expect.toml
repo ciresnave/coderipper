@@ -1,0 +1,1 @@
+# A clean twin expects nothing: the same crate with every public item of the baseline kept and one more added (an addition is not breaking).

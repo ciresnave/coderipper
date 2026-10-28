@@ -63,13 +63,13 @@ is flagged contested. Several checks need the project to be compiled or run, so 
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| API-001 | Breaking public changes since last release | P | no check yet (catalog record only; planned: cargo-semver-checks (Rust), griffe (Python), api-extractor (TypeScript, reports changes only)) |
+| API-001 | Breaking public changes since last release | P | built (Rust): delegated to cargo-semver-checks against the newest release tag (else the merge-base with the default branch); a missing tool, no baseline or no library is a reported gap. Python (griffe) and TypeScript (api-extractor) are not built |
 | API-002 | Public surface snapshot reviewed when changed | P | no check yet (catalog record only; planned: cargo-public-api, api-extractor, griffe dump; the review itself is human) |
 | API-003 | Version number matches kind of change | P | no check yet (catalog record only; planned: compare the bump with the API-001 result) |
 | API-004 | Deprecation notices carry full lifecycle data | P | no check yet (catalog record only; planned: parse deprecation attributes and docs) |
 | API-005 | Serialized formats tested for old and new readers | X | no check yet (catalog record only; needs the project's tests to run) |
 | API-006 | Schema changes obey evolution rules | N | built: delegated to buf (`buf breaking` against the merge-base; `--profile extended`); a missing tool is a reported gap. Other schema formats need their own tools |
-| API-007 | Database migrations safe step by step | P | no check yet (catalog record only; planned: squawk (Postgres); sequencing review needs an LLM) |
+| API-007 | Database migrations safe step by step | P | built (PostgreSQL): delegated to squawk over tracked migration files, safety rules only (its style advice is not reported); a statement it cannot parse is not judged, so a clean result beside one is a reported gap. Sequencing review across migrations needs an LLM and is not built |
 | API-008 | Public API exposes no third-party types | P | no check yet (catalog record only; planned: scan public signatures; related to ARC-006) |
 | API-009 | Extension points flagged on exported enums and structs | P | no check yet (catalog record only; planned: clippy restriction lints (Rust); no equivalent in TypeScript) |
 | API-010 | Doc samples build and execute | X | no check yet (catalog record only; needs the project's tests to run) |

@@ -87,7 +87,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.10", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.11", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run
@@ -287,6 +287,7 @@ them; `--profile classic` does not. `coderipper check SUP-001 --profile extended
 | `dependency-freshness` | a package in `Cargo.lock` with a newer version on the registry (network; sweep tier): a newer compatible version, or a release a manifest requirement excludes, from `cargo update --dry-run --verbose`; Medium for a dependency a workspace member declares, Low for a transitive one, waived by `[[allow]]` (`file = "Cargo.lock"`, `symbol` = package). Cargo only; other ecosystems' lockfiles are not read |
 | `ci-security` | a workflow file that gives a pull request from outside more than it should (advisory in `--profile portfolio`; meant for public repositories): a `pull_request`/`pull_request_target` job that reads a secret other than `GITHUB_TOKEN` (also `secrets: inherit`, or a top-level `env` secret) High; a `pull_request_target` job that checks out the pull request head High; a job on a self-hosted or custom-labelled runner that mentions no GPU/CUDA/Vulkan/ROCm/OpenCL Medium; a self-hosted job under `pull_request`/`pull_request_target` without the same-repo `if:` (`github.event.pull_request.head.repo.full_name == github.repository`) High, or with it but no `environment:` Medium (waive on a private Free-plan repository); a `pull_request` trigger whose `branches:` filter names neither main nor master (or whose `branches-ignore:` names one) Medium; a workflow with no top-level `permissions:` Low. Not judged: visibility, the forge's approval setting, expression-chosen runners, secrets inside composite actions |
 | `version-and-changelog` | on a branch (a run with a base: the merge-base of `HEAD` with `origin/HEAD`, `origin/main` or `origin/master`; needs the history, so `fetch-depth: 0` in CI): the root `Cargo.toml` or `package.json` version is the one the base had, or a version that changed has no entry in the root `CHANGELOG*` (a heading or leading line, a list item included, naming it as a whole token: `0.8.1` is not an entry for `0.8.12`), both Medium and advisory in `--profile portfolio`. A coverage gap on the default branch, with no origin branch, or in a shallow clone. Not judged: the `version-deferred` label, manifests below the root, `pyproject.toml`, what an entry says |
+| `CON-006` | Rust, from the source (`syn`): a lock is named by the path that reaches it (`self.field`, `self.a.b`, `self.shards[i]`, a `static`), and a guard held while another lock is acquired is an edge (a `let`-bound guard to the end of its block or `drop`, a temporary to the end of its statement; a plain `if` condition ends before the body, an `if let` scrutinee and a `match` scrutinee live through it). A **cycle** among the edges of the repository (`a -> b` in one function, `b -> a` in another) and a lock taken while it is already held are reported at **High** severity and **Low** confidence: a possible deadlock, read from direct nesting only. Not seen: a lock reached through a local variable or a parameter, an edge made by a call, a guard moved into a function or closure, macros, tests, benches and examples. A pass is evidence about the nesting `syn` can see, no more. |
 | `patent-sweep-record` | a repository whose root `Cargo.toml` (or `package.json`) declares a version that could be published (not `publish = false`, not `"private": true`) and that tracks no `docs/PATENT-SWEEP.md`, or whose record is not a sweep (no heading for ideas, queries and hits: **a file that exists is not a sweep**), has a hit whose verdict is `unread` (an unread hit is not clear), or names no version in the manifest's version line (`0.9` for any `0.9.x` before 1.0, the major after). Medium; a due-diligence record, not a legal opinion (CireSnave, 2026-10-25: "Ensure a patent sweep has been done of every one of our projects before release."). A project that will never be released opts out with an `[[allow]]` entry and a reason |
 | `WSP-001` | a repository with no `CODEOWNERS` file, or one with no default (`*`) owner |
 | `conflict-marker` | a tracked text file with an unresolved merge conflict: a line starting with seven `<` and a space opens it, a line starting with seven `>` and a space closes it (a line of seven `=` counts only between them, because alone it is a Markdown heading underline). A fenced block in a Markdown file, and anything under `fixtures`, `testdata`, `conformance`, `snapshots`, `golden` or a vendored directory, is not read. **Every profile, `classic` included** |
@@ -382,6 +383,28 @@ syntax error: it skips the file and still exits 0) makes a clean result **not ru
 repository cannot silence the rule: a committed `zizmor.yml` and `# zizmor: ignore` comments are not honoured (a finding that carries such a
 comment is reported and says so).
 
+### Rule run by a tool: `API-001`
+
+`API-001` (breaking public changes since the last release) is run by [cargo-semver-checks](https://github.com/obi1kenobi/cargo-semver-checks) (MIT OR Apache-2.0, an external process, never linked), from the standalone release build the lock pins (no Rust tool needs installing besides the toolchain you already build with).
+
+```sh
+coderipper tools install cargo-semver-checks --install-tools     # once; or pass --install-tools to the run itself
+coderipper check API-001 --profile extended
+```
+
+It compares the crate (every library of the workspace when the root `Cargo.toml` has a `[workspace]` table) with a **baseline**: the newest release tag below `HEAD` (`v1.2.3` or `1.2.3`; a pre-release tag is not a release), else the merge-base of `HEAD` with `origin/HEAD`, `origin/main` or `origin/master`. It builds the public interface of both sides (so the project's build scripts and procedural macros run, and cargo may download dependencies), runs the tool's lints, and compares the verdict with your version bump: a removed function, struct, enum variant or module, a changed signature and the like, released without the major version (before 1.0, the second number), is a **High** finding at the place the item was in the baseline (a removed item has no place now, and the finding says so). The same change released as a breaking one passes. It runs in a scratch directory with `CARGO_TARGET_DIR` inside it, so nothing is written into your project. No release tag and no default branch, a project with no library target, a missing tool, a platform the lock pins no build for: a reported gap, never a pass. A report that cannot be read is an error, never "no findings".
+
+### Rule run by a tool: `API-007`
+
+`API-007` (database migrations are safe step by step) is run by [squawk](https://github.com/sbdchd/squawk) (Apache-2.0, an external process, never linked), a linter for PostgreSQL migrations, from the single-file release build the lock pins.
+
+```sh
+coderipper tools install squawk --install-tools     # once; or pass --install-tools to the run itself
+coderipper check API-007 --profile extended
+```
+
+It reads the project's **tracked** migrations (a `.sql` file below a `migrations`, `migration` or `migrate` directory, or named like a versioned migration: `V12__name.sql`, `20260101120000_name.sql`) and reports what takes a table offline or loses data while a service runs: a dropped column or table, a changed column type, a renamed column or table, a new `NOT NULL` column without a default, a foreign key or unique constraint added without `NOT VALID`, an index built without `CONCURRENTLY`, and the like. The data-losing or code-breaking ones are **High**, the locking and transaction advice **Medium**. squawk's **style advice** (no `IF NOT EXISTS`, a 32-bit integer, no lock timeout, ...) is not reported as this rule. squawk reads PostgreSQL: a statement it cannot parse is **not judged**, so a clean result beside one is a reported gap and a finding says so; a project with no migration is a gap too. Its configuration file in your repository is not read (it runs in a scratch directory with an empty configuration), **but a `-- squawk-ignore <rule>` comment in a migration is honoured by the tool and cannot be switched off**: every finding of a run that has such comments says how many there are. Suppress a finding in `.coderipper.toml`, where it is visible.
+
 ### Rule run by a tool: `API-006`
 
 `API-006` (schema changes obey evolution rules) is run by [buf](https://github.com/bufbuild/buf) (Apache-2.0, an external process, never
@@ -449,7 +472,7 @@ coderipper tools list                          # the ledger: version, licence, s
 coderipper tools install gitleaks --install-tools
 ```
 
-The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2, zizmor 1.30.1, buf 1.73.0 and checkov 3.3.30 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
+The lock pins gitleaks 8.30.1, osv-scanner 2.6.0, lychee 0.24.2, zizmor 1.30.1, buf 1.73.0, checkov 3.3.30, cargo-semver-checks 0.51.0 and squawk 2.70.0 for now (`tools list` shows them); each delegated rule adds its tool to the lock when it lands. A tool is installed from a checksummed single-file binary (or a `file://` copy, which
 is how an offline mirror works) or from a `.tar.gz` or `.zip` that holds it. For an archive the lock names the one `member` to take
 out and pins two hashes: the archive's and the member's. CodeRipper unpacks the archive itself, in memory, and refuses the **whole**
 archive (`archive_refused`) if any entry has a name that could leave the directory (`..`, an absolute path, a drive, a backslash) or is

@@ -16,6 +16,7 @@ mod doc005;
 mod doc009;
 mod licence;
 mod lint_suppression;
+mod lock_order;
 mod patent_index;
 mod patent_sweep;
 mod sup001;
@@ -103,6 +104,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "patent-sweep-record",
         judge: patent_sweep::judge,
+    },
+    Rule {
+        id: "CON-006",
+        judge: lock_order::judge,
     },
 ];
 
@@ -460,6 +465,7 @@ impl NeutralModule {
 const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-001", &["rust", "typescript"]),
     ("patent-index-match", &["rust", "typescript", "python"]),
+    ("CON-006", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -476,6 +482,7 @@ const PROVEN: &[&str] = &[
     "ci-security",
     "version-and-changelog",
     "patent-sweep-record",
+    "CON-006",
 ];
 
 impl Module for NeutralModule {
@@ -610,7 +617,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 13);
+        assert_eq!(rule_ids().len(), 14);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }

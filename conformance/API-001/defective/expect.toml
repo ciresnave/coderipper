@@ -1,0 +1,6 @@
+# The seeded defect: the baseline (the default branch) has `pub fn gone` at line 2 of src/lib.rs; this tree removes it and still says version 0.1.0.
+
+[[expect]]
+rule = "API-001"
+file = "src/lib.rs"
+line = 2

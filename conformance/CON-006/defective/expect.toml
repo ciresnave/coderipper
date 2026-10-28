@@ -1,0 +1,6 @@
+# The seeded defect: `one` takes a then b (line 11 is where b is acquired while a is held) and `two` takes b then a: two threads can each hold one and wait for the other.
+
+[[expect]]
+rule = "CON-006"
+file = "src/lib.rs"
+line = 11
