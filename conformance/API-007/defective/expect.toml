@@ -1,0 +1,6 @@
+# The seeded defect: migrations/001_drop.sql drops a table (line 2), which loses its data and breaks any running code that reads it (squawk ban-drop-table).
+
+[[expect]]
+rule = "API-007"
+file = "migrations/001_drop.sql"
+line = 2

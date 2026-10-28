@@ -1,7 +1,7 @@
 # Patent sweep: coderipper 0.9 @ 0ad0026
 
 Date: 2026-10-25; Run by: the coderipper lane, Claude Sonnet 5.5; Method: AI-assisted search and read; **NOT legal advice; NOT a freedom-to-operate opinion.**
-Version lines covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`) and **0.10** (addendum below). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
+Version lines covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`) and **0.10** and **0.11** (addenda below). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
 
 ## Ideas swept
 
@@ -137,6 +137,37 @@ Version line covered by this addendum: **0.10**. `--scope FILE` (`run_scoped` in
 | 5 (again) | US20210200834A1 | Asynchronous static analysis system for a collaborative software development environment | Atlassian | see hit 5 | 1 | The result-list in Q29 describes running tools over every repository of an organization; claim 1 is the clone, choose-image-by-file-property and store flow. | `--scope` clones nothing, chooses no image and stores no result in a database: it runs the local command per directory. Hit 5's design rule (ROADMAP H9) is unchanged. | design-around (as hit 5) |
 
 Results listed by the search but whose claims were not read (for example WO2015085261A1, US8843882B1 on repository metrics) are not hits and are not cleared; the search limits above apply. A loop over a list of directories is common practice in shell scripts and build tools, and no patent found claims it as such.
+
+## Addendum: the 0.11 line (2026-10-26, 0.11.0)
+
+Version line covered by this addendum: **0.11**. Two delegations and one native rule are added over 0.10 (decision 285 M8), read from `src/module/delegate/semver.rs`, `src/module/delegate/squawk.rs` and `src/module/neutral/lock_order.rs`:
+
+| Change | Mechanism | New capability family? | Sweep result |
+|---|---|---|---|
+| `API-001` run by cargo-semver-checks (`semver.rs`, `tools.lock`) | The delegated-tool framework of idea 5 applied to another tool: a pinned, hash-verified standalone download; a scrubbed child-process run with the tool's target directory in a scratch directory; the tool's text report parsed into findings at the place an item was in the baseline. The baseline is the newest release tag below `HEAD`, else the merge-base with the default branch (the same two ways idea 12 and the schema rule choose a baseline). | No: idea 5 again; choosing a release tag as the baseline is a git query, and comparing a crate with a git revision is what the tool does. | Hits 1 to 14 stand (hit 5 is about choosing tool images by a file property; `API-001` names its tool by rule). No new query: no new mechanism. |
+| `API-007` run by squawk (`squawk.rs`, `tools.lock`) | Idea 5 again: the tracked migration files are selected by path and name, given to the tool with its style rules excluded and an empty configuration file, and the JSON report is mapped to findings by rule; a statement the tool cannot parse makes a clean result a gap (idea 5's "not judged is not clean"); `squawk-ignore` comments are counted and said on the findings (idea 9 in the one case where the tool cannot be told to ignore them). | No. | Hits 1 to 14 stand. |
+| `CON-006` lock-order cycles (`lock_order.rs`) | **Idea 19, new:** from Rust source alone, name a lock by the path that reaches it (`self.field`, a `static`), record an edge `held -> acquired` whenever a guard is held while another lock is acquired (a `let`-bound guard to the end of its block or `drop`, a temporary to the end of its statement, an `if` condition ended before the body, an `if let` scrutinee held through it), and report a cycle of the repository's edges (and a lock taken while held) as a possible deadlock. | **Yes** (a static source analysis, not the delegated-tool framework). | Queries Q30 to Q32 and hits 21 to 26 below: none clears a claim read as reading on it; the area is heavily patented, so this is not a clearance. |
+
+**Idea 19 queries (2026-10-26, Google Patents through a web search restricted to `patents.google.com`):**
+
+| # | Idea | Query (abridged) |
+|---|---|---|
+| Q30 | 19 | static analysis detect potential deadlock by building lock acquisition order graph from source code and finding cycles |
+| Q31 | 19 | lock order inversion detection program analysis lock graph nested lock acquisition held locks edge deadlock warning |
+| Q32 | 19 | source code analysis mutex guard lifetime scope temporary until end of statement lock held while acquiring second lock report |
+
+| # | Patent | Title | Assignee | Status (Google Patents) | Claim(s) read | Overlap | Our difference | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| 21 | US8230437B2 | Methods and apparatus for detecting deadlock in multithreading programs | IBM | Expired (fee) | 1 | A resource graph whose cycles indicate deadlock, built from static analysis. | Expired. Claim 1 builds an invocation graph with a single root over the functions of the program, computes resource sets at each node and refines the resource graph by post-processing. `CON-006` builds no invocation graph and follows no call: it reads direct nesting inside one function. | clear |
+| 22 | US8763003B2 | Methods and apparatus for detecting deadlock in multithreading programs | IBM | Expired 2026-03 | 1 | Same family as hit 21; claim 1 is the invocation graph, resource graph and cycle steps without the later limitations. | Expired, and the same missing element: no invocation graph. | clear |
+| 23 | US8448175B2 | Deadlock detection in a parallel program | IBM | Expired (fee) | 1 | A lock graph and cycle detection. | Expired. Claim 1 records lock events while the program runs, adds "gate lock" events and thread-creation order relations; `CON-006` never runs the program. | clear |
+| 24 | US8661450B2 | Deadlock detection for parallel programs | IBM | Expired (fee) | 1 | A lock graph and deadlock detection. | Expired. Claim 1 deletes locks that are no longer used from a graph built from a running program's lock operations; `CON-006` is static. | clear |
+| 25 | US20070143766A1 | Deadlock detection in a computing execution environment | IBM | Abandoned | 1 | Deadlock detection. | Abandoned; claim 1 is a second thread monitoring lock attempts against a time threshold at run time. | clear |
+| 26 | US9052967B2 | Detecting resource deadlocks in multi-threaded programs by controlling scheduling in replay | VMware | Active, est. expiry 2032-04 | 1 | Identifies potential deadlocks from lock and release events. | Claim 1 records an execution in a virtual machine and replays it under a hypervisor with a changed schedule; `CON-006` records and replays nothing. | clear |
+
+The search found six patents, all IBM or VMware filings on call-graph or runtime approaches; **static lock-graph deadlock detection is a well-worked field with many filings and a large academic literature (the first search also returned papers on static deadlock analysis for C, Java bytecode and Go), so a patent this search did not surface is possible. This is a first-pass read, not a clearance.** The mechanism built reads direct nesting within a function only, which is narrower than the call-graph analyses above.
+
+The 0.11 line therefore adds no capability family beyond ideas 5, 9 and 12 **and idea 19 (swept above)**, and the ideas, queries, hits and limitations above are unchanged. **Not covered by this addendum:** the result cache and `--scope` (their own addenda, released as 0.10.2 and 0.10.3 if the board allows), and the hosted service (ROADMAP H9).
 
 ## Limitations
 

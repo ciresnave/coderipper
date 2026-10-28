@@ -73,7 +73,7 @@ guidance are available but no finding is produced.
 | CON-003 | No thread-blocking calls in async code | P | catalog record; no check yet (needs a parser and a list of blocking APIs; stall detection is runtime) |
 | CON-004 | Bounded queues, channels and spawns | P | catalog record; no check yet (needs a parser; the overflow policy lives in the specification) |
 | CON-005 | No unsupervised detached tasks | P | catalog record; no check yet (needs a parser) |
-| CON-006 | No lock-order cycles | X | catalog record; no check yet (needs execution: deadlock detectors and schedule permutation) |
+| CON-006 | No lock-order cycles | X | built (Rust, from the source): two functions that take the same locks in opposite orders by direct nesting, or a lock taken while it is held, at Low confidence; a lock reached by a call, a local variable or a parameter is not seen. Not a proof of absence: schedule permutation and deadlock detectors remain the evidence for a pass |
 | CON-007 | Deterministic release of resources | P | catalog record; no check yet (needs a parser; leak counters run in tests) |
 | CON-008 | Timeouts on externally dependent awaits | P | catalog record; no check yet (needs a parser; exceptions are declared in the specification) |
 | CON-009 | Cancellation safety is documented | L | catalog record; no check yet (needs a human decision; a model can only propose candidates) |
