@@ -178,12 +178,25 @@ The 0.11 line therefore adds no capability family beyond ideas 5, 9 and 12 **and
 - The ideas were written by the lane that owns the project, from the source at this commit; a mechanism it overlooked is not swept.
 - Re-sweep when CodeRipper adds a new family of capability (a new mechanism, not a bug fix), and at least yearly.
 
-## Addendum: the 0.12 line (2026-10-29, 0.12.0) - NOT SWEPT
+## Addendum: the 0.12 line (2026-10-29, 0.12.0)
 
-Version line covered by this addendum: **0.12**. One rule is added over 0.11, read from `src/checks/cli_basics/`: `OPS-011`.
+Version line covered by this addendum: **0.12**. One rule is added over 0.11, read from `src/checks/cli_basics/`: `OPS-011`. Swept 2026-10-29 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`; claims read serially through `patent-claims.py`).
 
-| Change | Mechanism | New capability family? | Sweep result |
-|---|---|---|---|
-| `OPS-011` CLI basics | **Idea 20, new:** build the project's binaries from the committed tree, run each over a fixed set of standard flags (`--version`, `-V`, `--help`, `-h`, an unknown flag) in a fresh temporary directory with an empty environment and a timeout, check the exit codes and output streams against a stated standard, and compare a listing of the directories the process could write to before and after. | **Yes** (running the built artifact over a fixed probe set, not static analysis, not the delegated-tool framework). | **Not swept.** No query was run and no patent read for idea 20 by this lane. The area (smoke-testing a built executable, sandboxed execution with filesystem diffing) is crowded; it is not known whether any claim reads on this. **Publishing the 0.12 line waits on the sweep (PM).** |
+**Idea 20 (`OPS-011`).** Build the project's binaries from the committed tree; run each over a fixed set of standard flags (`--version`, `-V`, `--help`, `-h`, an unknown flag) in a fresh temporary directory with an empty environment and a timeout; check the exit codes and output streams against a stated standard; and compare a listing of the directories the process could write to before and after. A new capability family (running the built artifact over a fixed probe set).
 
-Hits 1 to 26 and ideas 1 to 19 are unchanged by this addendum.
+| # | Idea | Query (2026-10-29) |
+|---|---|---|
+| Q33 | 20 | automated testing executable run in sandbox compare file system listing before and after execution detect unexpected file writes |
+| Q34 | 20 | smoke test command line program invoke with standard flags version help unknown option verify exit code and output stream |
+| Q35 | 20 | build binary from committed source tree in temporary checkout execute with empty environment and timeout verify behavior of built artifact |
+
+Q35 returned no patent on point (papers on reproducible builds and one workload-integrity application, WO2026080403A1, whose claims were not read: it is not a hit and is not cleared).
+
+| # | Patent | Title | Assignee | Status (Google Patents) | Claim(s) read | Overlap | Our difference | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| 27 | US8145988B2 | Command line testing | IBM | Expired, est. 2031-01 | 1, 8 and 15 (all independent) | Tests an application's command-line output. | Expired. Each independent claim compares two tables of named columns (expected output against a description of it) and alerts on a column difference; `OPS-011` has no tables, no columns and no stored expected output, only a fixed standard for five flags. | clear |
+| 28 | US6434738B1 | System and method for testing computer software | an individual | Expired | 1, 6, 7 and 13 (all independent) | Compiles then runs a program and compares its exit code and output (dependent claims 3, 10, 15). | Expired. Every independent claim receives a program code fragment and forms a concatenated program by prepending or appending code blocks before compiling; `OPS-011` builds the whole committed package and receives no fragment. | clear |
+| 29 | US20160156658A1 | Method and system for automatic detection and analysis of malware | Verisign | Active, est. expiry 2031-09 (application; grant status not checked) | 1 and 10 (both independent) | Baseline before, execute a file, state after, compare: the same shape as our directory listing before and after. | Claims 1 and 10 require a memory baseline of volatile and non-volatile memory, changed processes with timestamps, rootkit-concealment behaviours, a determination that the file is malicious and a timeline of the malware's activities. `OPS-011` reads no memory or process state, judges no maliciousness and builds no timeline; it lists the files of one empty directory tree. | clear |
+| 30 | US9239922B1 | Document exploit detection using baseline comparison | Trend Micro | Active | 1, 10, 20 and 27 (all independent) | Records behaviours (file system among them) of running code and compares with a baseline. | Every independent claim opens a document file in an application and compares a recorded behaviour pattern with a pattern file from a known-malicious or known-benign document, with weights in claims 10 and 20. `OPS-011` opens no document, keeps no pattern file and weighs nothing. | clear |
+
+Results listed but whose claims were not read (US20200004962A1, an overlay-filesystem forensics application; US10043001B2; CN104200161A; US7010782B2; US8037360B2; EP1179776A1; WO2026080403A1) are not hits and are not cleared. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing; the sandboxed-execution-with-filesystem-diff area is crowded (malware analysis in particular), so a claim this search did not surface may read on it. **Result: no hit read as reading on `OPS-011`; this is not a clearance.** The 0.12 line adds no other mechanism: hits 1 to 30 and ideas 1 to 19 are unchanged. **Watch:** re-sweep if `OPS-011` or a follow-up (M15, M16) starts to judge a binary malicious, keep a stored expected-output table, or record a process or memory baseline.
