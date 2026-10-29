@@ -36,6 +36,50 @@ pub(crate) struct SkipMemberEntry {
     pub needs: Option<String>,
 }
 
+/// The probes of `OPS-011` a `[[cli_waiver]]` entry may name: the four standard flags as typed, and `unknown-flag` for the bad-flag probe.
+pub(crate) const CLI_PROBE_NAMES: [&str; 5] = ["--version", "-V", "--help", "-h", "unknown-flag"];
+
+/// `[[cli_waiver]]`: `OPS-011` does not hold the binary `bin` to the probes named in `probes` (a subset of [`CLI_PROBE_NAMES`]),
+/// because its documented contract differs (for example a usage error that exits 1). `bin`, `probes` and a non-blank `reason` are
+/// required; the waived probe is still reported, as `waived: <reason>`. The other probes of the binary are still judged.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CliWaiver {
+    pub bin: String,
+    pub probes: Vec<String>,
+    pub reason: String,
+}
+
+impl CliWaiver {
+    /// A waiver without a reason, without a probe, or naming a probe that does not exist is a configuration error, never a silent no-op.
+    fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !self.reason.trim().is_empty(),
+            "`[[cli_waiver]]` for `{}` has an empty `reason`: every waiver says why",
+            self.bin
+        );
+        anyhow::ensure!(
+            !self.bin.trim().is_empty(),
+            "`[[cli_waiver]]` has an empty `bin`"
+        );
+        anyhow::ensure!(
+            !self.probes.is_empty(),
+            "`[[cli_waiver]]` for `{}` names no probe (one or more of {})",
+            self.bin,
+            CLI_PROBE_NAMES.join(", ")
+        );
+        for p in &self.probes {
+            anyhow::ensure!(
+                CLI_PROBE_NAMES.contains(&p.as_str()),
+                "`[[cli_waiver]]` for `{}` names an unknown probe `{p}` (one of {})",
+                self.bin,
+                CLI_PROBE_NAMES.join(", ")
+            );
+        }
+        Ok(())
+    }
+}
+
 /// `[[allow]]`: a waiver. Since 0.5.0 a finding fails the run unless an entry names it; a waived finding is still printed, with
 /// `reason`. `check`, `file` and `reason` are required. `symbol` narrows the waiver to the finding about that one symbol, and
 /// `lines` (`"12"` or `"10-20"`, inclusive) to findings reported at those lines; omit both to waive every finding of `check` in
@@ -247,6 +291,7 @@ pub struct Allowlist {
     entries: Vec<AllowEntry>,
     tracks: Vec<TrackEntry>,
     skip_members: Vec<SkipMemberEntry>,
+    cli_waivers: Vec<CliWaiver>,
     buf_baseline: Option<String>,
 }
 
@@ -256,6 +301,7 @@ impl Allowlist {
             entries: Vec::new(),
             tracks: Vec::new(),
             skip_members: Vec::new(),
+            cli_waivers: Vec::new(),
             buf_baseline: None,
         }
     }
@@ -266,16 +312,22 @@ impl Allowlist {
     pub fn load(project_root: &Path) -> anyhow::Result<Self> {
         let path = project_root.join(crate::config::FILE_NAME);
         let mut list = match crate::config::read_file(&path, false)? {
-            Some(file) => Self {
-                entries: file
-                    .allow
-                    .into_iter()
-                    .chain(file.reachability.iter().flat_map(|r| r.entries(None)))
-                    .collect(),
-                tracks: file.tracks,
-                skip_members: file.skip_member,
-                buf_baseline: file.buf.and_then(|b| b.baseline),
-            },
+            Some(file) => {
+                for w in &file.cli_waiver {
+                    w.validate()?;
+                }
+                Self {
+                    entries: file
+                        .allow
+                        .into_iter()
+                        .chain(file.reachability.iter().flat_map(|r| r.entries(None)))
+                        .collect(),
+                    tracks: file.tracks,
+                    skip_members: file.skip_member,
+                    cli_waivers: file.cli_waiver,
+                    buf_baseline: file.buf.and_then(|b| b.baseline),
+                }
+            }
             None => Self::empty(),
         };
         let own = std::fs::canonicalize(&path).ok();
@@ -333,6 +385,11 @@ impl Allowlist {
     /// to say, and reviewed in its pull request).
     pub(crate) fn skip_members(&self) -> &[SkipMemberEntry] {
         &self.skip_members
+    }
+
+    /// The repository's own `[[cli_waiver]]` entries (a wide file's are not read: what a binary's contract is belongs to the repository).
+    pub(crate) fn cli_waivers(&self) -> &[CliWaiver] {
+        &self.cli_waivers
     }
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {
@@ -409,6 +466,66 @@ reason = "published crate API, consumed outside this portfolio"
             .expect("must fail")
             .to_string();
         assert!(err.contains("allows"), "{err}");
+    }
+
+    fn load_waiver(body: &str) -> anyhow::Result<Allowlist> {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            format!(
+                "[[cli_waiver]]
+{body}"
+            ),
+        )
+        .unwrap();
+        Allowlist::load(tmp.path())
+    }
+
+    #[test]
+    fn a_cli_waiver_loads_with_bin_probes_and_reason() {
+        let al = load_waiver(
+            "bin = \"lane-restart\"
+probes = [\"unknown-flag\", \"-h\"]
+reason = \"usage error exits 1\"
+",
+        )
+        .unwrap();
+        assert_eq!(al.cli_waivers().len(), 1);
+        assert_eq!(al.cli_waivers()[0].bin, "lane-restart");
+        assert_eq!(al.cli_waivers()[0].probes, ["unknown-flag", "-h"]);
+    }
+
+    #[test]
+    fn a_cli_waiver_without_a_reason_is_a_config_error() {
+        let err = load_waiver(
+            "bin = \"x\"
+probes = [\"-h\"]
+",
+        )
+        .err()
+        .expect("a missing reason must fail")
+        .to_string();
+        assert!(err.contains("reason"), "{err}");
+    }
+
+    #[test]
+    fn a_cli_waiver_with_a_blank_reason_no_probe_or_a_made_up_probe_is_a_config_error() {
+        for body in [
+            "bin = \"x\"
+probes = [\"-h\"]
+reason = \"  \"
+",
+            "bin = \"x\"
+probes = []
+reason = \"r\"
+",
+            "bin = \"x\"
+probes = [\"--nope\"]
+reason = \"r\"
+",
+        ] {
+            assert!(load_waiver(body).is_err(), "{body}");
+        }
     }
 
     #[test]

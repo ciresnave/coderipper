@@ -20,7 +20,7 @@
 //! that never calls it sees no wide file at all, so a library run is exactly as hermetic as before.
 
 use crate::allowlist::{
-    AllowEntry, BufSettings, ReachabilitySettings, SkipMemberEntry, TrackEntry,
+    AllowEntry, BufSettings, CliWaiver, ReachabilitySettings, SkipMemberEntry, TrackEntry,
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -33,7 +33,7 @@ pub(crate) const FILE_NAME: &str = ".coderipper.toml";
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
-    "[[allow]], [[tracks]], [[skip_member]], [buf], [reachability] and profile";
+    "[[allow]], [[tracks]], [[skip_member]], [[cli_waiver]], [buf], [reachability] and profile";
 
 /// How findings are written to stdout (`--message-format`, and the key of the same name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -98,6 +98,9 @@ pub(crate) struct ConfigFile {
     pub skip_member: Vec<SkipMemberEntry>,
     #[serde(default)]
     pub buf: Option<BufSettings>,
+    /// `[[cli_waiver]]`: probes of `OPS-011` a binary is not held to (see [`crate::allowlist::CliWaiver`]).
+    #[serde(default)]
+    pub cli_waiver: Vec<CliWaiver>,
     /// `[reachability] public_api`: declared public API (see [`crate::allowlist::PublicApiEntry`]).
     #[serde(default)]
     pub reachability: Option<ReachabilitySettings>,
