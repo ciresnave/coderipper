@@ -52,7 +52,7 @@ should stay small enough for the metrics backend to store cheaply.
 
 ## Where it is checked
 
-No rule in this domain is run by the current release; every row below is a catalog record only.
+One rule in this domain is run by the current release (OPS-011, Rust binaries only); every other row below is a catalog record only.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
@@ -66,6 +66,7 @@ No rule in this domain is run by the current release; every row below is a catal
 | OPS-008 | Liveness and readiness endpoints exist | P | catalog record; no check yet (needs a parser and probe tests) |
 | OPS-009 | Alerts are tied to objectives and have runbooks | N | catalog record; no check yet (needs a human decision and external alert definitions) |
 | OPS-010 | Build and version information is exposed | N | catalog record; no check yet (needs inspection of build scripts) |
+| OPS-011 | A binary answers --version, --help and a bad flag, and does nothing else | N | built in (Rust, `cli-basics` in `src/checks/cli_basics`): builds the package's binaries from the committed tree and runs the five probes in an empty directory with an empty environment |
 
 ## Further reading
 

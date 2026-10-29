@@ -764,6 +764,15 @@ fn run_checks_over_in(
     run_checks_over_in_counted(profile, tools, checks, ctx, tier, only_check_id, units).0
 }
 
+/// The built-in checks the `classic` profile does not run unless one is named by id: its output is a contract, and these were added
+/// after it was fixed (the `extended` and `portfolio` profiles take them).
+const NOT_IN_CLASSIC: &[&str] = &["OPS-011"];
+
+/// Whether `profile` runs the built-in check `id` (a check named by id runs in any profile).
+fn in_profile(profile: Profile, id: &str, only_check_id: Option<&str>) -> bool {
+    only_check_id.is_some() || profile != Profile::Classic || !NOT_IN_CLASSIC.contains(&id)
+}
+
 /// Whether `check` is asked for by this tier and `only_check_id` (a check named by id runs at any tier).
 fn wanted_by(check: &dyn Check, tier: Tier, only_check_id: Option<&str>) -> bool {
     match only_check_id {
@@ -808,7 +817,11 @@ fn run_checks_over_in_counted(
     }
     let wanted: Vec<&str> = checks
         .iter()
-        .filter(|c| c.requires_rust_crate() && wanted_by(c.as_ref(), tier, only_check_id))
+        .filter(|c| {
+            c.requires_rust_crate()
+                && wanted_by(c.as_ref(), tier, only_check_id)
+                && in_profile(profile, c.id(), only_check_id)
+        })
         .map(|c| c.id())
         .collect();
     if wanted.is_empty() {
@@ -998,6 +1011,7 @@ fn run_selected_checks(
         // no crate at the root: the crate-reading checks are not asked of it (see `run_below_root`)
         .filter(|check| !(rootless && check.requires_rust_crate()))
         .filter(|check| wanted_by(check.as_ref(), tier, only_check_id))
+        .filter(|check| in_profile(profile, check.id(), only_check_id))
         .map(|check| check.id().to_string())
         .collect();
     let unit = match units {
@@ -1247,7 +1261,8 @@ mod tests {
                 "unused-parameters",
                 "version-consistency",
                 "ci-protection-presence",
-                "dependency-freshness"
+                "dependency-freshness",
+                "OPS-011"
             ]
         );
     }
@@ -1354,6 +1369,7 @@ mod tests {
                 ("ci-protection-presence", check::Unit::Repository),
                 // one lockfile per workspace: one finding per locked package, not per member
                 ("dependency-freshness", check::Unit::Repository),
+                ("OPS-011", check::Unit::Package),
             ]
         );
     }

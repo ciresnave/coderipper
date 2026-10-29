@@ -1,7 +1,7 @@
 # Patent sweep: coderipper 0.9 @ 0ad0026
 
 Date: 2026-10-25; Run by: the coderipper lane, Claude Sonnet 5.5; Method: AI-assisted search and read; **NOT legal advice; NOT a freedom-to-operate opinion.**
-Version lines covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`) and **0.10** and **0.11** (addenda below). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
+Version lines covered: **0.9** (swept at 0.9.46, commit `0ad0026` on `main`) and **0.10**, **0.11** and **0.12** (addenda below). Process: `C:\Projects\PATENT-SWEEP-PROCESS.md`. This is CodeRipper's own sweep of its own ideas; it is not `patent-index-match` (which compares a project's dependencies with an index) and does not replace it.
 
 ## Ideas swept
 
@@ -177,3 +177,13 @@ The 0.11 line therefore adds no capability family beyond ideas 5, 9 and 12 **and
 - Several ideas (the rewritten-visibility reachability check, the mtime-restoring session checkout, the entire-archive refusal, absence claims that carry their search, conformance-earned coverage) returned no on-point patent in any query; that is an observation about these searches, not a clearance.
 - The ideas were written by the lane that owns the project, from the source at this commit; a mechanism it overlooked is not swept.
 - Re-sweep when CodeRipper adds a new family of capability (a new mechanism, not a bug fix), and at least yearly.
+
+## Addendum: the 0.12 line (2026-10-29, 0.12.0) - NOT SWEPT
+
+Version line covered by this addendum: **0.12**. One rule is added over 0.11, read from `src/checks/cli_basics/`: `OPS-011`.
+
+| Change | Mechanism | New capability family? | Sweep result |
+|---|---|---|---|
+| `OPS-011` CLI basics | **Idea 20, new:** build the project's binaries from the committed tree, run each over a fixed set of standard flags (`--version`, `-V`, `--help`, `-h`, an unknown flag) in a fresh temporary directory with an empty environment and a timeout, check the exit codes and output streams against a stated standard, and compare a listing of the directories the process could write to before and after. | **Yes** (running the built artifact over a fixed probe set, not static analysis, not the delegated-tool framework). | **Not swept.** No query was run and no patent read for idea 20 by this lane. The area (smoke-testing a built executable, sandboxed execution with filesystem diffing) is crowded; it is not known whether any claim reads on this. **Publishing the 0.12 line waits on the sweep (PM).** |
+
+Hits 1 to 26 and ideas 1 to 19 are unchanged by this addendum.
