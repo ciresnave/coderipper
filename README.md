@@ -156,6 +156,19 @@ owner = "fuel lane"
 
 `reason` and `owner` are required. Each run names the member, `fuel-cuda-backend: not judged (declared skip): <reason> (owner <owner>; needs `nvcc`, which is not on PATH)`, and counts it in the workspace line; it is not a failure. With `needs`, a runner that has the tool builds and judges the member. An entry that names no package of the workspace is an `allowlist` finding. Only the repository's own file is read for this key, and it hides no finding from a member that is built: a finding is waived with `[[allow]]`.
 
+## A binary whose contract differs: `[[cli_waiver]]`
+
+`OPS-011` holds every binary to the standard flags. A binary whose documented contract differs (a usage error that exits 1, because exit 2 means something else) waives the probes it cannot meet, in the repository's own `.coderipper.toml`; the other probes are still judged:
+
+```toml
+[[cli_waiver]]
+bin = "lane-restart"              # the binary's name
+probes = ["unknown-flag"]         # any of "--version", "-V", "--help", "-h", "unknown-flag"
+reason = "usage error exits 1; exit 2 means awaiting confirmation (documented contract)"
+```
+
+`bin`, `probes` and a non-blank `reason` are required; an entry without a reason, with no probe or with an unknown probe name is a configuration error. Each run prints the waived probe as a note, `waived: `lane-restart --coderipper-no-such-flag` (...): <reason>`; a waiver whose probe passed, or whose binary was not built, is noted as stale. Only the repository's own file is read for this key.
+
 ## CI and branch protection
 
 `coderipper check ci-protection-presence` reads GitHub's branch-protection settings for the repository `origin`

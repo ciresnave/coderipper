@@ -20,7 +20,8 @@
 //! - Only what the binary does under the sandbox is seen. A write outside it (its own directory, an absolute path, `/var`) or a
 //!   network call is not; a daemon the binary forks and leaves running past the kill is not waited for.
 //! - A binary that needs a terminal from its first line, or an argument before it will parse flags, fails here: record that in the
-//!   project's allowlist with the reason (subject = the binary's name).
+//!   project's `.coderipper.toml` as a `[[cli_waiver]]` (`bin`, `probes`, a required `reason`): the waived probe is printed as
+//!   `waived: <reason>` and the binary's other probes are still judged.
 //! - A `[[bin]]` whose `required-features` are off is not built and so not run (cargo reports no executable for it); the
 //!   `--features` this run was given are passed to the build.
 //! - The probes run the project's own build output on the machine running CodeRipper: this is the one check that executes the
@@ -29,6 +30,7 @@
 
 mod probe;
 
+use crate::allowlist::{Allowlist, CliWaiver};
 use crate::cargo_json::build_bins;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
@@ -88,9 +90,36 @@ impl Check for CliBasicsCheck {
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
+        let allowlist = Allowlist::load(&ctx.project_root)?;
         let mut findings = Vec::new();
+        let mut notes = Vec::new();
+        for waiver in allowlist.cli_waivers() {
+            if !build.executables.iter().any(|b| b.name == waiver.bin) {
+                notes.push(format!(
+                    "`[[cli_waiver]]` names `{}`, which is no binary this run built; it waives nothing",
+                    waiver.bin
+                ));
+            }
+        }
         for bin in &build.executables {
-            let violations = probe::probe_all(&bin.path, &package.version, probe::TIMEOUT);
+            let all = probe::probe_all(&bin.path, &package.version, probe::TIMEOUT);
+            let (violations, waived) = split_waived(all, &bin.name, allowlist.cli_waivers());
+            for (v, reason) in &waived {
+                notes.push(format!(
+                    "waived: `{} {}` ({}): {reason}",
+                    bin.name, v.args, v.problem
+                ));
+            }
+            for waiver in allowlist.cli_waivers().iter().filter(|w| w.bin == bin.name) {
+                for name in &waiver.probes {
+                    if !waived.iter().any(|(v, _)| probe_name(&v.args) == name) {
+                        notes.push(format!(
+                            "`[[cli_waiver]]` for `{}` waives probe `{name}`, which passed: the waiver is stale",
+                            bin.name
+                        ));
+                    }
+                }
+            }
             if violations.is_empty() {
                 continue;
             }
@@ -125,8 +154,37 @@ impl Check for CliBasicsCheck {
             );
         }
         findings.sort_by(|a, b| a.subject.cmp(&b.subject));
-        Ok((findings, Vec::new()))
+        Ok((findings, notes))
     }
+}
+
+/// The name a `[[cli_waiver]]` gives a probe: the flag as typed, or `unknown-flag` for the bad-flag probe.
+fn probe_name(args: &str) -> &str {
+    if args == probe::UNKNOWN_FLAG {
+        "unknown-flag"
+    } else {
+        args
+    }
+}
+
+/// `violations` split into those that still count and those a `[[cli_waiver]]` for `bin` waives, each with its reason.
+fn split_waived<'a>(
+    violations: Vec<probe::Violation>,
+    bin: &str,
+    waivers: &'a [CliWaiver],
+) -> (Vec<probe::Violation>, Vec<(probe::Violation, &'a str)>) {
+    let mut kept = Vec::new();
+    let mut waived = Vec::new();
+    for v in violations {
+        let waiver = waivers
+            .iter()
+            .find(|w| w.bin == bin && w.probes.iter().any(|p| p == probe_name(&v.args)));
+        match waiver {
+            Some(w) => waived.push((v, w.reason.as_str())),
+            None => kept.push(v),
+        }
+    }
+    (kept, waived)
 }
 
 /// `src` (an absolute path cargo printed) relative to the package directory `root`, forward slashes; `src` as given when it is
@@ -139,4 +197,45 @@ fn relative_to(root: &Path, src: &str) -> String {
         .strip_prefix(&root)
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|_| src.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn violation(args: &str) -> probe::Violation {
+        probe::Violation {
+            args: args.to_string(),
+            problem: "exit 1, want 2".to_string(),
+            hung: false,
+        }
+    }
+
+    fn waiver(bin: &str, probes: &[&str]) -> CliWaiver {
+        CliWaiver {
+            bin: bin.to_string(),
+            probes: probes.iter().map(|p| p.to_string()).collect(),
+            reason: "usage error exits 1 by contract".to_string(),
+        }
+    }
+
+    #[test]
+    fn a_waived_probe_is_set_aside_with_its_reason_and_the_others_still_count() {
+        let all = vec![violation("--version"), violation(probe::UNKNOWN_FLAG)];
+        let waivers = [waiver("lane-restart", &["unknown-flag"])];
+        let (kept, waived) = split_waived(all, "lane-restart", &waivers);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].args, "--version");
+        assert_eq!(waived.len(), 1);
+        assert_eq!(waived[0].0.args, probe::UNKNOWN_FLAG);
+        assert_eq!(waived[0].1, "usage error exits 1 by contract");
+    }
+
+    #[test]
+    fn a_waiver_for_another_binary_waives_nothing() {
+        let waivers = [waiver("other", &["--version"])];
+        let (kept, waived) = split_waived(vec![violation("--version")], "lane-restart", &waivers);
+        assert_eq!(kept.len(), 1);
+        assert!(waived.is_empty());
+    }
 }

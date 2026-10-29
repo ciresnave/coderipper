@@ -39,8 +39,11 @@ const PROBES: [(&[&str], Expect); 5] = [
     (&["-V"], Expect::Version),
     (&["--help"], Expect::Help),
     (&["-h"], Expect::Help),
-    (&["--coderipper-no-such-flag"], Expect::Refusal),
+    (&[UNKNOWN_FLAG], Expect::Refusal),
 ];
+
+/// The unknown flag the bad-flag probe passes.
+pub(super) const UNKNOWN_FLAG: &str = "--coderipper-no-such-flag";
 
 /// One probe that did not behave.
 #[derive(Debug, Clone, PartialEq, Eq)]
