@@ -22,17 +22,20 @@ pub enum BuiltinCheck {
     CiProtectionPresence,
     /// `dependency-freshness`.
     DependencyFreshness,
+    /// `OPS-011`.
+    CliBasics,
 }
 
 impl BuiltinCheck {
     /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 6] = [
+    pub const ALL: [BuiltinCheck; 7] = [
         Self::Reachability,
         Self::UnusedReturnValues,
         Self::UnusedParameters,
         Self::VersionConsistency,
         Self::CiProtectionPresence,
         Self::DependencyFreshness,
+        Self::CliBasics,
     ];
 
     /// The check's stable id: what `Check::id` returns for the check this builds.
@@ -44,6 +47,7 @@ impl BuiltinCheck {
             Self::VersionConsistency => crate::rule_id::VERSION_CONSISTENCY,
             Self::CiProtectionPresence => crate::rule_id::CI_PROTECTION_PRESENCE,
             Self::DependencyFreshness => crate::rule_id::DEPENDENCY_FRESHNESS,
+            Self::CliBasics => crate::rule_id::OPS_011,
         }
     }
 
@@ -60,7 +64,8 @@ impl BuiltinCheck {
             Self::Reachability
             | Self::UnusedParameters
             | Self::UnusedReturnValues
-            | Self::VersionConsistency => true,
+            | Self::VersionConsistency
+            | Self::CliBasics => true,
             Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
@@ -74,6 +79,7 @@ impl BuiltinCheck {
             Self::VersionConsistency => Box::new(checks::VersionConsistencyCheck::new()),
             Self::CiProtectionPresence => Box::new(checks::CiProtectionPresenceCheck::new()),
             Self::DependencyFreshness => Box::new(checks::DependencyFreshnessCheck::new()),
+            Self::CliBasics => Box::new(checks::CliBasicsCheck::new()),
         }
     }
 }
@@ -96,6 +102,6 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 6);
+        assert_eq!(all.len(), 7);
     }
 }

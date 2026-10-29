@@ -230,3 +230,26 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-011"
+title = "A binary answers --version, --help and a bad flag, and does nothing else"
+domain = "OPS"
+statement = "Every binary prints its name and crate version for --version and -V, prints usage for --help and -h, and exits 0 on those; an unknown flag prints a short error and exits 2. None of the five starts work: no home or configuration lookup, no file or directory created, no server or daemon started, no hang."
+rationale = "The first thing anyone runs is `tool --version`; a binary that starts its daemon, reads a store or panics instead of answering makes the tool look broken before it is used."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = true
+default_severity = "low"
+confidence_class = "high"
+kb_refs = []
+remediation = "Handle the standard flags before anything else in `main` (a derive-based parser such as clap does so by default) and make an unknown flag exit 2 with a one-line error. An allowlist entry with a reason covers a binary that cannot answer (one that needs a terminal from its first line)."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]

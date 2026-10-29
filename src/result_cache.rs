@@ -39,8 +39,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The checks whose result is a function of the committed tree (see the module documentation).
-pub(crate) const CACHEABLE: &[&str] =
-    &["reachability", "unused-return-values", "unused-parameters"];
+pub(crate) const CACHEABLE: &[&str] = &[
+    "reachability",
+    "unused-return-values",
+    "unused-parameters",
+    "OPS-011",
+];
 
 /// How many entries are kept before the oldest are dropped.
 const MAX_ENTRIES: usize = 4000;

@@ -53,6 +53,8 @@ pub(crate) struct BuildOutput {
     /// and the path cargo printed (absolute). A target that is not in here was not built (e.g. a bin whose
     /// `required-features` are not enabled): nothing in it was compiled, so nothing in it can have been reported.
     pub built_roots: Vec<String>,
+    /// The executable of every binary target of THIS package that cargo built (`cargo build`; empty after a `cargo check`).
+    pub executables: Vec<Executable>,
     /// Every compilation unit this build reported, fresh or compiled (tests only: nothing in production reads it).
     #[cfg(test)]
     pub units: Vec<UnitReport>,
@@ -60,6 +62,16 @@ pub(crate) struct BuildOutput {
     /// process-global stats, which parallel tests share).
     #[cfg(test)]
     pub cache_note: Option<String>,
+}
+
+/// A binary target cargo built: its name and the file it wrote.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Executable {
+    /// The target's name (`[[bin]] name`, or the package name for `src/main.rs`).
+    pub name: String,
+    /// The target's root source file as cargo printed it (absolute, forward slashes).
+    pub src_path: String,
+    pub path: PathBuf,
 }
 
 /// One `compiler-artifact` line of cargo's JSON stream. A lib and its test-mode unit share package id, target name
@@ -289,6 +301,8 @@ struct CargoMessage {
     /// On `compiler-artifact` lines: true when cargo reused the unit instead of compiling it.
     fresh: Option<bool>,
     target: Option<RawTarget>,
+    /// On `compiler-artifact` lines of a binary: the file cargo wrote.
+    executable: Option<String>,
     #[cfg(test)]
     profile: Option<RawProfile>,
     message: Option<RawDiagnostic>,
@@ -296,9 +310,7 @@ struct CargoMessage {
 
 #[derive(Deserialize)]
 struct RawTarget {
-    #[cfg(test)]
     name: String,
-    #[cfg(test)]
     kind: Vec<String>,
     #[serde(default)]
     src_path: String,
@@ -384,12 +396,22 @@ pub(crate) fn build_all_targets(
     features: &crate::check::CargoFeatures,
 ) -> anyhow::Result<BuildOutput> {
     build_with(
+        "check",
         root,
         cache_source,
         "--all-targets",
         extra_rustflags,
         features,
     )
+}
+
+/// `cargo build` of the package's binaries (the only build here that writes executables). `executables` names each one.
+pub(crate) fn build_bins(
+    root: &Path,
+    cache_source: Option<&Path>,
+    features: &crate::check::CargoFeatures,
+) -> anyhow::Result<BuildOutput> {
+    build_with("build", root, cache_source, "--bins", "", features)
 }
 
 /// Like [`build_all_targets`] but only the library target: bins, tests, examples and benches are not
@@ -400,12 +422,20 @@ pub(crate) fn build_lib_only(
     extra_rustflags: &str,
     features: &crate::check::CargoFeatures,
 ) -> anyhow::Result<BuildOutput> {
-    build_with(root, cache_source, "--lib", extra_rustflags, features)
+    build_with(
+        "check",
+        root,
+        cache_source,
+        "--lib",
+        extra_rustflags,
+        features,
+    )
 }
 
 /// `cache_source` is the SOURCE repository the throwaway checkout at `root` was made from: the build cache is
 /// keyed by it. `None` means "no cache, build in the checkout's own `target/`", which is what the unit tests want.
 fn build_with(
+    subcommand: &str,
     root: &Path,
     cache_source: Option<&Path>,
     target_arg: &str,
@@ -439,7 +469,7 @@ fn build_with(
     cargo
         // `-p`: build THIS package even when the workspace's `default-members` name others
         .args([
-            "check",
+            subcommand,
             "-p",
             &package.name,
             target_arg,
@@ -484,6 +514,7 @@ fn build_with(
         success: output.status.success(),
         stderr_tail,
         built_roots: built_roots(&stdout, &package.id),
+        executables: executables(&stdout, &package.id),
         #[cfg(test)]
         units: unit_reports(&stdout),
         #[cfg(test)]
@@ -504,6 +535,27 @@ fn built_roots(stdout: &str, package_id: &str) -> Vec<String> {
     roots.sort();
     roots.dedup();
     roots
+}
+
+/// The binary targets of `package_id` that cargo wrote an executable for, sorted by name.
+fn executables(stdout: &str, package_id: &str) -> Vec<Executable> {
+    let mut found: Vec<Executable> = stdout
+        .lines()
+        .filter_map(|line| serde_json::from_str::<CargoMessage>(line).ok())
+        .filter(|m| m.reason == "compiler-artifact" && m.package_id.as_deref() == Some(package_id))
+        .filter_map(|m| {
+            let target = m.target?;
+            let path = m.executable.filter(|e| !e.is_empty())?;
+            target.kind.iter().any(|k| k == "bin").then(|| Executable {
+                name: target.name,
+                src_path: target.src_path.replace('\\', "/"),
+                path: PathBuf::from(path),
+            })
+        })
+        .collect();
+    found.sort_by(|a, b| a.name.cmp(&b.name));
+    found.dedup();
+    found
 }
 
 /// Every `compiler-artifact` line as a [`UnitReport`].
@@ -875,6 +927,7 @@ fn main() { unsafe { coderipper_undefined_native_symbol() } }
             stderr_tail: String::new(),
             units: vec![],
             built_roots: vec![],
+            executables: vec![],
             cache_note: None,
         };
         assert!(out.is_broken());
@@ -884,6 +937,7 @@ fn main() { unsafe { coderipper_undefined_native_symbol() } }
             stderr_tail: String::new(),
             units: vec![],
             built_roots: vec![],
+            executables: vec![],
             cache_note: None,
         };
         assert!(!ok.is_broken());
@@ -985,6 +1039,7 @@ fn main() { unsafe { coderipper_undefined_native_symbol() } }
             stderr_tail: String::new(),
             units: vec![],
             built_roots: vec![],
+            executables: vec![],
             cache_note: None,
         };
         let cause = out.failure_cause();

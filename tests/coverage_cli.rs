@@ -29,7 +29,7 @@ fn clean_project() -> tempfile::TempDir {
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
-            "// SPDX-License-Identifier: MIT\nfn main() {}\n",
+            "// SPDX-License-Identifier: MIT\nfn main() { match std::env::args().nth(1).as_deref() { Some(\"--version\" | \"-V\") => println!(\"fixture {}\", env!(\"CARGO_PKG_VERSION\")), Some(\"--help\" | \"-h\") => println!(\"usage: fixture\"), Some(_) => { eprintln!(\"error: unknown flag\"); std::process::exit(2) } None => {} } }\n",
         ),
     ])
 }
@@ -44,7 +44,7 @@ fn polyglot_project() -> tempfile::TempDir {
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
-            "// SPDX-License-Identifier: MIT\nfn main() {}\n",
+            "// SPDX-License-Identifier: MIT\nfn main() { match std::env::args().nth(1).as_deref() { Some(\"--version\" | \"-V\") => println!(\"fixture {}\", env!(\"CARGO_PKG_VERSION\")), Some(\"--help\" | \"-h\") => println!(\"usage: fixture\"), Some(_) => { eprintln!(\"error: unknown flag\"); std::process::exit(2) } None => {} } }\n",
         ),
         ("web/package.json", "{}\n"),
         (
@@ -68,7 +68,7 @@ fn project_with_a_medium_finding() -> tempfile::TempDir {
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
-            "// SPDX-License-Identifier: MIT\nfn f() -> i32 { 1 }\nfn main() { f(); }\n",
+            "// SPDX-License-Identifier: MIT\nfn f() -> i32 { 1 }\nfn main() { match std::env::args().nth(1).as_deref() { Some(\"--version\" | \"-V\") => println!(\"fixture {}\", env!(\"CARGO_PKG_VERSION\")), Some(\"--help\" | \"-h\") => println!(\"usage: fixture\"), Some(_) => { eprintln!(\"error: unknown flag\"); std::process::exit(2) } None => { f(); } } }\n",
         ),
     ])
 }
@@ -227,7 +227,7 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
     // the four proven Rust checks, the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match and licence
-    assert_eq!(rust["covered"], 18);
+    assert_eq!(rust["covered"], 19);
     // ci-protection-presence, dependency-freshness and the nine delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, API-001, API-007 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 11);
@@ -265,7 +265,7 @@ fn python_project() -> tempfile::TempDir {
         ("LICENSE", "MIT License\n"),
         (
             "src/main.rs",
-            "// SPDX-License-Identifier: MIT\nfn main() {}\n",
+            "// SPDX-License-Identifier: MIT\nfn main() { match std::env::args().nth(1).as_deref() { Some(\"--version\" | \"-V\") => println!(\"fixture {}\", env!(\"CARGO_PKG_VERSION\")), Some(\"--help\" | \"-h\") => println!(\"usage: fixture\"), Some(_) => { eprintln!(\"error: unknown flag\"); std::process::exit(2) } None => {} } }\n",
         ),
         ("py/pyproject.toml", "[project]\nname = \"p\"\n"),
         ("py/app.py", "# SPDX-License-Identifier: MIT\nprint(1)\n"),
@@ -310,7 +310,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 18, "{rust}");
+    assert_eq!(rust["covered"], 19, "{rust}");
 }
 
 #[test]
