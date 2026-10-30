@@ -215,3 +215,22 @@ fn package_judges_only_the_named_member() {
     assert_ne!(unknown.status.code(), Some(0));
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("the members are: alpha, beta"));
 }
+
+#[test]
+fn check_as_a_flag_runs_exactly_that_check() {
+    let repo = project_with_a_medium_finding();
+    as_cargo_runs_it(repo.path())
+        .args(["--check", "unused-return-values", "--deny", "medium"])
+        .assert()
+        .code(1)
+        .stdout(predicates::str::contains("(unused-return-values)"));
+    // a check that is not the one with the finding: the run is clean, so the flag really selected one check
+    as_cargo_runs_it(repo.path())
+        .args(["--check=version-consistency", "--deny", "medium"])
+        .assert()
+        .code(0);
+    as_cargo_runs_it(repo.path())
+        .args(["--sweep", "--check", "unused-return-values"])
+        .assert()
+        .code(2);
+}

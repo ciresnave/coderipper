@@ -1485,9 +1485,53 @@ pub fn run_as_cargo_subcommand(mut args: Vec<OsString>) -> ExitCode {
         )
     });
     if !names_a_subcommand {
-        args.insert(1, "fast".into());
+        match subcommand_from_flags(&mut args) {
+            Ok(subcommand) => {
+                for (offset, word) in subcommand.into_iter().enumerate() {
+                    args.insert(1 + offset, word);
+                }
+            }
+            Err(message) => {
+                eprintln!("coderipper: {message}");
+                return ExitCode::from(EXIT_USAGE);
+            }
+        }
     }
     run_named("cargo coderipper", args)
+}
+
+/// `cargo coderipper --sweep` and `cargo coderipper --check <id>` (also `--check=<id>`) as flags, the way cargo spells its
+/// own modes: removes the flag from `args` and returns the subcommand words to put first (`fast` when neither is given).
+fn subcommand_from_flags(args: &mut Vec<OsString>) -> Result<Vec<OsString>, String> {
+    let mut sweep = false;
+    let mut check: Option<OsString> = None;
+    let mut kept: Vec<OsString> = Vec::new();
+    let mut rest = std::mem::take(args).into_iter();
+    kept.extend(rest.next());
+    while let Some(arg) = rest.next() {
+        match arg.to_str() {
+            Some("--") => {
+                kept.push(arg);
+                kept.extend(rest.by_ref());
+            }
+            Some("--sweep") => sweep = true,
+            Some("--check") => match rest.next() {
+                Some(id) => check = Some(id),
+                None => return Err("--check needs a check id".to_string()),
+            },
+            Some(a) if a.starts_with("--check=") => {
+                check = Some(OsString::from(&a["--check=".len()..]))
+            }
+            _ => kept.push(arg),
+        }
+    }
+    *args = kept;
+    match (sweep, check) {
+        (true, Some(_)) => Err("--sweep and --check cannot be used together".to_string()),
+        (true, None) => Ok(vec!["sweep".into()]),
+        (false, Some(id)) => Ok(vec!["check".into(), id]),
+        (false, None) => Ok(vec!["fast".into()]),
+    }
 }
 
 /// `canonicalize` on Windows returns the verbatim form `\\?\C:\dir`, which is noise in a message and in the JSON a CI job
@@ -1549,5 +1593,60 @@ mod min_coverage_tests {
         let messages = below_the_floor(10.0, &[]);
         assert_eq!(messages.len(), 1);
         assert!(messages[0].contains("no language was reported"));
+    }
+}
+
+#[cfg(test)]
+mod cargo_flag_tests {
+    use super::subcommand_from_flags;
+    use std::ffi::OsString;
+
+    fn split(words: &[&str]) -> (Result<Vec<String>, String>, Vec<String>) {
+        let mut args: Vec<OsString> = words.iter().map(OsString::from).collect();
+        let got = subcommand_from_flags(&mut args)
+            .map(|v| v.iter().map(|w| w.to_string_lossy().into_owned()).collect());
+        (
+            got,
+            args.iter()
+                .map(|w| w.to_string_lossy().into_owned())
+                .collect(),
+        )
+    }
+
+    #[test]
+    fn the_flags_become_the_subcommand_and_leave_the_other_arguments() {
+        assert_eq!(
+            split(&["bin", "--deny", "none"]),
+            (
+                Ok(vec!["fast".into()]),
+                vec!["bin".into(), "--deny".into(), "none".into()]
+            )
+        );
+        assert_eq!(
+            split(&["bin", "--sweep", "-p", "a"]),
+            (
+                Ok(vec!["sweep".into()]),
+                vec!["bin".into(), "-p".into(), "a".into()]
+            )
+        );
+        assert_eq!(
+            split(&["bin", "--check", "reachability"]).0,
+            Ok(vec!["check".into(), "reachability".into()])
+        );
+        assert_eq!(
+            split(&["bin", "--check=reachability", "--redact"]).0,
+            Ok(vec!["check".into(), "reachability".into()])
+        );
+    }
+
+    #[test]
+    fn contradictory_or_incomplete_flags_are_usage_errors() {
+        assert!(split(&["bin", "--sweep", "--check", "x"]).0.is_err());
+        assert!(split(&["bin", "--check"]).0.is_err());
+    }
+
+    #[test]
+    fn nothing_after_a_double_dash_is_a_flag() {
+        assert_eq!(split(&["bin", "--", "--sweep"]).0, Ok(vec!["fast".into()]));
     }
 }
