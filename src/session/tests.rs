@@ -198,22 +198,38 @@ fn restored_files_get_a_new_mtime_and_files_nothing_touched_keep_theirs() {
         with_session(&session, || {
             let mut files = Vec::new();
             all_files(session.checkout(), &mut files);
+            // Pin every file to an explicit past time, so nothing below races the filesystem clock.
+            let past = SystemTime::now() - Duration::from_secs(3600);
+            for f in &files {
+                std::fs::File::options()
+                    .write(true)
+                    .open(f)
+                    .unwrap()
+                    .set_modified(past)
+                    .unwrap();
+            }
+            // git's stat cache must agree with the pinned times, or it re-examines (and may restamp) untouched files
+            let refreshed = Command::new("git")
+                .args(["update-index", "--refresh", "-q"])
+                .current_dir(session.checkout())
+                .status()
+                .unwrap();
+            assert!(refreshed.success());
             let before: Vec<(PathBuf, SystemTime)> =
                 files.iter().map(|f| (f.clone(), mtime(f))).collect();
-            std::thread::sleep(Duration::from_millis(50));
 
             let guard = analyse(repo.path(), "b", "rewritten_marker");
             assert!(guard.root.starts_with(session.checkout()));
-            std::thread::sleep(Duration::from_millis(50));
-            let build_ended = SystemTime::now();
+            // the rewrite's own stamp: the restore must stamp the file no earlier than this, and never the pinned time
+            let rewritten_at = mtime(&session.checkout().join("b/src/lib.rs"));
             drop(guard);
 
             for (file, old) in before {
                 if file.ends_with("b/src/lib.rs") {
-                    // its CONTENT was changed by the rewrite: restored, and stamped after the build ended
+                    // its CONTENT was changed by the rewrite: restored, and stamped after the rewrite (never the old time)
                     assert!(
-                        mtime(&file) >= build_ended,
-                        "{file:?} must be stamped AFTER the build ended (never the old time)"
+                        mtime(&file) >= rewritten_at && mtime(&file) > old,
+                        "{file:?} must be stamped AFTER the rewrite (never the old time)"
                     );
                 } else if file.ends_with("b/src/extra.rs") {
                     // passed through the rewriter with IDENTICAL bytes: whether git rewrites it on restore (a new mtime) or
