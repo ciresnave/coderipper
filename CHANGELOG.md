@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.15.8 - 2026-10-30 (proposed)
+
+Docs only: ROADMAP row F1 is marked built (0.15.3 to 0.15.6 all merged). No change to the binary; the number is a proposal, the PM allocates at gate.
+
 ## 0.15.6 - 2026-10-30 (proposed)
 
 **`--message-format short`** (roadmap F1, last slice): one line per finding, `file:line: severity: summary [check id]`, with the place first so an editor can jump to it (a finding with no place leads with its package). Stdout carries nothing else (no waivers, coverage or summary); errors and notes stay on stderr. Also a value for the `message-format` configuration key. `human` and `json` are unchanged.
