@@ -1,0 +1,6 @@
+# The seeded defect: line 3 starts a fixed `nano`.
+
+[[expect]]
+rule = "OPS-012"
+file = "src/main.rs"
+line = 3

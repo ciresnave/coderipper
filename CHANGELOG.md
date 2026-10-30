@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.13.0 - 2026-10-29 (proposed) - BREAKING
+
+**`OPS-012` (a command-line tool follows the platform's conventions) is built** (PM task 2026-10-29, ROADMAP M15, the static half of the OPS-011 follow-up). A Rust rule in the language-neutral module, default on in `portfolio` and `extended` (**Breaking** by the default-on rule: a project that does these gains findings), experimental in the catalog and so reported, never gating. From the source of each binary (`main.rs`, `src/bin/`; `syn`): a fixed `nano`/`vim`/`vi`/`nvim`/`emacs`/`pico`/`notepad` started in a file that never names `EDITOR` or `VISUAL`; a `.join(".name")` on the home directory in a file that never names XDG, `APPDATA`, `config_dir` or a directories crate (the advice is per platform: `%APPDATA%` on Windows, XDG on Linux only); `env::args` with two or more flags named in a package whose `Cargo.toml` names no argument parser; `-v` printing the version or `-V` setting verbosity (match arms and clap `short`). Low severity, Medium confidence. Not judged: other languages, an editor or parser named in another file, `format!`-built paths, and the declared-feature checks (M16). Patent sweep addendum: idea 21, no hit.
+
 ## 0.12.1 - 2026-10-29 (proposed)
 
 **`[[cli_waiver]]` (PM task 2026-10-29, first user agentlife's `lane-restart`):** a repository waives named `OPS-011` probes for one binary (`bin`, `probes`, a required non-blank `reason`); the run prints `waived: ... <reason>`, the other probes are still judged, an entry without a reason or with an unknown probe is a configuration error, and a stale one is noted. The rule stays default-on.

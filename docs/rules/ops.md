@@ -52,7 +52,7 @@ should stay small enough for the metrics backend to store cheaply.
 
 ## Where it is checked
 
-One rule in this domain is run by the current release (OPS-011, Rust binaries only); every other row below is a catalog record only.
+Two rules in this domain are run by the current release (OPS-011 and OPS-012, Rust binaries only); every other row below is a catalog record only.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
@@ -67,6 +67,7 @@ One rule in this domain is run by the current release (OPS-011, Rust binaries on
 | OPS-009 | Alerts are tied to objectives and have runbooks | N | catalog record; no check yet (needs a human decision and external alert definitions) |
 | OPS-010 | Build and version information is exposed | N | catalog record; no check yet (needs inspection of build scripts) |
 | OPS-011 | A binary answers --version, --help and a bad flag, and does nothing else | N | built in (Rust, `cli-basics` in `src/checks/cli_basics`): builds the package's binaries from the committed tree and runs the five probes in an empty directory with an empty environment |
+| OPS-012 | A command-line tool follows the platform's conventions | P | built in (Rust, from the source with `syn`, `src/module/neutral/ops012.rs`): a fixed editor, a home-root dotfile, a hand-rolled argument loop, `-v`/`-V` swapped; the declared-feature conventions (stdin `-`, `-y`/`-q`, `NO_COLOR`, Ctrl-C) are not checked |
 
 ## Further reading
 

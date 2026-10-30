@@ -253,3 +253,27 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["rust"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "OPS-012"
+title = "A command-line tool follows the platform's conventions"
+domain = "OPS"
+statement = "A command-line tool opens the user's editor from $VISUAL or $EDITOR rather than a fixed program, keeps its configuration where the platform puts it (not a dotfile in the home directory root), parses its arguments with a parser rather than a hand-written loop, and uses -V for the version and -v for verbosity."
+rationale = "Users bring the habits of every other tool: a fixed `nano` ignores their editor, a dotfile in the home root clutters it, a hand-rolled loop gets quoting, `--` and `--flag=value` wrong, and a swapped -v/-V surprises the one person who guessed."
+evidence_tiers = ["V2"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Read $VISUAL then $EDITOR before falling back to a fixed program; put configuration under the platform directory (XDG_CONFIG_HOME on Linux, %APPDATA% on Windows; a crate such as `dirs` or `directories` knows both); declare the arguments with clap (or another parser); make -V print the version and -v raise verbosity."
+lifecycle = "experimental"
+checked_today = "Rust binaries only, from the source (syn): a `Command::new` of nano, vim, vi, nvim, emacs, pico or notepad in a file that never mentions EDITOR or VISUAL; a `.join(\".name\")` on a home-directory path in a file that never mentions XDG, APPDATA, config_dir or a directories crate; `env::args` read in a package whose Cargo.toml names no argument-parser crate while the file names two or more flags; a `-v` or `short = 'v'` that prints the version, or a `-V` or `short = 'V'` that sets verbosity. Not judged: another language, an editor named in a different file, a path built by `format!`, a parser the check does not know, and the stdin, `-y`/`-q`, NO_COLOR and Ctrl-C conventions (declared-feature checks, ROADMAP M16)."
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
