@@ -215,6 +215,8 @@ remediation = "Add an owner and expiry to the TODO or resolve it; delete the com
 related = ["RDB-010"]
 lifecycle = "experimental"
 
+checked_today = "Tracked source files by extension (C-like, hash-comment and dash-comment families) outside fixtures, testdata, conformance, snapshots, golden and vendored directories: the comment text of each line for an upper-case TODO or FIXME with no parenthesised name, no @name and no issue reference (#123, PROJ-123) or link on its line; one Low finding per file. Not judged: commented-out code, an owner on another line, prose files, other languages."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]

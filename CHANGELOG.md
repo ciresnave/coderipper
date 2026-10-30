@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.17.0 - 2026-10-30 (proposed) - BREAKING
+
+**RDB-008 first part is built: a `TODO` or `FIXME` in a source comment names an owner or a ticket** (M13; lane pick, no config needed). A new language-neutral rule, default on in `portfolio` and `extended`, experimental in the catalog and so reported, never gating (**Breaking** by the default-on rule: a repository with a bare to-do gains a finding). Tracked source files by extension (C-like `//` and `/* */`, hash and dash comments) outside the usual fixture and vendored directories; a to-do is owned by `TODO(name)`, `@name`, an issue reference (`#123`, `PROJ-123`) or a link on its line. Low, one finding per file. Not judged: the rule's second half (commented-out code), an owner on another line, prose files. A comment marker inside a string literal is read as a comment (known false positive). **Not measured** across the portfolio yet.
+
 ## 0.16.1 - 2026-10-30 (proposed)
 
 Docs only: ROADMAP row E1 (cached symbol index) is marked deferred until E2 exists, with the reason (the C7 patent design rule). No change to the binary; the number is a proposal, the PM allocates at gate.
