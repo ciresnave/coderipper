@@ -20,6 +20,7 @@ mod lock_order;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
+mod rdb008;
 mod sup001;
 mod sup004;
 mod sup011;
@@ -118,6 +119,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "security-support-statement",
         judge: support_statement::judge,
+    },
+    Rule {
+        id: "RDB-008",
+        judge: rdb008::judge,
     },
 ];
 
@@ -496,6 +501,7 @@ const PROVEN: &[&str] = &[
     "CON-006",
     "OPS-012",
     "security-support-statement",
+    "RDB-008",
 ];
 
 impl Module for NeutralModule {
@@ -630,7 +636,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 16);
+        assert_eq!(rule_ids().len(), 17);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }

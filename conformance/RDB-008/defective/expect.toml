@@ -1,0 +1,6 @@
+# The seeded defect: the rule must report exactly this place.
+
+[[expect]]
+rule = "RDB-008"
+file = "src/main.rs"
+line = 2

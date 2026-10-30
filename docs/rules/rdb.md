@@ -101,7 +101,7 @@ ones. Both are narrower than the rule, which also asks for no unused imports or 
 | RDB-005 | Duplicated knowledge across clone groups | P | no check yet; planned: jscpd clone groups; churn weighting and semantic clones need history and an LLM |
 | RDB-006 | No dead code, unused imports or unused private items | P | no check yet beyond the legacy checks `unused-parameters` and `reachability`, which cover only part of it; planned: rustc, knip, vulture |
 | RDB-007 | Magic literals get names | P | no check yet; planned: native literal scan for Rust, ESLint and Ruff elsewhere; advisory |
-| RDB-008 | Comment hygiene: owned TODOs, no commented-out code | N | no check yet; planned: native regex for TODO owners, weaker heuristic for commented-out code |
+| RDB-008 | Comment hygiene: owned TODOs, no commented-out code | N | built (first part): native; a `TODO` or `FIXME` in a source comment with no owner (`TODO(name)`, `@name`) or ticket (`#123`, `PROJ-123`, a link) on its line, Low, one finding per file; commented-out code has no check yet (planned: weaker heuristic) |
 | RDB-009 | Names tell the truth about behaviour | L | no check yet; needs an LLM tier |
 | RDB-010 | Comments and docstrings match current behaviour | L | no check yet; needs an LLM tier (a parameter-name cross-check could be deterministic) |
 | RDB-011 | Terminology follows the project glossary | N | no check yet; planned: native glossary lookup over identifier tokens |

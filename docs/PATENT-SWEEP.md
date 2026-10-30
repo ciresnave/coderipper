@@ -217,6 +217,22 @@ Version line covered by this addendum: **0.15**. One rule is added over 0.14, re
 
 No patent on point was surfaced by Q42 to Q44. The results listed (US20240195838A1, US20210409440A1, US20140214404A1, CA2983124A1, US11868729B2, WO2008030884A2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.15 line adds no other mechanism: hits 1 to 32 and ideas 1 to 21 are unchanged. **Watch:** re-sweep if the rule starts to rewrite the policy file or to judge whether a promise was kept.
 
+## Addendum: the 0.17 line (2026-10-30, 0.17.0)
+
+Version line covered by this addendum: **0.17**. One rule is added over 0.16, read from `src/module/neutral/rdb008.rs`: `RDB-008` (first part). Swept 2026-10-30 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 23 (`RDB-008`).** Read the comments of a repository's source files by each language's comment syntax, find a `TODO` or `FIXME` that opens a comment, and report it when the comment names no owner and no ticket (a parenthesised name, an `@name`, an issue reference or a link).
+
+| # | Idea | Query (2026-10-30) |
+|---|---|---|
+| Q45 | 23 | automatically detecting unowned to-do comments in source code by checking for assignee or issue reference in comment |
+| Q46 | 23 | static analysis of code comments to identify TODO FIXME annotations lacking responsible person identifier |
+| Q47 | 23 | parsing source code comments by language comment syntax to extract task markers and link to issue tracker ticket |
+
+**Positive controls:** weak. Each query returned patents in the adjacent area (comment tracking, comment keyword scans, comment parsing), so each reaches its area; none returned a patent on checking that a to-do comment names an owner or a ticket, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q45 to Q47. The results listed (US8607193B2, US8418130B2, US9141378B2, US10241892B2, US6353925B1, US7493584B1 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. **Closest, flagged for a later read:** US11269626B2 "Quality analysis of source code" came back for all three queries; from its search snippet only, it obtains comments that contain predetermined attention words and filters them. That is a keyword scan of comments, which this rule's marker match resembles; whether any claim covers it was **not read**. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.17 line adds no other mechanism: hits 1 to 32 and ideas 1 to 22 are unchanged. **Watch:** read US11269626B2's claims before the rule grows beyond a marker match (an owner lookup, a due-date check, or a report ranked by age).
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.
