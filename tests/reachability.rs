@@ -204,7 +204,7 @@ fn a_lib_consumed_by_its_own_bin_is_analyzed_and_what_the_bin_uses_is_not_report
     // bin_root (transitive rescue). Nothing in the lib or the bin reaches the other four.
     assert_eq!(
         subjects(&findings),
-        vec!["DeadTy", "dead", "entry", "used_by_lib"]
+        vec!["api::DeadTy", "api::dead", "api::used_by_lib", "entry"]
     );
     assert!(findings.iter().all(|f| f.positive_control.is_some()));
     assert!(
@@ -383,7 +383,10 @@ pub use inner::real_name as nice;
         ("src/lib.rs", lib),
         ("src/main.rs", &bin_calls("fixture::nice()")),
     ]);
-    assert_eq!(subjects(&run_reachability(&repo).unwrap()), vec!["orphan"]);
+    assert_eq!(
+        subjects(&run_reachability(&repo).unwrap()),
+        vec!["inner::orphan"]
+    );
 }
 
 #[test]
