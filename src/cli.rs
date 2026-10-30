@@ -401,6 +401,7 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
     let mut settings = crate::config::Settings::from_layers(&layers);
     settings.apply_env_limits(&environment);
     report_wide_configuration(&layers, &settings);
+    start_runtime_watchdog(&settings);
     crate::config::install(layers);
     let conf = Conf { settings, given };
     let from_env = crate::build_cache::config_from_env(&|k| conf.lookup(k));
@@ -431,6 +432,34 @@ fn run_named(bin_name: &str, args: Vec<OsString>) -> ExitCode {
             }
         }
     })
+}
+
+/// Enforces `max_runtime_minutes` for the whole process: when the ceiling passes, the run stops with exit 3 (a check could not run).
+fn start_runtime_watchdog(settings: &crate::config::Settings) {
+    let Some(limit) = settings
+        .limits
+        .iter()
+        .find(|l| l.name == "max_runtime_minutes")
+    else {
+        return;
+    };
+    let (minutes, source) = (limit.value, limit.source.clone());
+    spawn_watchdog(
+        std::time::Duration::from_secs(minutes.saturating_mul(60)),
+        move || {
+            eprintln!(
+            "coderipper: stopped: the run passed max_runtime_minutes = {minutes} (from {source}); part of the audit did not happen"
+        );
+            std::process::exit(i32::from(EXIT_COULD_NOT_RUN));
+        },
+    );
+}
+
+fn spawn_watchdog(after: std::time::Duration, on_expire: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        std::thread::sleep(after);
+        on_expire();
+    });
 }
 
 /// Says, once and on stderr, which wide files were read, the ceilings in force and (one warning per file) the waivers a wide
@@ -468,7 +497,7 @@ fn report_wide_configuration(layers: &[crate::config::Layer], settings: &crate::
     }
     for limit in &settings.limits {
         eprintln!(
-            "coderipper: configuration: {} = {} (from {}; the process that runs CodeRipper enforces it)",
+            "coderipper: configuration: {} = {} (from {}; CodeRipper stops the run at max_runtime_minutes; the process that runs it enforces the rest)",
             limit.name, limit.value, limit.source
         );
     }
@@ -1676,5 +1705,19 @@ mod cargo_flag_tests {
     #[test]
     fn nothing_after_a_double_dash_is_a_flag() {
         assert_eq!(split(&["bin", "--", "--sweep"]).0, Ok(vec!["fast".into()]));
+    }
+}
+
+#[cfg(test)]
+mod watchdog_tests {
+    use super::spawn_watchdog;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    #[test]
+    fn the_watchdog_fires_after_its_delay() {
+        let (tx, rx) = mpsc::channel();
+        spawn_watchdog(Duration::from_millis(50), move || tx.send(()).unwrap());
+        assert!(rx.recv_timeout(Duration::from_secs(10)).is_ok());
     }
 }
