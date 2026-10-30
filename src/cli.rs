@@ -155,6 +155,15 @@ struct RunOpts {
     /// Check every member of the cargo workspace containing the project, not just the project.
     #[arg(long)]
     workspace: bool,
+    /// As `cargo -p`: check only the workspace member with this package name (repeatable); implies `--workspace`. The checks
+    /// that judge the repository as a whole (CI protection, say) do not run, and a name that is no member is a usage error.
+    #[arg(
+        short = 'p',
+        long = "package",
+        value_name = "NAME",
+        conflicts_with = "workspace"
+    )]
+    package: Vec<String>,
     /// Root of the portfolio, for checks that read sibling projects. Defaults to the parent of `project`.
     #[arg(long)]
     portfolio_root: Option<PathBuf>,
@@ -917,6 +926,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 project,
                 manifest_path,
                 workspace,
+                package,
                 portfolio_root,
                 features,
                 all_features,
@@ -1063,9 +1073,11 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     if no_default_features {
         cargo_features = cargo_features.no_default_features();
     }
+    let workspace = workspace || !package.is_empty();
     let ctx = CheckContext::new(project_root)
         .portfolio_root(portfolio_root)
-        .cargo_features(cargo_features);
+        .cargo_features(cargo_features)
+        .packages(package);
 
     let result = if workspace {
         let run = crate::run_workspace_in_with_tools_skipping(

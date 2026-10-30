@@ -163,3 +163,55 @@ fn manifest_path_names_the_project_as_cargo_does() {
         .assert()
         .code(2);
 }
+
+fn two_member_workspace() -> tempfile::TempDir {
+    let member = |name: &str| {
+        format!("[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n")
+    };
+    let source = "fn f() -> i32 { 1 }\nfn main() { f(); }\n";
+    common::git_repo_with(&[
+        (
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"alpha\", \"beta\"]\nresolver = \"2\"\n",
+        ),
+        ("alpha/Cargo.toml", &member("alpha")),
+        ("alpha/src/main.rs", source),
+        ("beta/Cargo.toml", &member("beta")),
+        ("beta/src/main.rs", source),
+    ])
+}
+
+/// The members the findings of a `--message-format json` run belong to, sorted.
+fn finding_members(out: &std::process::Output) -> Vec<String> {
+    let mut members: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| serde_json::from_str::<Value>(l).ok())
+        .filter(|v| v["reason"] == "coderipper-finding")
+        .map(|v| v["member"].as_str().unwrap_or("?").to_string())
+        .collect();
+    members.sort();
+    members.dedup();
+    members
+}
+
+#[test]
+fn package_judges_only_the_named_member() {
+    let repo = two_member_workspace();
+    let run = |args: &[&str]| {
+        as_cargo_runs_it(repo.path())
+            .args(["--profile", "classic", "--message-format", "json"])
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    // positive control: without -p both members have a finding
+    assert_eq!(finding_members(&run(&["--workspace"])), ["alpha", "beta"]);
+    let only_beta = run(&["-p", "beta"]);
+    assert_eq!(finding_members(&only_beta), ["beta"]);
+    assert_eq!(only_beta.status.code(), Some(1));
+    assert_eq!(finding_members(&run(&["--package", "alpha"])), ["alpha"]);
+    // a name that is no member is a failure that names the members, not a clean run
+    let unknown = run(&["-p", "gamma"]);
+    assert_ne!(unknown.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&unknown.stderr).contains("the members are: alpha, beta"));
+}

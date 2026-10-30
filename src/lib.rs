@@ -346,6 +346,16 @@ fn run_workspace_over_in(
         Err(e) => return failed(e.to_string()),
     };
 
+    // `--package`: a name that is no member is an error naming the members, before anything runs
+    let names: Vec<&str> = members.iter().map(|m| m.name.as_str()).collect();
+    if let Some(bad) = ctx.packages.iter().find(|p| !names.contains(&p.as_str())) {
+        return failed(format!(
+            "--package: `{bad}` is no member of the workspace at {}; the members are: {}",
+            root.display(),
+            names.join(", ")
+        ));
+    }
+    let selected = |name: &str| ctx.packages.is_empty() || ctx.packages.iter().any(|p| p == name);
     let mut findings = Vec::new();
     let mut errors = Vec::new();
     let mut outcomes: Vec<coverage::RuleRun> = Vec::new();
@@ -355,19 +365,25 @@ fn run_workspace_over_in(
     // or unknown-check entry is reported once.
     let mut judged = std::collections::HashSet::new();
 
-    let repository = run_checks_over_in(
-        profile,
-        tools,
-        checks,
-        &CheckContext {
-            project_root: root.clone(),
-            portfolio_root: ctx.portfolio_root.clone(),
-            cargo_features: ctx.cargo_features.clone(),
-        },
-        tier,
-        only_check_id,
-        UnitFilter::Only(check::Unit::Repository),
-    );
+    // checks that judge the repository as a whole are not about the package(s) named: `--package` leaves them out
+    let repository = if !ctx.packages.is_empty() {
+        RunResult::new(Vec::new(), Vec::new())
+    } else {
+        run_checks_over_in(
+            profile,
+            tools,
+            checks,
+            &CheckContext {
+                project_root: root.clone(),
+                portfolio_root: ctx.portfolio_root.clone(),
+                cargo_features: ctx.cargo_features.clone(),
+                packages: Vec::new(),
+            },
+            tier,
+            only_check_id,
+            UnitFilter::Only(check::Unit::Repository),
+        )
+    };
     for finding in repository.findings {
         if finding.check_id != suppression::ALLOWLIST_CHECK_ID
             || judged.insert(allowlist_key(&finding))
@@ -430,12 +446,18 @@ fn run_workspace_over_in(
         ))
     };
 
-    let total = members.len();
+    let total = members.iter().filter(|m| selected(&m.name)).count();
+    if !ctx.packages.is_empty() {
+        notes.push(format!(
+            "--package: judged only {}; the checks that judge the repository as a whole did not run",
+            ctx.packages.join(", ")
+        ));
+    }
     let mut analysed = 0;
     let mut with_errors = 0;
     let mut failed_members: Vec<String> = Vec::new();
     session::with_session(&session, || {
-        for (index, member) in members.iter().enumerate() {
+        for (index, member) in members.iter().filter(|m| selected(&m.name)).enumerate() {
             if let Some(note) = skip_for(&member.name) {
                 notes.push(note);
                 skipped_members.push(member.name.clone());
@@ -450,6 +472,7 @@ fn run_workspace_over_in(
                     project_root: member.dir.clone(),
                     portfolio_root: ctx.portfolio_root.clone(),
                     cargo_features: ctx.cargo_features.clone(),
+                    packages: Vec::new(),
                 },
                 tier,
                 only_check_id,
@@ -936,6 +959,7 @@ fn run_below_root(
                     project_root: workspace.root.clone(),
                     portfolio_root: ctx.portfolio_root.clone(),
                     cargo_features: ctx.cargo_features.clone(),
+                    packages: Vec::new(),
                 },
                 tier,
                 only_check_id,
@@ -958,6 +982,7 @@ fn run_below_root(
                         project_root: member.dir.clone(),
                         portfolio_root: ctx.portfolio_root.clone(),
                         cargo_features: ctx.cargo_features.clone(),
+                        packages: Vec::new(),
                     },
                     tier,
                     only_check_id,
@@ -1316,6 +1341,7 @@ mod tests {
             project_root: tmp.path().to_path_buf(),
             portfolio_root: tmp.path().to_path_buf(),
             cargo_features: Default::default(),
+            packages: Vec::new(),
         };
         let checks: Vec<Box<dyn Check>> = vec![
             Box::new(UnitFake {
@@ -1425,6 +1451,7 @@ mod tests {
             project_root: tmp.path().to_path_buf(),
             portfolio_root: tmp.path().to_path_buf(),
             cargo_features: Default::default(),
+            packages: Vec::new(),
         };
         run_checks_over(&[Box::new(fake)], &ctx, Tier::Fast, None, UnitFilter::Any)
     }

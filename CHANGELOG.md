@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.15.4 - 2026-10-30 (proposed)
+
+**`-p/--package <name>`** (roadmap F1, second slice): as `cargo -p`, checks only the workspace member with that package name (repeatable; implies `--workspace`, conflicts with it). The checks that judge the repository as a whole do not run (a note says so), a name that is no member is an error that lists the members, and `[[skip_member]]` still applies to a named member. Library: `CheckContext::packages(..)`, a new field on a `#[non_exhaustive]` struct.
+
 ## 0.15.3 - 2026-10-30 (proposed)
 
 **`--manifest-path <Cargo.toml>`** (roadmap F1, first slice): names the project to check as `cargo --manifest-path` does, in place of `--project` (the directory that holds the file). It conflicts with `--project` and `--scope`, and a path whose file name is not `Cargo.toml` is a usage error (exit 2). `-p/--package`, `--sweep`, `--check <id>` as flags and the `short` message format remain open.
