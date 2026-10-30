@@ -206,6 +206,9 @@ fn restored_files_get_a_new_mtime_and_files_nothing_touched_keep_theirs() {
             assert!(guard.root.starts_with(session.checkout()));
             std::thread::sleep(Duration::from_millis(50));
             let build_ended = SystemTime::now();
+            // Linux stamps mtimes from a coarse clock that can lag SystemTime::now() by a few ms, so let it pass
+            // build_ended before the restore stamps anything.
+            std::thread::sleep(Duration::from_millis(50));
             drop(guard);
 
             for (file, old) in before {
