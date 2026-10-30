@@ -2,7 +2,7 @@
 //! RDB-008 (first part): a `TODO` or `FIXME` in a source comment names an owner or a ticket.
 //!
 //! **What this judges:** every tracked source file (by extension, outside the directories `conflict-marker` skips) is read line by
-//! line, and the text of its comments is searched for the words `TODO` and `FIXME` (upper case, whole word). One is **owned** when
+//! line, and the text of its comments is searched for the words `TODO` and `FIXME` (upper case, whole word, the first word of the comment). One is **owned** when
 //! it is followed by a parenthesised name (`TODO(eric)`), by `@name`, or when its comment line holds an issue reference (`#123`,
 //! `PROJ-123`) or a link (`http://`, `https://`). An unowned one is a **Low** finding; a file gets one finding, at its first, with the
 //! count. The rule's statement also asks for an expiry date; a date is not required here, because an issue is the expiry.
@@ -110,30 +110,24 @@ fn word_edge(c: Option<char>) -> bool {
     c.is_none_or(|c| !c.is_alphanumeric() && c != '_')
 }
 
-/// Whether `text` holds a `TODO`/`FIXME` and none of them names an owner or a ticket.
+/// Whether the comment `text` opens with a `TODO`/`FIXME` that names neither an owner nor a ticket. The marker must be the comment's first
+/// word, so prose that mentions the word (or a file called `TODO.md`) is not a to-do.
 fn unowned(text: &str) -> bool {
-    let mut found = false;
-    for word in ["TODO", "FIXME"] {
-        let mut from = 0;
-        while let Some(i) = text[from..].find(word) {
-            let at = from + i;
-            let after = &text[at + word.len()..];
-            from = at + word.len();
-            if !(word_edge(text[..at].chars().next_back()) && word_edge(after.chars().next())) {
-                continue;
-            }
-            found = true;
-            let named = after
-                .strip_prefix('(')
-                .and_then(|r| r.split_once(')'))
-                .is_some_and(|(name, _)| !name.trim().is_empty())
-                || after.trim_start().starts_with('@');
-            if named || has_reference(text) {
-                return false;
-            }
-        }
+    let body = text.trim_start_matches(|c: char| c.is_whitespace() || matches!(c, '*' | '/' | '!'));
+    let Some(after) = ["TODO", "FIXME"].iter().find_map(|w| body.strip_prefix(w)) else {
+        return false;
+    };
+    let mut rest = after.chars();
+    let (next, then) = (rest.next(), rest.next());
+    if !word_edge(next) || (next == Some('.') && then.is_some_and(char::is_alphanumeric)) {
+        return false;
     }
-    found
+    let named = after
+        .strip_prefix('(')
+        .and_then(|r| r.split_once(')'))
+        .is_some_and(|(name, _)| !name.trim().is_empty())
+        || after.trim_start().starts_with('@');
+    !(named || has_reference(text))
 }
 
 /// The 1-based lines of a file's unowned to-dos.
@@ -209,45 +203,114 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_bare_todo_is_found_and_an_owned_one_is_not() {
-        let src = "// TODO: later\n// TODO(eric): later\n// FIXME #12 broken\n// TODO @eric\nlet x = 1; // FIXME\n/* TODO see https://x.test/1 */\n";
-        assert_eq!(unowned_lines("a.rs", src), vec![1, 5]);
+    /// Sample sources spell the markers with zeros and a 1, so that this file holds no to-do of its own.
+    fn lines(path: &str, text: &str) -> Vec<u32> {
+        unowned_lines(
+            path,
+            &text.replace("T0D0", "TODO").replace("F1XME", "FIXME"),
+        )
     }
 
     #[test]
-    fn only_comments_are_read() {
-        let src =
-            "let s = \"TODO\";\nlet url = \"http://x\"; // fine\nTODOS();\n// TODOS\n// MYTODO\n";
-        assert!(unowned_lines("a.rs", src).is_empty());
+    fn a_bare_todo_is_found_and_an_owned_one_is_not() {
+        let src = "// T0D0: later
+// T0D0(eric): later
+// F1XME #12 broken
+// T0D0 @eric
+let x = 1; // F1XME
+/* T0D0 see https://x.test/1 */
+";
+        assert_eq!(lines("a.rs", src), vec![1, 5]);
+    }
+
+    #[test]
+    fn only_a_comment_that_opens_with_the_marker_is_read() {
+        let src = "let s = \"T0D0\";
+let url = \"http://x\"; // fine
+T0D0S();
+// T0D0S
+// MYT0D0
+// reports a T0D0.md
+// T0D0.md is a file
+// the word T0D0 in prose
+";
+        assert!(lines("a.rs", src).is_empty());
     }
 
     #[test]
     fn block_hash_and_dash_comments() {
         assert_eq!(
-            unowned_lines("a.js", "/*\n * TODO: x\n */\nx();\n"),
+            lines(
+                "a.js",
+                "/*
+ * T0D0: x
+ */
+x();
+"
+            ),
             vec![2]
         );
         assert_eq!(
-            unowned_lines("a.py", "x = 1  # TODO later\n# TODO(a) ok\n"),
+            lines(
+                "a.py",
+                "x = 1  # T0D0 later
+# T0D0(a) ok
+"
+            ),
             vec![1]
         );
-        assert_eq!(unowned_lines("a.sql", "-- FIXME\n"), vec![1]);
-        assert!(unowned_lines("a.md", "TODO: prose\n").is_empty());
+        assert_eq!(
+            lines(
+                "a.sql",
+                "-- F1XME
+"
+            ),
+            vec![1]
+        );
+        assert!(lines(
+            "a.md",
+            "T0D0: prose
+"
+        )
+        .is_empty());
     }
 
     #[test]
     fn ticket_keys_count_as_owners() {
-        assert!(unowned_lines("a.rs", "// TODO PROJ-42 later\n").is_empty());
-        assert_eq!(unowned_lines("a.rs", "// TODO x-42 later\n"), vec![1]);
+        assert!(lines(
+            "a.rs",
+            "// T0D0 PROJ-42 later
+"
+        )
+        .is_empty());
+        assert_eq!(
+            lines(
+                "a.rs",
+                "// T0D0 x-42 later
+"
+            ),
+            vec![1]
+        );
     }
 
     #[test]
     fn one_finding_per_file_and_fixtures_are_skipped() {
+        let (two, one, owned) = (
+            "// T0D0
+// T0D0
+"
+            .replace("T0D0", "TODO"),
+            "// T0D0
+"
+            .replace("T0D0", "TODO"),
+            "// T0D0(x)
+"
+            .replace("T0D0", "TODO"),
+        );
         let v = RepoView::from_files(&[
-            ("src/a.rs", "// TODO\n// TODO\n"),
-            ("fixtures/b.rs", "// TODO\n"),
-            ("src/c.rs", "// TODO(x)\n"),
+            ("src/a.rs", &two),
+            ("fixtures/b.rs", &one),
+            ("src/c.rs", &owned),
         ]);
         let Verdict::Findings(f) = judge(&v) else {
             panic!("expected findings")
