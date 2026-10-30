@@ -185,6 +185,22 @@ Version line covered by this addendum: **0.13**. One rule is added over 0.12, re
 
 No patent on point was surfaced by Q36 to Q38. The results listed (US20070100820A1, CN101017458A, US5854924A, US9672015B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.13 line adds no other mechanism: hits 1 to 32 and ideas 1 to 20 are unchanged. **Watch:** re-sweep if `OPS-012` starts to rewrite code, learn conventions from a corpus, or judge another language.
 
+## Addendum: the 0.14 line (2026-10-30, 0.14.0)
+
+Version line covered by this addendum: **0.14**. No rule is added over 0.13; `OPS-012` (`src/module/neutral/ops012.rs`) gains four cases, judged only for a feature the binary offers. Swept 2026-10-30 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 21, extended.** From the syntax tree and the package manifest of a command-line program: a long option (`--yes`, `--quiet`, `--verbose`) offered without its conventional short form; standard input read and files opened with no operand `-` for standard input; a colour crate that reads no `NO_COLOR` with no source naming it, or a presence-only test of it; and a program that runs until stopped with no signal handling in its package.
+
+| # | Idea | Query (2026-10-30) |
+|---|---|---|
+| Q39 | 21 | static analysis command line program detect flag -q -v short option missing for long option convention check source code |
+| Q40 | 21 | detecting program that ignores NO_COLOR environment variable or lacks signal handler for interrupt, static analysis of source code |
+| Q41 | 21 | analyzing command line tool source to determine whether standard input is accepted via dash operand, command line interface convention conformance |
+
+**Positive controls:** weak, as for Q36 to Q38. Each query returned general static-analysis patents (for example US7340726B1 and US5854924A), so each reaches the area; none returned a patent on convention checking, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q39 to Q41. The results listed (US7617492B2 "Extensible command line parsing", US20080155565A1, US20020083216A1, US7340726B1, US5854924A, US10915424B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.14 line adds no other mechanism: hits 1 to 32 and ideas 1 to 21 are unchanged.
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.

@@ -1,6 +1,22 @@
-# The seeded defect: line 3 starts a fixed `nano`.
+# The seeded defects: line 3 starts a fixed `nano`; line 4 offers `--quiet` and never `-q`; line 5 counts an empty NO_COLOR as set;
+# line 7 is a loop that never ends, in a package that handles no signal.
 
 [[expect]]
 rule = "OPS-012"
 file = "src/main.rs"
 line = 3
+
+[[expect]]
+rule = "OPS-012"
+file = "src/main.rs"
+line = 4
+
+[[expect]]
+rule = "OPS-012"
+file = "src/main.rs"
+line = 5
+
+[[expect]]
+rule = "OPS-012"
+file = "src/main.rs"
+line = 7
