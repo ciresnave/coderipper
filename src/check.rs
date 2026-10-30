@@ -84,6 +84,9 @@ pub struct CheckContext {
     /// The cargo features the checks that build the crate build it with. The default is cargo's own default: the
     /// package's default features, none of the optional ones.
     pub cargo_features: CargoFeatures,
+    /// `--package`: when not empty, a workspace run judges only the members with these names (and not the repository-level
+    /// checks). Empty, the default, judges every member.
+    pub packages: Vec<String>,
 }
 
 /// Which cargo features a check's build enables: `cargo build --features ... --all-features --no-default-features`.
@@ -157,12 +160,23 @@ impl CheckContext {
             project_root,
             portfolio_root,
             cargo_features: CargoFeatures::default(),
+            packages: Vec::new(),
         }
     }
 
     /// Sets the cargo features the checks that build the crate build it with.
     pub fn cargo_features(mut self, cargo_features: CargoFeatures) -> Self {
         self.cargo_features = cargo_features;
+        self
+    }
+
+    /// Limits a workspace run to the members with these package names, as `cargo -p`.
+    pub fn packages<I, S>(mut self, packages: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.packages = packages.into_iter().map(Into::into).collect();
         self
     }
 
