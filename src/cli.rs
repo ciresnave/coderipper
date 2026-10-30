@@ -143,6 +143,9 @@ struct RunOpts {
     /// them, and the run says so when there are any; `version-consistency` and API-006 read the working tree.
     #[arg(long)]
     project: Option<PathBuf>,
+    /// As `cargo --manifest-path`: the `Cargo.toml` of the project to check, in place of `--project` (the directory that holds it).
+    #[arg(long, value_name = "PATH", conflicts_with_all = ["project", "scope"])]
+    manifest_path: Option<PathBuf>,
     /// Run over every repository listed in FILE instead of one project: one path per line (`#` starts a comment, blank lines are
     /// ignored; a relative path is read from the directory of FILE). Each repository is analysed on its own, under its own
     /// `.coderipper.toml`, exactly as `--project` would; the output is grouped by repository with a marker line before each, a
@@ -912,6 +915,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             RunOpts {
                 scope: _,
                 project,
+                manifest_path,
                 workspace,
                 portfolio_root,
                 features,
@@ -931,6 +935,21 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         tier,
         only_check_id,
     } = args;
+    let project = match manifest_path {
+        Some(m) if m.is_file() && m.file_name().is_some_and(|n| n == "Cargo.toml") => Some(
+            m.parent()
+                .filter(|d| !d.as_os_str().is_empty())
+                .map_or_else(|| PathBuf::from("."), PathBuf::from),
+        ),
+        Some(m) => {
+            return Err(UsageError(format!(
+                "--manifest-path: {:?} is not an existing Cargo.toml",
+                m
+            ))
+            .into());
+        }
+        None => project,
+    };
     let skip = skip_rule
         .iter()
         .map(|s| match s.split_once('=') {

@@ -140,3 +140,26 @@ fn the_real_cargo_finds_the_subcommand_on_path_and_runs_it() {
     let first: Value = serde_json::from_str(stdout.lines().next().unwrap()).unwrap();
     assert_eq!(first["reason"], "coderipper-finding");
 }
+
+#[test]
+fn manifest_path_names_the_project_as_cargo_does() {
+    let repo = project_with_a_medium_finding();
+    let elsewhere = tempfile::tempdir().unwrap();
+    as_cargo_runs_it(elsewhere.path())
+        .arg("--manifest-path")
+        .arg(repo.path().join("Cargo.toml"))
+        .assert()
+        .code(1)
+        .stdout(predicates::str::contains("(unused-return-values)"));
+    as_cargo_runs_it(elsewhere.path())
+        .arg("--manifest-path")
+        .arg(repo.path().join("src/main.rs"))
+        .assert()
+        .code(2)
+        .stderr(predicates::str::contains("is not an existing Cargo.toml"));
+    as_cargo_runs_it(elsewhere.path())
+        .arg("--manifest-path")
+        .arg(repo.path().join("missing").join("Cargo.toml"))
+        .assert()
+        .code(2);
+}
