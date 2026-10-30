@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.15.7 - 2026-10-30 (proposed)
+
+**`max_runtime_minutes` is enforced** (roadmap F4, first part). When a `[limits]` file or `CODERIPPER_MAX_RUNTIME_MINUTES` sets the ceiling, a watchdog thread started after the configuration is read ends the process at that many minutes with `coderipper: stopped: the run passed max_runtime_minutes = N (from SOURCE); part of the audit did not happen` and exit 3 (a check could not run), so a run that hit the ceiling can never read as clean. Before this the ceiling was only reported. Child processes already spawned (cargo, a tool) are not killed by the watchdog and may outlive it. Not Breaking: without the ceiling nothing changes, and the 30-minute value in the docs is a suggestion, not a default. Test: a unit test that the watchdog fires after its delay; the end-to-end stop at real minutes was NOT run. 0.15.6 is #189's proposed number; the PM allocates at gate.
+
 ## 0.15.6 - 2026-10-30 (proposed)
 
 **`--message-format short`** (roadmap F1, last slice): one line per finding, `file:line: severity: summary [check id]`, with the place first so an editor can jump to it (a finding with no place leads with its package). Stdout carries nothing else (no waivers, coverage or summary); errors and notes stay on stderr. Also a value for the `message-format` configuration key. `human` and `json` are unchanged.
