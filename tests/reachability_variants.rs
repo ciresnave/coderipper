@@ -80,7 +80,7 @@ pub mod dead_mod {
         "DEAD_CONST",
         "DEAD_STATIC",
         "DeadTrait",
-        "inside",
+        "dead_mod::inside",
     ] {
         assert!(
             got.iter().any(|s| s == want),
@@ -106,7 +106,7 @@ impl S {
 #[no_mangle]
 pub extern \"C\" fn anchor() { S.live_method(); }
 ";
-    assert_eq!(reported(src), vec!["dead_method"]);
+    assert_eq!(reported(src), vec!["S::dead_method"]);
 }
 
 #[test]
@@ -115,7 +115,7 @@ fn a_dead_pub_item_declared_on_one_line_inside_a_module_is_reported() {
     // `pub mod` is, which makes everything in it crate-visible.
     let src = "pub mod m { pub fn dead_in_one_line() {} }\n";
     let got = reported(src);
-    assert!(got.contains(&"dead_in_one_line".to_string()), "{got:?}");
+    assert!(got.contains(&"m::dead_in_one_line".to_string()), "{got:?}");
 }
 
 #[test]

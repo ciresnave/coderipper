@@ -151,6 +151,7 @@ mod tests {
             id,
             file: "src/lib.rs".into(),
             name: format!("f{id}"),
+            qualified: format!("f{id}"),
             line,
             last_line,
             column: 1,

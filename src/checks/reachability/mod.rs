@@ -252,9 +252,22 @@ impl Check for ReachabilityCheck {
              claim from a different one"
         );
 
+        // the subject is qualified (`S::new`), so same-named items in one file do not share an allowlist entry; the
+        // rewrite keeps every line number, so the original file is indexed
+        let mut qualifiers: std::collections::HashMap<String, crate::qualify::Qualifier> =
+            std::collections::HashMap::new();
         let findings: Vec<Finding> = candidates
             .into_iter()
             .map(|hit| {
+                let subject = qualifiers
+                    .entry(hit.file.clone())
+                    .or_insert_with(|| {
+                        crate::qualify::Qualifier::new(
+                            &std::fs::read_to_string(ctx.project_root.join(&hit.file))
+                                .unwrap_or_default(),
+                        )
+                    })
+                    .name(hit.line, &hit.symbol);
                 // An item only other reported items mention is dead BECAUSE they are: say so, instead of
                 // claiming it has no callers (it has, and they are dead too).
                 let origin = only_from.get(&(hit.file.clone(), hit.line, hit.symbol.clone()));
@@ -287,7 +300,7 @@ impl Check for ReachabilityCheck {
                         file: hit.file.clone(),
                         line: Some(hit.line),
                     }),
-                    subject: Some(hit.symbol.clone()),
+                    subject: Some(subject),
                     summary,
                     detail: format!(
                         "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \

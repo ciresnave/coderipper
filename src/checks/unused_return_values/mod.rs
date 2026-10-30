@@ -161,7 +161,7 @@ impl Check for UnusedReturnValuesCheck {
                         file: u.tag.file.clone(),
                         line: Some(u.tag.line),
                     }),
-                    subject: Some(u.tag.name.clone()),
+                    subject: Some(u.tag.qualified.clone()),
                     summary,
                     detail: format!(
                         "Counted by tagging the function with `#[must_use]` and `#[deprecated]` in a \

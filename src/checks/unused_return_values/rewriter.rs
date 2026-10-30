@@ -18,6 +18,8 @@ pub struct FnTag {
     /// Forward-slash path relative to the project root, e.g. `src/lib.rs`.
     pub file: String,
     pub name: String,
+    /// The name qualified by its modules, impl type and enclosing functions (`S::new`): the finding's allowlist subject.
+    pub qualified: String,
     /// 1-based line of the function's name.
     pub line: u32,
     /// 1-based last line of the function's body (== `line` for a bodiless trait method).
@@ -80,7 +82,9 @@ pub fn annotate(file: &str, source: &str, next_id: &mut u32) -> anyhow::Result<A
                 .map(|i| i.text.chars().count() as u32)
                 .sum::<u32>()
     };
+    let qualifier = crate::qualify::Qualifier::new(source);
     for tag in &mut tags {
+        tag.qualified = qualifier.name(tag.line, &tag.name);
         // `column` is 0-based start of the name (an insertion at the very same column precedes it); `last_column` is the
         // 0-based exclusive end of the body, which is the 1-based column of its last character
         tag.column = shift(tag.line, tag.column, true) + 1;
@@ -163,6 +167,7 @@ impl Annotator<'_> {
             id,
             file: self.file.to_string(),
             name: sig.ident.to_string(),
+            qualified: String::new(), // filled by `annotate`, which has the whole file
             line: sig.ident.span().start().line as u32,
             last_line: last.line as u32,
             // original, 0-based; `annotate` moves both into rewritten coordinates once every insertion is known
@@ -323,6 +328,22 @@ mod tests {
 
     fn run(src: &str) -> Annotated {
         annotate("src/lib.rs", src, &mut 0).unwrap()
+    }
+
+    #[test]
+    fn same_named_methods_get_distinct_qualified_names() {
+        let src = "struct S;
+struct T;
+impl S {
+    fn new() -> u8 { 1 }
+}
+impl T {
+    fn new() -> u8 { 2 }
+}
+";
+        let tags = run(src).tags;
+        let q: Vec<&str> = tags.iter().map(|t| t.qualified.as_str()).collect();
+        assert_eq!(q, vec!["S::new", "T::new"]);
     }
 
     const TAG0: &str = "#[must_use = \"CR:0\"] #[deprecated(note = \"CR:0\")] ";
