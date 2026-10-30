@@ -161,7 +161,7 @@ At the PM's task (CireSnave's idea): every piece of work that a spec, plan or RE
 
 | # | Work | Source | Status | Call |
 |---|---|---|---|---|
-| E1 | Cached per-project symbol index, so `Portfolio`-scope `fast` checks read a cache, not N trees | audit 60-64 | open | |
+| E1 | Cached per-project symbol index, so `Portfolio`-scope `fast` checks read a cache, not N trees | audit 60-64 | **deferred until E2 exists (PM ruling 2026-10-30).** An incremental index (rebuilt per commit, per-file) breaks the C7 patent design rule (key on whole tree + toolchain + options only; no per-file keys; no reuse for a partly changed tree; `docs/PATENT-SWEEP.md` hit 15), which outranks the speed idea. A whole-tree-keyed index gains nothing over the 0.10.2 result cache. No `Portfolio`-scope check consumes an index yet. Do not re-open without a consumer and a patent re-read | |
 | E2 | Reachability portfolio scope (sub-pass B): rustdoc-JSON public surface plus cross-repository reference search | audit 120-135; reachability-project-scope plan 62 | open (no `Portfolio`-scope check exists) | |
 | E3 | Severity-ranked brief mode (top N plus omitted count) | audit 90-95 | open (`--summary`, 0.9.8, counts per rule only) | |
 | E4 | `until_fixed` links and "no match in N runs" waivers | audit 164-179; allowlist plan 19-23 | held: needs a run-history store that does not exist | |

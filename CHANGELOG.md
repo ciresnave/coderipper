@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.16.1 - 2026-10-30 (proposed)
+
+Docs only: ROADMAP row E1 (cached symbol index) is marked deferred until E2 exists, with the reason (the C7 patent design rule). No change to the binary; the number is a proposal, the PM allocates at gate.
+
 ## 0.16.0 - 2026-10-30 (proposed)
 
 **Breaking: `reachability` and `unused-return-values` findings carry a qualified `subject`** (roadmap E5), as `unused-parameters` already did: the item's inline modules, impl type and enclosing functions, then its name (`S::new`, `m::S::method`). Two same-named methods in one file no longer share an allowlist entry. A top-level item keeps its bare name. **To migrate:** an `[[allow]]` `symbol` or a `[reachability] public_api` `symbol` naming a method, field or variant must now be the qualified name; an entry that no longer matches is reported as stale, so it cannot go quiet. A line with two same-named candidates, or a file `syn` cannot parse, keeps the bare name. Tests: `qualify` unit tests and one for the unused-return-values tags. The number is a proposal, the PM allocates at gate.
