@@ -4,7 +4,7 @@
 //! One file name, `.coderipper.toml`, is read from up to four places and combined, weakest first:
 //!
 //! 1. built-in defaults;
-//! 2. the **wide files**: `/etc/coderipper/.coderipper.toml`, `/etc/.coderipper.toml`, then `~/.coderipper.toml` (on Windows
+//! 2. the **wide files**: `/etc/coderipper/coderipper.toml` (dotless), `/etc/coderipper/.coderipper.toml`, `/etc/.coderipper.toml`, then `~/.coderipper.toml` (on Windows
 //!    `%ProgramData%\coderipper\`, `%ProgramData%\` and `%USERPROFILE%`). Every file found is read; a later one overrides an
 //!    earlier one. They may set everything;
 //! 3. the **repository's file**, which may set only [`REPOSITORY_MAY_SET`]: a known key outside that list warns and is
@@ -28,6 +28,9 @@ use std::sync::OnceLock;
 
 /// The one file name, in every place it is searched.
 pub(crate) const FILE_NAME: &str = ".coderipper.toml";
+/// The dotless spelling accepted in `/etc/coderipper/` only (a system directory has no reason to hide its file).
+#[cfg(any(feature = "cli", test))]
+const SYSTEM_FILE_NAME: &str = "coderipper.toml";
 
 #[cfg(feature = "cli")]
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
@@ -288,6 +291,7 @@ pub(crate) fn search_paths(get: &dyn Fn(&str) -> Option<String>) -> Vec<PathBuf>
             paths.push(base.join(FILE_NAME));
         }
     } else {
+        paths.push(PathBuf::from("/etc/coderipper").join(SYSTEM_FILE_NAME));
         paths.push(PathBuf::from("/etc/coderipper").join(FILE_NAME));
         paths.push(PathBuf::from("/etc").join(FILE_NAME));
     }
@@ -613,10 +617,16 @@ mod tests {
             paths.last().unwrap(),
             &PathBuf::from("/home/u").join(FILE_NAME)
         );
-        assert_eq!(paths.len(), 3);
-        if !cfg!(windows) {
-            assert_eq!(paths[0], PathBuf::from("/etc/coderipper").join(FILE_NAME));
-            assert_eq!(paths[1], PathBuf::from("/etc").join(FILE_NAME));
+        if cfg!(windows) {
+            assert_eq!(paths.len(), 3);
+        } else {
+            assert_eq!(paths.len(), 4);
+            assert_eq!(
+                paths[0],
+                PathBuf::from("/etc/coderipper").join(SYSTEM_FILE_NAME)
+            );
+            assert_eq!(paths[1], PathBuf::from("/etc/coderipper").join(FILE_NAME));
+            assert_eq!(paths[2], PathBuf::from("/etc").join(FILE_NAME));
         }
     }
 

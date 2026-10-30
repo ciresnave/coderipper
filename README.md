@@ -607,7 +607,7 @@ One file name, `.coderipper.toml`, is read from several places and combined, **w
 | # | Layer | May set |
 |---|---|---|
 | 1 | built-in defaults | - |
-| 2 | `/etc/coderipper/.coderipper.toml` (Windows: `%ProgramData%\coderipper\`) | everything |
+| 2 | `/etc/coderipper/.coderipper.toml`, or dotless `/etc/coderipper/coderipper.toml` (Windows: `%ProgramData%\coderipper\`) | everything |
 | 3 | `/etc/.coderipper.toml` (Windows: `%ProgramData%\`) | everything |
 | 4 | `~/.coderipper.toml` (`HOME`, else `USERPROFILE`) | everything |
 | 5 | the repository's own `.coderipper.toml` (each member's, under `--workspace`) | **only** `[[allow]]`, `[[tracks]]`, `[buf]` and `profile` |

@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.15.9 - 2026-10-30 (proposed)
+
+**The dotless `/etc/coderipper/coderipper.toml` is read** (roadmap F4, rest), before `/etc/coderipper/.coderipper.toml`, so a system file there may be spelled either way (both are read; the dotted one is the stronger). Unix only; the other places keep the one dotted name. Not Breaking: a machine without the new file is unchanged. Test: the search-order unit test. The number is a proposal, the PM allocates at gate.
+
 ## 0.15.8 - 2026-10-30 (proposed)
 
 Docs only: ROADMAP row F1 is marked built (0.15.3 to 0.15.6 all merged). No change to the binary; the number is a proposal, the PM allocates at gate.
