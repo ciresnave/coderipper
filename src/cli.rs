@@ -695,7 +695,7 @@ fn conformance_command(
         // the last place a reason passes (a no-op unless `--redact`).
         let notes: Vec<String> = notes.iter().map(|n| crate::redact::scrub(n)).collect();
         match message_format {
-            MessageFormat::Human => {
+            MessageFormat::Human | MessageFormat::Short => {
                 println!("{}: {word}", proof.rule);
                 for note in notes {
                     println!("  {note}");
@@ -1251,6 +1251,11 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 );
             }
         }
+        MessageFormat::Short => {
+            for f in &result.findings {
+                println!("{}", short_line(f));
+            }
+        }
         MessageFormat::Json => {
             for f in &result.findings {
                 let mut line = serde_json::to_value(f)?;
@@ -1333,6 +1338,29 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         );
     }
     Ok(code)
+}
+
+/// `--message-format short`: `file:line: severity: summary [check id]`, the place first so an editor can jump to it. A finding
+/// with no place leads with its package. The file and summary are third-party text: control characters are replaced.
+fn short_line(f: &crate::finding::Finding) -> String {
+    let clean = |s: &str| -> String {
+        s.chars()
+            .map(|c| if c.is_control() { ' ' } else { c })
+            .collect()
+    };
+    let lead = match &f.location {
+        Some(l) => match l.line {
+            Some(line) => format!("{}:{line}", clean(&l.file)),
+            None => clean(&l.file),
+        },
+        None => clean(f.member.as_deref().unwrap_or(&f.project)),
+    };
+    format!(
+        "{lead}: {}: {} [{}]",
+        format!("{:?}", f.severity).to_lowercase(),
+        clean(&f.summary),
+        f.check_id
+    )
 }
 
 /// ` at <file>:<line>` (or ` at <file>`) for a finding that has a location, printed before the check id so a line still ends in

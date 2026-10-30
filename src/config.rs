@@ -45,6 +45,9 @@ pub(crate) enum MessageFormat {
     /// One JSON object per line, each with a `"reason"`: `coderipper-finding` per finding, then one
     /// `coderipper-summary` with the finding count, the errors and the exit code.
     Json,
+    /// One line per finding, `file:line: severity: summary [check id]` (a finding with no place leads with its package), and
+    /// nothing else on stdout: no waivers, coverage or summary. Errors and notes stay on stderr.
+    Short,
 }
 
 /// Which rules run and what is reported (`--profile`, and the key of the same name).
