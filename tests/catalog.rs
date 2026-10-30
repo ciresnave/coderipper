@@ -96,6 +96,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("patent-sweep-record");
     // the CLI-conventions rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("OPS-012");
+    // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
+    triaged.push("security-support-statement");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     in_catalog.sort_unstable();

@@ -1,0 +1,11 @@
+# The seeded defects in SECURITY.md: line 8 marks a second line (0.2.x) as supported; line 10 promises 18 months.
+
+[[expect]]
+rule = "security-support-statement"
+file = "SECURITY.md"
+line = 8
+
+[[expect]]
+rule = "security-support-statement"
+file = "SECURITY.md"
+line = 10

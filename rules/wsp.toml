@@ -320,3 +320,29 @@ checked_today = "The root Cargo.toml ([package] version, else [workspace.package
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "security-support-statement"
+title = "A released project's SECURITY.md promises no support period and claims no support for an old line"
+domain = "WSP"
+statement = "In a repository whose root manifest declares a publishable version, the supported-versions section of SECURITY.md marks no line older than the latest as supported, marks only one line, and states no support period in months or years."
+rationale = "A table of supported lines or a stated period is a promise the project then has to keep, and a security policy that promises a backport nobody will write is worse than one that says so. The portfolio's statement is: the latest line receives fixes, an older line a backport only when it is small, and no period is promised."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+aliases = []
+remediation = "Replace the section with: the latest release line receives security fixes; an older line receives a backport when the backport is small, and when it is not the advisory says that line is not fixed and recommends upgrading; no support period is promised. A project that really supports more than one line, or a period, opts out with an [[allow]] entry and a reason."
+related = ["patent-sweep-record"]
+lifecycle = "experimental"
+checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version, unless publish = false) or package.json (version, unless private); a tracked SECURITY.md at the root, in .github/ or in docs/; the section under a heading that names supported versions, to the next heading of the same or a higher level: a table row marked with a check mark for a line older than the manifest's, or a second marked row; a number (digits, or one to twelve, eighteen, twenty-four as words) followed by month(s) or year(s). Not judged: whether the statement is true, a promise worded without a number, a repository with no SECURITY.md or no such section, manifests below the root."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
