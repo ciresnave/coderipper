@@ -936,15 +936,15 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         only_check_id,
     } = args;
     let project = match manifest_path {
-        Some(m) if m.file_name().is_some_and(|n| n == "Cargo.toml") => Some(
+        Some(m) if m.is_file() && m.file_name().is_some_and(|n| n == "Cargo.toml") => Some(
             m.parent()
                 .filter(|d| !d.as_os_str().is_empty())
                 .map_or_else(|| PathBuf::from("."), PathBuf::from),
         ),
         Some(m) => {
             return Err(UsageError(format!(
-                "--manifest-path: {} is not a Cargo.toml",
-                m.display()
+                "--manifest-path: {:?} is not an existing Cargo.toml",
+                m
             ))
             .into());
         }

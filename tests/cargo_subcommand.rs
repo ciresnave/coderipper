@@ -156,5 +156,10 @@ fn manifest_path_names_the_project_as_cargo_does() {
         .arg(repo.path().join("src/main.rs"))
         .assert()
         .code(2)
-        .stderr(predicates::str::contains("is not a Cargo.toml"));
+        .stderr(predicates::str::contains("is not an existing Cargo.toml"));
+    as_cargo_runs_it(elsewhere.path())
+        .arg("--manifest-path")
+        .arg(repo.path().join("missing").join("Cargo.toml"))
+        .assert()
+        .code(2);
 }
