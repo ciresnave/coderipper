@@ -83,6 +83,7 @@ pub(crate) mod rule_id {
     include!(concat!(env!("OUT_DIR"), "/rule_ids.rs"));
 }
 pub(crate) mod package;
+pub(crate) mod qualify;
 pub mod redact;
 pub(crate) mod result_cache;
 pub(crate) mod session;
