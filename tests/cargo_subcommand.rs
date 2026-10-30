@@ -234,3 +234,20 @@ fn check_as_a_flag_runs_exactly_that_check() {
         .assert()
         .code(2);
 }
+
+#[test]
+fn the_short_format_is_one_editor_line_per_finding_and_nothing_else_on_stdout() {
+    let repo = project_with_a_medium_finding();
+    let out = as_cargo_runs_it(repo.path())
+        .args(["--profile", "classic", "--message-format", "short"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert_eq!(lines.len(), 1, "stdout: {stdout}");
+    assert!(lines[0].ends_with("[unused-return-values]"), "{}", lines[0]);
+    assert!(lines[0].contains(": medium: "), "{}", lines[0]);
+    // the place leads the line: `src/main.rs:<line>: ...`
+    assert!(lines[0].starts_with("src/main.rs:"), "{}", lines[0]);
+}
