@@ -322,3 +322,43 @@ fn coverage_full_names_the_lockfile_rule_among_pythons_gaps() {
         .code(0)
         .stdout(predicate::str::is_match(r"python: .*SUP-001").unwrap());
 }
+
+#[test]
+fn min_coverage_zero_passes_and_a_floor_above_the_coverage_exits_one_naming_the_language() {
+    fast(&clean_project())
+        .args(["--min-coverage", "0"])
+        .assert()
+        .code(0);
+    fast(&clean_project())
+        .args(["--min-coverage", "100"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("rust is "))
+        .stderr(predicate::str::contains("--min-coverage is 100%"))
+        .stdout(predicate::str::contains("coverage: rust"));
+}
+
+#[test]
+fn min_coverage_measures_a_language_no_module_checks_by_the_neutral_rules_and_never_hides_a_worse_exit_code(
+) {
+    fast(&polyglot_project())
+        .args(["--min-coverage", "10"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("typescript is "));
+    // a finding is still exit 1 and a floor below the coverage changes nothing about it
+    fast(&project_with_a_medium_finding())
+        .args(["--min-coverage", "0"])
+        .assert()
+        .code(1);
+}
+
+#[test]
+fn min_coverage_outside_zero_to_one_hundred_is_a_usage_error() {
+    for bad in ["101", "-1", "lots"] {
+        fast(&clean_project())
+            .args(["--min-coverage", bad])
+            .assert()
+            .code(2);
+    }
+}

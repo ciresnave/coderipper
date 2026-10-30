@@ -271,8 +271,8 @@ run, the share that found nothing: `clean / (clean + with findings)`. A rule tha
 is in neither count, so a gap neither raises nor lowers it; a rule counts once however many findings it has, so it is a metric for
 judging improvement over time, not a severity measure. The human output ends with `coderipper: rules passed: 7 of 9 that ran (77.8%)` (on stdout; under `classic`, whose stdout is unchanged, on stderr);
 `--message-format json` adds `rules_ran`, `rules_passed` and `rules_passed_percent` (`null` when no rule ran) to the summary line, and the
-coverage line's `run` object carries `passed_percent`. It never changes the exit code. An optional floor (`--min-coverage`) is still on the
-roadmap.
+coverage line's `run` object carries `passed_percent`. It never changes the exit code. An optional floor on *coverage* (not on rules passed), `--min-coverage <pct>`, exits 1 when the covered percentage of any language reported is below `pct`
+(a language in the repository that no module checks is measured by the language-neutral rules alone), prints which on stderr, and turns the coverage report on; it never lowers a worse exit code (3 over 1 over 0).
 
 ## Pull-request check: `--profile portfolio`
 

@@ -213,6 +213,19 @@ struct RunOpts {
     /// silence a finding, which is an `[[allow]]` entry.
     #[arg(long = "skip-rule", value_name = "ID=WHY")]
     skip_rule: Vec<String>,
+    /// An opt-in floor on COVERAGE, the share of the catalog CodeRipper can check (not the share of rules that passed): the run
+    /// exits 1 when the covered percentage of any language it reports is below `PCT` (0 to 100), and prints which. Turns the
+    /// coverage report on. A language found in the repository that no module checks is measured by the language-neutral rules alone. Without it a
+    /// known gap never fails a run. A check error (exit 3) or a finding (exit 1) is reported as before.
+    #[arg(long, value_name = "PCT", value_parser = parse_percent)]
+    min_coverage: Option<f64>,
+}
+
+fn parse_percent(s: &str) -> Result<f64, String> {
+    match s.trim().parse::<f64>() {
+        Ok(p) if (0.0..=100.0).contains(&p) => Ok(p),
+        _ => Err(format!("`{s}` is not a percentage from 0 to 100")),
+    }
 }
 
 #[derive(Subcommand)]
@@ -913,6 +926,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 tools_lock,
                 redact,
                 skip_rule,
+                min_coverage,
             },
         tier,
         only_check_id,
@@ -1070,7 +1084,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     // A check error outranks a finding: a run that could not judge everything must not look like a complete one
     // that found something (review finding: errors used to be printed but the process still exited 0).
     let denied = deny.severity();
-    let code = if !result.errors.is_empty() {
+    let mut code = if !result.errors.is_empty() {
         EXIT_COULD_NOT_RUN
     } else if profile == Profile::Portfolio {
         // a floor per rule instead of one `--deny`; `--deny none` still never fails on a finding
@@ -1100,9 +1114,21 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
-    let show_coverage = profile == Profile::Extended || coverage.is_some();
+    let show_coverage =
+        profile == Profile::Extended || coverage.is_some() || min_coverage.is_some();
     let reports = show_coverage
         .then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended, &tools));
+    // The opt-in floor: the one way a coverage gap fails a run. It never lowers a worse code (3 over 1 over 0).
+    if let (Some(floor), Some(reports)) = (min_coverage, &reports) {
+        let covered: Vec<(&str, f64)> = reports
+            .iter()
+            .map(|r| (r.language.as_str(), r.percent_covered()))
+            .collect();
+        for message in below_the_floor(floor, &covered) {
+            eprintln!("coderipper: coverage below the floor: {message}");
+            code = code.max(EXIT_FINDINGS);
+        }
+    }
 
     match message_format {
         MessageFormat::Human => {
@@ -1296,6 +1322,23 @@ fn place(f: &crate::finding::Finding) -> String {
     }
 }
 
+/// What `--min-coverage` objects to: each language covered below `floor` percent, or, when no language was reported at all, that
+/// the floor cannot be met (an empty report is a failure to say so, never a silent pass).
+fn below_the_floor(floor: f64, covered: &[(&str, f64)]) -> Vec<String> {
+    if covered.is_empty() {
+        return vec![format!(
+            "no language was reported, so --min-coverage {floor}% cannot be met"
+        )];
+    }
+    covered
+        .iter()
+        .filter(|(_, pct)| *pct < floor)
+        .map(|(language, pct)| {
+            format!("{language} is {pct:.1}% covered, --min-coverage is {floor}%")
+        })
+        .collect()
+}
+
 /// The coverage of the Rust module for this run, then one entry per language found that no module checks.
 fn coverage_reports(
     result: &crate::RunResult,
@@ -1454,5 +1497,26 @@ mod tests {
             "a UNC path has no shorter spelling"
         );
         assert_eq!(strip_verbatim_drive(r"\\?\Volume{1234}\x"), None);
+    }
+}
+
+#[cfg(test)]
+mod min_coverage_tests {
+    use super::below_the_floor;
+
+    #[test]
+    fn a_language_below_the_floor_is_named_and_one_at_or_above_is_not() {
+        let covered = [("rust", 60.0), ("typescript", 0.0)];
+        assert_eq!(below_the_floor(60.0, &covered).len(), 1);
+        assert!(below_the_floor(60.0, &covered)[0].starts_with("typescript is 0.0%"));
+        assert!(below_the_floor(0.0, &covered).is_empty());
+        assert_eq!(below_the_floor(60.1, &covered).len(), 2);
+    }
+
+    #[test]
+    fn no_language_reported_is_an_explicit_failure() {
+        let messages = below_the_floor(10.0, &[]);
+        assert_eq!(messages.len(), 1);
+        assert!(messages[0].contains("no language was reported"));
     }
 }
