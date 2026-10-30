@@ -201,6 +201,22 @@ Version line covered by this addendum: **0.14**. No rule is added over 0.13; `OP
 
 No patent on point was surfaced by Q39 to Q41. The results listed (US7617492B2 "Extensible command line parsing", US20080155565A1, US20020083216A1, US7340726B1, US5854924A, US10915424B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.14 line adds no other mechanism: hits 1 to 32 and ideas 1 to 21 are unchanged.
 
+## Addendum: the 0.15 line (2026-10-30, 0.15.0)
+
+Version line covered by this addendum: **0.15**. One rule is added over 0.14, read from `src/module/neutral/support_statement.rs`: `security-support-statement`. Swept 2026-10-30 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 22 (`security-support-statement`).** Read the supported-versions section of a repository's security-policy file, and report a table row marked as supported for a version line older than the project's current one, a second marked row, or a support period stated as a number of months or years.
+
+| # | Idea | Query (2026-10-30) |
+|---|---|---|
+| Q42 | 22 | automatically analyzing a software project security policy document to detect supported versions table or support period commitment |
+| Q43 | 22 | checking repository SECURITY.md vulnerability disclosure policy completeness automated compliance check software repository |
+| Q44 | 22 | natural language processing of text document to detect time duration commitment such as number of months or years in policy statement |
+
+**Positive controls:** weak. Each query returned patents in the adjacent areas (table detection, security-policy compliance, commitment extraction from text), so each reaches its area; none returned a patent on checking a software project's security-policy file, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q42 to Q44. The results listed (US20240195838A1, US20210409440A1, US20140214404A1, CA2983124A1, US11868729B2, WO2008030884A2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.15 line adds no other mechanism: hits 1 to 32 and ideas 1 to 21 are unchanged. **Watch:** re-sweep if the rule starts to rewrite the policy file or to judge whether a promise was kept.
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.

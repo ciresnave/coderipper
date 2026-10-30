@@ -23,6 +23,7 @@ mod patent_sweep;
 mod sup001;
 mod sup004;
 mod sup011;
+mod support_statement;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -113,6 +114,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "OPS-012",
         judge: ops012::judge,
+    },
+    Rule {
+        id: "security-support-statement",
+        judge: support_statement::judge,
     },
 ];
 
@@ -490,6 +495,7 @@ const PROVEN: &[&str] = &[
     "patent-sweep-record",
     "CON-006",
     "OPS-012",
+    "security-support-statement",
 ];
 
 impl Module for NeutralModule {
@@ -624,7 +630,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 15);
+        assert_eq!(rule_ids().len(), 16);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
