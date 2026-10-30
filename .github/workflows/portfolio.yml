@@ -33,6 +33,10 @@ env:
   # a hosted runner).
   RUSTC_WRAPPER: ""
   CARGO_BUILD_RUSTC_WRAPPER: ""
+  # The least free space on `/` (GB) the job starts a build with, checked after the cleanup and again before the sweep. A floor CHOSEN, not
+  # measured: the run that motivated it (synapse#290, run 41007729285) died at zero free ("No space left on device") while building three
+  # workspace members and installing gitleaks, and its log does not say how much it began with. Raise it if a repository's build needs more.
+  MIN_FREE_GB: 8
   # The published release the sweep installs: THE NEWEST ONE on crates.io. It was left at 0.9.6 while 0.9.7 to 0.9.14 were published, and no workflow SHA
   # could reach those fixes. `tests/portfolio_version.rs` keeps it from drifting (offline: well formed, not ahead of Cargo.toml; online, in the scheduled
   # `release-drift.yml`: equal to the newest published version). Bump it in the change that follows each publish, then repin the callers.
@@ -76,6 +80,26 @@ jobs:
         run: |
           if { [ "$FORK" = true ] || [ "$EVENT" = pull_request_target ]; } && ! printf '%s' "$RUNS_ON" | grep -Eq '^(ubuntu|windows|macos)-'; then
             echo "::error::runs-on '$RUNS_ON' is not a GitHub-hosted runner and this run is for code from a fork; it would execute that code (build.rs) on your machine"
+            exit 1
+          fi
+      # A GitHub-hosted Linux image ships toolchains this job never uses (.NET, the Android SDK, GHC, CodeQL, Boost, Swift) and a Docker image
+      # cache. A workspace build plus the build cache fills what is left (synapse#290: three members failed to build with "failed to write", the
+      # gitleaks download with "No space left on device", and SEC-002 never ran). Remove them first, say how much that freed, and fail by name
+      # if the disk is still under the floor, rather than letting the build die later with a bare write error.
+      - name: Free disk space (GitHub-hosted Linux runners)
+        if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+        run: |
+          avail_kb() { df --output=avail -k / | awk 'NR==2 {print $1}'; }
+          before="$(avail_kb)"
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift || true
+          sudo apt-get clean || true
+          sudo docker image prune --all --force > /dev/null 2>&1 || true
+          after="$(avail_kb)"
+          df -h /
+          echo "freed $(( (after - before) / 1048576 )) GB; $(( after / 1048576 )) GB free (floor $MIN_FREE_GB GB)"
+          if [ "$(( after / 1048576 ))" -lt "$MIN_FREE_GB" ]; then
+            echo "::error::disk: only $(( after / 1048576 )) GB free on / after removing the unused toolchains; the job needs at least $MIN_FREE_GB GB for the build cache, the target directory and the tools"
             exit 1
           fi
       # the whole history: version-and-changelog compares against the base ref and SEC-002 reads the history, and a shallow clone makes
@@ -173,6 +197,15 @@ jobs:
       - name: Point CodeRipper's build cache at it (GitHub-hosted runners)
         if: runner.environment == 'github-hosted'
         run: echo "CODERIPPER_CACHE_DIR=$RUNNER_TEMP/coderipper-build" >> "$GITHUB_ENV"
+      - name: Enough free disk for the sweep
+        if: runner.os == 'Linux'
+        run: |
+          free_gb="$(( $(df --output=avail -k / | awk 'NR==2 {print $1}') / 1048576 ))"
+          echo "$free_gb GB free on / (floor $MIN_FREE_GB GB)"
+          if [ "$free_gb" -lt "$MIN_FREE_GB" ]; then
+            echo "::error::disk: only $free_gb GB free on / before the sweep (after the install and the cache restores); the sweep would fail with a write error, so it is not started"
+            exit 1
+          fi
       - name: coderipper sweep --profile portfolio, and the secrets scan
         # `DOCS_RS=1`: a build script that honours it (the docs.rs convention) skips its native or CUDA toolchain, so a crate that needs nvcc
         # or a vendor SDK still compiles on a hosted runner. The analysis is then STATIC ONLY: it reads the source, it does not prove the
@@ -181,18 +214,32 @@ jobs:
           DOCS_RS: "1"
         run: |
           code=0
+          secrets_code=0
           # A cargo workspace is analysed member by member: `--project .` on a virtual workspace root runs none of the Rust checks (each
           # errors, "not a package directory"), and on a root package that also has members it skips the members.
           ws=""
           if [ -f Cargo.toml ] && grep -q '^[[]workspace]' Cargo.toml; then ws=--workspace; fi
           coderipper sweep --profile portfolio --deny medium --no-config $ws --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
-          coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || secrets_code=$?
+          if [ "$secrets_code" -gt "$code" ]; then code="$secrets_code"; fi
           cat "$RUNNER_TEMP/sweep.stderr" >&2
+          # A check that could not run, and a tool that could not be installed, are named in the job's annotations (the first ten of each), not
+          # left as one line among thousands: the run that motivated this showed only "Process completed with exit code 3".
+          failed=0
+          if grep -E '^coderipper: check error: .* failed to run' "$RUNNER_TEMP/sweep.stderr" > "$RUNNER_TEMP/check-errors.txt"; then
+            awk 'NR <= 10 { sub(/^coderipper: check error: /, ""); print "::error::" $0 }' "$RUNNER_TEMP/check-errors.txt"
+            failed=1
+          fi
+          if grep -E 'tool_install_failed|tool_missing|tool_unavailable_for_platform|checksum_mismatch|download_failed|archive_refused|consent_not_given' "$RUNNER_TEMP/sweep.stderr" > "$RUNNER_TEMP/tool-errors.txt"; then
+            awk 'NR <= 10 { sub(/^coderipper: (check error|note): /, ""); print "::error::a tool the secrets scan needs was not installed: " $0 }' "$RUNNER_TEMP/tool-errors.txt"
+            failed=1
+          fi
           # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
           # repository with no Rust crate (nothing to look at), the rule this step skips on purpose, and the two rules that compare
           # a branch with its base (the lint-suppression ratchet, version-and-changelog) on a run of the default branch, where there
           # is no base to compare with (their note ends "a run on the default branch").
           if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          if [ "$failed" -ne 0 ] && [ "$code" -eq 0 ]; then code=1; fi
           exit "$code"
       # Log only: where the disk goes on a hosted runner (Fuel's job ran out, and the build-cache size measured elsewhere does not explain it). No
       # step reads these numbers; `|| true` keeps a missing path from failing the job.
