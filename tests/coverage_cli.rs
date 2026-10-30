@@ -11,10 +11,11 @@ mod common;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n";
+/// The fixtures' `main` reads its arguments by hand (to answer OPS-011's probes), so the manifest names a parser as OPS-012 asks.
+const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nclap = \"4\"\n";
 
 /// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
-const LOCK: &str = "version = 4\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\n";
+const LOCK: &str = "version = 4\n\n[[package]]\nname = \"clap\"\nversion = \"4.5.0\"\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\ndependencies = [\"clap\"]\n";
 const OWNERS: &str = "* @example-owner\n";
 /// The patent sweep record the `patent-sweep-record` rule asks of a project with a publishable version (0.1.x here).
 const SWEEP: &str = "# Patent sweep: fixture 0.1.0\n## Ideas swept\n## Queries\n## Hits\n";
@@ -226,8 +227,8 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     );
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
-    // the four proven Rust checks, the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match and licence
-    assert_eq!(rust["covered"], 19);
+    // the four proven Rust checks, the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match, licence and OPS-012
+    assert_eq!(rust["covered"], 20);
     // ci-protection-presence, dependency-freshness and the nine delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, API-001, API-007 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 11);
@@ -310,7 +311,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 19, "{rust}");
+    assert_eq!(rust["covered"], 20, "{rust}");
 }
 
 #[test]

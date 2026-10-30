@@ -169,6 +169,22 @@ The search found six patents, all IBM or VMware filings on call-graph or runtime
 
 The 0.11 line therefore adds no capability family beyond ideas 5, 9 and 12 **and idea 19 (swept above)**, and the ideas, queries, hits and limitations above are unchanged. **Not covered by this addendum:** the result cache and `--scope` (their own addenda, released as 0.10.2 and 0.10.3 if the board allows), and the hosted service (ROADMAP H9).
 
+## Addendum: the 0.13 line (2026-10-29, 0.13.0)
+
+Version line covered by this addendum: **0.13**. One rule is added over 0.12, read from `src/module/neutral/ops012.rs`: `OPS-012`. Swept 2026-10-29 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 21 (`OPS-012`).** Parse the source of a command-line program and report, from the syntax tree and the package manifest, four departures from platform convention: a fixed editor program started with no mention of the editor environment variables; a dotfile joined onto the home directory where the platform has a configuration directory; an argument loop with no argument-parser dependency; and the version and verbose short flags swapped.
+
+| # | Idea | Query (2026-10-29) |
+|---|---|---|
+| Q36 | 21 | static analysis source code detect hardcoded text editor instead of environment variable EDITOR command line tool convention violation |
+| Q37 | 21 | analyzing source code to detect configuration file stored in user home directory instead of platform standard configuration directory |
+| Q38 | 21 | static code analysis detect hand-written command line argument parsing loop rather than argument parser library, flag naming convention check |
+
+**Positive controls:** weak. Each query returned general static-analysis patents (for example US5854924A, US9032376B2, CN101017458A), so each reaches the static-analysis area; none returned a patent on convention checking, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q36 to Q38. The results listed (US20070100820A1, CN101017458A, US5854924A, US9672015B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.13 line adds no other mechanism: hits 1 to 32 and ideas 1 to 20 are unchanged. **Watch:** re-sweep if `OPS-012` starts to rewrite code, learn conventions from a corpus, or judge another language.
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.
