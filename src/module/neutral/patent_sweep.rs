@@ -28,7 +28,7 @@ const ID: &str = crate::rule_id::PATENT_SWEEP_RECORD;
 const RECORD: &str = "docs/PATENT-SWEEP.md";
 
 /// `(manifest, version)` of the root manifest that could be published.
-fn releasable(view: &RepoView) -> Option<(&'static str, String)> {
+pub(super) fn releasable(view: &RepoView) -> Option<(&'static str, String)> {
     if let Some(text) = view.read("Cargo.toml") {
         if let Ok(doc) = text.parse::<toml::Table>() {
             let package = doc.get("package");
@@ -61,7 +61,7 @@ fn releasable(view: &RepoView) -> Option<(&'static str, String)> {
 }
 
 /// The version line of `version`: `0.9` for `0.9.37`, `2` for `2.1.0`; `None` when it does not start with `major.minor`.
-fn line_of(version: &str) -> Option<String> {
+pub(super) fn line_of(version: &str) -> Option<String> {
     let mut parts = version
         .trim_start_matches(['v', 'V'])
         .split(['.', '-', '+']);
