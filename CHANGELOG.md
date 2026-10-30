@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.15.7 - 2026-10-30 (proposed)
+
+**`max_runtime_minutes` is enforced** (roadmap F4, first part). When a `[limits]` file or `CODERIPPER_MAX_RUNTIME_MINUTES` sets the ceiling, a watchdog thread started after the configuration is read ends the process at that many minutes with `coderipper: stopped: the run passed max_runtime_minutes = N (from SOURCE); part of the audit did not happen` and exit 3 (a check could not run), so a run that hit the ceiling can never read as clean. Before this the ceiling was only reported. Child processes already spawned (cargo, a tool) are not killed by the watchdog and may outlive it. Not Breaking: without the ceiling nothing changes, and the 30-minute value in the docs is a suggestion, not a default. Test: a unit test that the watchdog fires after its delay; the end-to-end stop at real minutes was NOT run. 0.15.6 is #189's proposed number; the PM allocates at gate.
+
 ## 0.15.5 - 2026-10-30 (proposed)
 
 **`cargo coderipper --sweep` and `--check <id>` as flags** (roadmap F1, third slice): the cargo subcommand takes the modes as flags, as cargo spells its own. `--sweep` runs the sweep, `--check <id>` (or `--check=<id>`) runs exactly one check; both together, or `--check` with no id, is a usage error (exit 2); nothing after `--` is read as a flag. The explicit subcommands (`sweep`, `check <id>`) work as before, and the `coderipper` binary is unchanged.

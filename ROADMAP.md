@@ -207,7 +207,7 @@ At the PM's task (CireSnave's idea): every piece of work that a spec, plan or RE
 | F1 | `cargo coderipper`: `-p/--package`, `--manifest-path`, `--sweep` and `--check <id>` as flags, the `short` message format | 3f 5, 123-135 | partly built (0.15.3: `--manifest-path`; 0.15.4 proposed: `-p/--package`; 0.15.5 proposed: `--sweep`, `--check <id>` flags); the `short` format open | |
 | F2 | A working-tree snapshot mode (checks read committed HEAD); a `compiler-message`-shaped output for editors | 3f 137-142 | open | |
 | F3 | A typed error enum in place of `anyhow::Error` in `Check::run` | 3f 59 | deferred | |
-| F4 | Enforcing `max_runtime_minutes` (the ceilings are only reported); the dotless `/etc/coderipper/coderipper.toml` spelling; pinning `profile` against a repository's choice | cfg 135-163; CHANGELOG 0.6.21 | open; pinning waits for a hosted operator | |
+| F4 | Enforcing `max_runtime_minutes` (built, 0.15.7: the run stops with exit 3); the dotless `/etc/coderipper/coderipper.toml` spelling; pinning `profile` against a repository's choice | cfg 135-163; CHANGELOG 0.6.21 | open; pinning waits for a hosted operator | |
 | F5 | Redaction: on by default in hosted mode; stripping the scratch-directory prefix and escaping on render | redaction plan 93-106; CHANGELOG 0.6.11 | held by item 9 | |
 
 ### Hosted service (all held by CireSnave's separate go, item 9)
