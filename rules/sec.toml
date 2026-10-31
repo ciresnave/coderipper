@@ -92,6 +92,8 @@ remediation = "Use a vetted library's high-level API, a cryptographically secure
 related = ["SEC-002"]
 lifecycle = "experimental"
 
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) or test skipped: a call to from_secret, new_from_slice, Key::from_slice, hmac::Key::new or UnboundKey::new whose key argument is a non-empty string or byte literal, an array of integer literals, or a local bound to one earlier in the same function (High); danger_accept_invalid_certs or danger_accept_invalid_hostnames unless the argument is the literal false, and a rustls .dangerous() with no arguments (High; a non-literal argument is Medium confidence and says to check the default). One finding per site. Not judged: weak algorithms, AEAD without associated data, non-constant-time comparison, a key built from concat!, a const, a static, a helper or the environment, a custom certificate verifier, TypeScript and Python."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
