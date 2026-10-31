@@ -290,3 +290,19 @@ Results listed but whose claims were not read (CN104200161A, US7010782B2, US8037
 ## Addendum: the 0.16 line (2026-10-30, 0.16.0)
 
 Version line covered by this addendum: **0.16**. No rule is added over 0.15, and no new idea: the change is that two checks name an item by its qualified path (`S::new`) in place of its bare name, a naming change inside rules already swept (the `unused-parameters` check already named items this way). **No new query was run for the 0.16 line**; this is a statement that no new idea was found to sweep, not a sweep, and not a clearance. Hits 1 to 32 and ideas 1 to 22 are unchanged.
+
+## Addendum: the 0.18 line (2026-10-31, 0.18.0)
+
+Version line covered by this addendum: **0.18** (0.18.0). One rule is added over 0.17, read from `src/module/neutral/sec004.rs`: `SEC-004` (parts a and b). Swept 2026-10-31 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`; the engine also returned two USPTO print pages, noted below).
+
+**Idea 25 (`SEC-004`).** Parse the Rust source files of a repository outside test code, find calls to named key-construction functions whose key argument is a string or byte literal (or a local bound to one in the same function), and calls to named TLS-verification-disabling methods whose argument is not the literal `false`, and report each site.
+
+| # | Idea | Query (2026-10-31) |
+|---|---|---|
+| Q51 | 25 | static analysis detecting hard-coded cryptographic key passed as string literal to key construction function in source code |
+| Q52 | 25 | automatically detecting disabled TLS certificate verification option in source code by matching API call arguments |
+| Q53 | 25 | source code scanner cryptography misuse rules abstract syntax tree skipping test code reporting literal secret in function call |
+
+**Positive controls:** weak. Each query returned documents in the adjacent area (hard-coded-secret detection, static security analysis of source, rule-based vulnerability scanning), so each reaches its area; none returned a patent on a named-API literal-key and verification-switch check, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q52 and Q53 (US8381242B2, US8793800B2, US9160762B2, US7849509B2, US20070083933A1, EP2092424A2 and others were **not read**: not hits, no verdict, none cleared). **Closest, flagged for a later read, not read:** Q51 returned two USPTO print pages, **US10929277** "Detecting hard-coded strings in source code" and **US11288376** "Identifying hard-coded secret vulnerability inside application source code", whose titles are in the area of `SEC-004a`. Neither was opened (only their titles came back), so neither has a verdict and neither is cleared; no row is added to the hits table, because adding one with no reading would record a verdict that was not made. **Until they are read, this addendum is not a clearance of `SEC-004a`.** Published academic tools (CryptoGuard, CogniCrypt, Cryptoscope) came back for Q51; they are prior art in the area, not patents. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing; hard-coded-secret detection is a crowded area. **Result: no hit read; two patents flagged for a read before release.** Hits 1 to 32 and ideas 1 to 24 are unchanged by the 0.18 line. **Watch:** re-sweep if `SEC-004` starts to trace a key through a helper, a constant or a data flow rather than a call name.

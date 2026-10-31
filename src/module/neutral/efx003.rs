@@ -109,7 +109,7 @@ fn reads_for(path: &str) -> Option<&'static [&'static str]> {
     })
 }
 
-fn is_dev_path(path: &str) -> bool {
+pub(super) fn is_dev_path(path: &str) -> bool {
     let segments: Vec<&str> = path.split('/').collect();
     let (name, dirs) = segments.split_last().unwrap_or((&"", &[]));
     dirs.iter().any(|s| DEV_DIRS.contains(s))

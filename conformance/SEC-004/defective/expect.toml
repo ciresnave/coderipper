@@ -1,0 +1,11 @@
+# The seeded defects: the rule must report exactly these places.
+
+[[expect]]
+rule = "SEC-004"
+file = "src/main.rs"
+line = 2
+
+[[expect]]
+rule = "SEC-004"
+file = "src/main.rs"
+line = 4

@@ -72,7 +72,7 @@ checks are implemented in CodeRipper at present, and none of them covers securit
 | SEC-001 | No unsanitised taint flow to dangerous sinks | P | no check yet; planned: Semgrep taint mode for Rust, TypeScript and Python (taint support is limited) |
 | SEC-002 | No committed secrets | N | delegated to gitleaks (`--profile extended`; scans the whole git history; needs the tool installed, else a reported gap) |
 | SEC-003 | Authorization on every entry point | P | no check yet; planned: route inventory joined to auth middleware for TypeScript and Python; Rust needs framework mapping and a model |
-| SEC-004 | No cryptography misuse | P | no check yet; planned: a native source scan for Rust, Semgrep for TypeScript, Bandit for Python |
+| SEC-004 | No cryptography misuse | P | built in part (4a hard-coded key material, 4b TLS verification off; Rust, `syn`, outside tests, High); weak algorithms (4c) and the type-dependent checks (4d, 4e) not built; Semgrep for TypeScript and Bandit for Python planned |
 | SEC-005 | Unsafe and native code inventory | P | no check yet; planned: cargo-geiger for Rust, native inventories for TypeScript and Python |
 | SEC-006 | No known exploitable dependency vulnerabilities | N | built: delegated to osv-scanner, in the same run as SUP-002, narrowed to advisories of CVSS 7.0 or higher or with no score |
 | SEC-007 | A current threat model | M | no check yet (presence is checkable, currency needs a human decision) |
