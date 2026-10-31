@@ -227,7 +227,16 @@ pub fn portfolio_floor(check_id: &str) -> Option<finding::Severity> {
 }
 
 impl Profile {
-    /// The rule ids this profile adds to the five original checks.
+    /// The extra rules this profile actually runs: [`Profile::extra_rules`] without the opt-in rules, which run only when named.
+    fn run_rules(self, only_check_id: Option<&str>) -> Vec<&'static str> {
+        let opt_in = module::neutral_opt_in_rule_ids();
+        self.extra_rules()
+            .into_iter()
+            .filter(|id| !opt_in.contains(id) || only_check_id == Some(*id))
+            .collect()
+    }
+
+    /// The rule ids this profile adds to the five original checks, opt-in rules included (what a name may refer to).
     fn extra_rules(self) -> Vec<&'static str> {
         match self {
             // the one rule every profile takes: a committed conflict marker is a broken file, whatever else is checked
@@ -1015,7 +1024,7 @@ fn run_selected_checks(
     units: UnitFilter,
     rootless: bool,
 ) -> RunResult {
-    let mut extra = profile.extra_rules();
+    let mut extra = profile.run_rules(only_check_id);
     // Classic's one extra rule reads HEAD. A project that is not a git repository with a commit has nothing for it to read,
     // and a classic run must not start failing there (the extended profile does say so: the neutral rules error on it).
     if profile == Profile::Classic
@@ -1265,6 +1274,18 @@ fn run_module_unredacted(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_opt_in_rule_runs_only_when_named() {
+        for profile in [Profile::Extended, Profile::Portfolio] {
+            assert!(!profile.run_rules(None).contains(&"EFX-003"));
+            assert!(!profile.run_rules(Some("RDB-008")).contains(&"EFX-003"));
+            assert!(profile.run_rules(Some("EFX-003")).contains(&"EFX-003"));
+            // positive control: an ordinary neutral rule is in the default set, and the full list still holds the opt-in one
+            assert!(profile.run_rules(None).contains(&"RDB-008"));
+            assert!(profile.extra_rules().contains(&"EFX-003"));
+        }
+    }
+
     use super::*;
 
     #[test]
