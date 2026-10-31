@@ -8,8 +8,8 @@
 //! threshold of three is **chosen, not measured**: one configuration module, one entry point that picks a profile, and one more
 //! that a reader can justify are allowed; a fourth read site is a sign of scatter. A repository with two files that read is not flagged.
 //!
-//! **Test code is not counted:** a path with a `tests`, `test`, `__tests__`, `spec`, `benches` or `examples` directory, `build.rs`, a
-//! `*_test.go`, `test_*.py`, `*_test.py`, `*.test.*` or `*.spec.*` file, and (Rust) everything from the first `#[cfg(test)]` line on.
+//! **Test code is not counted:** a path with a `tests`, `test`, `__tests__`, `spec`, `benches`, `examples` or `.github` directory (CI gate scripts), `build.rs`, a
+//! `tests.rs`, `tests_*.rs`, `*_tests.rs`, `*_test.go`, `test_*.py`, `*_test.py`, `*.test.*` or `*.spec.*` file, and (Rust) everything from the first `#[cfg(test)]` line on.
 //! Comment lines are not read. `env!` and `option_env!` (compile time) are not reads.
 //!
 //! **What it cannot see:** a read through a wrapper or a re-export under another name, shell scripts (the environment is the
@@ -50,9 +50,12 @@ fn is_test_path(path: &str) -> bool {
     dirs.iter().any(|s| {
         matches!(
             *s,
-            "tests" | "test" | "__tests__" | "spec" | "benches" | "examples"
+            "tests" | "test" | "__tests__" | "spec" | "benches" | "examples" | ".github"
         )
     }) || *name == "build.rs"
+        || *name == "tests.rs"
+        || name.starts_with("tests_")
+        || name.ends_with("_tests.rs")
         || name.ends_with("_test.go")
         || name.ends_with("_test.py")
         || name.starts_with("test_")
@@ -198,6 +201,9 @@ mod tests {
             ("b.ts", "const x = process.env.A;\n"),
             ("c.go", "package c\nvar x = os.Getenv(\"A\")\n"),
             ("test_d.py", "os.getenv('A')\n"),
+            ("src/tests.rs", RS),
+            ("src/tests_x.rs", RS),
+            (".github/gate.py", "os.environ['A']\n"),
             ("e.test.ts", "process.env.A\n"),
         ]);
         assert_eq!(f.len(), 1);
