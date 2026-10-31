@@ -20,7 +20,9 @@ use std::collections::{HashMap, HashSet};
 pub use composite::Composite;
 pub use delegate::{delegated_rule_ids, DelegatedModule};
 pub use external::ExternalModule;
-pub use neutral::{rule_ids as neutral_rule_ids, NeutralModule};
+pub use neutral::{
+    opt_in_rule_ids as neutral_opt_in_rule_ids, rule_ids as neutral_rule_ids, NeutralModule,
+};
 pub use protocol::{
     Capabilities, ClaimStatus, ErrorKind, Event, Hello, Limits, ModuleSummary, Request,
     RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, PROTOCOL,

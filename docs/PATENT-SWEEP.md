@@ -233,6 +233,24 @@ Version line covered by this addendum: **0.17**. One rule is added over 0.16, re
 
 No patent on point was surfaced by Q45 to Q47. The results listed (US8607193B2, US8418130B2, US9141378B2, US10241892B2, US6353925B1, US7493584B1 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. **Closest, flagged for a later read:** US11269626B2 "Quality analysis of source code" came back for all three queries; from its search snippet only, it obtains comments that contain predetermined attention words and filters them. That is a keyword scan of comments, which this rule's marker match resembles; whether any claim covers it was **not read**. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.17 line adds no other mechanism: hits 1 to 32 and ideas 1 to 22 are unchanged. **Watch:** read US11269626B2's claims before the rule grows beyond a marker match (an owner lookup, a due-date check, or a report ranked by age).
 
+## Addendum: the 0.17.6 rule (2026-10-31)
+
+Version line covered by this addendum: **0.17** (0.17.6). One rule is added over 0.17.0, read from `src/module/neutral/efx003.rs`: `EFX-003`. Swept 2026-10-31 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 24 (`EFX-003`).** Read the source files of a repository for calls that read the process environment, leave out test code, and report the repository when such reads are in three or more files.
+
+| # | Idea | Query (2026-10-31) |
+|---|---|---|
+| Q48 | 24 | static analysis detecting scattered environment variable reads across source files centralized configuration module |
+| Q49 | 24 | automatically identifying source code that reads process environment variables outside designated configuration file and reporting count of files |
+| Q50 | 24 | code analysis tool detecting getenv calls in multiple modules excluding test code to enforce single configuration point |
+
+**Positive controls:** weak. Each query returned patents in the adjacent area (static analysis of source, configuration-to-code dependency analysis, taint analysis); none returned a patent on counting environment reads across files, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q48 to Q50. The results listed (US8504997B2, US20100031237A1, US7340726B1, US9104528B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** This addition adds no other mechanism: hits 1 to 32 and ideas 1 to 23 are unchanged (US11269626B2, flagged under idea 23, was read on 2026-10-31: see below). **Watch:** re-sweep if the rule starts to infer which file is the configuration module, or to trace a value from its read to its use.
+
+**US11269626B2 read (2026-10-31, the coderipper lane, for ideas 23 and 24).** "Quality analysis of source code", IBM, granted 2022-03-08, Google lists it as active, expiry 2040-06-27 (Google's date, not a legal conclusion). Independent claims 1 (method), 7 (apparatus) and 12 (computer program product) each require: obtaining comments that contain a predetermined word; **extracting candidate comments using machine learning**, excluding comments by comparing the similarity of a code fragment with an adjacent fragment; **training a deep neural network classifier** on how words relate to a comment indicating an incomplete program statement; and outputting an evaluation of incompleteness from the classifier and the candidates. RDB-008 (a marker match with an owner/ticket test) and EFX-003 (a count of environment-read sites) use no machine learning, no classifier and no similarity comparison, so **outside as read**. **How it was read, and its limits:** the claim text came through a summarising fetch of the Google Patents page, not verbatim and not from the USPTO PDF (a scanned image with no text layer); the independent-claim elements above are that summary, so a person should confirm them against the claims before this is relied on. Dependent claims 2-6, 8-11 and 13-17 were summarised only. This is not a clearance and not legal advice. **Watch:** re-read if either rule gains a trained model, a similarity comparison between a comment and its code, or a ranking of comments by an incompleteness score (claims 6 and 17 rank fragment-comment pairs in descending order).
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.

@@ -65,7 +65,7 @@ None of these rules is run by the current release. The notes say what is planned
 | :--- | :--- | :--- | :--- |
 | EFX-001 | Components declared pure avoid effectful APIs | A | no check yet; needs a declared architecture (a deny-list per tagged component) |
 | EFX-002 | Global mutable state only where allowed | P | no check yet; planned: native scan in Rust, TypeScript and Python |
-| EFX-003 | Environment reads are centralized | N | no check yet; planned: native regex for common environment reads found anywhere but the config module |
+| EFX-003 | Environment reads are centralized | N | built, **opt-in** (runs when named, in no profile): native; named reads of the process environment in three or more source files (Rust, Python, JS/TS, Go, Java, Kotlin, Scala, Ruby, C#, PHP), Low, one finding per repository naming the files; not counted: forwarding the whole environment, platform variables, reads in strings or docstrings, tooling and test code; the threshold of three is chosen, not measured; 25% of findings were false or unclear on the portfolio run, which is why it is not default-on |
 | EFX-004 | Deterministic algorithms give identical results every run | X | no check yet; needs running the algorithm repeatedly and comparing hashes |
 | EFX-005 | Methods that both change state and answer queries | P | no check yet; planned: native heuristic, advisory |
 | EFX-006 | Functions claimed pure are pure | P | no check yet; planned: native call-graph check for TypeScript and Python; Rust needs effect reachability |

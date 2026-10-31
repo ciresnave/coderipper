@@ -14,6 +14,7 @@ mod ci_security;
 mod conflict_marker;
 mod doc005;
 mod doc009;
+mod efx003;
 mod licence;
 mod lint_suppression;
 mod lock_order;
@@ -124,11 +125,21 @@ const RULES: &[Rule] = &[
         id: "RDB-008",
         judge: rdb008::judge,
     },
+    Rule {
+        id: "EFX-003",
+        judge: efx003::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
 pub fn rule_ids() -> Vec<&'static str> {
     RULES.iter().map(|r| r.id).collect()
+}
+
+/// The rules of [`rule_ids`] that no profile runs on its own: they are claimed and proven like the others, and run when asked for
+/// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
+pub fn opt_in_rule_ids() -> &'static [&'static str] {
+    &["EFX-003"]
 }
 
 /// Where a [`RepoView`] gets its files.
@@ -502,6 +513,7 @@ const PROVEN: &[&str] = &[
     "OPS-012",
     "security-support-statement",
     "RDB-008",
+    "EFX-003",
 ];
 
 impl Module for NeutralModule {
@@ -636,7 +648,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 17);
+        assert_eq!(rule_ids().len(), 18);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
