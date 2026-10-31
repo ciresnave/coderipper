@@ -293,11 +293,21 @@ let d: &'a str = \"x\"; // T0D0
 let e = `# T0D0`;
 ";
         assert_eq!(lines("a.rs", src), vec![3, 4]);
-        assert_eq!(lines("a.py", "s = \"# T0D0\"
+        assert_eq!(
+            lines(
+                "a.py",
+                "s = \"# T0D0\"
 t = 'a' # T0D0
-"), vec![2]);
-        assert!(lines("a.sql", "select '-- F1XME';
-").is_empty());
+"
+            ),
+            vec![2]
+        );
+        assert!(lines(
+            "a.sql",
+            "select '-- F1XME';
+"
+        )
+        .is_empty());
     }
 
     #[test]
