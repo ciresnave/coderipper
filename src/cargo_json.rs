@@ -255,6 +255,35 @@ fn is_version(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
 }
 
+/// The note worth carrying with a diagnostic. A failed link's first note is the whole `"cc" ...` command line, which fills the cause
+/// and hides the linker's own words (`cannot find -lblis-mt`), so for a link the note that says what the linker could not do is preferred
+/// and a command line is never the one carried when another note exists.
+fn pick_note<'a>(message: &str, notes: &'a [String]) -> Option<&'a str> {
+    let said = |n: &&String| !n.trim().is_empty();
+    if message.starts_with("linking with") {
+        let reason = notes.iter().find(|n| {
+            [
+                "cannot find -l",
+                "undefined reference",
+                "undefined symbol",
+                "unresolved external",
+                "LNK1",
+            ]
+            .iter()
+            .any(|m| n.contains(m))
+        });
+        if let Some(n) = reason {
+            return Some(n.as_str());
+        }
+    }
+    notes
+        .iter()
+        .filter(said)
+        .find(|n| !n.trim_start().starts_with('"'))
+        .or_else(|| notes.iter().find(said))
+        .map(String::as_str)
+}
+
 impl BuildOutput {
     /// Why this build is broken, in one line for an error message: the first real compiler error (with its code and place), or
     /// what cargo itself reported (a build script that failed, a dependency that could not be built).
@@ -273,10 +302,7 @@ impl BuildOutput {
                 .primary_span()
                 .map(|s| format!(" ({}:{})", s.file, s.line))
                 .unwrap_or_default();
-            let note = d
-                .notes
-                .iter()
-                .find(|n| !n.trim().is_empty())
+            let note = pick_note(&d.message, &d.notes)
                 .map(|n| format!(" | {n}"))
                 .unwrap_or_default();
             return one_line(&format!("error{code}: {}{place}{note}", d.message));
@@ -1024,6 +1050,31 @@ fn main() { unsafe { coderipper_undefined_native_symbol() } }
         assert!(kept.starts_with("error: failed to run custom build command"));
         assert!(kept.contains("the end says why"));
         assert!(kept.len() < 20 * 1024);
+    }
+
+    #[test]
+    fn a_failed_link_carries_the_linkers_words_not_the_command_line() {
+        let mut link = diag("error", None);
+        link.message = "linking with `cc` failed: exit status: 1".into();
+        link.notes = vec![
+            "\"cc\" \"-m64\" \"symbols.o\"".into(),
+            "some arguments are omitted".into(),
+            "/usr/bin/ld: cannot find -lblis-mt: No such file or directory
+collect2: error: ld returned 1 exit status"
+                .into(),
+        ];
+        let out = BuildOutput {
+            diagnostics: vec![link],
+            success: false,
+            stderr_tail: String::new(),
+            units: vec![],
+            built_roots: vec![],
+            executables: vec![],
+            cache_note: None,
+        };
+        let cause = out.failure_cause();
+        assert!(cause.contains("cannot find -lblis-mt"), "{cause}");
+        assert!(!cause.contains("\"cc\""), "{cause}");
     }
 
     #[test]

@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.17.3 - 2026-10-31 (proposed)
+
+**A failed link now says what the linker could not do** (roadmap F6, step 1). The cause of a broken build carried the first note of rustc's `linking with `cc` failed` error, which is the whole `"cc" ...` command line, so the 400-character cut hid the linker's own words. A link failure now carries the note that names the missing library or symbol (`cannot find -l...`, `undefined reference`, `LNK1...`), and no diagnostic carries a command-line note when another exists. Message text only; not Breaking. Test: `a_failed_link_carries_the_linkers_words_not_the_command_line`. The number is a proposal, the PM allocates at gate.
+
 ## 0.17.2 - 2026-10-31 (proposed)
 
 Docs only: ROADMAP row F6 (a member that cannot link fails the whole sweep, from the cpufish finding). No change to the binary; the number is a proposal, the PM allocates at gate.
