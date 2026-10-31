@@ -59,8 +59,8 @@ This rule is the enforceable core of PRF-006 and of the repository's own "defaul
 
 ## 4. Scoping, so it is not noise
 
-1. **Rules fire only where speed is plausible.** The loop rules (PRF-009 to PRF-017) fire inside a loop, as defined above. PRF-016 and PRF-018 (the two with the worst measured precision) fire **only** in a module or function declared hot in the configuration: `[perf] hot_paths = ["fuel-cpu-kernels", "src/kernels/"]` (crate names or path prefixes), and a function carrying a marker attribute or doc line `#[coderipper::hot]`. Outside a declared hot path they are silent.
-2. **Profile.** *(Superseded in part by `2026-10-24-performance-rules-precision.md`: its sample found 3 of 12 true under the stricter rubric, and no rule is default-on on that evidence.)* The rules are in the `perf` group. *Default-on policy (section 7)*: the exact rules (PRF-009, PRF-015, PRF-019, PRF-020) are default-on in `extended`; the name-based and type-blind ones (PRF-010, PRF-011, PRF-012, PRF-013, PRF-014, PRF-016, PRF-017, PRF-018) are **opt-in until they pass the precision gate**. The `portfolio` profile picks up a perf rule only when it is default-on, and only after a [NOTICE].
+1. **Rules fire only where speed is plausible.** The loop rules (PRF-009 to PRF-017) fire inside a loop, as defined above. PRF-016 and PRF-018 (the two with the worst measured precision) fire **only** in a module or function declared hot in the configuration: `[perf] hot_paths = ["fuel-cpu-kernels", "src/kernels/"]` (crate names or path prefixes), and a function preceded by the comment marker `// coderipper: hot` (ruled 2026-10-25: a comment, so no dependency is added). Outside a declared hot path they are silent.
+2. **Profile.** *(Ruled 2026-10-25, `2026-10-25-decision-285-rulings.md` section 1, replacing the earlier text of this item.)* The rules are in the `perf` group and a rule is **default-on unless it produces many false positives**: at least 70% of a 30-finding sample a reviewer would act on, or exact on its syntax with a seeded fixture proving it both ways. Default-on in `extended`: PRF-020 (AST claims only), PRF-009, PRF-019, PRF-011 and PRF-015 (once it ignores a collect into a different collection type). Opt-in until measured: PRF-014 (until a fresh 30 clears 70%), PRF-013, PRF-010, PRF-017, and PRF-012 (repositioned below). Opt-in and `hot_paths` only: PRF-016 and PRF-018. The `portfolio` profile picks up a perf rule only when it is default-on, and only after a [NOTICE].
 3. **Severity** is Low (Info for PRF-016 and PRF-018). Nothing here ever blocks (default-on never means blocking; a project makes a rule required for itself with `blocking = [..]`).
 4. **A waiver needs evidence.** An `[[allow]]` entry for a perf rule must carry a `reason` that links a benchmark or profile (a path in the repository, or a URL); `reason = "fast enough"` would be rejected by the allowlist loader for these ids (a **proposed** check, not built).
 5. **No finding in a cold path.** Error paths (`.map_err(|e| ..)`, `Err(..)` arms, `panic!`/`unreachable!` arguments), `main`, argument parsing and `Drop` are skipped for the allocation rules, because one of the sampled allocation findings was on an error path (`.map_err(|e| ..)`) and the rest were required copies.
@@ -126,7 +126,7 @@ The prototype saw **none** of the exact structural defects (regex-in-loop, N+1, 
 | 11 | baracuda `unbuffered-io` `baracuda-forge/src/builder.rs:1046` | **true** | `writeln!` per object path into an unbuffered `File` (a build-time response file; small and cold) |
 | 12 | baracuda `loop:to_string` `baracuda-types-derive/src/lib.rs:94` | **true** | `Ident` compares with `&str` directly, so `to_string()` is avoidable (a proc macro: cold) |
 
-**Per pattern:** `loop:format!` 0 of 2, `loop:clone` 0 of 2, `loop:alloc-new` 0 of 1, `vec-new-then-push` 0 of 2, `nested-loop-same-collection` 0 of 1; `loop:contains` 1 of 1, `loop:iter-linear-search` 1 of 1, `unbuffered-io` 1 of 1, `loop:to_string` 1 of 1. **Overall 4 of 12 (33%).**
+**Per pattern:** `loop:format!` 0 of 2, `loop:clone` 0 of 2, `loop:alloc-new` 0 of 1, `vec-new-then-push` 0 of 2, `nested-loop-same-collection` 0 of 1; `loop:contains` 1 of 1, `loop:iter-linear-search` 1 of 1, `unbuffered-io` 1 of 1, `loop:to_string` 1 of 1. **Overall 4 of 12 (33%).** *This first sample is superseded: the later, larger sample in `2026-10-24-performance-rules-precision.md` found 0 of 42 in the allocation-in-loop family, and its positions are in the rulings document, section 1.*
 
 Eight claims were also read (seed 7): the four `claim:comment` hits were **all false** (a "hot path" in a doc comment about a correctness proof, the word "optimization" in a type name `OptimizationContext`, a benchmark library's comment "baracuda faster than PyTorch", a driver doc); the two `inline(always)` and two `get_unchecked` hits were **all true** perf-motivated departures (SIMD kernels and a copy loop). So the **comment-keyword reading is dropped** from PRF-020 (it keeps only a `// for speed` marker immediately beside `unsafe` or `inline(always)`), and the AST-based claims stay.
 
@@ -138,14 +138,15 @@ Eight claims were also read (seed 7): the four `claim:comment` hits were **all f
 
 ## 7. Plan, rule by rule (design only; no build is scheduled)
 
-**Precision gate (proposed bar).** A rule joins the *default* when, on at least 30 findings sampled with a recorded seed across at least three portfolio repositories, at least **80% are true positives** by the definition above (and the sample is committed beside the rule). Below the bar the rule ships **opt-in**. A rule with a zero count on the portfolio (nothing to sample) ships default-on only if it is *exact on its syntax* (PRF-009, PRF-015, PRF-019) and is proven by a seeded fixture both ways.
+**Precision gate (written bar, 2026-10-25).** A rule joins the *default* when, on at least 30 findings sampled with a recorded seed across at least three portfolio repositories, at least **70% are findings a reviewer would act on** (ruled 2026-10-25, replacing the proposed 80%; the record beside the rule names the seed, the rubric and who judged) (and the sample is committed beside the rule). Below the bar the rule ships **opt-in**. A rule with a zero count on the portfolio (nothing to sample) ships default-on only if it is *exact on its syntax* (PRF-009, PRF-011, PRF-015, PRF-019) and is proven by a seeded fixture both ways.
 
 | order | rule | ships | needs first |
 |---|---|---|---|
 | 1 | PRF-020 performance claim without a benchmark | default-on (AST claims only) | `[perf] benchmarks` link syntax; the waiver-evidence check; fixture pair |
 | 2 | PRF-009 regex in a loop, PRF-015 collect-then-iterate, PRF-019 `repr(C)` padding | default-on | fixture pair each; require the matching Clippy lints to be enabled |
-| 3 | PRF-011 unbuffered I/O, PRF-012 linear search in a loop | opt-in until 30-finding sample passes | scoping to `hot_paths`; a collection-type allowlist for PRF-012 |
-| 4 | PRF-013 nested loops, PRF-014 `with_capacity` | opt-in | evident-length test for PRF-014; range exclusion for PRF-013 |
+| 3 | PRF-011 unbuffered I/O | default-on (exact on its syntax; the finding says when the code is a cold build script) | fixture pair |
+| 3b | PRF-012 linear search in a loop | opt-in; a way down the roadmap as one narrower rule (an equality-keyed lookup in a collection that grows with the input), not dropped | the size-aware form; a collection-type allowlist |
+| 4 | PRF-013 nested loops, PRF-014 `with_capacity` | opt-in (PRF-014 until a fresh 30 from other repositories clears 70%) | evident-length test and nested-loop push exclusion for PRF-014; range exclusion for PRF-013 |
 | 5 | PRF-016 allocation in a loop, PRF-018 pointer-chasing | opt-in, `hot_paths` only | `[perf] hot_paths`; the cold-path skips of section 4 |
 | 6 | PRF-010 N+1 | opt-in | a configured list of database and HTTP client types |
 | 7 | PRF-017 string concat | opt-in | the `s = s + ..` form first |
@@ -154,7 +155,7 @@ Releases: each is a **Breaking** change for consumers only when it is default-on
 
 ## 8. Open points for the PM
 
-1. **Numbering and umbrella.** Keep PRF-003 as the umbrella and add PRF-009+, or split PRF-003 into the rules above?
-2. **Marker syntax.** `[perf] hot_paths` and `#[coderipper::hot]` (an attribute needs a proc-macro or `cfg_attr`-free marker comment): prefer a comment marker `// coderipper: hot` so no dependency is added.
+1. *(Open.)* **Numbering and umbrella.** Keep PRF-003 as the umbrella and add PRF-009+, or split PRF-003 into the rules above?
+2. **Marker syntax. Ruled 2026-10-25:** `[perf] hot_paths`, `[perf] benchmarks` and the comment marker `// coderipper: hot`.
 3. **Where the portfolio runs the opt-in rules:** the weekly sweep, with the counts as evidence, never a pull-request job.
 4. **Measuring beyond the three repositories** to reach 30 per rule is a follow-up: it needs the prototype turned into the real rule so the sample is of what ships.
