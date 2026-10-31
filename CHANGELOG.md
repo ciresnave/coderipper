@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.17.5 - 2026-10-31 (proposed)
+
+Docs only: `docs/CONSUMER-CHANGES-0.15-TO-0.17.md`, what 0.15.1 to 0.17.4 changed for a consumer of the published 0.15.0 (rules, exit codes, output, migration), for a publish decision. No change to the binary; the number is a proposal, the PM allocates at gate.
+
 ## 0.17.4 - 2026-10-31 (proposed)
 
 Docs only: ROADMAP row F6 is parked as likely stale (seen on 0.9.6, not on 0.10.0). No change to the binary; the number is a proposal, the PM allocates at gate.
