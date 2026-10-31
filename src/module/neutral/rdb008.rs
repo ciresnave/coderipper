@@ -3,13 +3,14 @@
 //!
 //! **What this judges:** every tracked source file (by extension, outside the directories `conflict-marker` skips) is read line by
 //! line, and the text of its comments is searched for the words `TODO` and `FIXME` (upper case, whole word, the first word of the comment). One is **owned** when
-//! it is followed by a parenthesised name (`TODO(eric)`), by `@name`, or when its comment line holds an issue reference (`#123`,
+//! it is followed by a parenthesised or bracketed name (`TODO(eric)`, `TODO [eric]`), by `@name`, or when its comment line holds an issue reference (`#123`,
 //! `PROJ-123`) or a link (`http://`, `https://`). An unowned one is a **Low** finding; a file gets one finding, at its first, with the
 //! count. The rule's statement also asks for an expiry date; a date is not required here, because an issue is the expiry.
 //!
 //! **Comments by family:** `//` and `/* .. */` for C-like languages, Rust, Go, Java, JavaScript, TypeScript and friends; `#` for Python,
 //! Ruby, shell, TOML, YAML and friends; `--` for SQL, Lua and Haskell. A `//` after a `:` is a URL, not a comment. A comment marker
-//! inside a string literal is read as a comment (a known false positive, which an `[[allow]]` entry on the file waives).
+//! inside a single-line string literal (`"`, and `'` or a backtick where the family has them) is not a comment; a string that spans lines
+//! is not tracked, so a marker inside one is read as a comment (an `[[allow]]` entry on the file waives it).
 //!
 //! **What it cannot see:** the second half of the rule, commented-out code; an owner written on the line above; a to-do in prose (a
 //! Markdown file, a doc page); languages not listed; a marker in a language that nests block comments.
@@ -49,36 +50,77 @@ fn skipped(path: &str) -> bool {
         .any(|s| SKIPPED.contains(s))
 }
 
-/// The comment text of `line`, given whether a block comment is open at its start; and whether one is open at its end.
+/// The comment text of `line`, given whether a block comment is open at its start; and whether one is open at its end. A marker inside a
+/// string literal on the same line is not a comment.
 fn comment_of(line: &str, family: Family, in_block: bool) -> (Option<&str>, bool) {
-    match family {
-        Family::Hash => (line.find('#').map(|i| &line[i + 1..]), false),
-        Family::Dash => (line.find("--").map(|i| &line[i + 2..]), false),
-        Family::C => {
-            if in_block {
-                return match line.find("*/") {
-                    Some(i) => (Some(&line[..i]), false),
-                    None => (Some(line), true),
-                };
+    if family == Family::C && in_block {
+        return match line.find("*/") {
+            Some(i) => (Some(&line[..i]), false),
+            None => (Some(line), true),
+        };
+    }
+    let bytes = line.as_bytes();
+    let mut quote: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if let Some(q) = quote {
+            if c == b'\\' && family != Family::Dash {
+                i += 2;
+                continue;
             }
-            let bytes = line.as_bytes();
-            let mut i = 0;
-            while i + 1 < bytes.len() {
-                if bytes[i] == b'/' && bytes[i + 1] == b'/' && (i == 0 || bytes[i - 1] != b':') {
+            if c == q {
+                quote = None;
+            }
+            i += 1;
+            continue;
+        }
+        let next = bytes.get(i + 1).copied();
+        match family {
+            Family::Hash => {
+                if c == b'#' {
+                    return (Some(&line[i + 1..]), false);
+                }
+                if c == b'"' || c == b'\'' {
+                    quote = Some(c);
+                }
+            }
+            Family::Dash => {
+                if c == b'-' && next == Some(b'-') {
                     return (Some(&line[i + 2..]), false);
                 }
-                if bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                if c == b'"' || c == b'\'' {
+                    quote = Some(c);
+                }
+            }
+            Family::C => {
+                if c == b'/' && next == Some(b'/') && (i == 0 || bytes[i - 1] != b':') {
+                    return (Some(&line[i + 2..]), false);
+                }
+                if c == b'/' && next == Some(b'*') {
                     let rest = &line[i + 2..];
                     return match rest.find("*/") {
                         Some(j) => (Some(&rest[..j]), false),
                         None => (Some(rest), true),
                     };
                 }
-                i += 1;
+                if c == b'"' || c == b'`' {
+                    quote = Some(c);
+                } else if c == b'\'' {
+                    // A char literal ('x' or '\n') is skipped whole; a lone `'` (a Rust lifetime) opens nothing.
+                    if next == Some(b'\\') {
+                        if let Some(j) = line.get(i + 3..).and_then(|r| r.find('\'')) {
+                            i += 3 + j;
+                        }
+                    } else if bytes.get(i + 2) == Some(&b'\'') {
+                        i += 2;
+                    }
+                }
             }
-            (None, false)
         }
+        i += 1;
     }
+    (None, false)
 }
 
 fn has_reference(text: &str) -> bool {
@@ -126,7 +168,12 @@ fn unowned(text: &str) -> bool {
         .strip_prefix('(')
         .and_then(|r| r.split_once(')'))
         .is_some_and(|(name, _)| !name.trim().is_empty())
-        || after.trim_start().starts_with('@');
+        || after.trim_start().starts_with('@')
+        || after
+            .trim_start()
+            .strip_prefix('[')
+            .and_then(|r| r.split_once(']'))
+            .is_some_and(|(name, _)| !name.trim().is_empty());
     !(named || has_reference(text))
 }
 
@@ -235,6 +282,42 @@ T0D0S();
 // the word T0D0 in prose
 ";
         assert!(lines("a.rs", src).is_empty());
+    }
+
+    #[test]
+    fn a_marker_inside_a_string_literal_is_not_a_comment() {
+        let src = "let a = \"// T0D0 x\";
+let b = \"a \\\" // T0D0\";
+let c = '\"'; // T0D0
+let d: &'a str = \"x\"; // T0D0
+let e = `# T0D0`;
+";
+        assert_eq!(lines("a.rs", src), vec![3, 4]);
+        assert_eq!(
+            lines(
+                "a.py",
+                "s = \"# T0D0\"
+t = 'a' # T0D0
+"
+            ),
+            vec![2]
+        );
+        assert!(lines(
+            "a.sql",
+            "select '-- F1XME';
+"
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn a_bracketed_name_is_an_owner() {
+        let src = "// T0D0 [eric] later
+// T0D0[eric]
+// T0D0 [] later
+// T0D0 [x
+";
+        assert_eq!(lines("a.rs", src), vec![3, 4]);
     }
 
     #[test]
