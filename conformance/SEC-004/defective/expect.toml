@@ -9,3 +9,8 @@ line = 2
 rule = "SEC-004"
 file = "src/main.rs"
 line = 4
+
+[[expect]]
+rule = "SEC-004"
+file = "src/main.rs"
+line = 9
