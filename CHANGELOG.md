@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.18.0 - 2026-10-31 (proposed) - BREAKING
+
+**EFX-003 is built: environment variables are read in one configuration module** (M13; lane pick). A new language-neutral rule, default on in `portfolio` and `extended`, experimental in the catalog and so reported, never gating (**Breaking** by the default-on rule: a repository with scattered reads gains a finding). Tracked source files in Rust, Python, JavaScript and TypeScript, Go, Java, Kotlin, Scala, Ruby, C# and PHP, outside the usual fixture and vendored directories and outside test code; a repository whose environment reads are in **three or more** files gets one Low finding naming them. The three is **chosen, not measured**. Not judged: a read through a wrapper, shell scripts, whether the reading module is a configuration module. Patent sweep addendum: idea 24, no hit, not a clearance. Portfolio measurement: see the PR.
+
 ## 0.17.5 - 2026-10-31 (proposed)
 
 Docs only: `docs/CONSUMER-CHANGES-0.15-TO-0.17.md`, what 0.15.1 to 0.17.4 changed for a consumer of the published 0.15.0 (rules, exit codes, output, migration), for a publish decision. No change to the binary; the number is a proposal, the PM allocates at gate.

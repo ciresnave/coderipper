@@ -1,0 +1,6 @@
+# The seeded defect: the rule must report exactly this place.
+
+[[expect]]
+rule = "EFX-003"
+file = "src/a.rs"
+line = 2

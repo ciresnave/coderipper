@@ -14,6 +14,7 @@ mod ci_security;
 mod conflict_marker;
 mod doc005;
 mod doc009;
+mod efx003;
 mod licence;
 mod lint_suppression;
 mod lock_order;
@@ -123,6 +124,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "RDB-008",
         judge: rdb008::judge,
+    },
+    Rule {
+        id: "EFX-003",
+        judge: efx003::judge,
     },
 ];
 
@@ -502,6 +507,7 @@ const PROVEN: &[&str] = &[
     "OPS-012",
     "security-support-statement",
     "RDB-008",
+    "EFX-003",
 ];
 
 impl Module for NeutralModule {
@@ -636,7 +642,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 17);
+        assert_eq!(rule_ids().len(), 18);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }

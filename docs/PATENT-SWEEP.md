@@ -233,6 +233,22 @@ Version line covered by this addendum: **0.17**. One rule is added over 0.16, re
 
 No patent on point was surfaced by Q45 to Q47. The results listed (US8607193B2, US8418130B2, US9141378B2, US10241892B2, US6353925B1, US7493584B1 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. **Closest, flagged for a later read:** US11269626B2 "Quality analysis of source code" came back for all three queries; from its search snippet only, it obtains comments that contain predetermined attention words and filters them. That is a keyword scan of comments, which this rule's marker match resembles; whether any claim covers it was **not read**. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.17 line adds no other mechanism: hits 1 to 32 and ideas 1 to 22 are unchanged. **Watch:** read US11269626B2's claims before the rule grows beyond a marker match (an owner lookup, a due-date check, or a report ranked by age).
 
+## Addendum: the 0.18 line (2026-10-31, 0.18.0)
+
+Version line covered by this addendum: **0.18**. One rule is added over 0.17, read from `src/module/neutral/efx003.rs`: `EFX-003`. Swept 2026-10-31 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (Google Patents through a web search restricted to `patents.google.com`).
+
+**Idea 24 (`EFX-003`).** Read the source files of a repository for calls that read the process environment, leave out test code, and report the repository when such reads are in three or more files.
+
+| # | Idea | Query (2026-10-31) |
+|---|---|---|
+| Q48 | 24 | static analysis detecting scattered environment variable reads across source files centralized configuration module |
+| Q49 | 24 | automatically identifying source code that reads process environment variables outside designated configuration file and reporting count of files |
+| Q50 | 24 | code analysis tool detecting getenv calls in multiple modules excluding test code to enforce single configuration point |
+
+**Positive controls:** weak. Each query returned patents in the adjacent area (static analysis of source, configuration-to-code dependency analysis, taint analysis); none returned a patent on counting environment reads across files, and that absence is a statement about these three queries only.
+
+No patent on point was surfaced by Q48 to Q50. The results listed (US8504997B2, US20100031237A1, US7340726B1, US9104528B2 and others) were **not read**: they are not hits and carry no verdict, and none is cleared. No row is added to the hits table. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing. **Result: no hit; this is not a clearance.** The 0.18 line adds no other mechanism: hits 1 to 32 and ideas 1 to 23 are unchanged (US11269626B2, flagged under idea 23, is still unread). **Watch:** re-sweep if the rule starts to infer which file is the configuration module, or to trace a value from its read to its use.
+
 ## Limitations
 
 - AI-assisted search and read; **not legal advice and not a freedom-to-operate opinion**. A lawyer's review is a separate, later purchase.

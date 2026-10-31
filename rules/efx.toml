@@ -68,6 +68,8 @@ remediation = "Read the environment once in the config module, parse it into typ
 related = ["EFX-001", "OPS-001"]
 lifecycle = "experimental"
 
+checked_today = "Tracked source files by extension (Rust, Python, JavaScript and TypeScript, Go, Java, Kotlin, Scala, Ruby, C#, PHP) outside fixtures, testdata, conformance, snapshots, golden and vendored directories and outside test code (tests, test, spec, benches and examples directories, build.rs, test-named files, and a Rust file from its first #[cfg(test)] line): a call that reads the process environment (std::env::var, os.environ, os.getenv, process.env, os.Getenv, System.getenv, ENV[], GetEnvironmentVariable). A repository with reads in three or more such files gets one Low finding naming them (the three is chosen, not measured). Not judged: a read through a wrapper, shell scripts, other languages, whether the one reading module is a config module."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
