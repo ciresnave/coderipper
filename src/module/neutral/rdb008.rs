@@ -204,7 +204,11 @@ fn code_shaped(t: &str, family: Family) -> bool {
     if t.is_empty() || t.starts_with(['/', '!', '*']) {
         return false;
     }
-    if t.ends_with(';') || t.ends_with('{') || t == "}" || t.ends_with("});") {
+    let continued = t.starts_with(|c: char| c.is_alphabetic() || c == '.')
+        && t.ends_with(['(', ',', ')'])
+        && (t.contains('(') || t.contains("::") || t.contains("=>"))
+        && !t.contains(". ");
+    if t.ends_with(';') || t.ends_with('{') || t == "}" || continued {
         return true;
     }
     let keywords: &[&str] = match family {
@@ -231,19 +235,28 @@ fn commented_out_runs(path: &str, text: &str) -> Vec<u32> {
         _ => return Vec::new(),
     };
     let mut out = Vec::new();
-    let (mut start, mut len) = (0usize, 0usize);
+    // A block is a run of consecutive whole-line comments. It is commented-out code when it holds MIN_RUN or more code-shaped lines and at
+    // least three quarters of its non-blank lines are code-shaped; a block that is mostly prose and quotes code to explain it is not.
+    let (mut first_code, mut code, mut prose) = (0usize, 0usize, 0usize);
     for (i, line) in text.lines().chain(std::iter::once("")).enumerate() {
-        let body = line.trim_start().strip_prefix(marker);
-        if body.is_some_and(|b| code_shaped(b, family)) {
-            if len == 0 {
-                start = i + 1;
+        match line.trim_start().strip_prefix(marker) {
+            Some(b) if code_shaped(b, family) => {
+                if code == 0 {
+                    first_code = i + 1;
+                }
+                code += 1;
             }
-            len += 1;
-        } else {
-            if len >= MIN_RUN {
-                out.push(u32::try_from(start).unwrap_or(u32::MAX));
+            Some(b) => {
+                if !b.trim().is_empty() {
+                    prose += 1;
+                }
             }
-            len = 0;
+            None => {
+                if code >= MIN_RUN && code * 4 >= (code + prose) * 3 {
+                    out.push(u32::try_from(first_code).unwrap_or(u32::MAX));
+                }
+                (code, prose) = (0, 0);
+            }
         }
     }
     out
@@ -340,6 +353,13 @@ mod tests {
         let code = "// let x = 1;\n// foo(x);\n// bar();\nfn live() {}\n";
         assert_eq!(commented_out_runs("a.rs", code), vec![1]);
         assert!(commented_out_runs("a.rs", "// let x = 1;\n// foo(x);\n").is_empty());
+        let quoted = "// The upstream code reads:
+//   let x = 1;
+//   foo(x);
+//   bar();
+// so we guard it.
+";
+        assert!(commented_out_runs("a.rs", quoted).is_empty());
         assert!(commented_out_runs(
             "a.rs",
             "// This is prose.\n// More prose here.\n// Even more.\n"
