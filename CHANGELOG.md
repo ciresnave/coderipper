@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.17.2 - 2026-10-31 (proposed)
+
+Docs only: ROADMAP row F6 (a member that cannot link fails the whole sweep, from the cpufish finding). No change to the binary; the number is a proposal, the PM allocates at gate.
+
 ## 0.17.1 - 2026-10-30 (proposed)
 
 **RDB-008 false positives fixed** (the two the PM asked about after the 0.17.0 measurement; 5 of 74 first-hit lines were wrong, ~7%). A comment marker inside a single-line string literal (`"`, and `'` or a backtick where the language has them; a Rust lifetime and a char literal are handled) is no longer a comment, and `TODO [name]` counts as an owner like `TODO(name)`. Only removes findings, so not Breaking. A string that spans lines is still not tracked. Tests: two new unit tests. The number is a proposal, the PM allocates at gate.
