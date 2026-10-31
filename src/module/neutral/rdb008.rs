@@ -194,8 +194,64 @@ fn unowned_lines(path: &str, text: &str) -> Vec<u32> {
     out
 }
 
+/// Fewest consecutive code-shaped line comments that count as commented-out code.
+const MIN_RUN: usize = 3;
+
+/// Whether comment text `t` (one whole-line comment) looks like a line of code rather than prose: it ends in `;`, `{` or `}`, or opens
+/// with a statement keyword and does not read as a sentence.
+fn code_shaped(t: &str, family: Family) -> bool {
+    let t = t.trim();
+    if t.is_empty() || t.starts_with(['/', '!', '*']) {
+        return false;
+    }
+    if t.ends_with(';') || t.ends_with('{') || t == "}" || t.ends_with("});") {
+        return true;
+    }
+    let keywords: &[&str] = match family {
+        Family::C => &[
+            "let ", "fn ", "pub fn ", "use ", "const ", "return ", "if (", "for (", "while (",
+        ],
+        Family::Hash => &["def ", "import ", "from ", "return ", "self.", "print("],
+        Family::Dash => &[],
+    };
+    keywords.iter().any(|k| t.starts_with(k))
+        && !t.ends_with(['.', ':', '?'])
+        && (t.contains('(') || t.contains('=') || t.contains("::"))
+}
+
+/// The 1-based first lines of runs of `MIN_RUN` or more consecutive whole-line comments that are all code-shaped. Only C-like and
+/// Python/Ruby files are read; commented-out configuration (TOML, YAML) and shell are legitimate documentation and are not judged.
+fn commented_out_runs(path: &str, text: &str) -> Vec<u32> {
+    let Some(family) = family(path) else {
+        return Vec::new();
+    };
+    let marker = match family {
+        Family::C => "//",
+        Family::Hash if path.ends_with(".py") || path.ends_with(".rb") => "#",
+        _ => return Vec::new(),
+    };
+    let mut out = Vec::new();
+    let (mut start, mut len) = (0usize, 0usize);
+    for (i, line) in text.lines().chain(std::iter::once("")).enumerate() {
+        let body = line.trim_start().strip_prefix(marker);
+        if body.is_some_and(|b| code_shaped(b, family)) {
+            if len == 0 {
+                start = i + 1;
+            }
+            len += 1;
+        } else {
+            if len >= MIN_RUN {
+                out.push(u32::try_from(start).unwrap_or(u32::MAX));
+            }
+            len = 0;
+        }
+    }
+    out
+}
+
 pub(super) fn judge(view: &RepoView) -> Verdict {
-    let candidates = view.paths_matching("(TODO|FIXME)");
+    // Commented-out code can be in any source file, so every file of a known family is read (not only those that name a to-do).
+    let candidates: Option<Vec<String>> = None;
     let everything;
     let paths: Vec<&String> = match &candidates {
         Some(found) => found
@@ -220,6 +276,27 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             continue;
         }
         read += 1;
+        let runs = commented_out_runs(path, &text);
+        if let Some(first) = runs.first().copied() {
+            findings.push(
+                Finding::new(
+                    ID,
+                    Severity::Low,
+                    Confidence::Low,
+                    view.name(),
+                    format!(
+                        "{path} has {} run(s) of {MIN_RUN}+ commented-out code lines, the first at line {first}",
+                        runs.len()
+                    ),
+                    "Delete the commented-out code; version history keeps it. If it is an example, move it into a doc comment.",
+                )
+                .location(Location::new(path.as_str(), Some(first)))
+                .subject(path.as_str())
+                .positive_control(format!(
+                    "{read} source file(s) were read; the first commented-out run is at {path}:{first}"
+                )),
+            );
+        }
         let lines = unowned_lines(path, &text);
         let Some(first) = lines.first().copied() else {
             continue;
@@ -256,6 +333,24 @@ mod tests {
             path,
             &text.replace("T0D0", "TODO").replace("F1XME", "FIXME"),
         )
+    }
+
+    #[test]
+    fn a_run_of_commented_out_code_is_found_and_prose_is_not() {
+        let code = "// let x = 1;\n// foo(x);\n// bar();\nfn live() {}\n";
+        assert_eq!(commented_out_runs("a.rs", code), vec![1]);
+        assert!(commented_out_runs("a.rs", "// let x = 1;\n// foo(x);\n").is_empty());
+        assert!(commented_out_runs(
+            "a.rs",
+            "// This is prose.\n// More prose here.\n// Even more.\n"
+        )
+        .is_empty());
+        assert!(commented_out_runs("a.rs", "/// let x = 1;\n/// foo(x);\n/// bar();\n").is_empty());
+        assert_eq!(
+            commented_out_runs("a.py", "# self.x = f(a)\n# print(self.x)\n# return g(a);\n"),
+            vec![1]
+        );
+        assert!(commented_out_runs("a.toml", "# a = 1;\n# b = 2;\n# c = 3;\n").is_empty());
     }
 
     #[test]
