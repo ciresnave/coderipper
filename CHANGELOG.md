@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.18.2 - 2026-10-31 (proposed)
+
+**Brief mode: `--top N` prints the N most severe findings and says what it left out** (ROADMAP E3, PM task 2026-10-31). Findings are ranked by severity, then confidence, then report order; human and `short` output end with `coderipper: N more finding(s) not shown (2 high, 1 medium)`; JSON prints N `coderipper-finding` lines and adds `findings_omitted` to the `coderipper-summary` line, whose `findings` stays the full count. Without the flag nothing changes, and the flag changes no exit code, no waived-finding line and no coverage output.
+
 ## 0.18.1 - 2026-10-31 (proposed)
 
 **SEC-004 part c is built: a weak algorithm in use, Info** (ROADMAP R3, family 1, plan section 8 step 3; stacked on 0.18.0). A `use` of the `md5`, `sha1`, `sha1_smol`, `des`, `rc4` or `ecb` crate or of a type named `Md5`, `Sha1`, `Des`, `Rc4` or `Ecb` is one finding per `use` item, and a fully qualified call into one of those crates with no `use` of it in the file is one finding per call; test items are skipped. It is an inventory, not a defect: protocols mandate MD5 and SHA-1 in places, so the finding asks for a waiver that names the protocol. Reported and never gating. Not built: the loader check that rejects a weak-algorithm waiver without a reason; algorithms reached through a wrapper or a non-Rust language.

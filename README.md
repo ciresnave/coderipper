@@ -81,6 +81,8 @@ fields plus `waiver_reason`, the entry's reason), then one `coderipper-summary` 
 cargo coderipper --message-format json --deny medium
 ```
 
+**`--top N` (0.18.2): a brief report.** `coderipper sweep --top 10` prints the ten most severe findings (ties: the most confident first) and ends with `coderipper: N more finding(s) not shown (2 high, 1 medium)`. JSON keeps ten `coderipper-finding` lines and adds `findings_omitted` to the `coderipper-summary` line, whose `findings` is still the full count. It changes no exit code.
+
 **`--summary` (0.9.8): one line per rule.** `coderipper sweep --summary` ends the human output with a totals line and one line per rule (findings, `[[allow]]` waivers, `public_api` declarations, severities); with `--message-format json` it prints one `coderipper-rule-summary` line just before the `coderipper-summary` line. The field names are stable: `reason`, `project`, `findings`, `waived`, `declared_public`, `opt_outs` (waived plus declared public: the project's visible opt-outs), `errors`, and `rules`, a list sorted by rule id whose items have `rule`, `findings`, `waived`, `declared_public` and `severities` (lower-case severity to count). A rule that ran clean has no row, and `--summary` changes no exit code.
 
 ## As a library
