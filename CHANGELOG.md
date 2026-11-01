@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.18.5 - 2026-11-01 (proposed)
+
+**Docs only: design note for the ARC and MOD checks** (`docs/superpowers/specs/2026-11-01-arc-mod-checks-design.md`; PM task 2026-11-01, relaying CireSnave). Per rule: class, measurement, data source, threshold method, the `[architecture]` declaration format for A-class rules, a build order, five open choices marked ASK, a corpus size table (9 repos, measured at each `origin/main`). No code changed; no rule's catalogue row changed.
+
 ## 0.18.4 - 2026-11-01 (proposed)
 
 **Docs only: ROADMAP row E8, `reachability` precision on a large library workspace** (the Fuel lane's finding on 497 Medium rows: test-only callers, dead-root chains, non-fn items; PM 2026-11-01: scheduled for the first week after FULL SPEED, not built now). No code changed.
