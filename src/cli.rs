@@ -204,6 +204,12 @@ struct RunOpts {
     /// `coderipper-rule-summary` line before the `coderipper-summary` line. It changes no exit code.
     #[arg(long)]
     summary: bool,
+    /// Brief mode: print only the `N` most severe findings (then the most confident, then in report order) and say how many were left out
+    /// and at which severities. Human and `short` output end with one `coderipper: N more finding(s) not shown` line; JSON keeps `N`
+    /// `coderipper-finding` lines and adds `findings_omitted` to the `coderipper-summary` line, whose `findings` stays the full count.
+    /// It changes no exit code, and waived findings are listed as before.
+    #[arg(long, value_name = "N")]
+    top: Option<usize>,
     /// Say that the tools the delegated rules need (`--profile extended`: gitleaks for SEC-002, osv-scanner for SUP-002 and SEC-006, lychee for DOC-010, zizmor for SUP-008, checkov for SEC-009, cargo-semver-checks for API-001, squawk for API-007, buf for API-006) may be downloaded into the tool
     /// cache when they are not there. Without it nothing is downloaded or written, in CI or anywhere else, and a rule whose tool is
     /// missing is reported as not run (a gap; it never fails the run).
@@ -965,6 +971,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 profile,
                 coverage,
                 summary,
+                top,
                 install_tools,
                 tools_lock,
                 redact,
@@ -1174,6 +1181,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
+    let shown = ranked(&result.findings, top);
     let show_coverage =
         profile == Profile::Extended || coverage.is_some() || min_coverage.is_some();
     let reports = show_coverage
@@ -1241,7 +1249,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                     );
                 }
             }
-            for f in &result.findings {
+            for f in &shown {
                 println!(
                     "[{:?}/{:?}] {} — {}{} ({})",
                     f.severity,
@@ -1252,6 +1260,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                     place(f),
                     f.check_id
                 );
+            }
+            if let Some(line) = omitted_line(&result.findings, shown.len()) {
+                println!("{line}");
             }
             // On every run, whatever the profile: the share of the rules that ran that found nothing.
             let ran = crate::coverage::RunCounts::of(&result.outcomes);
@@ -1281,12 +1292,15 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             }
         }
         MessageFormat::Short => {
-            for f in &result.findings {
+            for f in &shown {
                 println!("{}", short_line(f));
+            }
+            if let Some(line) = omitted_line(&result.findings, shown.len()) {
+                println!("{line}");
             }
         }
         MessageFormat::Json => {
-            for f in &result.findings {
+            for f in &shown {
                 let mut line = serde_json::to_value(f)?;
                 let object = line
                     .as_object_mut()
@@ -1335,6 +1349,9 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 "rules_passed": ran.clean,
                 "rules_passed_percent": ran.passed_percent(),
             });
+            if shown.len() < result.findings.len() {
+                summary["findings_omitted"] = (result.findings.len() - shown.len()).into();
+            }
             // Only when the run has a note (a rule not run for want of its tool, a count a rule set aside): the summary of every
             // other run keeps exactly its keys.
             if !result.notes.is_empty() {
@@ -1371,6 +1388,50 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
 
 /// `--message-format short`: `file:line: severity: summary [check id]`, the place first so an editor can jump to it. A finding
 /// with no place leads with its package. The file and summary are third-party text: control characters are replaced.
+/// The findings to print: all of them in report order, or with `top` the `N` most severe (ties: most confident first, then report
+/// order, so the choice is deterministic).
+fn ranked(
+    findings: &[crate::finding::Finding],
+    top: Option<usize>,
+) -> Vec<&crate::finding::Finding> {
+    let mut all: Vec<&crate::finding::Finding> = findings.iter().collect();
+    if let Some(n) = top {
+        all.sort_by_key(|f| std::cmp::Reverse((f.severity, f.confidence)));
+        all.truncate(n);
+    }
+    all
+}
+
+/// The line that says what brief mode left out: how many, and at which severities (the whole set is still counted in the run).
+fn omitted_line(findings: &[crate::finding::Finding], shown: usize) -> Option<String> {
+    let left = findings.len().checked_sub(shown).filter(|n| *n > 0)?;
+    // The omitted are the findings that rank below the shown ones, so count by severity what the full set has beyond what is shown.
+    let mut by_severity: std::collections::BTreeMap<
+        std::cmp::Reverse<crate::finding::Severity>,
+        usize,
+    > = std::collections::BTreeMap::new();
+    for f in findings {
+        *by_severity
+            .entry(std::cmp::Reverse(f.severity))
+            .or_default() += 1;
+    }
+    let mut shown_left = findings.len() - left;
+    for count in by_severity.values_mut() {
+        let take = shown_left.min(*count);
+        *count -= take;
+        shown_left -= take;
+    }
+    let parts: Vec<String> = by_severity
+        .into_iter()
+        .filter(|(_, c)| *c > 0)
+        .map(|(sev, c)| format!("{c} {}", format!("{:?}", sev.0).to_lowercase()))
+        .collect();
+    Some(format!(
+        "coderipper: {left} more finding(s) not shown ({}); rerun without --top to list them",
+        parts.join(", ")
+    ))
+}
+
 fn short_line(f: &crate::finding::Finding) -> String {
     let clean = |s: &str| -> String {
         s.chars()
@@ -1719,5 +1780,62 @@ mod watchdog_tests {
         let (tx, rx) = mpsc::channel();
         spawn_watchdog(Duration::from_millis(50), move || tx.send(()).unwrap());
         assert!(rx.recv_timeout(Duration::from_secs(10)).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod brief_mode_tests {
+    use super::{omitted_line, ranked};
+    use crate::finding::{Confidence, Finding, Severity};
+
+    fn f(sev: Severity, conf: Confidence, title: &str) -> Finding {
+        Finding::new("X-001", sev, conf, "p", title, "why")
+    }
+
+    fn sample() -> Vec<Finding> {
+        vec![
+            f(Severity::Low, Confidence::High, "a"),
+            f(Severity::High, Confidence::Low, "b"),
+            f(Severity::High, Confidence::High, "c"),
+            f(Severity::Info, Confidence::High, "d"),
+            f(Severity::Low, Confidence::Medium, "e"),
+        ]
+    }
+
+    #[test]
+    fn the_top_n_are_the_most_severe_then_the_most_confident() {
+        let all = sample();
+        let titles: Vec<&str> = ranked(&all, Some(3))
+            .iter()
+            .map(|x| x.summary.as_str())
+            .collect();
+        assert_eq!(titles, ["c", "b", "a"]);
+    }
+
+    #[test]
+    fn without_a_limit_or_with_a_big_one_everything_is_shown_in_report_order() {
+        let all = sample();
+        let order = |top| -> Vec<String> {
+            ranked(&all, top)
+                .iter()
+                .map(|x| x.summary.clone())
+                .collect()
+        };
+        assert_eq!(order(None), ["a", "b", "c", "d", "e"]);
+        assert_eq!(order(Some(0)).len(), 0);
+        assert_eq!(ranked(&all, Some(99)).len(), 5);
+    }
+
+    #[test]
+    fn the_omitted_line_counts_what_was_left_out_by_severity() {
+        let all = sample();
+        let line = omitted_line(&all, 3).expect("two are left out");
+        assert!(
+            line.contains("2 more finding(s) not shown (1 low, 1 info)"),
+            "{line}"
+        );
+        assert!(omitted_line(&all, 5).is_none());
+        let none: Vec<Finding> = Vec::new();
+        assert!(omitted_line(&none, 0).is_none());
     }
 }
