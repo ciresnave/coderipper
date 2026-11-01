@@ -311,15 +311,12 @@ impl<'ast> Visit<'ast> for Walk<'_> {
     }
 
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
-        match &i.content {
-            Some((_, items)) => {
-                self.module.push(i.ident.to_string());
-                for it in items {
-                    self.visit_item(it);
-                }
-                self.module.pop();
+        if let Some((_, items)) = &i.content {
+            self.module.push(i.ident.to_string());
+            for it in items {
+                self.visit_item(it);
             }
-            None => {}
+            self.module.pop();
         }
     }
 
