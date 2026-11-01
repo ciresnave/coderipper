@@ -5,3 +5,5 @@ fn main() {
         .build();
     let _ = (key, client);
 }
+
+use md5::Md5;

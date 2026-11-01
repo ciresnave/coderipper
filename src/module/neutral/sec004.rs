@@ -17,7 +17,12 @@
 //! deliberate fixture key in non-test code is what an `[[allow]]` entry on the site is for. A file `syn` cannot parse is counted in
 //! a note, never read as clean.
 //!
-//! Weak algorithms (4c) and the lettered checks that need types (4d, 4e) are not judged here.
+//! * **4c, weak algorithm in use (Info).** A `use` of the `md5`, `sha1`, `sha1_smol`, `des`, `rc4` or `ecb` crate, of a type named `Md5`,
+//!   `Sha1`, `Des`, `Rc4` or `Ecb`, or a fully qualified call into one of those crates with no `use` of it in the file. This is an
+//!   inventory, not a defect: protocols mandate MD5 (RADIUS), SHA-1 (HOTP, WS-Security) and others, so the finding asks for a reason
+//!   (a waiver naming the protocol), not a replacement. The loader does not yet reject a waiver without a reason.
+//!
+//! The lettered checks that need types (4d, 4e) are not judged here.
 
 use super::efx003::is_dev_path;
 use super::{RepoView, Verdict};
@@ -25,7 +30,10 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
-use syn::{Attribute, Expr, ExprCall, ExprMethodCall, ImplItemFn, ItemFn, ItemMod, Lit, Pat};
+use syn::{
+    Attribute, Expr, ExprCall, ExprMethodCall, ImplItemFn, ItemFn, ItemMod, ItemUse, Lit, Pat,
+    UseTree,
+};
 
 const ID: &str = crate::rule_id::SEC_004;
 
@@ -33,6 +41,7 @@ const ID: &str = crate::rule_id::SEC_004;
 enum Part {
     Key,
     Tls,
+    Weak,
 }
 
 #[derive(Debug)]
@@ -49,6 +58,39 @@ struct Scan {
     /// Names bound to a literal key in the function being read (one set per nested function).
     locals: Vec<HashSet<String>>,
     out: Vec<Site>,
+    /// Weak-algorithm crates this file names in a `use`.
+    imported: HashSet<String>,
+    /// Fully qualified calls into a weak-algorithm crate, kept until the file's `use` items are all read.
+    qualified: Vec<(u32, String, String)>,
+}
+
+const WEAK_CRATES: &[&str] = &["md5", "sha1", "sha1_smol", "des", "rc4", "ecb"];
+const WEAK_TYPES: &[&str] = &["Md5", "Sha1", "Des", "Rc4", "Ecb"];
+
+fn flatten(tree: &UseTree, prefix: &mut Vec<String>, out: &mut Vec<Vec<String>>) {
+    match tree {
+        UseTree::Path(p) => {
+            prefix.push(p.ident.to_string());
+            flatten(&p.tree, prefix, out);
+            prefix.pop();
+        }
+        UseTree::Name(n) => {
+            let mut v = prefix.clone();
+            v.push(n.ident.to_string());
+            out.push(v);
+        }
+        UseTree::Rename(r) => {
+            let mut v = prefix.clone();
+            v.push(r.ident.to_string());
+            out.push(v);
+        }
+        UseTree::Glob(_) => out.push(prefix.clone()),
+        UseTree::Group(g) => {
+            for t in &g.items {
+                flatten(t, prefix, out);
+            }
+        }
+    }
 }
 
 fn is_test_attr(attr: &Attribute) -> bool {
@@ -144,6 +186,31 @@ impl<'ast> Visit<'ast> for Scan {
         self.function(&f.attrs, |s| syn::visit::visit_impl_item_fn(s, f));
     }
 
+    fn visit_item_use(&mut self, u: &'ast ItemUse) {
+        if u.attrs.iter().any(is_test_attr) {
+            return;
+        }
+        let mut paths = Vec::new();
+        flatten(&u.tree, &mut Vec::new(), &mut paths);
+        for p in paths {
+            let root = p.first().map(String::as_str).unwrap_or("");
+            let crate_hit = WEAK_CRATES.contains(&root);
+            let type_hit = p.last().is_some_and(|l| WEAK_TYPES.contains(&l.as_str()));
+            if crate_hit || type_hit {
+                if crate_hit {
+                    self.imported.insert(root.to_string());
+                }
+                self.out.push(Site {
+                    part: Part::Weak,
+                    line: line_of(u.span()),
+                    what: p.join("::"),
+                    soft: false,
+                });
+                break;
+            }
+        }
+    }
+
     fn visit_local(&mut self, l: &'ast syn::Local) {
         if let (Pat::Ident(id), Some(init)) = (&l.pat, &l.init) {
             if literal_key(&init.expr) {
@@ -164,6 +231,10 @@ impl<'ast> Visit<'ast> for Scan {
                 .map(|s| s.ident.to_string())
                 .collect();
             if let Some((last, rest)) = segs.split_last() {
+                if rest.len() == 1 && WEAK_CRATES.contains(&rest[0].as_str()) {
+                    self.qualified
+                        .push((line_of(c.span()), rest[0].clone(), segs.join("::")));
+                }
                 let qualifier = rest.last().map(String::as_str);
                 let key_arg = match (last.as_str(), qualifier) {
                     ("from_secret" | "new_from_slice", _) | ("from_slice", Some("Key")) => 0,
@@ -224,6 +295,16 @@ fn sites(text: &str) -> Option<Vec<Site>> {
     let parsed = syn::parse_file(text).ok()?;
     let mut scan = Scan::default();
     scan.visit_file(&parsed);
+    for (line, krate, what) in std::mem::take(&mut scan.qualified) {
+        if !scan.imported.contains(&krate) {
+            scan.out.push(Site {
+                part: Part::Weak,
+                line,
+                what,
+                soft: false,
+            });
+        }
+    }
     Some(scan.out)
 }
 
@@ -259,6 +340,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                     "Read the key from a secret store or the environment at start-up; a key in the source is in every clone and every build. \
                      If this is a deliberate fixture key in non-test code, waive the site with a reason.",
                     Severity::High,
+                    Confidence::High,
+                ),
+                (Part::Weak, _) => (
+                    format!("`{}` is a weak algorithm in use", site.what),
+                    "An inventory entry, not a defect: some protocols mandate it (RADIUS: MD5; HOTP and WS-Security: SHA-1).                      If a protocol requires it, waive the site with a reason that names the protocol; otherwise use SHA-256 or better, or an AEAD mode.",
+                    Severity::Info,
                     Confidence::High,
                 ),
                 (Part::Tls, false) => (
@@ -368,6 +455,36 @@ mod tests {
             1
         );
         assert!(found("fn f() { b.dangerous(1); }").is_empty());
+    }
+
+    #[test]
+    fn a_weak_algorithm_is_found_once_per_use_and_once_per_unimported_call() {
+        assert_eq!(
+            found(
+                "use md5::{Digest, Md5};
+fn f() { Md5::new(); }"
+            )
+            .len(),
+            1
+        );
+        assert_eq!(found("use sha1::Sha1;").len(), 1);
+        assert_eq!(found("fn f() { md5::compute(b\"x\"); }").len(), 1);
+        assert_eq!(
+            found(
+                "use md5;
+fn f() { md5::compute(b\"x\"); }"
+            )
+            .len(),
+            1
+        );
+        assert_eq!(found("use cbc::cipher::Ecb;").len(), 1);
+        assert!(found(
+            "use sha2::Sha256;
+fn f() { sha2::Sha256::new(); }"
+        )
+        .is_empty());
+        assert!(found("#[cfg(test)] use md5::Md5;").is_empty());
+        assert!(found("use crate::md5::helper;").is_empty());
     }
 
     #[test]

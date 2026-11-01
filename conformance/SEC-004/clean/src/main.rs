@@ -1,3 +1,4 @@
+use sha2::Sha256;
 fn main() {
     let secret = std::env::var("SIGNING_KEY").unwrap_or_default();
     let key = EncodingKey::from_secret(secret.as_bytes());
