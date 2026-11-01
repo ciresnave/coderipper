@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.18.3 - 2026-11-01 (proposed)
+
+**Docs only: the two patents flagged for a read before release were read in full** (PM task 2026-10-31). `docs/PATENT-SWEEP.md` rows 33 (US11288376, IBM, active) and 34 (US10929277, Citrix, expired) and an addendum: every claim of both, verbatim, with `tools/patent-claims.py` from Google Patents (machine-converted text, not the official record). As read, neither reaches `SEC-004`: US11288376 needs a value-based second rule and the combination of both rules' results (SEC-004a has only the call-name rule); US10929277 needs a list of strings rendered through a user interface. Not a legal opinion. No code changed.
+
 ## 0.18.2 - 2026-10-31 (proposed)
 
 **Brief mode: `--top N` prints the N most severe findings and says what it left out** (ROADMAP E3, PM task 2026-10-31). Findings are ranked by severity, then confidence, then report order; human and `short` output end with `coderipper: N more finding(s) not shown (2 high, 1 medium)`; JSON prints N `coderipper-finding` lines and adds `findings_omitted` to the `coderipper-summary` line, whose `findings` stays the full count. Without the flag nothing changes, and the flag changes no exit code, no waived-finding line and no coverage output.
