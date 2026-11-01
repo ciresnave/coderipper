@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.18.6 - 2026-11-01 (proposed)
+
+**Docs only: the `[architecture]` declaration, proposed for CireSnave's review** (`docs/superpowers/specs/2026-11-01-architecture-declaration-proposal.md`; PM notice 2026-11-01: *"lane proposes, I review"*). The schema, three worked examples (Fuel's layers from its own tier file, a small single crate, the smallest useful declaration), what each ARC/MOD rule reads from it, what a project without one gets, and six choices with recommendations. No A-class check is built on it until he has reviewed it. No code changed.
+
 ## 0.18.5 - 2026-11-01 (proposed)
 
 **Docs only: design note for the ARC and MOD checks** (`docs/superpowers/specs/2026-11-01-arc-mod-checks-design.md`; PM task 2026-11-01, relaying CireSnave). Per rule: class, measurement, data source, threshold method, the `[architecture]` declaration format for A-class rules, a build order, five open choices marked ASK, a corpus size table (9 repos, measured at each `origin/main`). No code changed; no rule's catalogue row changed.
