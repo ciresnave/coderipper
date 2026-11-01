@@ -559,7 +559,8 @@ fn the_rust_module_describes_the_seven_checks() {
             "version-consistency",
             "ci-protection-presence",
             "dependency-freshness",
-            "OPS-011"
+            "OPS-011",
+            "MOD-005"
         ]
     );
     assert_eq!(hello.languages, ["rust"]);

@@ -75,7 +75,7 @@ is not covered by it.
 | MOD-002 | No dependency cycles between modules | P | catalog record; no check yet (triage names cargo-modules, dependency-cruiser and pylint for the three languages) |
 | MOD-003 | No reaching into a module's internals | P | catalog record; no check yet, needs a notion of each module's public interface (triage names eslint-plugin-import and import-linter; Rust privacy is enforced by the compiler across crates) |
 | MOD-004 | Types that split into separate usage clusters | P | catalog record; no check yet (planned native fields-by-method graph; low confidence alone) |
-| MOD-005 | Size and coupling outliers within the codebase | P | catalog record; no check yet (planned native percentile facts; growth trend needs history) |
+| MOD-005 | Size and coupling outliers within the codebase | P | check `MOD-005` (Rust, `syn`, advisory): files by code lines, fan-out and fan-in, types by fields plus inherent methods, against percentiles of a pooled corpus of our own codebases; growth over time needs history and is not covered; macro-generated items, glob-import targets and `#[path]` modules are not seen |
 | MOD-006 | Divergent change across unrelated edits | H | catalog record; no check yet, needs history mining |
 | MOD-007 | Stated responsibility compared with declared purpose | L | catalog record; no check yet, needs a human or model judgment; advisory |
 | MOD-008 | Pass-through wrappers | P | catalog record; no check yet (planned native AST pattern; a model confirms nothing is added) |

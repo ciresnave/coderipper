@@ -392,16 +392,17 @@ fn rust_proofs() -> Vec<(String, Verdict)> {
 }
 
 #[test]
-fn the_rust_module_earns_five_of_its_seven_claims() {
+fn the_rust_module_earns_six_of_its_eight_claims() {
     let proofs = rust_proofs();
     let verdict = |id: &str| proofs.iter().find(|(r, _)| r == id).map(|(_, v)| v.clone());
-    assert_eq!(proofs.len(), 7, "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(proofs.len(), 8, "one verdict per claimed rule: {proofs:?}");
     for id in [
         "reachability",
         "unused-parameters",
         "unused-return-values",
         "version-consistency",
         "OPS-011",
+        "MOD-005",
     ] {
         assert_eq!(verdict(id), Some(Verdict::Proven), "{id}");
     }
