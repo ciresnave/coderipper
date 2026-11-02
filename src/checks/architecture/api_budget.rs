@@ -240,9 +240,14 @@ pub(crate) fn surface(
         };
         return Ok((Totals::default(), vec![note]));
     };
-    let mut col = Collect::default();
-    let mut seen = BTreeSet::new();
-    walk_file(root, "src", &by_path, dir, true, &mut col, &mut seen)?;
+    let mut w = Walker {
+        by_path: &by_path,
+        dir,
+        col: Collect::default(),
+        seen: BTreeSet::new(),
+    };
+    w.walk_file(root, "src", true)?;
+    let col = w.col;
     let mut totals = Totals::default();
     for (_, kind) in &col.decls {
         *totals.items.entry(kind).or_default() += 1;
@@ -296,231 +301,211 @@ fn attrs_of(i: &syn::Item) -> &[syn::Attribute] {
     }
 }
 
-/// Parses `file` and walks its items. `child_dir` is where this file's `mod x;` children live.
-fn walk_file(
-    file: &SourceFile,
-    child_dir: &str,
-    by_path: &BTreeMap<&str, &SourceFile>,
-    dir: &str,
-    reachable: bool,
-    col: &mut Collect,
-    seen: &mut BTreeSet<String>,
-) -> anyhow::Result<()> {
-    if !seen.insert(file.path.clone()) {
-        return Ok(());
-    }
-    let parsed = syn::parse_file(&file.text).map_err(|e| {
-        anyhow::anyhow!(
-            "could not parse {} with syn ({e}); refusing to guess",
-            file.path
-        )
-    })?;
-    let shown = if dir.is_empty() {
-        file.path.clone()
-    } else {
-        format!("{dir}/{}", file.path)
-    };
-    walk_items(
-        &parsed.items,
-        child_dir,
-        &shown,
-        by_path,
-        dir,
-        reachable,
-        col,
-        seen,
-    )
+/// What a walk over one crate's sources reads and collects.
+struct Walker<'a> {
+    by_path: &'a BTreeMap<&'a str, &'a SourceFile>,
+    /// The crate directory, for the paths shown in findings.
+    dir: &'a str,
+    col: Collect,
+    seen: BTreeSet<String>,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn walk_items(
-    items: &[syn::Item],
-    child_dir: &str,
-    shown: &str,
-    by_path: &BTreeMap<&str, &SourceFile>,
-    dir: &str,
-    reachable: bool,
-    col: &mut Collect,
-    seen: &mut BTreeSet<String>,
-) -> anyhow::Result<()> {
-    for item in items {
-        if is_cfg_test(attrs_of(item)) {
-            continue;
+impl Walker<'_> {
+    /// Parses `file` and walks its items. `child_dir` is where this file's `mod x;` children live.
+    fn walk_file(
+        &mut self,
+        file: &SourceFile,
+        child_dir: &str,
+        reachable: bool,
+    ) -> anyhow::Result<()> {
+        if !self.seen.insert(file.path.clone()) {
+            return Ok(());
         }
-        match item {
-            syn::Item::Fn(f) => {
-                col.local.insert(f.sig.ident.to_string());
-                if reachable && is_pub(&f.vis) {
-                    col.decls.push((f.sig.ident.to_string(), "fn"));
-                }
+        let parsed = syn::parse_file(&file.text).map_err(|e| {
+            anyhow::anyhow!(
+                "could not parse {} with syn ({e}); refusing to guess",
+                file.path
+            )
+        })?;
+        let shown = if self.dir.is_empty() {
+            file.path.clone()
+        } else {
+            format!("{}/{}", self.dir, file.path)
+        };
+        self.walk_items(&parsed.items, child_dir, &shown, reachable)
+    }
+
+    fn walk_items(
+        &mut self,
+        items: &[syn::Item],
+        child_dir: &str,
+        shown: &str,
+        reachable: bool,
+    ) -> anyhow::Result<()> {
+        for item in items {
+            if is_cfg_test(attrs_of(item)) {
+                continue;
             }
-            syn::Item::Struct(s) => {
-                let n = s.ident.to_string();
-                col.local.insert(n.clone());
-                let fields = s.fields.iter().filter(|f| is_pub(&f.vis)).count();
-                *col.types.entry(n.clone()).or_default() += fields;
-                if reachable && is_pub(&s.vis) {
-                    col.decls.push((n.clone(), "struct"));
-                    col.public_types.insert(n);
-                }
-            }
-            syn::Item::Union(s) => {
-                let n = s.ident.to_string();
-                col.local.insert(n.clone());
-                let fields = s.fields.named.iter().filter(|f| is_pub(&f.vis)).count();
-                *col.types.entry(n.clone()).or_default() += fields;
-                if reachable && is_pub(&s.vis) {
-                    col.decls.push((n.clone(), "union"));
-                    col.public_types.insert(n);
-                }
-            }
-            syn::Item::Enum(e) => {
-                let n = e.ident.to_string();
-                col.local.insert(n.clone());
-                *col.types.entry(n.clone()).or_default() += e.variants.len();
-                if reachable && is_pub(&e.vis) {
-                    col.decls.push((n.clone(), "enum"));
-                    col.public_types.insert(n);
-                }
-            }
-            syn::Item::Trait(t) => {
-                let n = t.ident.to_string();
-                col.local.insert(n.clone());
-                *col.types.entry(n.clone()).or_default() += t.items.len();
-                if reachable && is_pub(&t.vis) {
-                    col.decls.push((n.clone(), "trait"));
-                    col.public_types.insert(n);
-                }
-            }
-            syn::Item::Type(t) => {
-                col.local.insert(t.ident.to_string());
-                if reachable && is_pub(&t.vis) {
-                    col.decls.push((t.ident.to_string(), "type alias"));
-                    col.public_types.insert(t.ident.to_string());
-                }
-            }
-            syn::Item::Const(c) => {
-                col.local.insert(c.ident.to_string());
-                if reachable && is_pub(&c.vis) {
-                    col.decls.push((c.ident.to_string(), "const"));
-                }
-            }
-            syn::Item::Static(c) => {
-                col.local.insert(c.ident.to_string());
-                if reachable && is_pub(&c.vis) {
-                    col.decls.push((c.ident.to_string(), "static"));
-                }
-            }
-            syn::Item::Macro(m) => {
-                if reachable
-                    && m.mac.path.is_ident("macro_rules")
-                    && m.attrs.iter().any(|a| a.path().is_ident("macro_export"))
-                {
-                    if let Some(id) = &m.ident {
-                        col.decls.push((id.to_string(), "macro"));
+            match item {
+                syn::Item::Fn(f) => {
+                    self.col.local.insert(f.sig.ident.to_string());
+                    if reachable && is_pub(&f.vis) {
+                        self.col.decls.push((f.sig.ident.to_string(), "fn"));
                     }
                 }
-            }
-            syn::Item::Impl(im) => {
-                // inherent impls only: a trait impl's items are not `pub` and are not budgeted
-                if im.trait_.is_none() {
-                    if let syn::Type::Path(p) = &*im.self_ty {
-                        if let Some(last) = p.path.segments.last() {
-                            let n = im
-                                .items
-                                .iter()
-                                .filter(|i| match i {
-                                    syn::ImplItem::Fn(f) => is_pub(&f.vis),
-                                    syn::ImplItem::Const(c) => is_pub(&c.vis),
-                                    syn::ImplItem::Type(t) => is_pub(&t.vis),
-                                    _ => false,
-                                })
-                                .count();
-                            *col.types.entry(last.ident.to_string()).or_default() += n;
+                syn::Item::Struct(s) => {
+                    let n = s.ident.to_string();
+                    self.col.local.insert(n.clone());
+                    let fields = s.fields.iter().filter(|f| is_pub(&f.vis)).count();
+                    *self.col.types.entry(n.clone()).or_default() += fields;
+                    if reachable && is_pub(&s.vis) {
+                        self.col.decls.push((n.clone(), "struct"));
+                        self.col.public_types.insert(n);
+                    }
+                }
+                syn::Item::Union(s) => {
+                    let n = s.ident.to_string();
+                    self.col.local.insert(n.clone());
+                    let fields = s.fields.named.iter().filter(|f| is_pub(&f.vis)).count();
+                    *self.col.types.entry(n.clone()).or_default() += fields;
+                    if reachable && is_pub(&s.vis) {
+                        self.col.decls.push((n.clone(), "union"));
+                        self.col.public_types.insert(n);
+                    }
+                }
+                syn::Item::Enum(e) => {
+                    let n = e.ident.to_string();
+                    self.col.local.insert(n.clone());
+                    *self.col.types.entry(n.clone()).or_default() += e.variants.len();
+                    if reachable && is_pub(&e.vis) {
+                        self.col.decls.push((n.clone(), "enum"));
+                        self.col.public_types.insert(n);
+                    }
+                }
+                syn::Item::Trait(t) => {
+                    let n = t.ident.to_string();
+                    self.col.local.insert(n.clone());
+                    *self.col.types.entry(n.clone()).or_default() += t.items.len();
+                    if reachable && is_pub(&t.vis) {
+                        self.col.decls.push((n.clone(), "trait"));
+                        self.col.public_types.insert(n);
+                    }
+                }
+                syn::Item::Type(t) => {
+                    self.col.local.insert(t.ident.to_string());
+                    if reachable && is_pub(&t.vis) {
+                        self.col.decls.push((t.ident.to_string(), "type alias"));
+                        self.col.public_types.insert(t.ident.to_string());
+                    }
+                }
+                syn::Item::Const(c) => {
+                    self.col.local.insert(c.ident.to_string());
+                    if reachable && is_pub(&c.vis) {
+                        self.col.decls.push((c.ident.to_string(), "const"));
+                    }
+                }
+                syn::Item::Static(c) => {
+                    self.col.local.insert(c.ident.to_string());
+                    if reachable && is_pub(&c.vis) {
+                        self.col.decls.push((c.ident.to_string(), "static"));
+                    }
+                }
+                syn::Item::Macro(m) => {
+                    if reachable
+                        && m.mac.path.is_ident("macro_rules")
+                        && m.attrs.iter().any(|a| a.path().is_ident("macro_export"))
+                    {
+                        if let Some(id) = &m.ident {
+                            self.col.decls.push((id.to_string(), "macro"));
                         }
                     }
                 }
-            }
-            syn::Item::Use(u) => {
-                if reachable && is_pub(&u.vis) {
-                    let mut leaves = Vec::new();
-                    flatten_use(
-                        &u.tree,
-                        &mut Vec::new(),
-                        u.leading_colon.is_some(),
-                        &mut leaves,
-                    );
-                    for (segs, name, glob, abs) in leaves {
-                        let first = if abs {
-                            // `pub use ::serde::X` can only name a library
-                            format!("::{}", segs.first().cloned().unwrap_or_default())
-                        } else {
-                            segs.first().cloned().unwrap_or_default()
-                        };
-                        col.leaves.push(Leaf {
-                            path: if abs {
-                                format!("::{}", segs.join("::"))
-                            } else {
-                                segs.join("::")
-                            },
-                            name,
-                            first,
-                            glob,
-                            file: shown.to_string(),
-                        });
+                syn::Item::Impl(im) => {
+                    // inherent impls only: a trait impl's items are not `pub` and are not budgeted
+                    if im.trait_.is_none() {
+                        if let syn::Type::Path(p) = &*im.self_ty {
+                            if let Some(last) = p.path.segments.last() {
+                                let n = im
+                                    .items
+                                    .iter()
+                                    .filter(|i| match i {
+                                        syn::ImplItem::Fn(f) => is_pub(&f.vis),
+                                        syn::ImplItem::Const(c) => is_pub(&c.vis),
+                                        syn::ImplItem::Type(t) => is_pub(&t.vis),
+                                        _ => false,
+                                    })
+                                    .count();
+                                *self.col.types.entry(last.ident.to_string()).or_default() += n;
+                            }
+                        }
                     }
                 }
-            }
-            syn::Item::Mod(m) => {
-                let name = m.ident.to_string();
-                col.local.insert(name.clone());
-                let public = reachable && is_pub(&m.vis);
-                if public {
-                    col.decls.push((name.clone(), "mod"));
+                syn::Item::Use(u) => {
+                    if reachable && is_pub(&u.vis) {
+                        let mut leaves = Vec::new();
+                        flatten_use(
+                            &u.tree,
+                            &mut Vec::new(),
+                            u.leading_colon.is_some(),
+                            &mut leaves,
+                        );
+                        for (segs, name, glob, abs) in leaves {
+                            let first = if abs {
+                                // `pub use ::serde::X` can only name a library
+                                format!("::{}", segs.first().cloned().unwrap_or_default())
+                            } else {
+                                segs.first().cloned().unwrap_or_default()
+                            };
+                            self.col.leaves.push(Leaf {
+                                path: if abs {
+                                    format!("::{}", segs.join("::"))
+                                } else {
+                                    segs.join("::")
+                                },
+                                name,
+                                first,
+                                glob,
+                                file: shown.to_string(),
+                            });
+                        }
+                    }
                 }
-                if m.attrs.iter().any(|a| a.path().is_ident("path")) {
-                    col.notes.push(format!(
-                        "module `{name}` uses #[path]; its contents are not read"
-                    ));
-                    continue;
-                }
-                if let Some((_, inner)) = &m.content {
-                    let nested = format!("{child_dir}/{name}");
-                    walk_items(inner, &nested, shown, by_path, dir, public, col, seen)?;
-                } else {
-                    let flat = format!("{child_dir}/{name}.rs");
-                    let nested = format!("{child_dir}/{name}/mod.rs");
-                    if let Some(f) = by_path.get(flat.as_str()) {
-                        walk_file(
-                            f,
-                            &format!("{child_dir}/{name}"),
-                            by_path,
-                            dir,
-                            public,
-                            col,
-                            seen,
-                        )?;
-                    } else if let Some(f) = by_path.get(nested.as_str()) {
-                        walk_file(
-                            f,
-                            &format!("{child_dir}/{name}"),
-                            by_path,
-                            dir,
-                            public,
-                            col,
-                            seen,
-                        )?;
+                syn::Item::Mod(m) => {
+                    let name = m.ident.to_string();
+                    self.col.local.insert(name.clone());
+                    let public = reachable && is_pub(&m.vis);
+                    if public {
+                        self.col.decls.push((name.clone(), "mod"));
+                    }
+                    if m.attrs.iter().any(|a| a.path().is_ident("path")) {
+                        self.col.notes.push(format!(
+                            "module `{name}` uses #[path]; its contents are not read"
+                        ));
+                        continue;
+                    }
+                    if let Some((_, inner)) = &m.content {
+                        let nested = format!("{child_dir}/{name}");
+                        self.walk_items(inner, &nested, shown, public)?;
                     } else {
-                        col.notes.push(format!(
+                        let flat = format!("{child_dir}/{name}.rs");
+                        let nested = format!("{child_dir}/{name}/mod.rs");
+                        let by_path = self.by_path;
+                        if let Some(f) = by_path.get(flat.as_str()) {
+                            self.walk_file(f, &format!("{child_dir}/{name}"), public)?;
+                        } else if let Some(f) = by_path.get(nested.as_str()) {
+                            self.walk_file(f, &format!("{child_dir}/{name}"), public)?;
+                        } else {
+                            self.col.notes.push(format!(
                             "module `{name}` has no tracked file {flat} or {nested}; its contents are not read"
                         ));
+                        }
                     }
                 }
+                _ => {}
             }
-            _ => {}
         }
+        Ok(())
     }
-    Ok(())
 }
 
 /// The leaves of a use tree as `(path segments, introduced name, is glob, starts with ::)`.
