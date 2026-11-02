@@ -12,7 +12,7 @@
 //!
 //! **How the threshold is chosen:** the codebases we keep, pooled, not the project alone. A project-relative percentile would call a
 //! 5,000-line file ordinary in the project that most needs the finding. The figures and the corpus they came from are in
-//! [`thresholds`] and the design note; a finding states the value, the threshold, and where the threshold came from.
+//! `thresholds` and the design note; a finding states the value, the threshold, and where the threshold came from.
 //!
 //! **Known limitations / deliberate scope:**
 //! - A size is a cue to inspect, never a verdict: a long file of one cohesive table is fine. The finding says "inspect", and the
@@ -170,18 +170,16 @@ fn judge(files: &[FileMetrics], t: &Thresholds, project: &str) -> Vec<Finding> {
                 ))],
                 t,
             ));
-        } else if fo >= t.fan_out || fi >= t.fan_in {
+        } else if fo >= t.fan_out {
             out.push(file_finding(
                 f,
                 project,
                 Severity::Info,
                 "coupling",
-                &[
-                    (fo >= t.fan_out)
-                        .then(|| format!("names {fo} other modules (threshold {})", t.fan_out)),
-                    (fi >= t.fan_in)
-                        .then(|| format!("is named by {fi} other files (threshold {})", t.fan_in)),
-                ],
+                &[Some(format!(
+                    "names {fo} other modules (threshold {})",
+                    t.fan_out
+                ))],
                 t,
             ));
         }
@@ -262,7 +260,6 @@ mod tests {
         file_lines: 10,
         file_lines_high: 20,
         fan_out: 5,
-        fan_in: 5,
         fan_out_coupled: 3,
         fan_in_coupled: 3,
         type_members: 4,
@@ -341,6 +338,17 @@ mod tests {
                 .validate()
                 .unwrap_or_else(|e| panic!("{summary}: {e}"));
         }
+    }
+
+    #[test]
+    fn a_hub_that_many_files_name_is_not_reported_for_that_alone() {
+        // a small stable module everything depends on is the stable-dependencies principle working (seen: coderipper's own finding.rs,
+        // named by 44 files); fan-in counts only beside size, for the Low band
+        assert!(judge(&[file(2, 0, 100)], &T, "p").is_empty());
+        assert_eq!(
+            judge(&[file(25, 0, 100)], &T, "p")[0].severity,
+            Severity::Low
+        );
     }
 
     #[test]
