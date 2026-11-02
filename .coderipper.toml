@@ -18,3 +18,13 @@ reason = "history only: commit 24cb9f1a holds an AWS-key-shaped placeholder in a
 check = "SEC-002"
 file = "src/redact.rs"
 reason = "history only: commit f8c78dbe holds a doc comment naming the private-key BEGIN/END markers on one line (no key body); HEAD words it differently. Owner: coderipper lane. Remove when history is rewritten or the commit ages out."
+
+# MOD-005 (size and coupling outliers, advisory) reports two files of this repository. Each is waived here with its reason; nothing is excluded by path.
+[[allow]]
+check = "MOD-005"
+file = "src/cli.rs"
+reason = "a real candidate, not a false alarm: 1,439 code lines holding the argument definitions, dispatch, the tools/cache/conformance subcommands, report printing and the cargo-subcommand shim, and `run_and_report` alone is about 437 lines. It should become a cli/ module split (args, report, one file per subcommand). Not done in the change that introduced the rule, to keep that change reviewable. Owner: coderipper lane. Remove this entry when the file is split or falls under 1,035 code lines."
+[[allow]]
+check = "MOD-005"
+file = "src/module/neutral/mod.rs"
+reason = "the registry of the language-neutral rules: one `mod` declaration and one entry per rule module, so the number of modules it names (21) is the number of rules by construction, not accidental coupling. Owner: coderipper lane. Revisit if it starts to hold logic of its own."
