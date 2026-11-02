@@ -44,6 +44,7 @@ pub(crate) const CACHEABLE: &[&str] = &[
     "unused-return-values",
     "unused-parameters",
     "OPS-011",
+    "MOD-005",
 ];
 
 /// How many entries are kept before the oldest are dropped.

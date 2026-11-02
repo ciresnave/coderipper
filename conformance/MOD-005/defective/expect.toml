@@ -1,0 +1,9 @@
+[[expect]]
+rule = "MOD-005"
+file = "src/big.rs"
+line = 1
+
+[[expect]]
+rule = "MOD-005"
+file = "src/wide.rs"
+line = 1

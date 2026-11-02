@@ -48,8 +48,8 @@ fn every_registered_check_has_a_record() {
     let registered = coderipper::registered_checks();
     assert_eq!(
         registered.len(),
-        7,
-        "positive control: the seven built-in checks"
+        8,
+        "positive control: the eight built-in checks"
     );
     for check in registered {
         assert!(
@@ -100,6 +100,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("security-support-statement");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
+    // a registered check can also be a knowledge-base rule (MOD-005 is both): it is one catalog record, named twice here
+    triaged.dedup();
     in_catalog.sort_unstable();
     assert_eq!(in_catalog, triaged);
 }
