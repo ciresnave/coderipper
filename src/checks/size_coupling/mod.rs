@@ -31,8 +31,8 @@ mod thresholds;
 pub(crate) use metrics::is_cfg_test;
 
 use crate::check::{Check, CheckContext, Network, Scope};
-use crate::finding::{Claim, Confidence, Finding, Location, Severity};
 use crate::checks::rust_sources::read_sources;
+use crate::finding::{Claim, Confidence, Finding, Location, Severity};
 use metrics::FileMetrics;
 use thresholds::{Thresholds, CORPUS};
 

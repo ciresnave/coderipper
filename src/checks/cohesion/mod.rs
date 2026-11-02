@@ -25,8 +25,8 @@
 
 mod facts;
 
-use crate::checks::rust_sources::read_sources;
 use crate::check::{Check, CheckContext, Network, Scope};
+use crate::checks::rust_sources::read_sources;
 use crate::finding::{Claim, Confidence, Finding, Location, Severity};
 use facts::{clusters, collect, Cluster, TypeFacts};
 
@@ -89,10 +89,29 @@ impl Check for CohesionCheck {
         let (package, _) = crate::package::locate(&ctx.project_root)?;
         let files = read_sources(&package.dir)?;
         let (types, notes) = collect(&files)?;
-        let project = package
-            .dir
-            .file_name()
-            .map_or_else(|| package.name.clone(), |n| n.to_string_lossy().into_owned());
+        let project = package.dir.file_name().map_or_else(
+            || package.name.clone(),
+            |n| n.to_string_lossy().into_owned(),
+        );
+        if std::env::var("CODERIPPER_MOD004_DUMP").is_ok() {
+            // TEMPORARY
+            for t in &types {
+                let c = clusters(t);
+                if c.len() >= 1 {
+                    let sizes: Vec<String> =
+                        c.iter().map(|x| x.methods.len().to_string()).collect();
+                    eprintln!(
+                        "DUMPY	{}	{}	{}	{}	{}	{}",
+                        package.name,
+                        t.file,
+                        t.name,
+                        t.methods.len(),
+                        t.fields.len(),
+                        sizes.join(",")
+                    );
+                }
+            }
+        }
         let mut findings = judge(&types, &PARAMS, &project);
         findings.sort_by(|a, b| {
             let key = |f: &Finding| {
@@ -107,26 +126,25 @@ impl Check for CohesionCheck {
     }
 }
 
-/// The clusters that count under these parameters, or none when the type does not split.
-fn splits<'a>(t: &TypeFacts, p: &Params, all: &'a mut Vec<Cluster>) -> Option<Vec<&'a Cluster>> {
-    *all = clusters(t);
-    let big: Vec<&Cluster> = all
-        .iter()
+/// The clusters that count under these parameters and the number of methods in all, or `None` when the type does not split.
+fn splits(t: &TypeFacts, p: &Params) -> Option<(Vec<Cluster>, usize)> {
+    let all = clusters(t);
+    let methods: usize = all.iter().map(|c| c.methods.len()).sum();
+    let big: Vec<Cluster> = all
+        .into_iter()
         .filter(|c| c.methods.len() >= p.min_cluster_methods)
         .collect();
-    let methods: usize = all.iter().map(|c| c.methods.len()).sum();
-    (big.len() >= p.min_clusters && methods >= p.min_methods).then_some(big)
+    (big.len() >= p.min_clusters && methods >= p.min_methods).then_some((big, methods))
 }
 
 fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
     let mut out = Vec::new();
     for t in types {
-        let mut all = Vec::new();
-        let Some(mut big) = splits(t, p, &mut all) else {
+        let Some((mut big, methods)) = splits(t, p) else {
             continue;
         };
         big.sort_by(|a, b| b.methods.len().cmp(&a.methods.len()));
-        let describe = |c: &&Cluster| {
+        let describe = |c: &Cluster| {
             let mut m = c.methods.clone();
             m.sort();
             format!(
@@ -151,7 +169,7 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
                 t.name,
                 big.len(),
                 p.min_cluster_methods,
-                all.iter().map(|c| c.methods.len()).sum::<usize>(),
+                methods,
             ),
             detail: format!(
                 "Methods are in one cluster when they use a common field, directly or through the sibling methods they call. \
@@ -159,7 +177,7 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
                  more than one job. If the groups really never meet, split the type along them; if they belong together, leave it \
                  and say why in an allowlist reason. Syntactic: a field reached by destructuring or passed on through a helper is \
                  not seen, and accessors, trait-impl methods and test items are not counted.",
-                big.iter().map(describe).collect::<Vec<_>>().join("; "),
+                big.iter().map(|c| describe(c)).collect::<Vec<_>>().join("; "),
                 p.source,
             ),
             positive_control: None,
@@ -192,10 +210,10 @@ mod tests {
 
     const TWO_JOBS: &str = "pub struct S { a: u8, b: u8, c: u8, d: u8 }
 impl S {
-    fn x1(&self) -> u8 { self.a + self.b }
-    fn x2(&mut self) { self.a = 1; self.b = 2; }
-    fn y1(&self) -> u8 { self.c + self.d }
-    fn y2(&mut self) { self.c = 3; self.d = 4; }
+    fn x1(&self) -> u8 { let p = self.a; let q = self.b; p + q }
+    fn x2(&mut self) { self.a = 1; self.b = 2; self.a += 1; }
+    fn y1(&self) -> u8 { let p = self.c; let q = self.d; p + q }
+    fn y2(&mut self) { self.c = 3; self.d = 4; self.c += 1; }
 }";
 
     #[test]
@@ -204,14 +222,29 @@ impl S {
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].severity, Severity::Info);
         assert_eq!(f[0].confidence, Confidence::Low);
-        assert!(f[0].detail.contains("[x1, x2] over fields [a, b]"), "{}", f[0].detail);
-        assert!(f[0].detail.contains("[y1, y2] over fields [c, d]"), "{}", f[0].detail);
-        assert!(f[0].summary.contains("2 usage clusters"), "{}", f[0].summary);
+        assert!(
+            f[0].detail.contains("[x1, x2] over fields [a, b]"),
+            "{}",
+            f[0].detail
+        );
+        assert!(
+            f[0].detail.contains("[y1, y2] over fields [c, d]"),
+            "{}",
+            f[0].detail
+        );
+        assert!(
+            f[0].summary.contains("2 usage clusters"),
+            "{}",
+            f[0].summary
+        );
     }
 
     #[test]
     fn a_bridging_method_makes_it_one_cluster_and_no_finding() {
-        let src = TWO_JOBS.replace("}\n}", "}\n    fn bridge(&self) -> u8 { self.a + self.c }\n}");
+        let src = TWO_JOBS.replace(
+            "}\n}",
+            "}\n    fn bridge(&self) -> u8 { let p = self.a; let q = self.c; p + q }\n}",
+        );
         assert!(judged(&src).is_empty());
     }
 
@@ -220,18 +253,24 @@ impl S {
         // one cluster of two methods, a second of a single method: not two clusters
         let src = "pub struct S { a: u8, b: u8, c: u8 }
 impl S {
-    fn x1(&self) -> u8 { self.a + self.b }
-    fn x2(&mut self) { self.a = 1; self.b = 2; }
-    fn y1(&self) -> u8 { self.c + self.c }
-    fn x3(&self) -> u8 { self.a + self.a }
+    fn x1(&self) -> u8 { let p = self.a; let q = self.b; p + q }
+    fn x2(&mut self) { self.a = 1; self.b = 2; self.a += 1; }
+    fn y1(&self) -> u8 { let p = self.c; let q = self.c; p + q }
+    fn x3(&self) -> u8 { let p = self.a; let q = self.a; p + q }
 }";
         assert!(judged(src).is_empty());
     }
 
     #[test]
     fn a_type_with_too_few_methods_in_all_is_not_reported() {
-        let strict = Params { min_methods: 5, ..P };
-        let files = [SourceFile { path: "src/lib.rs".into(), text: TWO_JOBS.into() }];
+        let strict = Params {
+            min_methods: 5,
+            ..P
+        };
+        let files = [SourceFile {
+            path: "src/lib.rs".into(),
+            text: TWO_JOBS.into(),
+        }];
         let (types, _) = collect(&files).unwrap();
         assert!(judge(&types, &strict, "p").is_empty());
     }
@@ -253,6 +292,10 @@ impl S {
         let f = judged(&TWO_JOBS.replace("S", "None"));
         assert_eq!(f.len(), 1);
         let summary = f[0].summary.clone();
-        f.into_iter().next().unwrap().validate().unwrap_or_else(|e| panic!("{summary}: {e}"));
+        f.into_iter()
+            .next()
+            .unwrap()
+            .validate()
+            .unwrap_or_else(|e| panic!("{summary}: {e}"));
     }
 }

@@ -23,8 +23,8 @@ pub(crate) struct Method {
     pub fields: BTreeSet<String>,
     /// The sibling methods it calls as `self.name(..)`.
     pub calls: BTreeSet<String>,
-    /// A body of one statement that touches at most one field and calls nothing: an accessor or a setter, which says nothing about
-    /// what the type's jobs are.
+    /// A thin method, which says nothing about what the type's jobs are: an accessor, a setter or a derived value (at most two
+    /// statements, at most two fields, no call to a sibling), or a builder step (it takes `self` by value).
     pub trivial: bool,
 }
 
@@ -51,7 +51,10 @@ pub(crate) fn collect(files: &[SourceFile]) -> anyhow::Result<(Vec<TypeFacts>, V
     let mut impls: BTreeMap<String, Vec<Method>> = BTreeMap::new();
     for f in files {
         let parsed = syn::parse_file(&f.text).map_err(|e| {
-            anyhow::anyhow!("could not parse {} with syn ({e}); refusing to guess", f.path)
+            anyhow::anyhow!(
+                "could not parse {} with syn ({e}); refusing to guess",
+                f.path
+            )
         })?;
         let mut w = Walk {
             file: &f.path,
@@ -213,7 +216,12 @@ impl<'ast> Visit<'ast> for Walk<'_> {
 fn method_of(f: &syn::ImplItemFn) -> Method {
     let mut u = Uses::default();
     u.visit_block(&f.block);
-    let trivial = f.block.stmts.len() == 1 && u.fields.len() <= 1 && u.calls.is_empty();
+    let by_value = f
+        .sig
+        .receiver()
+        .is_some_and(|r| matches!(r.kind, syn::ReceiverKind::Value));
+    let thin = f.block.stmts.len() <= 2 && u.fields.len() <= 2 && u.calls.is_empty();
+    let trivial = thin || by_value;
     Method {
         name: f.sig.ident.to_string(),
         fields: u.fields,
@@ -313,10 +321,10 @@ mod tests {
 
     const TWO_JOBS: &str = "pub struct S { a: u8, b: u8, c: u8, d: u8 }
 impl S {
-    fn x1(&self) -> u8 { self.a + self.b }
-    fn x2(&mut self) { self.a = 1; self.b = 2; }
-    fn y1(&self) -> u8 { self.c + self.d }
-    fn y2(&mut self) { self.c = 3; self.d = 4; }
+    fn x1(&self) -> u8 { let p = self.a; let q = self.b; p + q }
+    fn x2(&mut self) { self.a = 1; self.b = 2; self.a += 1; }
+    fn y1(&self) -> u8 { let p = self.c; let q = self.d; p + q }
+    fn y2(&mut self) { self.c = 3; self.d = 4; self.c += 1; }
 }";
 
     #[test]
@@ -329,7 +337,10 @@ impl S {
 
     #[test]
     fn one_method_touching_both_groups_joins_them() {
-        let src = TWO_JOBS.replace("}\n}", "}\n    fn bridge(&self) -> u8 { self.a + self.c }\n}");
+        let src = TWO_JOBS.replace(
+            "}\n}",
+            "}\n    fn bridge(&self) -> u8 { let p = self.a; let q = self.c; p + q }\n}",
+        );
         assert_eq!(cluster_names(&src).len(), 1, "{src}");
     }
 
@@ -337,11 +348,14 @@ impl S {
     fn a_call_to_a_sibling_joins_the_caller_to_the_callees_fields() {
         let src = "pub struct S { a: u8, b: u8 }
 impl S {
-    fn helper(&self) -> u8 { let t = self.a; t + self.a }
+    fn helper(&self) -> u8 { let t = self.a; let u = self.a; t + u }
     fn user(&self) -> u8 { let v = self.helper(); v + 1 }
-    fn other(&self) -> u8 { let w = self.b; w + self.b }
+    fn other(&self) -> u8 { let w = self.b; let z = self.b; w + z }
 }";
-        assert_eq!(cluster_names(src), vec![vec!["helper", "user"], vec!["other"]]);
+        assert_eq!(
+            cluster_names(src),
+            vec![vec!["helper", "user"], vec!["other"]]
+        );
     }
 
     #[test]
@@ -352,13 +366,36 @@ impl S { fn get_a(&self) -> u8 { self.a } fn set_a(&mut self, v: u8) { self.a = 
     }
 
     #[test]
+    fn a_derived_value_over_two_fields_is_thin_and_not_clustered() {
+        let src = "pub struct S { a: u8, b: u8, c: u8, d: u8 }
+impl S {
+    fn ab(&self) -> u8 { self.a / self.b }
+    fn cd(&self) -> u8 { self.c / self.d }
+}";
+        assert!(cluster_names(src).is_empty());
+    }
+
+    #[test]
+    fn a_builder_step_taking_self_by_value_is_not_clustered() {
+        let src = "pub struct S { a: Vec<u8>, b: Vec<u8> }
+impl S {
+    fn with_a(mut self, v: u8) -> Self { let x = v; self.a.push(x); self.a.push(x); self.a.push(x); self }
+    fn with_b(mut self, v: u8) -> Self { let x = v; self.b.push(x); self.b.push(x); self.b.push(x); self }
+}";
+        assert!(cluster_names(src).is_empty());
+    }
+
+    #[test]
     fn a_field_used_inside_a_macro_is_seen() {
         let src = "pub struct S { a: u8, b: u8 }
 impl S {
     fn show(&self) -> String { let s = format!(\"{} {}\", self.a, self.b); s }
 }";
         let t = &types(src)[0];
-        assert_eq!(t.methods[0].fields, BTreeSet::from(["a".to_string(), "b".to_string()]));
+        assert_eq!(
+            t.methods[0].fields,
+            BTreeSet::from(["a".to_string(), "b".to_string()])
+        );
     }
 
     #[test]
@@ -385,7 +422,10 @@ impl Clone for S { fn clone(&self) -> S { S { a: self.a } } }";
         let src = "pub struct S(u8, u8);
 impl S { fn f(&self) -> u8 { let a = self.0; a + self.1 } }";
         let t = &types(src)[0];
-        assert_eq!(t.methods[0].fields, BTreeSet::from(["0".to_string(), "1".to_string()]));
+        assert_eq!(
+            t.methods[0].fields,
+            BTreeSet::from(["0".to_string(), "1".to_string()])
+        );
     }
 
     #[test]
@@ -400,8 +440,14 @@ impl S { fn g(&self) -> u8 { let a = self.a; a } }";
     #[test]
     fn a_name_two_structs_share_is_noted_and_left_out() {
         let files = [
-            SourceFile { path: "src/a.rs".into(), text: "pub struct S;".into() },
-            SourceFile { path: "src/b.rs".into(), text: "pub struct S;".into() },
+            SourceFile {
+                path: "src/a.rs".into(),
+                text: "pub struct S;".into(),
+            },
+            SourceFile {
+                path: "src/b.rs".into(),
+                text: "pub struct S;".into(),
+            },
         ];
         let (t, notes) = collect(&files).unwrap();
         assert!(t.is_empty() && notes.len() == 1);
@@ -409,7 +455,10 @@ impl S { fn g(&self) -> u8 { let a = self.a; a } }";
 
     #[test]
     fn a_file_syn_cannot_parse_is_an_error_not_a_skip() {
-        let files = [SourceFile { path: "src/a.rs".into(), text: "fn (".into() }];
+        let files = [SourceFile {
+            path: "src/a.rs".into(),
+            text: "fn (".into(),
+        }];
         assert!(collect(&files).is_err());
     }
 }
