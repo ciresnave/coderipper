@@ -1,0 +1,1 @@
+# The clean twin: the same declaration and budget; the domain crate offers three public items and re-exports nothing. The rule must report nothing.

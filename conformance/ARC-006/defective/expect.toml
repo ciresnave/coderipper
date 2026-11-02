@@ -1,0 +1,7 @@
+[[expect]]
+rule = "ARC-006"
+file = "domain/Cargo.toml"
+
+[[expect]]
+rule = "ARC-006"
+file = "domain/Cargo.toml"

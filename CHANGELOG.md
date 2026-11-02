@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.23.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
+
+**ARC-006 is built: component API within budget, advisory** (PM task 2026-11-01, ARC and MOD families; the third A-class check, on the `[architecture.api_budget]` key the 0.21 declaration already parses). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low and Info only, never gating.
+
+**What it counts.** For each component with a budget, in the library (`src/lib.rs`) of each of its crates, from the tracked `.rs` files under `src/` at `HEAD`, test items skipped: the public **items** (a `pub` function, struct, enum, union, trait, type alias, constant, static, module, `#[macro_export]` macro or `pub use` leaf, counted only when every module above it is `pub`; `pub(crate)` and `pub(super)` are not public) and the **members** of the public types (pub fields, variants, trait items, inherent `pub` associated items, wherever in the crate they are written, so a type declared in a private module and re-exported still has its members counted). The finding states both counts (CireSnave's census rule: sites and distinct items differ), and their sum is compared with the budget. **Low** when over budget; **Info** for a `pub use` whose root is a library the component does not own (subject `<component>:third-party`) and for a budget entry naming no declared component.
+
+**No declaration is not clean.** No `[architecture]` table, or no `[architecture.api_budget]` entry: reported as **not run** with what to add.
+
+**Scope, said plainly.** Syntactic: macro-generated items and `#[path]` modules are not seen, a `cfg`-gated item counts as enabled, two types of one name share their members, a glob re-export counts once, and a third-party type in a public *signature* is not seen (that is API-008). A binary-only crate counts zero and says so; a file `syn` cannot parse is an error, never a smaller count. Crate granularity; module groups are noted, not judged. **No false-positive rate is claimed**: the rule was not run on a corpus for this PR.
+
+**Checked.** 13 unit tests (items by kind, members, private modules hiding items unless re-exported, no double count of a re-exported declaration, test items skipped, third-party roots including `::crate` paths and group/rename leaves, globs, binary crate and missing module file noted, an unparsable file is an error, over budget versus at budget, the Info findings, not-run outcomes). Conformance fixtures `conformance/ARC-006/{defective,clean}` (five public items against a budget of four with a re-exported library type, and a twin inside the budget).
+
 ## 0.22.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
 
 **ARC-003 is built: stable policy avoids volatile detail, advisory** (PM task 2026-11-01, ARC and MOD families; the second A-class check, on the `[architecture]` declaration of 0.21). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low and Info only, never gating.

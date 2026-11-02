@@ -12,7 +12,7 @@ pub mod size_coupling;
 pub mod unused_parameters;
 pub mod unused_return_values;
 pub mod version_consistency;
-pub use architecture::{ComponentGraphCheck, VolatileDetailCheck};
+pub use architecture::{ApiBudgetCheck, ComponentGraphCheck, VolatileDetailCheck};
 pub use ci_protection_presence::CiProtectionPresenceCheck;
 pub use cli_basics::CliBasicsCheck;
 pub use cohesion::CohesionCheck;
