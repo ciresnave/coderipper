@@ -283,7 +283,7 @@ fn is_pub(v: &syn::Visibility) -> bool {
     matches!(v, syn::Visibility::Public(_))
 }
 
-fn attrs_of(i: &syn::Item) -> &[syn::Attribute] {
+pub(super) fn attrs_of(i: &syn::Item) -> &[syn::Attribute] {
     match i {
         syn::Item::Fn(x) => &x.attrs,
         syn::Item::Mod(x) => &x.attrs,
