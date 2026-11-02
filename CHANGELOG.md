@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.23.1 - 2026-11-02 (proposed, a new opt-in setting)
+
+**RDB-008 second half is built, opt-in: runs of commented-out code** (the named row left from 0.17; PM ruling 2026-11-02: opt-in). Off unless the repository's own `.coderipper.toml` sets `[rdb008] commented_out_code = true` (a system or user file does not turn it on; an unknown key under `[rdb008]` is an error that names the file). When on, every tracked C-like, Python and Ruby file is read, not only those that name a to-do, and a run of three or more consecutive whole-line comments that are at least three quarters code-shaped (a line ending in `;`, `{` or `}`, or opening with a statement keyword; doc comments `///` and `//!` are not read) is one Low finding per file at low confidence, with the count of runs and the first line. The unowned-TODO half is unchanged.
+
+**Why opt-in, with the measurement.** The heuristic was run over the cutlass tree (the corpus the PM named) and the first run of each flagged file was read: 49 files, 82 runs; **18 were commented-out code and 31 were documentation** (layout notation such as `E<0,1> := ((_0,_1,_0,...),_0,_0,...)`, pseudo-code that explains an optimized loop, concept sketches, tables of tensor shapes), so about **63% false positives**, far above what a default-on rule may have (CireSnave, 2026-10-25: default on only when the false positives are few). Four cases that could be read either way were counted as false positives. Only the first run of each file was read, so this is a rate of files, not of runs. Tightening the line test does not separate the pseudo-code from real code. Revisit default-on when the heuristic can tell the two apart (ROADMAP row).
+
+**Checked.** 10 unit tests in `rdb008.rs` (runs found, and prose, quoted code and doc comments not; Python; TOML not judged; off without the key, on with it, false the same as absent; the key read from the config text and a broken file is off).
+
+**Patent sweep:** `docs/PATENT-SWEEP.md` addendum for this change (idea 31, one query, one hit read).
+
 ## 0.23.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
 
 **ARC-006 is built: component API within budget, advisory** (PM task 2026-11-01, ARC and MOD families; the third A-class check, on the `[architecture.api_budget]` key the 0.21 declaration already parses). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low and Info only, never gating.

@@ -215,7 +215,7 @@ remediation = "Add an owner and expiry to the TODO or resolve it; delete the com
 related = ["RDB-010"]
 lifecycle = "experimental"
 
-checked_today = "Tracked source files by extension (C-like, hash-comment and dash-comment families) outside fixtures, testdata, conformance, snapshots, golden and vendored directories: the comment text of each line for an upper-case TODO or FIXME with no parenthesised name, no @name and no issue reference (#123, PROJ-123) or link on its line; one Low finding per file. Not judged: commented-out code, an owner on another line, prose files, other languages."
+checked_today = "Tracked source files by extension (C-like, hash-comment and dash-comment families) outside fixtures, testdata, conformance, snapshots, golden and vendored directories: the comment text of each line for an upper-case TODO or FIXME with no parenthesised name, no @name and no issue reference (#123, PROJ-123) or link on its line; one Low finding per file. Opt-in (`[rdb008] commented_out_code = true` in the repository's own `.coderipper.toml`): runs of three or more consecutive whole-line comments that are code-shaped (a line ending in `;`, `{` or `}`, or opening with a statement keyword), at least three quarters of the block, in C-like, Python and Ruby files, one Low finding per file at low confidence. Not judged: an owner on another line, prose files, other languages."
 
 [rule.applicability]
 languages = ["any"]

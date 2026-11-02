@@ -113,6 +113,9 @@ pub(crate) struct ConfigFile {
     /// `[architecture]`: the components, layers and exceptions the A-class rules judge the code against (see [`crate::architecture`]).
     #[serde(default)]
     pub architecture: Option<crate::architecture::ArchitectureConfig>,
+    /// `[rdb008] commented_out_code = true`: also report runs of commented-out code (see [`Rdb008Settings`]).
+    #[serde(default)]
+    pub rdb008: Option<Rdb008Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -225,6 +228,25 @@ impl LimitsSection {
             _ => None,
         }
     }
+}
+
+/// `[rdb008]`: the second half of `RDB-008`, commented-out code, is opt-in. Read from the repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Rdb008Settings {
+    /// Report runs of three or more commented-out code lines. Off unless set: on the corpus read for the rule, about 63% of what the
+    /// heuristic flagged was documentation (layout notation, pseudo-code explaining optimized code).
+    #[serde(default)]
+    pub commented_out_code: bool,
+}
+
+/// Whether the repository's `.coderipper.toml` text turns on the commented-out-code half of `RDB-008`. A file that does not parse is
+/// `false` here (the run's own configuration load reports the error).
+pub(crate) fn rdb008_commented_out_code(text: &str) -> bool {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.rdb008)
+        .is_some_and(|s| s.commented_out_code)
 }
 
 impl ConfigFile {
