@@ -67,6 +67,10 @@ impl Module for RustModule<'_> {
                 errored += 1;
                 continue;
             };
+            if let Some(why) = check.not_configured(&ctx) {
+                events.push(Event::RuleResult(RuleResult::not_configured(rule, why)));
+                continue;
+            }
             match crate::result_cache::through(check.id(), &ctx, || check.run_noted(&ctx)) {
                 Ok((raw, notes)) => {
                     ran += 1;
