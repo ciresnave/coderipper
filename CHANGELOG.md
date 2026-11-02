@@ -22,6 +22,8 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 **Not seen, said in every finding:** items a macro generates; glob-import targets; `#[path]` modules; a type name two structs in a crate share (counted in a note, methods attributed to neither). A module naming its own ancestor is containment and is not fan-out (design ASK 2, the PM's ruling pending). Growth over time needs history and is not measured. A `src/bin` file is measured for size only. `tests/`, `benches/`, `examples/` and `build.rs` are outside `src/`.
 
+**Patent sweep for the 0.19 line** (`docs/PATENT-SWEEP.md`, CireSnave's standing instruction of 2026-10-25; `patent-sweep-record` fails the release without it, and it failed this PR's self-check until written): idea 26, three queries (Q54 to Q56), four patents read claim by claim (US10261883B2, US11892935B2, US11474927B1, US8458663B2); none reads on `MOD-005` as read. Two watches are recorded (a roll-up of file metrics over a graph; dynamic coupling coverage). Due-diligence read, not legal advice.
+
 **One hazard met, not fixed here:** the result cache is keyed by version, check id and committed tree, so while the version does not change, an edit to a cacheable check serves the earlier result for an unchanged tree (it hid a bug fix in this change's corpus runs until `CODERIPPER_RESULT_CACHE=off`). A release changes the version; a working copy does not.
 
 ## 0.18.6 - 2026-11-01 (proposed)
