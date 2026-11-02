@@ -148,13 +148,23 @@ fn read_graph(root: &Path) -> anyhow::Result<Graph> {
 }
 
 pub(crate) fn graph_from_metadata(json: &serde_json::Value, root: &Path) -> anyhow::Result<Graph> {
-    let base = norm(&root.display().to_string());
+    // cargo reports canonical paths, and the root as given can be a symlink away from them (macOS: /var is /private/var): try both
+    // spellings of the root, and drop the `\\?\` prefix Windows puts on a canonical path
+    let mut bases = vec![norm(&root.display().to_string())];
+    if let Ok(canonical) = std::fs::canonicalize(root) {
+        let canonical = norm(&canonical.display().to_string());
+        bases.push(canonical.trim_start_matches("//?/").to_string());
+    }
     let relative = |abs: &str| -> String {
         let abs = norm(abs);
-        match abs.strip_prefix(&base) {
-            Some(rest) => rest.trim_start_matches('/').to_string(),
-            None => abs,
+        for base in &bases {
+            if let Some(rest) = abs.strip_prefix(base.as_str()) {
+                if rest.is_empty() || rest.starts_with('/') {
+                    return rest.trim_start_matches('/').to_string();
+                }
+            }
         }
+        abs
     };
     let packages = json["packages"]
         .as_array()
