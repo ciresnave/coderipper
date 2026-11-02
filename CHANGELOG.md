@@ -16,6 +16,8 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 **Checked.** Unit tests (19) cover clusters over disjoint fields, a bridging method, a call to a sibling, accessors, a derived value, a builder step, macro arguments (a field and a call), trait-impl methods, test items, a name two structs share, an unparseable file, and a type named `None` still validating. Mutation: 8 mutations that compile and could ship (a call no longer carries the callee's fields; test items read; trait-impl methods as members; thin up to three statements; builder steps as members; macro arguments unread; two clusters not enough; a cluster needing three methods), each applied once with its anchor asserted: 8 of 8 caught. Conformance fixtures `conformance/MOD-004/{defective,clean}` (a type with a log/level half and a cache/hits half, and the same type with one method that uses both) earn the claim.
 
+**Patent sweep for the 0.20 line** (`docs/PATENT-SWEEP.md`): idea 27, three queries (Q57 to Q59), four patents surfaced and the three on point read claim by claim (US11036527B2, US20190317760A1, US9158503B2); none reads on `MOD-004` as read. The nearest, US11036527B2 (IBM, expired), splits a class at runtime and replaces call sites; `MOD-004` is a static report. One watch is recorded (re-read it before any change that generates the split). Due-diligence read, not legal advice.
+
 **Not seen, said in every finding:** a field reached by destructuring (`let Self { a, .. } = self`) or passed on through a helper taking `&self.a`; items a macro generates; a macro that renames `self`; a name two structs in a crate share (noted); trait-impl methods; enums. Test items are not read.
 
 ## 0.19.0 - 2026-11-01 (proposed, Breaking: a new default-on rule)
