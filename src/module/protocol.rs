@@ -443,6 +443,18 @@ impl RuleResult {
         }
     }
 
+    /// A rule not run because the project has not configured what it judges against (see [`NOT_CONFIGURED`]); `detail` says what to add.
+    pub fn not_configured(rule: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            rule: rule.into(),
+            status: RuleRan::Skipped,
+            findings: 0,
+            reason_code: Some(NOT_CONFIGURED.into()),
+            detail: Some(detail.into()),
+            error_kind: None,
+        }
+    }
+
     /// A rule that could not give a verdict.
     pub fn error(rule: impl Into<String>, kind: ErrorKind, detail: impl Into<String>) -> Self {
         Self {
@@ -460,6 +472,11 @@ impl RuleResult {
 /// lock, no build for this platform, or not installed and not allowed to be). A coverage gap, never a failure: the run goes on and
 /// the rule is reported as not run. Only an in-process module may use it; from an external module it is a `protocol_mismatch`.
 pub const TOOL_UNAVAILABLE: &str = "tool_unavailable";
+
+/// The `reason_code` of a rule the host's own module did not run because the project declares nothing for it to judge against (an
+/// A-class architecture rule with no `[architecture]` table). A coverage gap that is printed as a note, never "clean" and never a
+/// failure. Only an in-process module may use it.
+pub const NOT_CONFIGURED: &str = "not_configured";
 
 /// The module's closing tally. The host does not trust it; its absence is what matters.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

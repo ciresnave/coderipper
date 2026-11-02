@@ -25,8 +25,8 @@ pub use neutral::{
 };
 pub use protocol::{
     Capabilities, ClaimStatus, ErrorKind, Event, Hello, Limits, ModuleSummary, Request,
-    RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, PROTOCOL,
-    REQUEST_REASON, TOOL_UNAVAILABLE,
+    RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, NOT_CONFIGURED,
+    PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
 
@@ -329,7 +329,11 @@ fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOu
     let status = match result.status {
         RuleRan::Ran => RuleStatus::Ran,
         RuleRan::Skipped
-            if in_process && result.reason_code.as_deref() == Some(TOOL_UNAVAILABLE) =>
+            if in_process
+                && matches!(
+                    result.reason_code.as_deref(),
+                    Some(TOOL_UNAVAILABLE | NOT_CONFIGURED)
+                ) =>
         {
             if !findings.is_empty() {
                 return mismatch("a rule whose tool is unavailable sent findings".into());

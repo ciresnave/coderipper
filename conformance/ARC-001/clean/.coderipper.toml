@@ -1,0 +1,10 @@
+[architecture]
+style = "layered"
+
+[[architecture.layer]]
+name = "foundation"
+components = ["low"]
+
+[[architecture.layer]]
+name = "top"
+components = ["high"]

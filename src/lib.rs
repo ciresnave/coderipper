@@ -59,6 +59,7 @@ pub use anyhow;
 pub use serde_json;
 
 pub(crate) mod allowlist;
+pub(crate) mod architecture;
 pub mod build_cache;
 pub mod builtin;
 pub(crate) mod cargo_json;
@@ -799,7 +800,7 @@ fn run_checks_over_in(
 
 /// The built-in checks the `classic` profile does not run unless one is named by id: its output is a contract, and these were added
 /// after it was fixed (the `extended` and `portfolio` profiles take them).
-const NOT_IN_CLASSIC: &[&str] = &["OPS-011", "MOD-005", "MOD-004"];
+const NOT_IN_CLASSIC: &[&str] = &["OPS-011", "MOD-005", "MOD-004", "ARC-001"];
 
 /// Whether `profile` runs the built-in check `id` (a check named by id runs in any profile).
 fn in_profile(profile: Profile, id: &str, only_check_id: Option<&str>) -> bool {
@@ -1311,7 +1312,8 @@ mod tests {
                 "dependency-freshness",
                 "OPS-011",
                 "MOD-005",
-                "MOD-004"
+                "MOD-004",
+                "ARC-001"
             ]
         );
     }
@@ -1422,6 +1424,7 @@ mod tests {
                 ("OPS-011", check::Unit::Package),
                 ("MOD-005", check::Unit::Package),
                 ("MOD-004", check::Unit::Package),
+                ("ARC-001", check::Unit::Repository),
             ]
         );
     }

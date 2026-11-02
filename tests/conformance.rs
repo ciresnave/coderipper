@@ -392,10 +392,10 @@ fn rust_proofs() -> Vec<(String, Verdict)> {
 }
 
 #[test]
-fn the_rust_module_earns_seven_of_its_nine_claims() {
+fn the_rust_module_earns_eight_of_its_ten_claims() {
     let proofs = rust_proofs();
     let verdict = |id: &str| proofs.iter().find(|(r, _)| r == id).map(|(_, v)| v.clone());
-    assert_eq!(proofs.len(), 9, "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(proofs.len(), 10, "one verdict per claimed rule: {proofs:?}");
     for id in [
         "reachability",
         "unused-parameters",
@@ -404,6 +404,7 @@ fn the_rust_module_earns_seven_of_its_nine_claims() {
         "OPS-011",
         "MOD-005",
         "MOD-004",
+        "ARC-001",
     ] {
         assert_eq!(verdict(id), Some(Verdict::Proven), "{id}");
     }

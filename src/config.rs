@@ -36,7 +36,7 @@ const SYSTEM_FILE_NAME: &str = "coderipper.toml";
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
-    "[[allow]], [[tracks]], [[skip_member]], [[cli_waiver]], [buf], [reachability] and profile";
+    "[[allow]], [[tracks]], [[skip_member]], [[cli_waiver]], [buf], [reachability], [architecture] and profile";
 
 /// How findings are written to stdout (`--message-format`, and the key of the same name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -110,6 +110,9 @@ pub(crate) struct ConfigFile {
     /// `[reachability] public_api`: declared public API (see [`crate::allowlist::PublicApiEntry`]).
     #[serde(default)]
     pub reachability: Option<ReachabilitySettings>,
+    /// `[architecture]`: the components, layers and exceptions the A-class rules judge the code against (see [`crate::architecture`]).
+    #[serde(default)]
+    pub architecture: Option<crate::architecture::ArchitectureConfig>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),

@@ -224,6 +224,13 @@ pub trait Check: Send + Sync {
         false
     }
 
+    /// Why the check cannot judge this project at all, or `None` when it can. An answer is reported as "not run: why" and counted as
+    /// not run in the coverage, never as clean: for a rule that compares the code with something the project must declare (the
+    /// `[architecture]` table), a project that declares nothing has not passed. The default is `None`.
+    fn not_configured(&self, _ctx: &CheckContext) -> Option<String> {
+        None
+    }
+
     /// Run the check and return whatever it found, RAW: do not apply the project's allowlist. The
     /// host suppresses, because only it can tell which allowlist entries went
     /// stale. A check that would make an absence claim without a positive control must not

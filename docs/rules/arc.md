@@ -79,7 +79,7 @@ unjustified indirection (ARC-008) rather than reward ceremony.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| ARC-001 | Dependencies follow the declared component graph | A | catalog record; no check yet, needs a declared architecture (`cargo metadata` can run build tooling) |
+| ARC-001 | Dependencies follow the declared component graph | A | check `ARC-001` (Rust, `cargo metadata --no-deps`, advisory Low; reported as not run, never clean, when the repository has no `[architecture]` table): the edges between workspace crates against the declared layers, `allow` edges and waivers; the declaration is judged too (a stale component, an unplaced crate, a waiver for an edge that is no violation or whose end date has passed). **Crate granularity only**: module groups inside a crate are noted and not judged yet; dev-dependencies are not judged; a dependency by version without a `path` is not an edge |
 | ARC-002 | No cycles between components | A | catalog record; no check yet, needs a declared architecture |
 | ARC-003 | Stable policy avoids volatile details | A | catalog record; no check yet, needs declared stable/volatile tags |
 | ARC-004 | Infrastructure types kept out of policy signatures | P | catalog record; no check yet (planned native check on resolved signatures; needs a forbidden-namespace list) |

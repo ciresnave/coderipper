@@ -561,7 +561,8 @@ fn the_rust_module_describes_the_seven_checks() {
             "dependency-freshness",
             "OPS-011",
             "MOD-005",
-            "MOD-004"
+            "MOD-004",
+            "ARC-001"
         ]
     );
     assert_eq!(hello.languages, ["rust"]);
