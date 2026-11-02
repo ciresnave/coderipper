@@ -30,11 +30,13 @@ pub enum BuiltinCheck {
     Cohesion,
     /// `ARC-001`.
     ComponentGraph,
+    /// `ARC-003`.
+    VolatileDetail,
 }
 
 impl BuiltinCheck {
     /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 10] = [
+    pub const ALL: [BuiltinCheck; 11] = [
         Self::Reachability,
         Self::UnusedReturnValues,
         Self::UnusedParameters,
@@ -45,6 +47,7 @@ impl BuiltinCheck {
         Self::SizeCoupling,
         Self::Cohesion,
         Self::ComponentGraph,
+        Self::VolatileDetail,
     ];
 
     /// The check's stable id: what `Check::id` returns for the check this builds.
@@ -60,6 +63,7 @@ impl BuiltinCheck {
             Self::SizeCoupling => crate::rule_id::MOD_005,
             Self::Cohesion => crate::rule_id::MOD_004,
             Self::ComponentGraph => crate::rule_id::ARC_001,
+            Self::VolatileDetail => crate::rule_id::ARC_003,
         }
     }
 
@@ -80,7 +84,8 @@ impl BuiltinCheck {
             | Self::CliBasics
             | Self::SizeCoupling
             | Self::Cohesion
-            | Self::ComponentGraph => true,
+            | Self::ComponentGraph
+            | Self::VolatileDetail => true,
             Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
@@ -98,6 +103,7 @@ impl BuiltinCheck {
             Self::SizeCoupling => Box::new(checks::SizeCouplingCheck::new()),
             Self::Cohesion => Box::new(checks::CohesionCheck::new()),
             Self::ComponentGraph => Box::new(checks::ComponentGraphCheck::new()),
+            Self::VolatileDetail => Box::new(checks::VolatileDetailCheck::new()),
         }
     }
 }
@@ -120,6 +126,6 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 10);
+        assert_eq!(all.len(), 11);
     }
 }

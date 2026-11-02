@@ -124,10 +124,6 @@ pub(crate) struct WaiverDecl {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[expect(
-    dead_code,
-    reason = "parsed so a declaration may carry every key of the accepted format; the later ARC and MOD rules read them"
-)]
 pub(crate) struct VolatileDecl {
     #[serde(default)]
     pub names: Vec<String>,
