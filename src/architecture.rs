@@ -45,7 +45,7 @@ pub(crate) struct ArchitectureConfig {
     /// `[architecture.composition]` (ARC-012; not read yet).
     #[serde(default)]
     pub composition: Option<CompositionDecl>,
-    /// `[architecture.api_budget]` (ARC-006; not read yet).
+    /// `[architecture.api_budget]` (ARC-006).
     #[serde(default)]
     pub api_budget: BTreeMap<String, u32>,
     /// Once set, the number of waivers may only fall (not read yet).

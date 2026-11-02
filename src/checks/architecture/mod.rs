@@ -510,6 +510,8 @@ fn declaration_finding(
 
 mod volatile;
 pub use volatile::VolatileDetailCheck;
+mod api_budget;
+pub use api_budget::ApiBudgetCheck;
 
 #[cfg(test)]
 mod tests;

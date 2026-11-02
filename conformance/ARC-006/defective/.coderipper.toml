@@ -1,0 +1,13 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "domain"
+paths = ["domain"]
+
+[[architecture.component]]
+name = "app"
+paths = ["app"]
+
+[architecture.api_budget]
+domain = 4
