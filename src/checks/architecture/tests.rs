@@ -27,6 +27,7 @@ fn graph(members: &[&str], edges: &[(&str, &str)]) -> Graph {
             })
             .collect(),
         dev_edges: 0,
+        ..Graph::default()
     }
 }
 
@@ -228,4 +229,101 @@ fn a_repository_with_no_declaration_is_not_run_and_never_clean() {
     assert!(why.contains("no layers"), "{why}");
     std::fs::write(dir.path().join(".coderipper.toml"), LAYERS).unwrap();
     assert!(ComponentGraphCheck::new().not_configured(&ctx).is_none());
+}
+
+const MODULAR: &str = "[architecture]
+[[architecture.component]]
+name = \"core\"
+paths = [\"src/core.rs\"]
+[[architecture.component]]
+name = \"adapters\"
+paths = [\"src/adapters.rs\"]
+[[architecture.component]]
+name = \"shell\"
+paths = [\"src/main.rs\"]
+[[architecture.layer]]
+name = \"bottom\"
+components = [\"core\"]
+[[architecture.layer]]
+name = \"middle\"
+components = [\"adapters\"]
+[[architecture.layer]]
+name = \"top\"
+components = [\"shell\"]
+";
+
+fn module_graph_of(edges: &[(&str, &str)], placed: &[(&str, usize)]) -> Graph {
+    let mut g = graph(&["app"], &[]);
+    g.members.clear();
+    for (name, _) in placed {
+        g.members.push(Member {
+            name: (*name).into(),
+            dir: String::new(),
+            manifest: "Cargo.toml".into(),
+        });
+    }
+    g.edges = edges
+        .iter()
+        .map(|(f, t)| Edge {
+            from: (*f).into(),
+            to: (*t).into(),
+        })
+        .collect();
+    g.module_groups = placed.iter().map(|(n, c)| ((*n).into(), *c)).collect();
+    g
+}
+
+#[test]
+fn module_groups_are_judged_against_the_layers_like_crates() {
+    let a = arch(MODULAR);
+    // shell -> adapters -> core points down; core -> adapters points up
+    let g = module_graph_of(
+        &[
+            ("shell", "adapters"),
+            ("adapters", "core"),
+            ("core", "adapters"),
+        ],
+        &[("core", 1), ("adapters", 1), ("shell", 1)],
+    );
+    let (f, notes) = judge(&a, &g, today(), "p");
+    assert_eq!(subjects(&f), ["core->adapters"], "{f:?}");
+    assert!(
+        notes
+            .iter()
+            .any(|n| n.contains("module group `core`: 1 source file(s)")),
+        "{notes:?}"
+    );
+}
+
+#[test]
+fn a_waiver_and_an_allow_edge_cover_a_module_group_edge() {
+    let a = arch(&format!(
+        "{MODULAR}[[architecture.allow]]
+from = \"core\"
+to = \"adapters\"
+reason = \"r\"
+"
+    ));
+    let g = module_graph_of(
+        &[("core", "adapters")],
+        &[("core", 1), ("adapters", 1), ("shell", 1)],
+    );
+    let (f, _) = judge(&a, &g, today(), "p");
+    assert!(f.is_empty(), "{f:?}");
+}
+
+#[test]
+fn a_module_group_that_matches_no_file_is_reported_stale_with_a_control() {
+    let a = arch(MODULAR);
+    let g = module_graph_of(&[], &[("core", 2), ("adapters", 0), ("shell", 1)]);
+    let (f, _) = judge(&a, &g, today(), "p");
+    assert_eq!(subjects(&f), ["stale:adapters"], "{f:?}");
+    assert!(
+        f[0].positive_control
+            .as_deref()
+            .unwrap()
+            .contains("3 source file"),
+        "{:?}",
+        f[0].positive_control
+    );
 }
