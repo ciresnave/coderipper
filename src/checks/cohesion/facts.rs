@@ -136,14 +136,14 @@ pub(crate) fn clusters(t: &TypeFacts) -> Vec<Cluster> {
         }
     }
     let mut groups: BTreeMap<usize, Cluster> = BTreeMap::new();
-    for i in 0..nodes.len() {
+    for (i, (method, fields)) in nodes.iter().enumerate() {
         let r = find(&mut parent, i);
         let g = groups.entry(r).or_insert_with(|| Cluster {
             fields: BTreeSet::new(),
             methods: Vec::new(),
         });
-        g.fields.extend(nodes[i].1.iter().cloned());
-        g.methods.push(nodes[i].0.name.clone());
+        g.fields.extend(fields.iter().cloned());
+        g.methods.push(method.name.clone());
     }
     groups.into_values().collect()
 }

@@ -127,7 +127,7 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
         let Some((mut big, methods)) = splits(t, p) else {
             continue;
         };
-        big.sort_by(|a, b| b.methods.len().cmp(&a.methods.len()));
+        big.sort_by_key(|c| std::cmp::Reverse(c.methods.len()));
         let describe = |c: &Cluster| {
             let mut m = c.methods.clone();
             m.sort();
@@ -161,7 +161,7 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
                  more than one job. If the groups really never meet, split the type along them; if they belong together, leave it \
                  and say why in an allowlist reason. Syntactic: a field reached by destructuring or passed on through a helper is \
                  not seen, and accessors, trait-impl methods and test items are not counted.",
-                big.iter().map(|c| describe(c)).collect::<Vec<_>>().join("; "),
+                big.iter().map(describe).collect::<Vec<_>>().join("; "),
                 p.source,
             ),
             positive_control: None,
