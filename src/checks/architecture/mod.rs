@@ -19,8 +19,8 @@
 //! a note that says what to add ([`Check::not_configured`]).
 //!
 //! **Known limitations / deliberate scope:**
-//! - Crate granularity only in this version. A component whose `paths` point inside a crate (module groups) is noted and not judged;
-//!   the module graph of a single crate is the next step.
+//! - A component whose `paths` point inside a crate (module groups) is judged from the module graph of that crate (`modgraph.rs`): the
+//!   references between the files, a lower bound (macro tokens, aliases, glob re-exports are not followed); a group is also a member.
 //! - `dev-dependencies` are not judged (a test may reach up the layers); the note says how many edges that left out.
 //! - A dependency on a member by version alone (no `path`) resolves to the registry copy, not the member, and is not an edge.
 //! - Edges to or from a member the declaration does not place are not judged; the member is reported as unplaced.
@@ -92,9 +92,10 @@ impl Check for ComponentGraphCheck {
         let Some((arch, file)) = architecture::load(&ctx.project_root)? else {
             return Ok((Vec::new(), Vec::new()));
         };
-        let graph = read_graph(&ctx.project_root)?;
+        let mut graph = read_graph(&ctx.project_root)?;
         let names: BTreeSet<String> = graph.members.iter().map(|m| m.name.clone()).collect();
         arch.validate(&names, &file)?;
+        modgraph::add_module_groups(&arch, &mut graph, &ctx.project_root)?;
         let project = ctx.project_root.file_name().map_or_else(
             || "repository".to_string(),
             |n| n.to_string_lossy().into_owned(),
@@ -126,6 +127,10 @@ pub(crate) struct Graph {
     pub edges: BTreeSet<Edge>,
     /// Dev-dependency edges between members, not judged.
     pub dev_edges: usize,
+    /// Notes the reading of the graph left for the run (the module graphs read, what they could not see).
+    pub notes: Vec<String>,
+    /// Module groups of the declaration (component name -> the source files placed in it); each is also a member of `members`.
+    pub module_groups: BTreeMap<String, usize>,
 }
 
 fn norm(path: &str) -> String {
@@ -416,10 +421,34 @@ pub(crate) fn judge(
             .iter()
             .any(|p| is_module_path(&norm(p), &graph.members));
         if modular {
-            notes.push(format!(
-                "component `{}` has module paths inside a crate; module groups are not judged in this version, only crate-level edges",
-                c.name
-            ));
+            match graph.module_groups.get(&c.name) {
+                Some(0) => {
+                    let mut stale = declaration_finding(
+                        project,
+                        &config_file,
+                        &format!("stale:{}", c.name),
+                        format!("the declared module group `{}` matches no source file", c.name),
+                        format!(
+                            "Its `paths` ({}) name no tracked `.rs` file under `src/` that the module graph reaches from the crate root: the files were renamed, moved or deleted, or no `mod` declares them. Correct the `paths` or remove the component.",
+                            c.paths.join(", ")
+                        ),
+                    );
+                    stale.claim = Claim::Absence;
+                    stale.positive_control = Some(format!(
+                        "the same read placed {} source file(s) in the module groups of this declaration",
+                        graph.module_groups.values().sum::<usize>()
+                    ));
+                    findings.push(stale);
+                }
+                Some(n) => notes.push(format!(
+                    "module group `{}`: {n} source file(s), judged from the module graph",
+                    c.name
+                )),
+                None => notes.push(format!(
+                    "component `{}` has module paths inside a crate that was not read as a module graph; module groups are not judged for it, only crate-level edges",
+                    c.name
+                )),
+            }
             continue;
         }
         let resolves = graph.members.iter().any(|m| {
@@ -476,8 +505,9 @@ pub(crate) fn judge(
         };
         key(a).cmp(&key(b))
     });
+    notes.extend(graph.notes.iter().cloned());
     notes.push(format!(
-        "ARC-001 judged {judged} dependency edge(s) between workspace members ({waived_count} waived); {unjudged} edge(s) touch a member the declaration does not place; {} dev-dependency edge(s) are not judged",
+        "ARC-001 judged {judged} dependency edge(s) between workspace members and module groups ({waived_count} waived); {unjudged} edge(s) touch a member the declaration does not place; {} dev-dependency edge(s) are not judged",
         graph.dev_edges
     ));
     (findings, notes)
@@ -508,6 +538,7 @@ fn declaration_finding(
     }
 }
 
+mod modgraph;
 mod volatile;
 pub use volatile::VolatileDetailCheck;
 mod api_budget;
