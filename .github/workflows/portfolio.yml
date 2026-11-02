@@ -8,7 +8,8 @@ name: Portfolio checks
 #         contents: read
 #       uses: ciresnave/coderipper/.github/workflows/portfolio.yml@<40-hex SHA of a commit on main>
 #
-# and passes nothing else but, for a private repository, `with: runs-on: <self-hosted label>`. The rule list is fixed by the `portfolio`
+# and passes nothing else but, for a private repository, `with: runs-on: <self-hosted label>`, and, for a repository whose sweep needs longer
+# than half an hour, `with: timeout-minutes: <n>`. The rule list is fixed by the `portfolio`
 # profile and the CodeRipper version by `CODERIPPER_VERSION` below, so a caller can no more drift by editing its own workflow than
 # override either; bumping the version is a change to this file, which callers pick up by moving their SHA.
 #
@@ -21,6 +22,10 @@ on:
         description: Runner label; a private repository passes its self-hosted label.
         type: string
         default: ubuntu-latest
+      timeout-minutes:
+        description: Minutes the job may run before GitHub cancels it. A job that hangs otherwise holds its runner for GitHub's default of 360 minutes (a slow portfolio job held both Humboldt runners for 40 minutes).
+        type: number
+        default: 30
 
 # the token gets read access to the repository and nothing else; no secret is declared, so none can be passed
 permissions:
@@ -46,6 +51,7 @@ jobs:
   portfolio:
     name: Portfolio checks (coderipper sweep --profile portfolio)
     runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     # every step is Bash, whatever the runner: a Windows runner defaults to PowerShell
     defaults:
       run:
