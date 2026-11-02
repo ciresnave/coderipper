@@ -6,17 +6,11 @@
 //! this module reads; glob-import targets (`use a::*` names module `a`, not what it brings in); `#[path]` modules; a method added to
 //! a type by an `impl` in another crate or inside a macro; a type name two modules both define (counted nowhere, noted).
 
+use crate::checks::rust_sources::SourceFile;
 use proc_macro2::LineColumn;
 use std::collections::{BTreeMap, BTreeSet};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
-
-/// One source file, as it was committed.
-pub(crate) struct SourceFile {
-    /// Forward-slash path relative to the package directory, e.g. `src/a/b.rs`.
-    pub path: String,
-    pub text: String,
-}
 
 /// What was measured in one file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,16 +53,7 @@ pub(crate) fn module_of(path: &str) -> Option<Vec<String>> {
     Some(module)
 }
 
-/// Whether a path is a file of test code, by name (the test kinds in the design note): `tests.rs`, `*_test.rs`, `*_tests.rs`.
-pub(crate) fn is_test_file(path: &str) -> bool {
-    let name = path.rsplit('/').next().unwrap_or(path);
-    name == "tests.rs"
-        || name == "test.rs"
-        || name.ends_with("_test.rs")
-        || name.ends_with("_tests.rs")
-}
-
-fn is_cfg_test(attrs: &[syn::Attribute]) -> bool {
+pub(crate) fn is_cfg_test(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|a| {
         if a.path().is_ident("test") {
             return true;
