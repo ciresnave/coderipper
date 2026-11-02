@@ -197,8 +197,9 @@ fn judge(files: &[FileMetrics], t: &Thresholds, project: &str) -> Vec<Finding> {
                     project: project.into(),
                     location: Some(Location { file: f.path.clone(), line: Some(ty.line as u32) }),
                     subject: Some(ty.name.clone()),
+                    // "the `X`-named type", not "type `X`": the host reads a bare `None`, `No` or `Zero` in a summary as an absence claim
                     summary: format!(
-                        "type `{}` has {members} members (threshold {})",
+                        "the `{}`-named type has {members} members (threshold {})",
                         ty.name, t.type_members
                     ),
                     detail: format!(
@@ -318,6 +319,27 @@ mod tests {
         for f in found {
             let summary = f.summary.clone();
             f.validate().unwrap_or_else(|e| panic!("{summary}: {e}"));
+        }
+    }
+
+    #[test]
+    fn a_type_named_like_an_absence_word_still_validates() {
+        for name in ["None", "No", "Zero", "Missing"] {
+            let mut m = file(1, 0, 0);
+            m.types = vec![metrics::TypeMetrics {
+                name: name.into(),
+                line: 3,
+                fields: 0,
+                methods: 5,
+            }];
+            let f = judge(&[m], &T, "p");
+            assert_eq!(f.len(), 1, "{name}");
+            let summary = f[0].summary.clone();
+            f.into_iter()
+                .next()
+                .unwrap()
+                .validate()
+                .unwrap_or_else(|e| panic!("{summary}: {e}"));
         }
     }
 
