@@ -44,12 +44,15 @@ pub(crate) struct Params {
     pub source: &'static str,
 }
 
-/// PLACEHOLDER until the corpus is measured.
+/// Two clusters of two methods each, among four or more methods in all. Chosen by reading, not taken from a percentile: this measure
+/// has no distribution to take one from (on the nine-repo corpus of 3,706 structs, 720 have any cluster and 6 meet these figures). The
+/// first definition (accessors only) reported 19, of which about eight read as builders, data records with per-field helpers or an
+/// encode/decode pair; counting thin methods and builder steps as accessors left 6, of which 5 read as mixed jobs by their clusters.
 pub(crate) const PARAMS: Params = Params {
     min_clusters: 2,
     min_cluster_methods: 2,
     min_methods: 4,
-    source: "placeholder",
+    source: "Two clusters of two or more methods, among four or more methods outside thin ones, are the figures chosen by reading the corpus's splits (nine of our own codebases at origin/main on 2026-11-01), not a percentile.",
 };
 
 /// Reports types whose methods split into separate usage clusters (see the module docs).
@@ -93,25 +96,6 @@ impl Check for CohesionCheck {
             || package.name.clone(),
             |n| n.to_string_lossy().into_owned(),
         );
-        if std::env::var("CODERIPPER_MOD004_DUMP").is_ok() {
-            // TEMPORARY
-            for t in &types {
-                let c = clusters(t);
-                if c.len() >= 1 {
-                    let sizes: Vec<String> =
-                        c.iter().map(|x| x.methods.len().to_string()).collect();
-                    eprintln!(
-                        "DUMPY	{}	{}	{}	{}	{}	{}",
-                        package.name,
-                        t.file,
-                        t.name,
-                        t.methods.len(),
-                        t.fields.len(),
-                        sizes.join(",")
-                    );
-                }
-            }
-        }
         let mut findings = judge(&types, &PARAMS, &project);
         findings.sort_by(|a, b| {
             let key = |f: &Finding| {

@@ -74,8 +74,8 @@ impl BuiltinCheck {
             | Self::UnusedReturnValues
             | Self::VersionConsistency
             | Self::CliBasics
-            | Self::SizeCoupling => true,
-            Self::Cohesion => false,
+            | Self::SizeCoupling
+            | Self::Cohesion => true,
             Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
