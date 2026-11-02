@@ -51,3 +51,24 @@ fn the_workflow_names_a_check_that_failed_to_run_and_a_tool_that_would_not_insta
     // an error line with a zero exit code still fails the job
     assert!(sweep.contains("[ \"$failed\" -ne 0 ] && [ \"$code\" -eq 0 ]"));
 }
+
+#[test]
+fn the_job_has_a_timeout_a_caller_can_change_and_it_defaults_to_thirty_minutes() {
+    // a portfolio job that hangs holds its runner for GitHub's default of 360 minutes (a slow job held both Humboldt runners for 40);
+    // the file may have CRLF line endings, so the text is normalised before it is searched
+    let w = WORKFLOW.replace("\r\n", "\n");
+    let from = w
+        .find("      timeout-minutes:\n")
+        .expect("the workflow declares a timeout-minutes input");
+    let input = &w[from..];
+    let input = &input[..input.find("\n\n").unwrap_or(input.len())];
+    assert!(input.contains("type: number"), "{input}");
+    assert!(input.contains("default: 30"), "{input}");
+    // and the job uses it: the line sits under the `portfolio` job, before its steps
+    let job = &w[w.find("\njobs:\n").expect("jobs")..];
+    let before_steps = &job[..job.find("    steps:").expect("the job has steps")];
+    assert!(
+        before_steps.contains("    timeout-minutes: ${{ inputs.timeout-minutes }}\n"),
+        "{before_steps}"
+    );
+}

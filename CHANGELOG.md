@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.19.1 - 2026-11-02 (proposed)
+
+**CI: `portfolio.yml` has a job timeout, a caller can change it, default 30 minutes** (PM request 2026-11-02: a slow portfolio job held both Humboldt runners for 40 minutes; GitHub's default job timeout is 360). New input `timeout-minutes` (number, default 30) and `timeout-minutes: ${{ inputs.timeout-minutes }}` on the `portfolio` job. A repository whose sweep needs longer passes `with: timeout-minutes: <n>`. A test (`tests/portfolio_workflow.rs`) pins the input, its type and default, and that the job uses it; removing the job line makes it fail. **Callers pick this up only by moving their workflow SHA** to a commit that has this change; nothing changes in any caller until the PM announces a repin. No change to the CodeRipper binary or `CODERIPPER_VERSION`.
+
 ## 0.19.0 - 2026-11-01 (proposed, Breaking: a new default-on rule)
 
 **MOD-005 is built: size and coupling outliers, advisory** (PM task 2026-11-01 for the ARC and MOD families, CireSnave: *"Those in its ARC and MOD families are very important to me."*; design `docs/superpowers/specs/2026-11-01-arc-mod-checks-design.md` section 3.1). A new Rust-module rule (`syn`, read at `HEAD`), default on in `extended` and `portfolio`, not in `classic`; reported and never gating (Info and Low). It builds the shared fact layer (per-file code lines, the other modules a file names, the files naming it, per-type fields and inherent methods) the later P-class rules read.
