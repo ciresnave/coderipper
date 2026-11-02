@@ -512,6 +512,8 @@ mod volatile;
 pub use volatile::VolatileDetailCheck;
 mod api_budget;
 pub use api_budget::ApiBudgetCheck;
+mod owns_data;
+pub use owns_data::DataOwnershipCheck;
 
 #[cfg(test)]
 mod tests;

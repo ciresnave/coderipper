@@ -34,11 +34,13 @@ pub enum BuiltinCheck {
     VolatileDetail,
     /// `ARC-006`.
     ApiBudget,
+    /// `ARC-007`.
+    DataOwnership,
 }
 
 impl BuiltinCheck {
     /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 12] = [
+    pub const ALL: [BuiltinCheck; 13] = [
         Self::Reachability,
         Self::UnusedReturnValues,
         Self::UnusedParameters,
@@ -51,6 +53,7 @@ impl BuiltinCheck {
         Self::ComponentGraph,
         Self::VolatileDetail,
         Self::ApiBudget,
+        Self::DataOwnership,
     ];
 
     /// The check's stable id: what `Check::id` returns for the check this builds.
@@ -68,6 +71,7 @@ impl BuiltinCheck {
             Self::ComponentGraph => crate::rule_id::ARC_001,
             Self::VolatileDetail => crate::rule_id::ARC_003,
             Self::ApiBudget => crate::rule_id::ARC_006,
+            Self::DataOwnership => crate::rule_id::ARC_007,
         }
     }
 
@@ -90,7 +94,8 @@ impl BuiltinCheck {
             | Self::Cohesion
             | Self::ComponentGraph
             | Self::VolatileDetail
-            | Self::ApiBudget => true,
+            | Self::ApiBudget
+            | Self::DataOwnership => true,
             Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
@@ -110,6 +115,7 @@ impl BuiltinCheck {
             Self::ComponentGraph => Box::new(checks::ComponentGraphCheck::new()),
             Self::VolatileDetail => Box::new(checks::VolatileDetailCheck::new()),
             Self::ApiBudget => Box::new(checks::ApiBudgetCheck::new()),
+            Self::DataOwnership => Box::new(checks::DataOwnershipCheck::new()),
         }
     }
 }
@@ -132,6 +138,6 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 12);
+        assert_eq!(all.len(), 13);
     }
 }

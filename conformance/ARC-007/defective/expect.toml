@@ -1,0 +1,3 @@
+[[expect]]
+rule = "ARC-007"
+file = "billing/Cargo.toml"

@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.24.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
+
+**ARC-007 is built: data owned by one component, advisory** (PM task 2026-11-01, ARC and MOD families; the fourth A-class check, on the `owns_data` key of a component the 0.21 declaration already parses). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low and Info only, never gating.
+
+**What it reads.** For each name some component declares in `owns_data`, every *other* component's crates at `HEAD`: the string literals of the `.rs` files under `src/` (test items skipped; literals inside macro calls such as `sqlx::query!` and `format!` are read) that are exactly the name or are shaped like SQL (a word among select, insert, update, delete, join, into, table, alter, truncate, drop, create) and hold the name as a whole word, ignoring case; and the `.sql` files under the crate directory (lines outside `--` comments that name it). One **Low** finding at **low confidence** per (name, other component) with the count and the files, subject `<component>:<name>`; an **Info** finding for a name two components both declare.
+
+**No declaration is not clean.** No `[architecture]` table, or no component with `owns_data`: reported as **not run** with what to add.
+
+**Scope, said plainly.** A text match, not a query analysis: a log label equal to the name, or an SQL-shaped message that holds it, is counted; a name built at run time, read from configuration or mapped by an ORM is not seen; non-Rust crates are not read; `tests/`, `benches/`, `examples/` and `build.rs` are not read. A file `syn` cannot parse is an error, never a smaller count. Crate granularity; module groups are noted, not judged. **No false-positive rate is claimed**: the rule was not run on a corpus for this PR.
+
+**Checked.** 10 unit tests (a literal that is the name or SQL holding it; prose, a longer identifier and a part of a word not, with a positive control; literals read from macro calls with test items skipped; raw and escaped strings by value; an unparsable file is an error; `.sql` lines outside comments; one finding per name and other component with counts and files; nothing found is nothing; two owners is Info; the not-run outcomes). Conformance fixtures `conformance/ARC-007/{defective,clean}` (a billing crate that selects from the `orders` table another component owns, and the twin that reads its own table).
+
+**Patent sweep for the 0.24 line** (`docs/PATENT-SWEEP.md`): idea 32, two queries (Q71, Q72), three patents read (hits 57 to 59). No hit reads on `ARC-007` as read; the IBM application that extracts table names from code strings (expired) is the nearest, and two watches are recorded.
+
 ## 0.23.1 - 2026-11-02 (proposed, a new opt-in setting)
 
 **RDB-008 second half is built, opt-in: runs of commented-out code** (the named row left from 0.17; PM ruling 2026-11-02: opt-in). Off unless the repository's own `.coderipper.toml` sets `[rdb008] commented_out_code = true` (a system or user file does not turn it on; an unknown key under `[rdb008]` is an error that names the file). When on, every tracked C-like, Python and Ruby file is read, not only those that name a to-do, and a run of three or more consecutive whole-line comments that are at least three quarters code-shaped (a line ending in `;`, `{` or `}`, or opening with a statement keyword; doc comments `///` and `//!` are not read) is one Low finding per file at low confidence, with the count of runs and the first line. The unowned-TODO half is unchanged.

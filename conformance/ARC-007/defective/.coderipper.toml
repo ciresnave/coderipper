@@ -1,0 +1,11 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "orders-svc"
+paths = ["orders-svc"]
+owns_data = ["orders"]
+
+[[architecture.component]]
+name = "billing"
+paths = ["billing"]

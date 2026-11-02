@@ -1,0 +1,1 @@
+# The clean twin: the same declaration; billing reads its own invoices and the owner reads orders. The rule must report nothing.
