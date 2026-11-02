@@ -5,6 +5,7 @@ pub mod ci_protection_presence;
 pub mod cli_basics;
 pub mod dependency_freshness;
 pub mod reachability;
+pub(crate) mod rust_sources;
 pub mod size_coupling;
 pub mod unused_parameters;
 pub mod unused_return_values;

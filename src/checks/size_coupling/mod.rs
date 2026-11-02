@@ -28,11 +28,12 @@
 mod metrics;
 mod thresholds;
 
+pub(crate) use metrics::is_cfg_test;
+
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Claim, Confidence, Finding, Location, Severity};
-use metrics::{FileMetrics, SourceFile};
-use std::path::Path;
-use std::process::Command;
+use crate::checks::rust_sources::read_sources;
+use metrics::FileMetrics;
 use thresholds::{Thresholds, CORPUS};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
@@ -91,40 +92,6 @@ impl Check for SizeCouplingCheck {
         });
         Ok((findings, notes))
     }
-}
-
-/// The tracked Rust files under `src/` at `HEAD`, minus files of test code.
-fn read_sources(dir: &Path) -> anyhow::Result<Vec<SourceFile>> {
-    let listing = git(
-        dir,
-        &["ls-tree", "-r", "-z", "--name-only", "HEAD", "--", "src"],
-    )?;
-    let mut files = Vec::new();
-    for path in String::from_utf8_lossy(&listing).split('\0') {
-        if path.is_empty() || !path.ends_with(".rs") || metrics::is_test_file(path) {
-            continue;
-        }
-        let blob = git(dir, &["show", &format!("HEAD:./{path}")])?;
-        files.push(SourceFile {
-            path: path.to_string(),
-            text: String::from_utf8(blob)
-                .map_err(|_| anyhow::anyhow!("{path} is not valid UTF-8"))?,
-        });
-    }
-    Ok(files)
-}
-
-fn git(dir: &Path, args: &[&str]) -> anyhow::Result<Vec<u8>> {
-    let out = Command::new("git").args(args).current_dir(dir).output()?;
-    if !out.status.success() {
-        anyhow::bail!(
-            "git {} failed in {}: {}",
-            args.join(" "),
-            dir.display(),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(out.stdout)
 }
 
 /// The findings for these measurements against these thresholds.
