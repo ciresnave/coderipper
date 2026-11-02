@@ -538,6 +538,8 @@ fn declaration_finding(
     }
 }
 
+mod cycles;
+pub use cycles::ComponentCyclesCheck;
 mod modgraph;
 mod volatile;
 pub use volatile::VolatileDetailCheck;

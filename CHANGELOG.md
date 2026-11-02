@@ -6,6 +6,20 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.26.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
+
+**ARC-002 is built: no cycles between components, advisory** (PM task 2026-11-01, ARC and MOD families; on the component graph `ARC-001` reads, now with module groups). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low only, never gating.
+
+**What it reports.** The strongly connected sets (Tarjan) of two or more components in the graph of edges between components: workspace crates (normal and build dependencies by `path`) and module groups of a crate (the module graph of 0.25), each edge mapped to the components that hold its ends. One **Low** finding per set, subject the component names sorted and joined by commas, with the number of components it spans, the edges between them and the edges whose removal dissolves it: every single edge that does when one is enough, otherwise a depth-first set in name order that dissolves it but is not necessarily the smallest. **High** confidence when only crate edges are in the set, **Medium** when a module group is. Cargo refuses a cycle between crates, so a cycle here is between components of more than one crate, or between module groups of one crate.
+
+**No declaration is not clean.** No `[architecture]` table, or one that declares no component and no layer: reported as **not run** with what to add.
+
+**Scope, said plainly.** An `allow` edge or a waiver of `ARC-001` does not excuse a cycle. Cycles *inside* one component are not reported, which departs from the design sketch (Info): in Rust a parent module and its child routinely name each other, so the finding would be noise on almost every module. The module graph is a lower bound (a cycle through a macro call's tokens, an alias or a glob re-export is not seen); the edges named are real as far as they go. No false-positive rate is claimed: the rule was not run on a corpus for this PR.
+
+**Checked.** 9 unit tests (a loop found and a chain not, with the same nodes as the control; two loops are two sets; every single dissolving edge named; when none is enough the depth-first set really dissolves the cycle; two components that reach each other through their crates are one finding with the right subject, confidence and edges; a one-way dependency is none, with the edge count as control; a module group lowers the confidence; the not-run outcomes; two end-to-end runs on a real git repository, a cycle between module groups and its clean twin). Conformance fixtures `conformance/ARC-002/{defective,clean}`.
+
+**Patent sweep for the 0.26 line** (`docs/PATENT-SWEEP.md`): idea 34, two queries (Q75, Q76), three patents read (hits 61 to 63). **One of them is active**: US7904892B2 (Northrop Grumman, to an estimated 2030) identifies strong components and the dependency arc whose removal best reduces a metric; its independent claims also require a displayed tree view of dependency levels and the metric, which `ARC-002` has not. A watch records that no tree view, level display or metric-ranked list of arcs may be added without reading the claims again.
+
 ## 0.25.0 - 2026-11-02 (proposed, Breaking: an existing default-on rule now judges module groups)
 
 **ARC-001 judges module groups inside a crate** (PM task 2026-11-01, ARC and MOD families; the single-crate example of the declaration proposal, 4.2). A component whose `paths` name files, directories or patterns inside a crate was noted and not judged; it is now judged from the module graph of the crate, with the same layers, `allow` edges and waivers as crate edges. A repository that declares module groups gets findings it did not get before, which is why this is Breaking.
