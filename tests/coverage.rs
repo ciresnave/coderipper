@@ -225,12 +225,12 @@ fn the_human_line_calls_a_gap_not_yet_implemented_never_a_defect() {
 }
 
 #[test]
-fn the_builtin_rust_module_claims_its_ten_rules_and_proves_eight() {
+fn the_builtin_rust_module_claims_its_eleven_rules_and_proves_nine() {
     let checks = coderipper::registered_checks();
     let module = coderipper::module::RustModule::new(&checks);
     let hello = coderipper::module::Module::describe(&module).unwrap();
     let c = for_module(Catalog::builtin(), &hello, "rust", None);
-    assert_eq!(c.covered, 8, "eight claims carry a proof");
+    assert_eq!(c.covered, 9, "nine claims carry a proof");
     assert_eq!(
         c.claimed_unproven, 2,
         "ci-protection-presence and dependency-freshness have no proof yet"

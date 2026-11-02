@@ -508,5 +508,8 @@ fn declaration_finding(
     }
 }
 
+mod volatile;
+pub use volatile::VolatileDetailCheck;
+
 #[cfg(test)]
 mod tests;
