@@ -52,11 +52,19 @@ fn subjects(f: &[Finding]) -> Vec<String> {
 fn edges_that_point_down_or_sideways_are_fine() {
     let (f, notes) = run(
         "",
-        &[("app", "store"), ("store", "core"), ("app", "core"), ("store", "net")],
+        &[
+            ("app", "store"),
+            ("store", "core"),
+            ("app", "core"),
+            ("store", "net"),
+        ],
     );
     assert!(f.is_empty(), "{f:?}");
     assert!(
-        notes.last().unwrap().contains("judged 4 dependency edge(s)"),
+        notes
+            .last()
+            .unwrap()
+            .contains("judged 4 dependency edge(s)"),
         "{notes:?}"
     );
 }
@@ -77,7 +85,8 @@ fn an_edge_that_points_up_is_a_finding_naming_both_layers() {
 
 #[test]
 fn an_allow_edge_permits_an_upward_edge() {
-    let allow = "[[architecture.allow]]\nfrom = \"core\"\nto = \"app\"\nreason = \"health probe\"\n";
+    let allow =
+        "[[architecture.allow]]\nfrom = \"core\"\nto = \"app\"\nreason = \"health probe\"\n";
     let (f, _) = run(allow, &[("core", "app")]);
     assert!(f.is_empty(), "{f:?}");
 }
@@ -102,7 +111,11 @@ fn an_expired_waiver_no_longer_covers_the_edge() {
     let w = "[[architecture.waiver]]\nedge = [\"core\", \"app\"]\nreason = \"r1\"\nowner = \"o1\"\nuntil = \"2026-11-01\"\n";
     let (f, notes) = run(w, &[("core", "app")]);
     assert_eq!(subjects(&f), ["core->app"]);
-    assert!(f[0].detail.contains("ended on 2026-11-01"), "{}", f[0].detail);
+    assert!(
+        f[0].detail.contains("ended on 2026-11-01"),
+        "{}",
+        f[0].detail
+    );
     assert!(!notes.iter().any(|n| n.starts_with("waived:")));
 }
 
@@ -160,7 +173,9 @@ fn module_paths_are_noted_and_not_judged() {
     let (f, notes) = judge(&a, &g, today(), "p");
     assert!(f.is_empty(), "{f:?}");
     assert!(
-        notes.iter().any(|n| n.contains("module groups are not judged")),
+        notes
+            .iter()
+            .any(|n| n.contains("module groups are not judged")),
         "{notes:?}"
     );
 }
@@ -198,7 +213,10 @@ fn a_repository_with_no_declaration_is_not_run_and_never_clean() {
     let why = ComponentGraphCheck::new()
         .not_configured(&ctx)
         .expect("not configured");
-    assert!(why.contains("[architecture]") && why.contains("not a pass"), "{why}");
+    assert!(
+        why.contains("[architecture]") && why.contains("not a pass"),
+        "{why}"
+    );
     std::fs::write(
         dir.path().join(".coderipper.toml"),
         "[architecture]\nstyle = \"layered\"\n",

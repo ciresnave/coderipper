@@ -207,7 +207,9 @@ fn is_module_path(path: &str, members: &[Member]) -> bool {
         || members
             .iter()
             .any(|m| !m.dir.is_empty() && path.starts_with(&format!("{}/", m.dir)))
-        || members.iter().any(|m| m.dir.is_empty() && path.starts_with("src"))
+        || members
+            .iter()
+            .any(|m| m.dir.is_empty() && path.starts_with("src"))
 }
 
 struct Resolved {
@@ -256,8 +258,7 @@ impl Resolved {
                 })
             });
             let placed = by_path.or(by_name).or_else(|| {
-                (mentioned.contains(m.name.as_str()) || holds_module_group)
-                    .then(|| m.name.clone())
+                (mentioned.contains(m.name.as_str()) || holds_module_group).then(|| m.name.clone())
             });
             component.insert(m.name.clone(), placed);
         }
@@ -400,7 +401,10 @@ pub(crate) fn judge(
         }
     }
     for c in &arch.component {
-        let modular = c.paths.iter().any(|p| is_module_path(&norm(p), &graph.members));
+        let modular = c
+            .paths
+            .iter()
+            .any(|p| is_module_path(&norm(p), &graph.members));
         if modular {
             notes.push(format!(
                 "component `{}` has module paths inside a crate; module groups are not judged in this version, only crate-level edges",
@@ -426,7 +430,12 @@ pub(crate) fn judge(
             stale.positive_control = Some(format!(
                 "the same cargo metadata read finds {} workspace member(s): {}",
                 graph.members.len(),
-                graph.members.iter().map(|m| m.name.as_str()).collect::<Vec<_>>().join(", ")
+                graph
+                    .members
+                    .iter()
+                    .map(|m| m.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
             findings.push(stale);
         }
@@ -449,7 +458,12 @@ pub(crate) fn judge(
         }
     }
     findings.sort_by(|a, b| {
-        let key = |f: &Finding| (f.location.as_ref().map(|l| l.file.clone()), f.subject.clone());
+        let key = |f: &Finding| {
+            (
+                f.location.as_ref().map(|l| l.file.clone()),
+                f.subject.clone(),
+            )
+        };
         key(a).cmp(&key(b))
     });
     notes.push(format!(

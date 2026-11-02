@@ -25,8 +25,8 @@ pub use neutral::{
 };
 pub use protocol::{
     Capabilities, ClaimStatus, ErrorKind, Event, Hello, Limits, ModuleSummary, Request,
-    RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, PROTOCOL,
-    NOT_CONFIGURED, REQUEST_REASON, TOOL_UNAVAILABLE,
+    RequestTier, RequestUnit, RuleClaim, RuleRan, RuleResult, HELLO_REASON, NOT_CONFIGURED,
+    PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
 

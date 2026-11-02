@@ -164,7 +164,8 @@ impl Date {
         if parts.next().is_some() || y.len() != 4 || m.len() != 2 || d.len() != 2 {
             return None;
         }
-        let (year, month, day): (i32, u32, u32) = (y.parse().ok()?, m.parse().ok()?, d.parse().ok()?);
+        let (year, month, day): (i32, u32, u32) =
+            (y.parse().ok()?, m.parse().ok()?, d.parse().ok()?);
         let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
         let days = match month {
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -173,7 +174,9 @@ impl Date {
             2 => 28,
             _ => return None,
         };
-        (1..=days).contains(&day).then_some(Self { year, month, day })
+        (1..=days)
+            .contains(&day)
+            .then_some(Self { year, month, day })
     }
 
     /// Today in UTC, from the system clock.
@@ -213,7 +216,8 @@ impl ArchitectureConfig {
         let bad = |what: String| anyhow::anyhow!("{}: [architecture] {what}", file.display());
         if self.file.is_some() {
             return Err(bad(
-                "`file = ...` is not read yet: put the whole declaration in .coderipper.toml".into(),
+                "`file = ...` is not read yet: put the whole declaration in .coderipper.toml"
+                    .into(),
             ));
         }
         let mut declared: BTreeSet<&str> = BTreeSet::new();
@@ -250,7 +254,10 @@ impl ArchitectureConfig {
                 }
             }
             if a.reason.trim().is_empty() {
-                return Err(bad(format!("the `allow` edge {} -> {} has an empty reason", a.from, a.to)));
+                return Err(bad(format!(
+                    "the `allow` edge {} -> {} has an empty reason",
+                    a.from, a.to
+                )));
             }
         }
         for w in &self.waiver {
@@ -280,7 +287,9 @@ impl ArchitectureConfig {
 
 /// The repository's `[architecture]` table, from `<root>/.coderipper.toml`; `None` when there is no file or no table. An unreadable or
 /// invalid file is an error naming the file.
-pub(crate) fn load(root: &Path) -> anyhow::Result<Option<(ArchitectureConfig, std::path::PathBuf)>> {
+pub(crate) fn load(
+    root: &Path,
+) -> anyhow::Result<Option<(ArchitectureConfig, std::path::PathBuf)>> {
     let path = root.join(crate::config::FILE_NAME);
     let Some(file) = crate::config::read_file(&path, false)? else {
         return Ok(None);
@@ -308,7 +317,8 @@ mod tests {
         let a = parse(
             "[architecture]\nstyle = \"layered\"\n[[architecture.layer]]\nname = \"lib\"\ncomponents = [\"mylib\"]\n[[architecture.layer]]\nname = \"bin\"\ncomponents = [\"mylib-cli\"]\n",
         );
-        a.validate(&members(&["mylib", "mylib-cli"]), Path::new("c")).unwrap();
+        a.validate(&members(&["mylib", "mylib-cli"]), Path::new("c"))
+            .unwrap();
     }
 
     #[test]
@@ -319,13 +329,21 @@ mod tests {
         )
         .unwrap_err()
         .to_string();
-        assert!(e.contains("/r/.coderipper.toml") && e.contains("layers"), "{e}");
+        assert!(
+            e.contains("/r/.coderipper.toml") && e.contains("layers"),
+            "{e}"
+        );
     }
 
     #[test]
     fn a_name_used_but_not_declared_is_an_error() {
-        let a = parse("[architecture]\n[[architecture.layer]]\nname = \"x\"\ncomponents = [\"ghost\"]\n");
-        let e = a.validate(&members(&["real"]), Path::new("c")).unwrap_err().to_string();
+        let a = parse(
+            "[architecture]\n[[architecture.layer]]\nname = \"x\"\ncomponents = [\"ghost\"]\n",
+        );
+        let e = a
+            .validate(&members(&["real"]), Path::new("c"))
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("ghost"), "{e}");
     }
 
@@ -339,7 +357,9 @@ mod tests {
 
     #[test]
     fn an_allow_edge_needs_a_reason() {
-        let a = parse("[architecture]\n[[architecture.allow]]\nfrom = \"a\"\nto = \"b\"\nreason = \" \"\n");
+        let a = parse(
+            "[architecture]\n[[architecture.allow]]\nfrom = \"a\"\nto = \"b\"\nreason = \" \"\n",
+        );
         assert!(a.validate(&members(&["a", "b"]), Path::new("c")).is_err());
         let missing = crate::config::ConfigFile::parse(
             "[architecture]\n[[architecture.allow]]\nfrom = \"a\"\nto = \"b\"\n",
@@ -377,7 +397,10 @@ mod tests {
     #[test]
     fn file_is_refused_until_it_is_read() {
         let a = parse("[architecture]\nfile = \"architecture.toml\"\n");
-        let e = a.validate(&members(&[]), Path::new("c")).unwrap_err().to_string();
+        let e = a
+            .validate(&members(&[]), Path::new("c"))
+            .unwrap_err()
+            .to_string();
         assert!(e.contains("not read yet"), "{e}");
     }
 
