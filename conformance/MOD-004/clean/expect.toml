@@ -1,0 +1,1 @@
+# The clean twin: the same type with one method that uses both the log and the cache, so its methods are one cluster. The rule must report nothing.

@@ -3,14 +3,17 @@
 
 pub mod ci_protection_presence;
 pub mod cli_basics;
+pub mod cohesion;
 pub mod dependency_freshness;
 pub mod reachability;
+pub(crate) mod rust_sources;
 pub mod size_coupling;
 pub mod unused_parameters;
 pub mod unused_return_values;
 pub mod version_consistency;
 pub use ci_protection_presence::CiProtectionPresenceCheck;
 pub use cli_basics::CliBasicsCheck;
+pub use cohesion::CohesionCheck;
 pub use dependency_freshness::DependencyFreshnessCheck;
 pub use reachability::ReachabilityCheck;
 pub use size_coupling::SizeCouplingCheck;
