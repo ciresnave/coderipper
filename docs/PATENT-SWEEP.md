@@ -435,3 +435,20 @@ Version line covered by this addendum: **0.23** (0.23.0). One rule is added over
 **Result: no hit reads on `ARC-006` as read.** Row 54 (active to an estimated 2030) is the nearest: its metrics include the traffic through a module's API, but each independent claim also requires a layer organization index. Row 56 (active) needs peer results data and a percentile score. Row 55 is expired. **Watches:** (1) re-read row 54 before any rule computes a ratio of calls across layers (ARC-005 could); (2) re-read row 56 before any rule scores code against peers or presents a percentile score; (3) read US10346287B1 before a rule classifies a type as third-party by its origin outside the analysed program.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Hits 1 to 53 and ideas 1 to 29 are unchanged by the 0.23 line. A due-diligence read, not legal advice.
+## Addendum: RDB-008 commented-out code, opt-in (2026-11-02, 0.23.1)
+
+Version line covered by this addendum: **0.23** (0.23.1). One setting is added over 0.23.0, read from `src/module/neutral/rdb008.rs`: the second half of `RDB-008` (commented-out code), off unless the repository sets `[rdb008] commented_out_code = true`. Swept 2026-11-02 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`). Claims were read with `tools/patent-claims.py` (Google Patents' machine-converted text, not the official record).
+
+**Idea 31 (`RDB-008`, second half).** Classify runs of consecutive whole-line comments of a source file as code or prose by the shape of each line (a terminal `;`, `{` or `}`, or a leading statement keyword), report a file whose comments hold a run of three or more code-shaped lines making up three quarters of their block, and do so only when the repository asked for it.
+
+| # | Idea | Query (2026-11-02) |
+|---|---|---|
+| Q70 | 31 | detecting commented-out source code in comments, classify comment as code or natural language, remove dead commented code |
+
+**Positive control:** Q70 reached comment-classification and code-comparison patents (US9003366B2, US20190146764A1, US10248648B1, US7493584B1, the spellchecking patent 8700997), so the engine reaches the area; **no patent about reporting runs of commented-out code by line shape was found, and that absence is a statement about this one query only** (one engine, no USPTO or Espacenet search).
+
+**Read:** US9003366B2 (Safe Ip LLC, plagiarism detection; expired by Google Patents' status): every independent claim compares *lines of functional code of one program with lines of non-functional comments of another* to a code-to-comment similarity number; `RDB-008` compares nothing across programs. US11269626B2 (IBM, active to an estimated 2040; read for ideas 23 and 24 on 2026-10-31) was re-read for this idea: its claims classify comments that contain predetermined words by a trained deep neural network as to whether a statement is incomplete, which `RDB-008` does not do (no training, no classifier over words, no similarity of neighbouring fragments). **Not read:** US20190146764A1, US10248648B1, US7493584B1, 8700997.
+
+**Result: no hit reads on this idea as read.** **Watch:** re-read US11269626B2 before the commented-out-code heuristic is replaced by a trained classifier (the roadmap row to revisit default-on may be tempted to).
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. A due-diligence read, not legal advice.

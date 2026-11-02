@@ -263,8 +263,16 @@ fn commented_out_runs(path: &str, text: &str) -> Vec<u32> {
 }
 
 pub(super) fn judge(view: &RepoView) -> Verdict {
-    // Commented-out code can be in any source file, so every file of a known family is read (not only those that name a to-do).
-    let candidates: Option<Vec<String>> = None;
+    // Commented-out code (opt-in: `[rdb008] commented_out_code = true` in the repository's own `.coderipper.toml`) can be in any source
+    // file, so then every file of a known family is read; otherwise only the files that name a to-do are.
+    let commented_out = view
+        .read(crate::config::FILE_NAME)
+        .is_some_and(|t| crate::config::rdb008_commented_out_code(&t));
+    let candidates: Option<Vec<String>> = if commented_out {
+        None
+    } else {
+        view.paths_matching("(TODO|FIXME)")
+    };
     let everything;
     let paths: Vec<&String> = match &candidates {
         Some(found) => found
@@ -289,7 +297,11 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             continue;
         }
         read += 1;
-        let runs = commented_out_runs(path, &text);
+        let runs = if commented_out {
+            commented_out_runs(path, &text)
+        } else {
+            Vec::new()
+        };
         if let Some(first) = runs.first().copied() {
             findings.push(
                 Finding::new(
@@ -515,5 +527,59 @@ x();
         };
         assert_eq!(f.len(), 1);
         assert!(f[0].summary.contains("2 TODO"), "{:?}", f[0].summary);
+    }
+
+    const CODE: &str = "// let x = 1;
+// foo(x);
+// bar();
+fn live() {}
+";
+
+    #[test]
+    fn commented_out_code_is_reported_only_when_the_repository_turns_it_on() {
+        let off = RepoView::from_files(&[("src/a.rs", CODE)]);
+        assert!(matches!(judge(&off), Verdict::Findings(f) if f.is_empty()));
+        let on = RepoView::from_files(&[
+            ("src/a.rs", CODE),
+            (
+                ".coderipper.toml",
+                "[rdb008]
+commented_out_code = true
+",
+            ),
+        ]);
+        let Verdict::Findings(f) = judge(&on) else {
+            panic!("expected a finding with the key set")
+        };
+        assert_eq!(f.len(), 1);
+        assert!(f[0].summary.contains("commented-out"), "{:?}", f[0].summary);
+        // the key set to false is the same as absent
+        let no = RepoView::from_files(&[
+            ("src/a.rs", CODE),
+            (
+                ".coderipper.toml",
+                "[rdb008]
+commented_out_code = false
+",
+            ),
+        ]);
+        assert!(matches!(judge(&no), Verdict::Findings(f) if f.is_empty()));
+    }
+
+    #[test]
+    fn the_key_is_read_from_the_config_text_and_a_broken_file_is_off() {
+        use crate::config::rdb008_commented_out_code as on;
+        assert!(on("[rdb008]
+commented_out_code = true
+"));
+        assert!(!on(""));
+        assert!(!on("[rdb008]
+"));
+        assert!(
+            !on("[rdb008]
+commented_out = true
+"),
+            "an unknown key makes the file invalid, so off"
+        );
     }
 }
