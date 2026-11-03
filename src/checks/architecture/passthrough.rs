@@ -5,10 +5,13 @@
 //! `docs/superpowers/specs/2026-11-01-arc-mod-checks-design.md`, section 3.6.
 //!
 //! **What it reports.** A free function or an inherent method whose whole body is one call that forwards **all** of its parameters, in
-//! order, unchanged: `fn f(a, b) -> R { g(a, b) }`, `fn f(&self, a) -> R { self.inner.g(a) }`, `fn f(&self, a) -> R { g(&self.x, a) }`. The call
+//! order, unchanged: `fn f(a, b) -> R { g(a, b) }`, `fn f(&self, a) -> R { self.g(a) }` (an alias), `fn f(&self, a) -> R { g(&self.x, a) }`. The call
 //! may be wrapped in `Ok(..)`, `Some(..)`, `?`, `.await` or `.into()`, and written as `return ..;`. The finding names the pair
 //! (wrapper, callee). At least one parameter besides `self` must be forwarded: a function with none is delegation to a field or a
-//! constant, which this rule does not call a wrapper.
+//! constant, which this rule does not call a wrapper. **A call on a field is not a pass-through**: `fn add(&mut self, r: R) { self.rules.push(r) }` and
+//! `fn query(&self, q: Q) -> R { self.storage.query(q) }` hide the field behind an interface (information hiding, a facade over a manager), so
+//! they are not what this rule is for. On our own code a first version that counted them flagged 198 methods in one repository, nearly
+//! all of which were documented facade or accessor methods of exactly that kind.
 //!
 //! **Exceptions that are kinds of item, not paths** (the design's list): methods of trait impls (the signature is dictated), and `pub`
 //! functions written in the crate root file (`lib.rs`, `main.rs`), which are a facade. An item with an attribute other than `#[inline]`,
@@ -152,7 +155,9 @@ fn forwarded_callee(block: &syn::Block, params: &[String], has_self: bool) -> Op
             .then(|| fp.path.to_token_stream().to_string().replace(' ', ""))
         }
         syn::Expr::MethodCall(m) => {
-            if !is_self_chain(&m.receiver) {
+            // only an alias for another method of the same type: a call on a field (`self.inner.go(v)`) hides the field, which is
+            // what a wrapper is for, so it is not one
+            if !matches!(&*m.receiver, syn::Expr::Path(p) if p.path.is_ident("self")) {
                 return None;
             }
             let args: Vec<&syn::Expr> = m.args.iter().collect();

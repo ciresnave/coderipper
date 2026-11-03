@@ -26,18 +26,19 @@ fn a_function_that_only_forwards_its_arguments_is_a_wrapper() {
 }
 
 #[test]
-fn a_method_forwarding_to_a_field_or_with_self_first_is_a_wrapper() {
+fn an_alias_method_and_a_free_call_with_a_field_are_wrappers_but_a_call_on_a_field_is_not() {
     let w = wrappers(
-        "struct S { inner: T, x: u8 }\nimpl S {\n    fn a(&self, v: u8) -> u8 { self.inner.go(v) }\n    fn b(&self, v: u8) -> u8 { helper(&self.x, v) }\n    fn c(&mut self, v: u8) { self.inner.set(v); }\n}\n",
+        "struct S { inner: T, x: u8 }
+impl S {
+    fn a(&self, v: u8) -> u8 { self.go(v) }
+    fn b(&self, v: u8) -> u8 { helper(&self.x, v) }
+    fn c(&mut self, v: u8) { self.inner.set(v); }
+    fn d(&self, v: u8) -> u8 { self.inner.go(v) }
+}
+",
     );
-    assert_eq!(
-        names(&w),
-        [
-            "S::a->self.inner.go",
-            "S::b->helper",
-            "S::c->self.inner.set"
-        ]
-    );
+    // `c` and `d` hide the field `inner`: information hiding, not a wrapper
+    assert_eq!(names(&w), ["S::a->self.go", "S::b->helper"]);
 }
 
 #[test]
@@ -96,7 +97,7 @@ fn test_items_are_not_read_and_functions_are_counted() {
         "fn a(v: u8) -> u8 { g(v) }\n#[cfg(test)]\nmod tests { fn t(v: u8) -> u8 { g(v) } }\n#[cfg(test)]\nfn u(v: u8) -> u8 { g(v) }\nstruct S;\nimpl S { fn m(&self, v: u8) -> u8 { self.0.m(v) } }\n",
     )])
     .unwrap();
-    assert_eq!(names(&w), ["a->g", "S::m->self.0.m"]);
+    assert_eq!(names(&w), ["a->g"]);
     assert_eq!(n, 2);
 }
 
