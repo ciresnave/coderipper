@@ -86,13 +86,10 @@ fn no_step_walks_the_home_directory_unbounded_or_on_a_self_hosted_runner() {
         });
         for line in step.lines() {
             let code = line.split('#').next().unwrap_or_default();
-            let walks = code
-                .split(|c: char| c == ';' || c == '|' || c == '&')
-                .map(str::trim)
-                .any(|cmd| {
-                    let cmd = cmd.strip_prefix("timeout 60 ").unwrap_or(cmd);
-                    cmd.starts_with("du ") || cmd.starts_with("find ")
-                });
+            let walks = code.split([';', '|', '&']).map(str::trim).any(|cmd| {
+                let cmd = cmd.strip_prefix("timeout 60 ").unwrap_or(cmd);
+                cmd.starts_with("du ") || cmd.starts_with("find ")
+            });
             if !walks {
                 continue;
             }
