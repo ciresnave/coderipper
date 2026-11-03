@@ -286,7 +286,7 @@ impl ArchitectureConfig {
 pub(crate) fn load(
     root: &Path,
 ) -> anyhow::Result<Option<(ArchitectureConfig, std::path::PathBuf)>> {
-    let path = root.join(crate::names::FILE_NAME);
+    let path = root.join(crate::config::FILE_NAME);
     let Some(file) = crate::config::read_file(&path, false)? else {
         return Ok(None);
     };

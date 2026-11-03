@@ -310,7 +310,7 @@ impl Allowlist {
     /// `crate::config` says which are skipped), then the entries of the wide files the command-line program installed, each
     /// marked with its file. A repository's own entry comes first, so its reason is the one shown for a finding both name.
     pub fn load(project_root: &Path) -> anyhow::Result<Self> {
-        let path = project_root.join(crate::names::FILE_NAME);
+        let path = project_root.join(crate::config::FILE_NAME);
         let mut list = match crate::config::read_file(&path, false)? {
             Some(file) => {
                 for w in &file.cli_waiver {

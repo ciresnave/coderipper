@@ -28,3 +28,15 @@ reason = "a real candidate, not a false alarm: 1,439 code lines holding the argu
 check = "MOD-005"
 file = "src/module/neutral/mod.rs"
 reason = "the registry of the language-neutral rules: one `mod` declaration and one entry per rule module, so the number of modules it names (21) is the number of rules by construction, not accidental coupling. Owner: coderipper lane. Revisit if it starts to hold logic of its own."
+
+# MOD-002 (cycles between modules, advisory) reports two sets in this repository. Each is waived here with its reason; nothing is excluded by path.
+[[allow]]
+check = "MOD-002"
+file = "src/allowlist.rs"
+symbol = "allowlist,architecture,config"
+reason = "a real cycle, not a false alarm: `config` holds the parsed shape of the repository file, whose sections are types owned by `allowlist` and `architecture`, and the `load` functions of those two modules read the file through `config::read_file`. Splitting the types from the readers (a `config::schema` module, or moving the two loaders into `config`) removes it; not done in the change that introduced the rule, to keep that change reviewable. Owner: coderipper lane. Remove this entry when the loaders or the types move."
+[[allow]]
+check = "MOD-002"
+file = "src/session.rs"
+symbol = "session,worktree"
+reason = "a real cycle, one concept in two files: `session` creates a throwaway worktree (`worktree::run_worktree_add`) and `worktree` holds the session's inner state (`session::SessionInner`) while it runs. The worktree functions taking the data they need instead of the inner state removes it; not done in the change that introduced the rule. Owner: coderipper lane. Remove this entry when `worktree` no longer names `session`."
