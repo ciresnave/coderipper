@@ -42,13 +42,22 @@ fn a_constructor_that_only_wraps_is_not_a_validating_one() {
 }
 
 #[test]
-fn a_question_mark_and_an_ensure_count_as_a_possible_rejection() {
+fn an_ensure_counts_a_question_mark_and_a_missing_argument_do_not() {
     let t = facts(
-        "pub struct A { pub v: u8 }\nimpl A { pub fn from_str_value(s: &str) -> Result<Self, std::num::ParseIntError> { let v = s.parse()?; Ok(Self { v }) } }\npub struct B { pub v: u8 }\nimpl B { pub fn parse(v: u8) -> anyhow::Result<Self> { anyhow::ensure!(v > 0); Ok(Self { v }) } }\n",
+        "pub struct A { pub v: u8 }
+impl A { pub fn from_str_value(s: &str) -> Result<Self, std::num::ParseIntError> { let v = s.parse()?; Ok(Self { v }) } }
+pub struct B { pub v: u8 }
+impl B { pub fn parse(v: u8) -> anyhow::Result<Self> { anyhow::ensure!(v > 0); Ok(Self { v }) } }
+pub struct C { pub v: u8 }
+impl C { pub fn from_env() -> Result<Self, String> { if true { return Err(\"x\".into()); } Ok(Self { v: 1 }) } }
+",
     );
-    assert_eq!(t[0].constructors, ["from_str_value"]);
+    // `?` only propagates another call's failure
+    assert!(t[0].constructors.is_empty(), "{:?}", t[0].constructors);
     // `anyhow::Result<Self>` is a path ending in Result with Self first
     assert_eq!(t[1].constructors, ["parse"]);
+    // a constructor that takes nothing reads its input from elsewhere (a configuration loader)
+    assert!(t[2].constructors.is_empty(), "{:?}", t[2].constructors);
 }
 
 #[test]

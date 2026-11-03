@@ -14,8 +14,9 @@
 //!   declared or not: the constructor suggests there is something to guard, and the public field lets a caller go around it.
 //!
 //! **A validating-looking constructor** is an inherent function named `new`, `try_new`, `parse` or `from_*` that returns `Result<Self, _>`
-//! (or the type's name) or `Option<Self>` and whose body can reject, i.e. names `Err`, `None`, `bail!`, `ensure!`, `assert!` or `?`.
-//! A constructor that only wraps its arguments is not one.
+//! (or the type's name) or `Option<Self>`, takes at least one argument, and whose body rejects directly, i.e. names `Err`, `None`,
+//! `bail!` or `ensure!`. A constructor that only wraps its arguments, one that takes none (`new()`, `from_env()`) and one whose only
+//! failures are `?` from other calls are not validating ones: on our own code they were configuration loaders and state builders.
 //!
 //! **Weak evidence by construction.** Syntactic: a type is matched by name (two types of one name in one crate share the facts); a
 //! `pub(crate)` field is not public; `#[non_exhaustive]` is noted, not credited; a derive added by a macro, a manual `impl Default`
@@ -194,11 +195,7 @@ fn serde_validated(attrs: &[syn::Attribute]) -> bool {
 
 fn tokens_name_a_reject(ts: TokenStream) -> bool {
     ts.into_iter().any(|tt| match tt {
-        TokenTree::Ident(i) => matches!(
-            i.to_string().as_str(),
-            "Err" | "None" | "bail" | "ensure" | "assert" | "assert_eq" | "assert_ne"
-        ),
-        TokenTree::Punct(p) => p.as_char() == '?',
+        TokenTree::Ident(i) => matches!(i.to_string().as_str(), "Err" | "None" | "bail" | "ensure"),
         TokenTree::Group(g) => tokens_name_a_reject(g.stream()),
         _ => false,
     })
@@ -305,7 +302,13 @@ fn walk(
                         continue;
                     };
                     let fname = f.sig.ident.to_string();
+                    let takes_input = f
+                        .sig
+                        .inputs
+                        .iter()
+                        .any(|a| matches!(a, syn::FnArg::Typed(_)));
                     if is_constructor_name(&fname)
+                        && takes_input
                         && returns_self_or_nothing(&f.sig.output, &name)
                         && tokens_name_a_reject(f.block.to_token_stream())
                     {
