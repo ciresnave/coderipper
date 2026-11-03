@@ -134,3 +134,20 @@ fn a_binary_only_package_has_no_surface_and_no_finding() {
     assert!(judge(&t, &PARAMS, "p").is_empty());
     assert!(notes[0].contains("binary crate"), "{notes:?}");
 }
+
+#[test]
+fn a_file_module_is_documented_by_the_inner_comment_of_its_own_file() {
+    let t = totals(&[
+        file(
+            "src/lib.rs",
+            "pub mod a;\npub mod b;\n/// Outer.\npub mod c;\n",
+        ),
+        file("src/a.rs", "//! Inner docs.\npub fn f() {}\n"),
+        file("src/b.rs", "pub fn g() {}\n"),
+        file("src/c.rs", "pub fn h() {}\n"),
+    ]);
+    let names: Vec<&str> = t.undocumented.iter().map(|u| u.name.as_str()).collect();
+    // `a` (inner docs) and `c` (outer docs) are documented; `b` is not; the three functions are not
+    assert_eq!(names, ["f", "g", "h", "b"]);
+    assert_eq!(t.documented, 2);
+}

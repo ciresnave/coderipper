@@ -377,6 +377,21 @@ struct Walker<'a> {
 }
 
 impl Walker<'_> {
+    /// Whether the file of the out-of-line module `name` (declared in a file whose children live in `child_dir`) starts with documentation
+    /// (`//!` or `#![doc = ..]`); a `#[doc(hidden)]` module is not asked.
+    fn file_module_has_inner_docs(&self, child_dir: &str, name: &str) -> bool {
+        let flat = format!("{child_dir}/{name}.rs");
+        let dir_mod = format!("{child_dir}/{name}/mod.rs");
+        let by_path = self.by_path;
+        let Some(f) = by_path
+            .get(flat.as_str())
+            .or_else(|| by_path.get(dir_mod.as_str()))
+        else {
+            return false;
+        };
+        syn::parse_file(&f.text).is_ok_and(|p| is_documented(&p.attrs))
+    }
+
     /// Records whether a public declaration is documented (a `#[doc(hidden)]` one is not recorded at all).
     fn doc(
         &mut self,
@@ -608,7 +623,15 @@ impl Walker<'_> {
                     let public = reachable && is_pub(&m.vis);
                     if public {
                         self.col.decls.push((name.clone(), "mod"));
-                        self.doc(&m.attrs, &name, "mod", m.ident.span().start().line, shown);
+                        // `pub mod x;` is documented by an outer comment or by the `//!` inside the module's own file
+                        let inner = m.content.is_none()
+                            && self.file_module_has_inner_docs(child_dir, &name);
+                        let line = m.ident.span().start().line;
+                        if inner {
+                            self.col.documented += 1;
+                        } else {
+                            self.doc(&m.attrs, &name, "mod", line, shown);
+                        }
                     }
                     if m.attrs.iter().any(|a| a.path().is_ident("path")) {
                         self.col.notes.push(format!(
