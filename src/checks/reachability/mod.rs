@@ -36,6 +36,7 @@
 //! - **A `--project` pointing at a crate nested inside a larger repo** analyzes that crate (cargo's diagnostic paths are
 //!   re-based from the workspace root); a directory that is not a package's own is refused with the member names.
 
+mod classify;
 mod diagnostics;
 mod foreign;
 mod rescue;
@@ -254,6 +255,8 @@ impl Check for ReachabilityCheck {
 
         // the subject is qualified (`S::new`), so same-named items in one file do not share an allowlist entry; the
         // rewrite keeps every line number, so the original file is indexed
+        // E8: what the source says about each finding (public, documented library API; named only in the crate's tests)
+        let facts = classify::read_facts(&ctx.project_root, has_lib)?;
         let mut qualifiers: std::collections::HashMap<String, crate::qualify::Qualifier> =
             std::collections::HashMap::new();
         let findings: Vec<Finding> = candidates
@@ -285,7 +288,25 @@ impl Check for ReachabilityCheck {
                 };
                 // A `pub` item of a published library has no consumer inside its own repository: say that this one
                 // was written `pub`, so a reader can tell API from private code and knows both cures.
-                let pub_note = if has_lib && was_written_pub(&ctx.project_root, &wt.root, &hit.file, hit.line) {
+                let written_pub = has_lib && was_written_pub(&ctx.project_root, &wt.root, &hit.file, hit.line);
+                let class = classify::classify(&facts, &hit.file, hit.line, &hit.symbol, written_pub);
+                let summary = match (class, origin) {
+                    (classify::Class::LibraryApi, None) => format!(
+                        "`{}` is documented library API with zero callers found within this crate",
+                        hit.symbol
+                    ),
+                    (classify::Class::TestOnly, None) => format!(
+                        "`{}` is called only from this crate's tests (zero callers in the library itself)",
+                        hit.symbol
+                    ),
+                    _ => summary,
+                };
+                let class_note = match class {
+                    classify::Class::LibraryApi => " It is public through `pub` modules and documented, so it is part of this library's interface: its callers are outside this repository and removing it is a breaking change. Info, not Medium; declare it under `[reachability] public_api` with a reason to have it listed as declared, or remove it with a major version.",
+                    classify::Class::TestOnly => " Its name appears in the crate's own test code (a `#[cfg(test)]` item or a test file), which the library build does not compile, and nowhere in the library. Matching is by name, so a dead item that shares its name with something a test calls is graded Info too. Info, not Medium: remove it together with its tests, or use it.",
+                    classify::Class::Plain => "",
+                };
+                let pub_note = if written_pub {
                     " It is written `pub`: if it is this library's API, declare it under `[reachability] public_api`                      with a reason; if not, remove it or narrow it to `pub(crate)`."
                 } else {
                     ""
@@ -293,7 +314,10 @@ impl Check for ReachabilityCheck {
                 Finding {
                     check_id: "reachability".into(),
                     claim: crate::finding::Claim::Absence,
-                    severity: Severity::Medium,
+                    severity: match class {
+                        classify::Class::Plain => Severity::Medium,
+                        classify::Class::LibraryApi | classify::Class::TestOnly => Severity::Info,
+                    },
                     confidence: Confidence::Medium,
                     project: project_name.clone(),
                     location: Some(Location {
@@ -305,7 +329,7 @@ impl Check for ReachabilityCheck {
                     detail: format!(
                         "Found via rustc's dead_code lint, with every top-level `pub` item downgraded to \
                          `pub(crate)` in a throwaway worktree, so the lint's normal `pub`-exemption doesn't \
-                         hide it. File: {}, line {}.{pub_note}{origin_note}{set_aside_note}",
+                         hide it. File: {}, line {}.{pub_note}{class_note}{origin_note}{set_aside_note}",
                         hit.file, hit.line
                     ),
                     positive_control: Some(positive_control.clone()),

@@ -553,7 +553,7 @@ mod public_surface;
 pub use public_surface::PublicSurfaceCheck;
 mod volatile;
 pub use volatile::VolatileDetailCheck;
-mod api_budget;
+pub(crate) mod api_budget;
 pub use api_budget::ApiBudgetCheck;
 mod owns_data;
 pub use owns_data::DataOwnershipCheck;
