@@ -77,7 +77,7 @@ impl Check for LayersCheck {
         let mut facts = collect(&files)?;
         facts.test_impls.extend(test_file_impls(&tests)?);
         facts.test_impls.extend(cfg_test_impls(&files)?);
-        let has_lib = false && files.iter().any(|f| f.path == "src/lib.rs");
+        let has_lib = files.iter().any(|f| f.path == "src/lib.rs");
         let public = if has_lib {
             public_names(&files)?
         } else {
