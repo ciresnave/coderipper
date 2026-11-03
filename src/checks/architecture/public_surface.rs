@@ -46,7 +46,7 @@ pub(crate) struct Params {
 pub(crate) const PARAMS: Params = Params {
     low_share_percent: 50,
     min_items_for_low: 20,
-    source: "provisional",
+    source: "chosen, not a percentile: half of a public surface undocumented is far above the six shares read on our own code (0% to 21%)",
 };
 
 /// Reports library packages whose public items lack documentation (see the module docs).
