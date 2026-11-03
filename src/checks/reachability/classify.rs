@@ -9,8 +9,8 @@
 //!   change. (The same reading of the public surface as `ARC-006` and `MOD-001`: `architecture/api_budget.rs`.) A `pub` item that is
 //!   undocumented, or reachable through no `pub` module, stays Medium.
 //! - **Test-only.** The item's name appears in the crate's own test code (a `#[cfg(test)]` item, or a file named `tests.rs`, `test.rs`,
-//!   `*_test.rs`, `*_tests.rs`) and the library itself never calls it: `rustc` does not compile that code in the library build, so it
-//!   looks dead.
+//!   `*_test.rs`, `*_tests.rs`) and `rustc` finds no live caller in the library build, which does not compile that code (a caller that
+//!   is itself dead does not count, so the name may also appear in library code that nothing reaches).
 //!
 //! Everything else stays Medium. `[reachability] public_api` declarations work as before (the allowlist is applied by the host after the
 //! check). **Matching is by bare name**, so a dead item that shares its name with something a test calls is Info too: it is still

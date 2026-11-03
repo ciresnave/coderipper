@@ -947,7 +947,10 @@ fn a_documented_item_in_a_private_module_is_not_library_api() {
         ),
         ("src/main.rs", "fn main() { fixture::entry(); }\n"),
     ]);
-    assert_eq!(severities(&repo), vec![("inner::buried".to_string(), Medium)]);
+    assert_eq!(
+        severities(&repo),
+        vec![("inner::buried".to_string(), Medium)]
+    );
 }
 
 #[test]
@@ -974,7 +977,8 @@ fn an_item_named_only_in_the_crates_own_tests_is_info_and_a_dead_one_named_nowhe
         .find(|f| f.subject.as_deref() == Some("test_helper"))
         .unwrap();
     assert!(
-        t.summary.contains("only from this crate's tests"),
+        t.summary
+            .contains("no live caller in the library and is named in this crate's tests"),
         "{}",
         t.summary
     );

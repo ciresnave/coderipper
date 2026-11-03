@@ -296,14 +296,14 @@ impl Check for ReachabilityCheck {
                         hit.symbol
                     ),
                     (classify::Class::TestOnly, None) => format!(
-                        "`{}` is called only from this crate's tests (zero callers in the library itself)",
+                        "`{}` has no live caller in the library and is named in this crate's tests",
                         hit.symbol
                     ),
                     _ => summary,
                 };
                 let class_note = match class {
                     classify::Class::LibraryApi => " It is public through `pub` modules and documented, so it is part of this library's interface: its callers are outside this repository and removing it is a breaking change. Info, not Medium; declare it under `[reachability] public_api` with a reason to have it listed as declared, or remove it with a major version.",
-                    classify::Class::TestOnly => " Its name appears in the crate's own test code (a `#[cfg(test)]` item or a test file), which the library build does not compile, and nowhere in the library. Matching is by name, so a dead item that shares its name with something a test calls is graded Info too. Info, not Medium: remove it together with its tests, or use it.",
+                    classify::Class::TestOnly => " Its name appears in the crate's own test code (a `#[cfg(test)]` item or a test file), which the library build does not compile, and the library build finds no live caller for it (a caller that is itself dead does not count). Matching is by name, so a dead item that shares its name with something a test calls is graded Info too. Info, not Medium: remove it together with its tests, or use it.",
                     classify::Class::Plain => "",
                 };
                 let pub_note = if written_pub {
