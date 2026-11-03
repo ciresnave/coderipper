@@ -225,12 +225,25 @@ fn the_human_line_calls_a_gap_not_yet_implemented_never_a_defect() {
 }
 
 #[test]
-fn the_builtin_rust_module_claims_its_twenty_rules_and_proves_eighteen() {
+fn the_builtin_rust_module_claims_every_builtin_check_and_proves_all_but_two() {
     let checks = coderipper::registered_checks();
     let module = coderipper::module::RustModule::new(&checks);
     let hello = coderipper::module::Module::describe(&module).unwrap();
     let c = for_module(Catalog::builtin(), &hello, "rust", None);
-    assert_eq!(c.covered, 18, "eighteen claims carry a proof");
+    // every claim but the two below carries a proof; a new built-in check with a fixture raises both sides of this by one
+    assert_eq!(
+        c.covered,
+        hello.rules.len() - 2,
+        "every claim but ci-protection-presence and dependency-freshness carries a proof"
+    );
+    assert_eq!(
+        c.covered,
+        coderipper::builtin::BuiltinCheck::ALL
+            .iter()
+            .filter(|b| b.is_proven())
+            .count(),
+        "the proven claims are the table's `proven` rows"
+    );
     assert_eq!(
         c.claimed_unproven, 2,
         "ci-protection-presence and dependency-freshness have no proof yet"

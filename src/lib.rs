@@ -798,16 +798,13 @@ fn run_checks_over_in(
     run_checks_over_in_counted(profile, tools, checks, ctx, tier, only_check_id, units).0
 }
 
-/// The built-in checks the `classic` profile does not run unless one is named by id: its output is a contract, and these were added
-/// after it was fixed (the `extended` and `portfolio` profiles take them).
-const NOT_IN_CLASSIC: &[&str] = &[
-    "OPS-011", "MOD-005", "MOD-004", "ARC-001", "ARC-003", "ARC-006", "ARC-007", "ARC-002",
-    "MOD-003", "MOD-002", "MOD-010", "MOD-001", "MOD-008", "ARC-008",
-];
-
-/// Whether `profile` runs the built-in check `id` (a check named by id runs in any profile).
+/// Whether `profile` runs the built-in check `id` (a check named by id runs in any profile). The `classic` profile's output is a contract
+/// fixed before the checks added since existed: a built-in check that is not in its table row's `classic` set (`builtin.rs`) is left out,
+/// and `extended` and `portfolio` take them all. A check that is not built in (an external module's) is not left out.
 fn in_profile(profile: Profile, id: &str, only_check_id: Option<&str>) -> bool {
-    only_check_id.is_some() || profile != Profile::Classic || !NOT_IN_CLASSIC.contains(&id)
+    only_check_id.is_some()
+        || profile != Profile::Classic
+        || builtin::BuiltinCheck::from_id(id).is_none_or(builtin::BuiltinCheck::in_classic)
 }
 
 /// Whether `check` is asked for by this tier and `only_check_id` (a check named by id runs at any tier).
@@ -1302,32 +1299,24 @@ mod tests {
         // test -- a unit test has no business writing into a shared .git via `git worktree add`.
         let checks = registered_checks();
         let ids: Vec<_> = checks.iter().map(|c| c.id()).collect();
-        // The expected list is written out on purpose: `BuiltinCheck::ALL` derives the registration, so comparing with it would pass
-        // whatever the order; this pins the order the checks run in.
+        // The legacy six are written out on purpose: `BuiltinCheck::ALL` derives the registration, so comparing with it would pass
+        // whatever the order; this pins the order the six checks of the `classic` contract run in. Every check added since follows them
+        // (`builtin.rs` tests: the registration is `ALL`, ids are unique, `classic` is exactly these six) and is pinned by its
+        // catalog record (`tests/catalog.rs`).
         assert_eq!(
-            ids,
-            vec![
+            &ids[..6],
+            [
                 "reachability",
                 "unused-return-values",
                 "unused-parameters",
                 "version-consistency",
                 "ci-protection-presence",
-                "dependency-freshness",
-                "OPS-011",
-                "MOD-005",
-                "MOD-004",
-                "ARC-001",
-                "ARC-003",
-                "ARC-006",
-                "ARC-007",
-                "ARC-002",
-                "MOD-003",
-                "MOD-002",
-                "MOD-010",
-                "MOD-001",
-                "MOD-008",
-                "ARC-008"
+                "dependency-freshness"
             ]
+        );
+        assert!(
+            ids.len() > 6,
+            "positive control: the checks added since are registered after them"
         );
     }
 
@@ -1422,9 +1411,11 @@ mod tests {
             .iter()
             .map(|c| (c.id(), c.unit()))
             .collect();
+        // The legacy six are pinned here; the units of the checks added since are pinned by their catalog records, which
+        // `tests/catalog.rs` compares with `Check::unit` for every registered check.
         assert_eq!(
-            judged,
-            vec![
+            &judged[..6],
+            [
                 ("reachability", check::Unit::Package),
                 ("unused-return-values", check::Unit::Package),
                 ("unused-parameters", check::Unit::Package),
@@ -1434,20 +1425,6 @@ mod tests {
                 ("ci-protection-presence", check::Unit::Repository),
                 // one lockfile per workspace: one finding per locked package, not per member
                 ("dependency-freshness", check::Unit::Repository),
-                ("OPS-011", check::Unit::Package),
-                ("MOD-005", check::Unit::Package),
-                ("MOD-004", check::Unit::Package),
-                ("ARC-001", check::Unit::Repository),
-                ("ARC-003", check::Unit::Repository),
-                ("ARC-006", check::Unit::Repository),
-                ("ARC-007", check::Unit::Repository),
-                ("ARC-002", check::Unit::Repository),
-                ("MOD-003", check::Unit::Package),
-                ("MOD-002", check::Unit::Package),
-                ("MOD-010", check::Unit::Repository),
-                ("MOD-001", check::Unit::Package),
-                ("MOD-008", check::Unit::Package),
-                ("ARC-008", check::Unit::Package),
             ]
         );
     }

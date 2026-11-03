@@ -198,6 +198,19 @@ fn the_report_counts_this_runs_outcomes() {
         .stdout(predicate::str::is_match(r"this run: \d+ clean, 1 with findings").unwrap());
 }
 
+/// The proven built-in Rust checks: the `proven` rows of the table in `src/builtin.rs`, so a new check with a fixture needs no edit here.
+fn proven_rust_checks() -> u64 {
+    coderipper::builtin::BuiltinCheck::ALL
+        .iter()
+        .filter(|b| b.is_proven())
+        .count() as u64
+}
+
+/// The language-neutral rules and the Rust-only neutral rules (lint-suppression, conflict-marker, patent-index-match, licence, OPS-012,
+/// security-support-statement, RDB-008, EFX-003, SEC-004 and the others with a fixture) that the Rust language also gets. It changes when
+/// one of those rules gains or loses a fixture, never when a built-in Rust check is added.
+const LANGUAGE_NEUTRAL_COVERED: u64 = 19;
+
 #[test]
 fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape() {
     let out = fast(&polyglot_project())
@@ -227,8 +240,11 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     );
     let rust = &lines[0];
     assert_eq!(rust["language"], "rust");
-    // the seventeen proven Rust checks (ARC-001, ARC-002, ARC-003, ARC-006, ARC-007, ARC-008, MOD-001, MOD-002, MOD-003, MOD-008, MOD-010, MOD-004 and MOD-005), the seven proven language-neutral rules, lint-suppression (Rust only), conflict-marker, patent-index-match, licence, OPS-012, security-support-statement, RDB-008, EFX-003 and SEC-004
-    assert_eq!(rust["covered"], 37);
+    // the proven built-in Rust checks (the `proven` rows of the table in src/builtin.rs), plus the proven language-neutral and Rust-only neutral rules
+    assert_eq!(
+        rust["covered"],
+        proven_rust_checks() + LANGUAGE_NEUTRAL_COVERED
+    );
     // ci-protection-presence, dependency-freshness and the nine delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, API-001, API-007 (no tool is installed in the empty tools directory
     // this run uses)
     assert_eq!(rust["claimed_unproven"], 11);
@@ -311,7 +327,11 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     }
     // positive control: for the Rust language the same rule is covered, so it is the language that makes the difference
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
-    assert_eq!(rust["covered"], 37, "{rust}");
+    assert_eq!(
+        rust["covered"],
+        proven_rust_checks() + LANGUAGE_NEUTRAL_COVERED,
+        "{rust}"
+    );
 }
 
 #[test]

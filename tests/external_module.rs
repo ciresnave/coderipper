@@ -543,37 +543,23 @@ fn a_program_that_does_not_exist_is_an_error() {
     assert_error(&result, "the module's hello");
 }
 
-fn the_rust_module_describes_the_seven_checks() {
+fn the_rust_module_describes_every_builtin_check() {
     let checks = coderipper::registered_checks();
     let hello = coderipper::module::RustModule::new(&checks)
         .describe()
         .unwrap();
     assert_eq!(hello.problem(), None);
     let ids: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
+    // the module describes exactly the built-in table, in its order (the first six are the legacy `classic` checks)
+    let table: Vec<&str> = coderipper::builtin::BuiltinCheck::ALL
+        .iter()
+        .map(|c| c.id())
+        .collect();
+    assert_eq!(ids, table);
     assert_eq!(
-        ids,
-        [
-            "reachability",
-            "unused-return-values",
-            "unused-parameters",
-            "version-consistency",
-            "ci-protection-presence",
-            "dependency-freshness",
-            "OPS-011",
-            "MOD-005",
-            "MOD-004",
-            "ARC-001",
-            "ARC-003",
-            "ARC-006",
-            "ARC-007",
-            "ARC-002",
-            "MOD-003",
-            "MOD-002",
-            "MOD-010",
-            "MOD-001",
-            "MOD-008",
-            "ARC-008"
-        ]
+        &ids[..2],
+        ["reachability", "unused-return-values"],
+        "positive control: the legacy checks come first"
     );
     assert_eq!(hello.languages, ["rust"]);
 }
@@ -665,8 +651,8 @@ fn run_tests(args: &[String]) -> ExitCode {
             a_program_that_does_not_exist_is_an_error,
         ),
         (
-            "the_rust_module_describes_the_seven_checks",
-            the_rust_module_describes_the_seven_checks,
+            "the_rust_module_describes_every_builtin_check",
+            the_rust_module_describes_every_builtin_check,
         ),
     ];
     // `cargo test <substring>` passes the substrings through; flags (`--nocapture`, ...) are ignored
