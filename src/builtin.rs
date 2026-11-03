@@ -44,11 +44,13 @@ pub enum BuiltinCheck {
     ModuleCycles,
     /// `MOD-010`.
     InvariantFields,
+    /// `MOD-001`.
+    PublicSurface,
 }
 
 impl BuiltinCheck {
     /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 17] = [
+    pub const ALL: [BuiltinCheck; 18] = [
         Self::Reachability,
         Self::UnusedReturnValues,
         Self::UnusedParameters,
@@ -66,6 +68,7 @@ impl BuiltinCheck {
         Self::Internals,
         Self::ModuleCycles,
         Self::InvariantFields,
+        Self::PublicSurface,
     ];
 
     /// The check's stable id: what `Check::id` returns for the check this builds.
@@ -88,6 +91,7 @@ impl BuiltinCheck {
             Self::Internals => crate::rule_id::MOD_003,
             Self::ModuleCycles => crate::rule_id::MOD_002,
             Self::InvariantFields => crate::rule_id::MOD_010,
+            Self::PublicSurface => crate::rule_id::MOD_001,
         }
     }
 
@@ -115,7 +119,8 @@ impl BuiltinCheck {
             | Self::ComponentCycles
             | Self::Internals
             | Self::ModuleCycles
-            | Self::InvariantFields => true,
+            | Self::InvariantFields
+            | Self::PublicSurface => true,
             Self::CiProtectionPresence | Self::DependencyFreshness => false,
         }
     }
@@ -140,6 +145,7 @@ impl BuiltinCheck {
             Self::Internals => Box::new(checks::InternalsCheck::new()),
             Self::ModuleCycles => Box::new(checks::ModuleCyclesCheck::new()),
             Self::InvariantFields => Box::new(checks::InvariantFieldsCheck::new()),
+            Self::PublicSurface => Box::new(checks::PublicSurfaceCheck::new()),
         }
     }
 }
@@ -162,6 +168,6 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 17);
+        assert_eq!(all.len(), 18);
     }
 }
