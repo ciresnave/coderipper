@@ -193,39 +193,43 @@ fn serde_validated(attrs: &[syn::Attribute]) -> bool {
         })
 }
 
-fn tokens_name_a_reject(ts: TokenStream) -> bool {
+fn tokens_name_a_reject(ts: TokenStream, option: bool) -> bool {
     ts.into_iter().any(|tt| match tt {
-        TokenTree::Ident(i) => matches!(i.to_string().as_str(), "Err" | "None" | "bail" | "ensure"),
-        TokenTree::Group(g) => tokens_name_a_reject(g.stream()),
+        // `None` is a rejection only for a constructor that returns an `Option`; as a field's initial value it is nothing
+        TokenTree::Ident(i) => match i.to_string().as_str() {
+            "None" => option,
+            "Err" | "bail" | "ensure" => !option,
+            _ => false,
+        },
+        TokenTree::Group(g) => tokens_name_a_reject(g.stream(), option),
         _ => false,
     })
 }
 
-/// Whether the return type is `Result<Self, _>`, `Option<Self>` or one of them over the type's own name.
-fn returns_self_or_nothing(ret: &syn::ReturnType, type_name: &str) -> bool {
+/// Whether the return type is `Result<Self, _>`, `Option<Self>` or one of them over the type's own name; `Some(true)` for an `Option`.
+fn returns_self_or_nothing(ret: &syn::ReturnType, type_name: &str) -> Option<bool> {
     let syn::ReturnType::Type(_, ty) = ret else {
-        return false;
+        return None;
     };
     let syn::Type::Path(p) = &**ty else {
-        return false;
+        return None;
     };
-    let Some(last) = p.path.segments.last() else {
-        return false;
-    };
+    let last = p.path.segments.last()?;
     if last.ident != "Result" && last.ident != "Option" {
-        return false;
+        return None;
     }
     let syn::PathArguments::AngleBracketed(args) = &last.arguments else {
-        return false;
+        return None;
     };
     let Some(syn::GenericArgument::Type(syn::Type::Path(inner))) = args.args.first() else {
-        return false;
+        return None;
     };
     inner
         .path
         .segments
         .last()
         .is_some_and(|s| s.ident == "Self" || s.ident == type_name)
+        .then_some(last.ident == "Option")
 }
 
 fn is_constructor_name(n: &str) -> bool {
@@ -309,8 +313,9 @@ fn walk(
                         .any(|a| matches!(a, syn::FnArg::Typed(_)));
                     if is_constructor_name(&fname)
                         && takes_input
-                        && returns_self_or_nothing(&f.sig.output, &name)
-                        && tokens_name_a_reject(f.block.to_token_stream())
+                        && returns_self_or_nothing(&f.sig.output, &name).is_some_and(|option| {
+                            tokens_name_a_reject(f.block.to_token_stream(), option)
+                        })
                     {
                         ctors.entry(name.clone()).or_default().push(fname);
                     }

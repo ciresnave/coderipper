@@ -242,3 +242,17 @@ fn a_real_workspace_with_a_declared_type_is_judged_end_to_end() {
     assert_eq!(f[0].severity, Severity::Low);
     assert_eq!(f[0].location.as_ref().unwrap().file, "core/src/lib.rs");
 }
+
+#[test]
+fn none_as_a_field_value_is_not_a_rejection_for_a_constructor_that_returns_a_result() {
+    let t = facts(
+        "pub struct S { pub x: Option<u8>, pub v: u8 }
+impl S { pub fn new(v: u8) -> Result<Self, String> { let c = make()?; Ok(Self { x: None, v }) } }
+pub struct O { pub v: u8 }
+impl O { pub fn new(v: u8) -> Option<Self> { if v == 0 { None } else { Some(Self { v }) } } }
+",
+    );
+    assert!(t[0].constructors.is_empty(), "{:?}", t[0].constructors);
+    // positive control: for an `Option` constructor `None` is the rejection
+    assert_eq!(t[1].constructors, ["new"]);
+}
