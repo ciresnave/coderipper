@@ -48,8 +48,8 @@ fn every_registered_check_has_a_record() {
     let registered = coderipper::registered_checks();
     assert_eq!(
         registered.len(),
-        19,
-        "positive control: the nineteen built-in checks"
+        20,
+        "positive control: the twenty built-in checks"
     );
     for check in registered {
         assert!(

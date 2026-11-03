@@ -546,6 +546,8 @@ mod modcycles;
 pub use modcycles::ModuleCyclesCheck;
 mod invariants;
 pub use invariants::InvariantFieldsCheck;
+mod layers;
+pub use layers::LayersCheck;
 mod modgraph;
 mod passthrough;
 pub use passthrough::PassThroughCheck;
