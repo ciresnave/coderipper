@@ -26,8 +26,7 @@ use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-/// The one file name, in every place it is searched.
-pub(crate) const FILE_NAME: &str = ".coderipper.toml";
+pub(crate) use crate::names::FILE_NAME;
 /// The dotless spelling accepted in `/etc/coderipper/` only (a system directory has no reason to hide its file).
 #[cfg(any(feature = "cli", test))]
 const SYSTEM_FILE_NAME: &str = "coderipper.toml";

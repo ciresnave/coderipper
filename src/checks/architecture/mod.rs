@@ -542,6 +542,8 @@ mod cycles;
 pub use cycles::ComponentCyclesCheck;
 mod internals;
 pub use internals::InternalsCheck;
+mod modcycles;
+pub use modcycles::ModuleCyclesCheck;
 mod modgraph;
 mod volatile;
 pub use volatile::VolatileDetailCheck;

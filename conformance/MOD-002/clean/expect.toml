@@ -1,0 +1,1 @@
+# The clean twin: a uses b and b does not refer back. The rule must report nothing.
