@@ -189,6 +189,8 @@ pub(crate) struct Totals {
     pub undocumented: Vec<Undoc>,
     /// `(file, line)` of each documented one, for a reader that asks "is the item at this line public and documented?".
     pub documented_sites: std::collections::BTreeSet<(String, usize)>,
+    /// The names of the public types (structs, enums, unions, traits, aliases) declared through `pub` modules or re-exported.
+    pub public_names: std::collections::BTreeSet<String>,
 }
 
 /// A public item with no documentation.
@@ -216,6 +218,7 @@ impl Totals {
         self.documented += o.documented;
         self.undocumented.extend(o.undocumented);
         self.documented_sites.extend(o.documented_sites);
+        self.public_names.extend(o.public_names);
     }
 }
 
@@ -333,6 +336,7 @@ pub(crate) fn surface(
     totals.members = public_types.iter().filter_map(|n| col.types.get(n)).sum();
     totals.documented = col.documented;
     totals.documented_sites = col.documented_sites.iter().cloned().collect();
+    totals.public_names = public_types.clone();
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
         for m in col.methods.get(n).into_iter().flatten() {

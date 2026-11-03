@@ -95,7 +95,7 @@ pub(crate) struct Wrapper {
     pub public: bool,
 }
 
-fn forwards_ident(e: &syn::Expr, name: &str) -> bool {
+pub(super) fn forwards_ident(e: &syn::Expr, name: &str) -> bool {
     matches!(e, syn::Expr::Path(p) if p.qself.is_none() && p.path.is_ident(name))
 }
 
@@ -111,7 +111,7 @@ fn is_self_chain(e: &syn::Expr) -> bool {
 }
 
 /// Removes `Ok(..)`, `Some(..)`, `?`, `.await`, `.into()` and parentheses from around a call.
-fn strip(e: &syn::Expr) -> &syn::Expr {
+pub(super) fn strip(e: &syn::Expr) -> &syn::Expr {
     match e {
         syn::Expr::Paren(p) => strip(&p.expr),
         syn::Expr::Group(g) => strip(&g.expr),

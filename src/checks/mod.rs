@@ -14,7 +14,7 @@ pub mod unused_return_values;
 pub mod version_consistency;
 pub use architecture::{
     ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck, InternalsCheck,
-    InvariantFieldsCheck, ModuleCyclesCheck, PassThroughCheck, PublicSurfaceCheck,
+    InvariantFieldsCheck, LayersCheck, ModuleCyclesCheck, PassThroughCheck, PublicSurfaceCheck,
     VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;
