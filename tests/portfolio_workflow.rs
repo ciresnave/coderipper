@@ -72,3 +72,40 @@ fn the_job_has_a_timeout_a_caller_can_change_and_it_defaults_to_thirty_minutes()
         "{before_steps}"
     );
 }
+
+#[test]
+fn no_step_walks_the_home_directory_unbounded_or_on_a_self_hosted_runner() {
+    // Humboldt run 41550578993: `du -sm $HOME/.cargo` on a self-hosted runner (the machine user's cargo home is huge) sat 28 minutes and
+    // held the runner. A step may run `du` or `find` only bounded by `timeout`, and over `$HOME` or `~` only on a GitHub-hosted runner.
+    let w = WORKFLOW.replace("\r\n", "\n");
+    let mut steps = 0;
+    for step in w.split("\n      - name: ").skip(1) {
+        let name = step.lines().next().unwrap_or_default();
+        let hosted_only = step.lines().any(|l| {
+            l.trim_start().starts_with("if:") && l.contains("runner.environment == 'github-hosted'")
+        });
+        for line in step.lines() {
+            let code = line.split('#').next().unwrap_or_default();
+            let walks = code.split([';', '|', '&']).map(str::trim).any(|cmd| {
+                let cmd = cmd.strip_prefix("timeout 60 ").unwrap_or(cmd);
+                cmd.starts_with("du ") || cmd.starts_with("find ")
+            });
+            if !walks {
+                continue;
+            }
+            steps += 1;
+            assert!(
+                code.contains("timeout 60 du") || code.contains("timeout 60 find"),
+                "step {name:?} runs du or find without `timeout 60`: {line}"
+            );
+            if code.contains("$HOME") || code.contains("~/") || code.contains("${HOME}") {
+                assert!(
+                    hosted_only,
+                    "step {name:?} measures $HOME without being limited to a GitHub-hosted runner: {line}"
+                );
+            }
+        }
+    }
+    // positive control: the two bounded steps that remain were found, so the scan reads the steps it is meant to
+    assert_eq!(steps, 2, "expected the two bounded du steps");
+}

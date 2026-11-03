@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.26.1 - 2026-11-03 (proposed)
+
+**`portfolio.yml` no longer walks `$HOME` on the machine that runs it.** The two "Disk use ... (log only)" steps ran `du -sm "$RUNNER_TEMP/coderipper-build" "$HOME/.cargo" "$HOME/.cache/coderipper-bin"` on every runner. On a self-hosted runner the machine user's cargo home is huge: Humboldt run 41550578993 (job `portfolio`, runner `-humboldt`) sat 28 minutes in that `du` and held the runner, blocking Humboldt #165; the same unbounded-`du` class as an earlier hang. Now `df -h /` runs everywhere, and the directory sizes are measured only on a GitHub-hosted Linux runner (`if: runner.os == 'Linux' && runner.environment == 'github-hosted'`), each `du` bounded by `timeout 60`. Nothing reads these numbers, so the diagnosis the log gave on a hosted runner is kept and a self-hosted runner loses only a number nobody used.
+
+**Checked.** A test in `tests/portfolio_workflow.rs` reads the workflow text: every `du` and `find` in a step must be bounded by `timeout 60`, and one that names `$HOME`, `${HOME}` or `~/` must sit in a step limited to a GitHub-hosted runner; its positive control is that the scan finds exactly the two bounded steps. The workflow's `CODERIPPER_VERSION` is unchanged (it names a published release).
+
 ## 0.26.0 - 2026-11-02 (proposed, Breaking: a new default-on rule)
 
 **ARC-002 is built: no cycles between components, advisory** (PM task 2026-11-01, ARC and MOD families; on the component graph `ARC-001` reads, now with module groups). A new Rust rule on the repository, default on in `extended` and `portfolio`, not in `classic`; Low only, never gating.
