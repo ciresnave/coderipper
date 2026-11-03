@@ -185,7 +185,7 @@ fn coverage_full_lists_the_gaps_by_rule_id() {
         .arg("--coverage=full")
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("MOD-002"))
+        .stdout(predicate::str::contains("CON-001"))
         .stdout(predicate::str::contains("ci-protection-presence"));
 }
 
