@@ -187,6 +187,8 @@ pub(crate) struct Totals {
     pub documented: usize,
     /// The ones that do not (a `#[doc(hidden)]` item is in neither list).
     pub undocumented: Vec<Undoc>,
+    /// `(file, line)` of each documented one, for a reader that asks "is the item at this line public and documented?".
+    pub documented_sites: std::collections::BTreeSet<(String, usize)>,
 }
 
 /// A public item with no documentation.
@@ -213,6 +215,7 @@ impl Totals {
         self.globs += o.globs;
         self.documented += o.documented;
         self.undocumented.extend(o.undocumented);
+        self.documented_sites.extend(o.documented_sites);
     }
 }
 
@@ -240,6 +243,7 @@ struct Collect {
     notes: Vec<String>,
     /// Documented public declarations.
     documented: usize,
+    documented_sites: Vec<(String, usize)>,
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
     methods: BTreeMap<String, Vec<MethodFact>>,
@@ -328,6 +332,7 @@ pub(crate) fn surface(
     }
     totals.members = public_types.iter().filter_map(|n| col.types.get(n)).sum();
     totals.documented = col.documented;
+    totals.documented_sites = col.documented_sites.iter().cloned().collect();
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
         for m in col.methods.get(n).into_iter().flatten() {
@@ -336,6 +341,7 @@ pub(crate) fn surface(
             }
             if m.documented {
                 totals.documented += 1;
+                totals.documented_sites.insert((m.file.clone(), m.line));
             } else {
                 totals.undocumented.push(Undoc {
                     name: format!("{n}::{}", m.name),
@@ -415,6 +421,7 @@ impl Walker<'_> {
         }
         if is_documented(attrs) {
             self.col.documented += 1;
+            self.col.documented_sites.push((file.to_string(), line));
         } else {
             self.col.undocumented.push(Undoc {
                 name: name.to_string(),
@@ -638,6 +645,7 @@ impl Walker<'_> {
                         let line = m.ident.span().start().line;
                         if inner {
                             self.col.documented += 1;
+                            self.col.documented_sites.push((shown.to_string(), line));
                         } else {
                             self.doc(&m.attrs, &name, "mod", line, shown);
                         }

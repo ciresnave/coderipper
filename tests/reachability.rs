@@ -892,3 +892,112 @@ engine = { path = \"engine\" }
         findings[0].detail
     );
 }
+
+// ---- E8 (PM-approved option B, 2026-11-03): documented public library API and test-only items are Info, the rest stays Medium ----
+
+fn severities(repo: &tempfile::TempDir) -> Vec<(String, coderipper::finding::Severity)> {
+    let mut v: Vec<(String, coderipper::finding::Severity)> = run_reachability(repo)
+        .unwrap()
+        .iter()
+        .map(|f| (f.subject.clone().unwrap(), f.severity))
+        .collect();
+    v.sort_by(|a, b| a.0.cmp(&b.0));
+    v
+}
+
+#[test]
+fn documented_public_library_api_with_no_caller_is_info_and_an_undocumented_one_stays_medium() {
+    use coderipper::finding::Severity::{Info, Medium};
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "/// Part of the interface.\npub fn api_documented() {}\npub fn api_undocumented() {}\nfn private_dead() {}\n",
+        ),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![
+            ("api_documented".to_string(), Info),
+            ("api_undocumented".to_string(), Medium),
+            ("private_dead".to_string(), Medium)
+        ]
+    );
+    let findings = run_reachability(&repo).unwrap();
+    let api = findings
+        .iter()
+        .find(|f| f.subject.as_deref() == Some("api_documented"))
+        .unwrap();
+    assert!(
+        api.summary.contains("documented library API"),
+        "{}",
+        api.summary
+    );
+    assert!(api.detail.contains("breaking change"), "{}", api.detail);
+}
+
+#[test]
+fn a_documented_item_in_a_private_module_is_not_library_api() {
+    use coderipper::finding::Severity::Medium;
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "mod inner {\n    /// Documented, but no `pub` module leads to it.\n    pub fn buried() {}\n}\npub fn entry() {}\n",
+        ),
+        ("src/main.rs", "fn main() { fixture::entry(); }\n"),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![("inner::buried".to_string(), Medium)]
+    );
+}
+
+#[test]
+fn an_item_named_only_in_the_crates_own_tests_is_info_and_a_dead_one_named_nowhere_stays_medium() {
+    use coderipper::finding::Severity::{Info, Medium};
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "fn test_helper() {}\nfn nobody() {}\npub fn entry() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn t() { super::test_helper(); }\n}\n",
+        ),
+        ("src/main.rs", "fn main() { fixture::entry(); }\n"),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![
+            ("nobody".to_string(), Medium),
+            ("test_helper".to_string(), Info)
+        ]
+    );
+    let findings = run_reachability(&repo).unwrap();
+    let t = findings
+        .iter()
+        .find(|f| f.subject.as_deref() == Some("test_helper"))
+        .unwrap();
+    assert!(
+        t.summary
+            .contains("no live caller in the library and is named in this crate's tests"),
+        "{}",
+        t.summary
+    );
+}
+
+#[test]
+fn a_test_file_by_name_makes_the_same_item_test_only() {
+    use coderipper::finding::Severity::Info;
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "#[cfg(test)]\nmod tests;\nfn helper() {}\npub fn entry() {}\n",
+        ),
+        (
+            "src/tests.rs",
+            "use super::helper;\n#[test]\nfn t() { helper(); }\n",
+        ),
+        ("src/main.rs", "fn main() { fixture::entry(); }\n"),
+    ]);
+    assert_eq!(severities(&repo), vec![("helper".to_string(), Info)]);
+}

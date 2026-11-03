@@ -49,7 +49,7 @@ with the code being checked. A check that could not run is exit 3, as before.
 
 ## A repository with no Rust crate at its root
 
-The Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`) judge a cargo package. Where
+The Rust checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`) judge a cargo package. `reachability` grades its finding **Info** (from 0.32.0; it was Medium for every finding) when the item is documented public library API reachable through `pub` modules, or has no live caller in the library and is named in the crate's own tests (`#[cfg(test)]` items and test files); every other finding stays Medium, and matching is by bare name, so a dead item that shares its name with something a test calls is Info too. Where
 the project directory has no tracked `Cargo.toml`, CodeRipper no longer asks cargo about it and fails (exit 3, before 0.6.0):
 
 - **No Rust anywhere in the repository:** the four rules are *not run here* (a coverage gap, never a failure), one `note:` says
@@ -89,7 +89,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.31", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.32", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run

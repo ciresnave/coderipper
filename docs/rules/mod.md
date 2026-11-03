@@ -67,7 +67,10 @@ reach-through and LLM responsibility rules are advisory.
 
 The legacy check `reachability` overlaps MOD-001 in part: it finds public items nothing uses,
 one slice of a minimal public surface (it also overlaps RDB-006, dead code). The rest of MOD-001
-is not covered by it.
+is not covered by it. Since 0.32.0 `reachability` grades a finding **Info** instead of Medium when the item is
+**documented public library API** (written `pub`, reachable through `pub` modules, with documentation: its callers are
+outside the repository and removing it is a breaking change) or has **no live caller in the library and is named in the crate's own tests**; every other
+finding stays Medium. `[reachability] public_api` works as before.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
