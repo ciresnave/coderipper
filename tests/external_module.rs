@@ -569,7 +569,8 @@ fn the_rust_module_describes_the_seven_checks() {
             "ARC-002",
             "MOD-003",
             "MOD-002",
-            "MOD-010"
+            "MOD-010",
+            "MOD-001"
         ]
     );
     assert_eq!(hello.languages, ["rust"]);

@@ -183,6 +183,20 @@ pub(crate) struct Totals {
     pub third_party: Vec<(String, String)>,
     /// Glob re-exports, each counted as one item and a lower bound.
     pub globs: usize,
+    /// Public declarations and public inherent functions of public types that carry documentation.
+    pub documented: usize,
+    /// The ones that do not (a `#[doc(hidden)]` item is in neither list).
+    pub undocumented: Vec<Undoc>,
+}
+
+/// A public item with no documentation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Undoc {
+    pub name: String,
+    pub kind: &'static str,
+    /// Relative to the repository when the crate directory was given, else to the crate.
+    pub file: String,
+    pub line: usize,
 }
 
 impl Totals {
@@ -197,6 +211,8 @@ impl Totals {
         self.members += o.members;
         self.third_party.extend(o.third_party);
         self.globs += o.globs;
+        self.documented += o.documented;
+        self.undocumented.extend(o.undocumented);
     }
 }
 
@@ -222,6 +238,34 @@ struct Collect {
     /// Every name the crate declares, for telling a local path root from a library.
     local: BTreeSet<String>,
     notes: Vec<String>,
+    /// Documented public declarations.
+    documented: usize,
+    undocumented: Vec<Undoc>,
+    /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
+    methods: BTreeMap<String, Vec<(String, bool, bool, String, usize)>>,
+}
+
+fn is_hidden(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|a| {
+        a.path().is_ident("doc") && {
+            let mut hidden = false;
+            let _ = a.parse_nested_meta(|m| {
+                if m.path.is_ident("hidden") {
+                    hidden = true;
+                }
+                Ok(())
+            });
+            hidden
+        }
+    })
+}
+
+/// Whether the attributes carry documentation: `///`, `//!`-style `#[doc = ..]`, or `#[doc(..)]` other than `hidden`.
+fn is_documented(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|a| {
+        a.path().is_ident("doc")
+            && !matches!(&a.meta, syn::Meta::List(l) if l.tokens.to_string().trim() == "hidden")
+    })
 }
 
 /// The public surface of the library whose tracked sources are `files` (paths relative to the crate directory `dir`). A file `syn`
@@ -274,6 +318,28 @@ pub(crate) fn surface(
         }
     }
     totals.members = public_types.iter().filter_map(|n| col.types.get(n)).sum();
+    totals.documented = col.documented;
+    totals.undocumented = col.undocumented.clone();
+    for n in &col.public_types {
+        for (name, documented, hidden, file, line) in col.methods.get(n).into_iter().flatten() {
+            if *hidden {
+                continue;
+            }
+            if *documented {
+                totals.documented += 1;
+            } else {
+                totals.undocumented.push(Undoc {
+                    name: format!("{n}::{name}"),
+                    kind: "method",
+                    file: file.clone(),
+                    line: *line,
+                });
+            }
+        }
+    }
+    totals
+        .undocumented
+        .sort_by(|a, b| (&a.file, a.line, &a.name).cmp(&(&b.file, b.line, &b.name)));
     totals.third_party.sort();
     totals.third_party.dedup();
     Ok((totals, col.notes))
@@ -311,6 +377,30 @@ struct Walker<'a> {
 }
 
 impl Walker<'_> {
+    /// Records whether a public declaration is documented (a `#[doc(hidden)]` one is not recorded at all).
+    fn doc(
+        &mut self,
+        attrs: &[syn::Attribute],
+        name: &str,
+        kind: &'static str,
+        line: usize,
+        file: &str,
+    ) {
+        if is_hidden(attrs) {
+            return;
+        }
+        if is_documented(attrs) {
+            self.col.documented += 1;
+        } else {
+            self.col.undocumented.push(Undoc {
+                name: name.to_string(),
+                kind,
+                file: file.to_string(),
+                line,
+            });
+        }
+    }
+
     /// Parses `file` and walks its items. `child_dir` is where this file's `mod x;` children live.
     fn walk_file(
         &mut self,
@@ -351,6 +441,8 @@ impl Walker<'_> {
                     self.col.local.insert(f.sig.ident.to_string());
                     if reachable && is_pub(&f.vis) {
                         self.col.decls.push((f.sig.ident.to_string(), "fn"));
+                        let n = f.sig.ident.to_string();
+                        self.doc(&f.attrs, &n, "fn", f.sig.ident.span().start().line, shown);
                     }
                 }
                 syn::Item::Struct(s) => {
@@ -360,6 +452,7 @@ impl Walker<'_> {
                     *self.col.types.entry(n.clone()).or_default() += fields;
                     if reachable && is_pub(&s.vis) {
                         self.col.decls.push((n.clone(), "struct"));
+                        self.doc(&s.attrs, &n, "struct", s.ident.span().start().line, shown);
                         self.col.public_types.insert(n);
                     }
                 }
@@ -370,6 +463,7 @@ impl Walker<'_> {
                     *self.col.types.entry(n.clone()).or_default() += fields;
                     if reachable && is_pub(&s.vis) {
                         self.col.decls.push((n.clone(), "union"));
+                        self.doc(&s.attrs, &n, "union", s.ident.span().start().line, shown);
                         self.col.public_types.insert(n);
                     }
                 }
@@ -379,6 +473,7 @@ impl Walker<'_> {
                     *self.col.types.entry(n.clone()).or_default() += e.variants.len();
                     if reachable && is_pub(&e.vis) {
                         self.col.decls.push((n.clone(), "enum"));
+                        self.doc(&e.attrs, &n, "enum", e.ident.span().start().line, shown);
                         self.col.public_types.insert(n);
                     }
                 }
@@ -388,6 +483,7 @@ impl Walker<'_> {
                     *self.col.types.entry(n.clone()).or_default() += t.items.len();
                     if reachable && is_pub(&t.vis) {
                         self.col.decls.push((n.clone(), "trait"));
+                        self.doc(&t.attrs, &n, "trait", t.ident.span().start().line, shown);
                         self.col.public_types.insert(n);
                     }
                 }
@@ -395,6 +491,14 @@ impl Walker<'_> {
                     self.col.local.insert(t.ident.to_string());
                     if reachable && is_pub(&t.vis) {
                         self.col.decls.push((t.ident.to_string(), "type alias"));
+                        let n = t.ident.to_string();
+                        self.doc(
+                            &t.attrs,
+                            &n,
+                            "type alias",
+                            t.ident.span().start().line,
+                            shown,
+                        );
                         self.col.public_types.insert(t.ident.to_string());
                     }
                 }
@@ -402,12 +506,16 @@ impl Walker<'_> {
                     self.col.local.insert(c.ident.to_string());
                     if reachable && is_pub(&c.vis) {
                         self.col.decls.push((c.ident.to_string(), "const"));
+                        let n = c.ident.to_string();
+                        self.doc(&c.attrs, &n, "const", c.ident.span().start().line, shown);
                     }
                 }
                 syn::Item::Static(c) => {
                     self.col.local.insert(c.ident.to_string());
                     if reachable && is_pub(&c.vis) {
                         self.col.decls.push((c.ident.to_string(), "static"));
+                        let n = c.ident.to_string();
+                        self.doc(&c.attrs, &n, "static", c.ident.span().start().line, shown);
                     }
                 }
                 syn::Item::Macro(m) => {
@@ -417,6 +525,13 @@ impl Walker<'_> {
                     {
                         if let Some(id) = &m.ident {
                             self.col.decls.push((id.to_string(), "macro"));
+                            self.doc(
+                                &m.attrs,
+                                &id.to_string(),
+                                "macro",
+                                id.span().start().line,
+                                shown,
+                            );
                         }
                     }
                 }
@@ -436,6 +551,23 @@ impl Walker<'_> {
                                     })
                                     .count();
                                 *self.col.types.entry(last.ident.to_string()).or_default() += n;
+                                for it in &im.items {
+                                    if let syn::ImplItem::Fn(f) = it {
+                                        if is_pub(&f.vis) {
+                                            self.col
+                                                .methods
+                                                .entry(last.ident.to_string())
+                                                .or_default()
+                                                .push((
+                                                    f.sig.ident.to_string(),
+                                                    is_documented(&f.attrs),
+                                                    is_hidden(&f.attrs),
+                                                    shown.to_string(),
+                                                    f.sig.ident.span().start().line,
+                                                ));
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -476,6 +608,7 @@ impl Walker<'_> {
                     let public = reachable && is_pub(&m.vis);
                     if public {
                         self.col.decls.push((name.clone(), "mod"));
+                        self.doc(&m.attrs, &name, "mod", m.ident.span().start().line, shown);
                     }
                     if m.attrs.iter().any(|a| a.path().is_ident("path")) {
                         self.col.notes.push(format!(
