@@ -1,0 +1,7 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+invariant_types = ["Money"]

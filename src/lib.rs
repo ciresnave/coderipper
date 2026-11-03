@@ -802,7 +802,7 @@ fn run_checks_over_in(
 /// after it was fixed (the `extended` and `portfolio` profiles take them).
 const NOT_IN_CLASSIC: &[&str] = &[
     "OPS-011", "MOD-005", "MOD-004", "ARC-001", "ARC-003", "ARC-006", "ARC-007", "ARC-002",
-    "MOD-003", "MOD-002",
+    "MOD-003", "MOD-002", "MOD-010",
 ];
 
 /// Whether `profile` runs the built-in check `id` (a check named by id runs in any profile).
@@ -1322,7 +1322,8 @@ mod tests {
                 "ARC-007",
                 "ARC-002",
                 "MOD-003",
-                "MOD-002"
+                "MOD-002",
+                "MOD-010"
             ]
         );
     }
@@ -1440,6 +1441,7 @@ mod tests {
                 ("ARC-002", check::Unit::Repository),
                 ("MOD-003", check::Unit::Package),
                 ("MOD-002", check::Unit::Package),
+                ("MOD-010", check::Unit::Repository),
             ]
         );
     }

@@ -56,10 +56,6 @@ pub(crate) struct ArchitectureConfig {
 /// One `[[architecture.component]]`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[expect(
-    dead_code,
-    reason = "parsed so a declaration may carry every key of the accepted format; the later ARC and MOD rules read them"
-)]
 pub(crate) struct ComponentDecl {
     pub name: String,
     /// Workspace-relative crate directories, or module paths inside a crate.

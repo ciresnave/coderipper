@@ -544,6 +544,8 @@ mod internals;
 pub use internals::InternalsCheck;
 mod modcycles;
 pub use modcycles::ModuleCyclesCheck;
+mod invariants;
+pub use invariants::InvariantFieldsCheck;
 mod modgraph;
 mod volatile;
 pub use volatile::VolatileDetailCheck;

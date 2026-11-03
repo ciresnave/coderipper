@@ -80,7 +80,7 @@ is not covered by it.
 | MOD-007 | Stated responsibility compared with declared purpose | L | catalog record; no check yet, needs a human or model judgment; advisory |
 | MOD-008 | Pass-through wrappers | P | catalog record; no check yet (planned native AST pattern; a model confirms nothing is added) |
 | MOD-009 | Long reach-through chains | P | catalog record; no check yet (planned native chain-length check; low precision) |
-| MOD-010 | Invariant-bearing types keep fields private | P | catalog record; no check yet, needs the invariant-bearing tag |
+| MOD-010 | Invariant-bearing types keep fields private | A | check `MOD-010` (Rust, from the source with `syn`, advisory; default on in `extended` and `portfolio`): **declared half** (a type named in a component's `invariant_types`, found by name in that component's crates): Low when it has a `pub` field; Info when it derives `Default` or `Deserialize` (without `#[serde(try_from)]`/`from`) while it has a validating-looking constructor; Info when the name is a struct in none of the component's crates. **Inferred half, opt-in** (`[mod010] inferred = true`): Info for a `pub` struct with a validating-looking constructor (`new`, `try_new`, `parse`, `from_*`, at least one argument, returning `Result<Self, _>` or `Option<Self>` and rejecting with `Err`, `None`, `bail!` or `ensure!`) and a `pub` field. Text only: it names the fields and offers no change |
 
 Classes: P is a parser-level fact check, H needs history, L needs a language model.
 
