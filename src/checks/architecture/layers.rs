@@ -474,7 +474,7 @@ pub(crate) fn judge(traits: &[SingleImpl], chains: &[Chain], project: &str) -> V
             }),
             subject: Some(t.name.clone()),
             summary: format!(
-                "the trait `{}` has one implementation, `{}`, and no test double",
+                "the trait `{}` has one implementation, `{}`, and is never implemented in test code",
                 t.name, t.implementor
             ),
             detail: format!(

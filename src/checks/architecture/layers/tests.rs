@@ -148,7 +148,7 @@ fn findings_are_info_low_confidence_and_name_the_shape() {
         .all(|x| x.severity == Severity::Info && x.confidence == Confidence::Low));
     assert!(out.iter().any(|x| x
         .summary
-        .contains("one implementation, `Z`, and no test double")));
+        .contains("one implementation, `Z`, and is never implemented in test code")));
     assert!(out
         .iter()
         .any(|x| x.summary.contains("`Service` -> `Repo`")));
