@@ -1,0 +1,10 @@
+[architecture]
+style = "modular-monolith"
+
+[[architecture.component]]
+name = "core"
+paths = ["src/core.rs", "src/lib.rs"]
+
+[[architecture.component]]
+name = "adapters"
+paths = ["src/adapters.rs"]
