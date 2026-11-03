@@ -103,7 +103,7 @@ fn declared(comp: &str, names: &[&str]) -> BTreeMap<String, BTreeSet<String>> {
 #[test]
 fn a_declared_type_with_a_public_field_is_a_low_finding() {
     let c = krate(Some("core"), vec![money(&["cents"], &["try_new"], &[])]);
-    let (f, notes) = judge(&[c], Some(&declared("core", &["Money"])), "p");
+    let (f, notes) = judge(&[c], Some(&declared("core", &["Money"])), false, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].severity, Severity::Low);
     assert_eq!(f[0].subject.as_deref(), Some("Money"));
@@ -120,13 +120,13 @@ fn a_declared_type_with_a_public_field_is_a_low_finding() {
 #[test]
 fn private_fields_are_clean_and_a_default_or_deserialize_derive_is_info() {
     let clean = krate(Some("core"), vec![money(&[], &["try_new"], &[])]);
-    let (f, _) = judge(&[clean], Some(&declared("core", &["Money"])), "p");
+    let (f, _) = judge(&[clean], Some(&declared("core", &["Money"])), false, "p");
     assert!(f.is_empty(), "{f:?}");
     let derived = krate(
         Some("core"),
         vec![money(&[], &["try_new"], &["Default", "Deserialize"])],
     );
-    let (f, _) = judge(&[derived], Some(&declared("core", &["Money"])), "p");
+    let (f, _) = judge(&[derived], Some(&declared("core", &["Money"])), false, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].severity, Severity::Info);
     assert!(
@@ -139,7 +139,7 @@ fn private_fields_are_clean_and_a_default_or_deserialize_derive_is_info() {
 #[test]
 fn a_declared_name_found_in_no_crate_of_its_component_is_a_stale_info_with_a_control() {
     let c = krate(Some("core"), vec![money(&[], &[], &[])]);
-    let (f, _) = judge(&[c], Some(&declared("core", &["Gone"])), "p");
+    let (f, _) = judge(&[c], Some(&declared("core", &["Gone"])), false, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].subject.as_deref(), Some("Gone:stale"));
     assert_eq!(f[0].claim, Claim::Absence);
@@ -153,7 +153,7 @@ fn a_declared_name_found_in_no_crate_of_its_component_is_a_stale_info_with_a_con
 #[test]
 fn the_inferred_half_needs_a_public_type_a_public_field_and_a_checking_constructor() {
     let c = krate(None, vec![money(&["cents"], &["new"], &[])]);
-    let (f, notes) = judge(&[c], None, "p");
+    let (f, notes) = judge(&[c], None, true, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].severity, Severity::Info);
     assert_eq!(f[0].confidence, Confidence::Low);
@@ -168,7 +168,7 @@ fn the_inferred_half_needs_a_public_type_a_public_field_and_a_checking_construct
             ..money(&["cents"], &["new"], &[])
         },
     ] {
-        let (f, _) = judge(&[krate(None, vec![t])], None, "p");
+        let (f, _) = judge(&[krate(None, vec![t])], None, true, "p");
         assert!(f.is_empty(), "{f:?}");
     }
 }
@@ -176,7 +176,7 @@ fn the_inferred_half_needs_a_public_type_a_public_field_and_a_checking_construct
 #[test]
 fn a_declared_type_is_not_also_reported_by_the_inferred_half() {
     let c = krate(Some("core"), vec![money(&["cents"], &["new"], &[])]);
-    let (f, _) = judge(&[c], Some(&declared("core", &["Money"])), "p");
+    let (f, _) = judge(&[c], Some(&declared("core", &["Money"])), true, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].severity, Severity::Low);
 }
@@ -255,4 +255,33 @@ impl O { pub fn new(v: u8) -> Option<Self> { if v == 0 { None } else { Some(Self
     assert!(t[0].constructors.is_empty(), "{:?}", t[0].constructors);
     // positive control: for an `Option` constructor `None` is the rejection
     assert_eq!(t[1].constructors, ["new"]);
+}
+
+#[test]
+fn the_inferred_half_is_off_unless_asked_for() {
+    let c = krate(None, vec![money(&["cents"], &["new"], &[])]);
+    let (off, notes) = judge(&[c], None, false, "p");
+    assert!(off.is_empty(), "{off:?}");
+    assert!(notes[0].contains("1 struct(s)"), "{notes:?}");
+    let c = krate(None, vec![money(&["cents"], &["new"], &[])]);
+    let (on, _) = judge(&[c], None, true, "p");
+    assert_eq!(on.len(), 1, "{on:?}");
+}
+
+#[test]
+fn the_setting_is_read_from_the_config_text_and_a_broken_file_is_off() {
+    use crate::config::mod010_inferred as on;
+    assert!(on("[mod010]
+inferred = true
+"));
+    assert!(!on(""));
+    assert!(!on("[mod010]
+inferred = false
+"));
+    assert!(
+        !on("[mod010]
+bogus = true
+"),
+        "an unknown key makes the file invalid, so off"
+    );
 }

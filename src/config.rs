@@ -116,6 +116,9 @@ pub(crate) struct ConfigFile {
     /// `[rdb008] commented_out_code = true`: also report runs of commented-out code (see [`Rdb008Settings`]).
     #[serde(default)]
     pub rdb008: Option<Rdb008Settings>,
+    /// `[mod010] inferred = true`: also report public structs that look invariant-bearing without being declared (see [`Mod010Settings`]).
+    #[serde(default)]
+    pub mod010: Option<Mod010Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -238,6 +241,25 @@ pub(crate) struct Rdb008Settings {
     /// heuristic flagged was documentation (layout notation, pseudo-code explaining optimized code).
     #[serde(default)]
     pub commented_out_code: bool,
+}
+
+/// `[mod010]`: the inferred half of `MOD-010` (a public struct with a validating-looking constructor and a public field) is opt-in.
+/// Read from the repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Mod010Settings {
+    /// Report the inferred half. Off unless set: on three of our repositories the heuristic flagged 14 types, of which 6 read as guarding an
+    /// invariant, 4 as wire-format parsers whose invariant is debatable and 4 as plain data records.
+    #[serde(default)]
+    pub inferred: bool,
+}
+
+/// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.
+pub(crate) fn mod010_inferred(text: &str) -> bool {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.mod010)
+        .is_some_and(|s| s.inferred)
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the commented-out-code half of `RDB-008`. A file that does not parse is

@@ -10,8 +10,10 @@
 //! - **Declared (Low).** A type named in a component's `invariant_types` (found by name in the `src/` of the crates of that component)
 //!   that has a `pub` field, or that derives `Default` or `Deserialize` while it has a validating-looking constructor: each of those
 //!   builds a value that skipped the check. A declared name found in no crate of its component is an Info finding (a stale declaration).
-//! - **Inferred (Info).** A `pub` struct with a **validating-looking constructor** and at least one `pub` field, in any workspace crate,
-//!   declared or not: the constructor suggests there is something to guard, and the public field lets a caller go around it.
+//! - **Inferred (Info, opt-in).** A `pub` struct with a **validating-looking constructor** and at least one `pub` field, in any workspace
+//!   crate, declared or not: the constructor suggests there is something to guard, and the public field lets a caller go around it. Off
+//!   unless the repository's own `.coderipper.toml` sets `[mod010] inferred = true` (on three of our repositories 4 of 14 findings were
+//!   plain data records and 4 more wire-format parsers whose invariant is debatable; CireSnave's bar for default-on is few false positives).
 //!
 //! **A validating-looking constructor** is an inherent function named `new`, `try_new`, `parse` or `from_*` that returns `Result<Self, _>`
 //! (or the type's name) or `Option<Self>`, takes at least one argument, and whose body rejects directly, i.e. names `Err`, `None`,
@@ -25,7 +27,7 @@
 //! convenience, which is why the inferred half is Info. The text names the fields and nothing else: it makes no change and offers no
 //! options (patent watch, rows 64 and 65 of `docs/PATENT-SWEEP.md`).
 //!
-//! **No declaration:** the inferred half still runs; the note says the declared half needs `invariant_types`.
+//! **No declaration:** the declared half has nothing to judge and the note says so; the inferred half runs only when asked for.
 //!
 //! **Known limitations / deliberate scope:** crate granularity for components; `src/` only, test items skipped; a file `syn` cannot parse
 //! is an error, never a smaller count.
@@ -117,7 +119,13 @@ impl Check for InvariantFieldsCheck {
             });
         }
         let declared = loaded.as_ref().map(|(a, _)| declared_names(a));
-        let (findings, mut notes) = judge(&crates, declared.as_ref(), &project);
+        let inferred = std::fs::read_to_string(ctx.project_root.join(crate::config::FILE_NAME))
+            .ok()
+            .is_some_and(|t| crate::config::mod010_inferred(&t));
+        let (findings, mut notes) = judge(&crates, declared.as_ref(), inferred, &project);
+        if !inferred {
+            notes.push("the inferred half of MOD-010 (a public struct with a validating-looking constructor and a public field) is opt-in: set `[mod010] inferred = true` in the repository's `.coderipper.toml` to have it reported at Info".into());
+        }
         if declared.as_ref().is_none_or(BTreeMap::is_empty) {
             notes.push("no component declares `invariant_types`, so only the inferred half of MOD-010 ran (a public struct with a validating-looking constructor and a public field); declare the types that guard an invariant to have them judged at Low (docs/rules/mod.md)".into());
         }
@@ -373,6 +381,7 @@ fn finding(
 pub(crate) fn judge(
     crates: &[CrateFacts],
     declared: Option<&BTreeMap<String, BTreeSet<String>>>,
+    inferred: bool,
     project: &str,
 ) -> (Vec<Finding>, Vec<String>) {
     let mut out = Vec::new();
@@ -470,7 +479,7 @@ pub(crate) fn judge(
             }
         }
     }
-    for c in crates {
+    for c in crates.iter().filter(|_| inferred) {
         for t in &c.types {
             let is_declared = declared.is_some_and(|d| {
                 c.component
