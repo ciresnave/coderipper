@@ -130,11 +130,11 @@ pub(crate) fn judge(t: &Totals, p: &Params, project: &str) -> Vec<Finding> {
         }),
         subject: Some(project.into()),
         summary: format!(
-            "{missing} of {documentable} public items have no documentation ({share}%), the first at {}:{}",
+            "{missing} of {documentable} public items lack documentation ({share}%), the first at {}:{}",
             first.file, first.line
         ),
         detail: format!(
-            "The public surface is {} item(s) ({}) and {} member(s) of the public types (fields, variants, trait items and inherent associated items). Of the {documentable} public declarations and public inherent functions that can carry documentation, {missing} carry none: {shown}{}. Whatever is public becomes something callers rely on; documentation turns it into a stated contract. Document the items that stay public, or narrow the visibility of those that are not part of the interface. Low from {}% of at least {} items without documentation ({}), Info below. Syntactic: macro-generated items and doc comments are not seen, and `#[doc(hidden)]` items are left out.",
+            "The public surface is {} item(s) ({}) and {} member(s) of the public types (fields, variants, trait items and inherent associated items). Of the {documentable} public declarations and public inherent functions that can carry documentation, {missing} are undocumented: {shown}{}. Whatever is public becomes something callers rely on; documentation turns it into a stated contract. Document the items that stay public, or narrow the visibility of those that are not part of the interface. Low from {}% of at least {} items lacking documentation ({}), Info below. Syntactic: macro-generated items and doc comments are not seen, and `#[doc(hidden)]` items are left out.",
             t.item_count(),
             t.items
                 .iter()
