@@ -13,7 +13,7 @@ pub mod unused_parameters;
 pub mod unused_return_values;
 pub mod version_consistency;
 pub use architecture::{
-    ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck,
+    ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck, InternalsCheck,
     VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;

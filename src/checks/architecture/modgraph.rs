@@ -37,11 +37,21 @@ pub(crate) struct ModuleGraph {
 }
 
 /// A path written in a module, waiting to be resolved.
-struct Ref {
-    file: String,
+pub(crate) struct Ref {
+    pub file: String,
     /// The module the path is written in: `""` is the crate root, `a::b` is `crate::a::b`.
-    module: String,
-    segs: Vec<String>,
+    pub module: String,
+    pub segs: Vec<String>,
+    /// The line of the path, 1-based.
+    pub line: usize,
+}
+
+/// A `pub`, `pub(crate)` or `pub(super)` `use` leaf: the module offers `name` as part of its interface.
+pub(crate) struct Reexport {
+    pub module: String,
+    /// The name it introduces (`*` for a glob).
+    pub name: String,
+    pub segs: Vec<String>,
 }
 
 struct Walker<'a> {
@@ -49,6 +59,7 @@ struct Walker<'a> {
     /// Module path -> the file that holds it (an inline module is held by the file it is written in).
     mods: BTreeMap<String, String>,
     refs: Vec<Ref>,
+    reexports: Vec<Reexport>,
     notes: Vec<String>,
     seen: BTreeSet<String>,
 }
@@ -82,6 +93,19 @@ impl Walker<'_> {
         for item in items {
             if is_cfg_test(attrs_of(item)) {
                 continue;
+            }
+            if let syn::Item::Use(u) = item {
+                if !matches!(u.vis, syn::Visibility::Inherited) {
+                    let mut leaves = Vec::new();
+                    flatten(&u.tree, &mut Vec::new(), &mut leaves);
+                    for (segs, name) in leaves {
+                        self.reexports.push(Reexport {
+                            module: module.to_string(),
+                            name,
+                            segs,
+                        });
+                    }
+                }
             }
             let syn::Item::Mod(m) = item else {
                 let mut v = RefVisitor {
@@ -137,7 +161,7 @@ struct RefVisitor<'a> {
 }
 
 impl RefVisitor<'_> {
-    fn push(&mut self, segs: Vec<String>) {
+    fn push(&mut self, segs: Vec<String>, line: usize) {
         if segs.is_empty() {
             return;
         }
@@ -147,6 +171,7 @@ impl RefVisitor<'_> {
                 file: self.file.to_string(),
                 module: self.module.to_string(),
                 segs,
+                line,
             });
         }
     }
@@ -154,21 +179,29 @@ impl RefVisitor<'_> {
 
 impl<'ast> Visit<'ast> for RefVisitor<'_> {
     fn visit_path(&mut self, p: &'ast syn::Path) {
-        self.push(p.segments.iter().map(|s| s.ident.to_string()).collect());
+        let line = p
+            .segments
+            .first()
+            .map_or(0, |s| s.ident.span().start().line);
+        self.push(
+            p.segments.iter().map(|s| s.ident.to_string()).collect(),
+            line,
+        );
         syn::visit::visit_path(self, p);
     }
 
     fn visit_item_use(&mut self, u: &'ast syn::ItemUse) {
         let mut leaves = Vec::new();
         flatten(&u.tree, &mut Vec::new(), &mut leaves);
-        for l in leaves {
-            self.push(l);
+        let line = u.use_token.span.start().line;
+        for (segs, _) in leaves {
+            self.push(segs, line);
         }
     }
 }
 
-/// The paths a use tree names: a leaf is its whole path, a glob and `self` stand for their prefix.
-fn flatten(t: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<Vec<String>>) {
+/// The paths a use tree names, each with the name it introduces: a leaf is its whole path, a glob and `self` stand for their prefix.
+fn flatten(t: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<(Vec<String>, String)>) {
     match t {
         syn::UseTree::Path(p) => {
             prefix.push(p.ident.to_string());
@@ -177,19 +210,22 @@ fn flatten(t: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<Vec<String>
         }
         syn::UseTree::Name(n) => {
             let mut v = prefix.clone();
-            if n.ident != "self" {
+            let name = if n.ident == "self" {
+                prefix.last().cloned().unwrap_or_default()
+            } else {
                 v.push(n.ident.to_string());
-            }
-            out.push(v);
+                n.ident.to_string()
+            };
+            out.push((v, name));
         }
         syn::UseTree::Rename(r) => {
             let mut v = prefix.clone();
             if r.ident != "self" {
                 v.push(r.ident.to_string());
             }
-            out.push(v);
+            out.push((v, r.rename.to_string()));
         }
-        syn::UseTree::Glob(_) => out.push(prefix.clone()),
+        syn::UseTree::Glob(_) => out.push((prefix.clone(), "*".to_string())),
         syn::UseTree::Group(g) => {
             for i in &g.items {
                 flatten(i, prefix, out);
@@ -198,8 +234,12 @@ fn flatten(t: &syn::UseTree, prefix: &mut Vec<String>, out: &mut Vec<Vec<String>
     }
 }
 
-/// The file a path written in `module` resolves to, or `None` when it names nothing of this crate.
-fn resolve(mods: &BTreeMap<String, String>, module: &str, segs: &[String]) -> Option<String> {
+/// The absolute module-and-item path a path written in `module` names, or `None` when it names nothing of this crate.
+pub(crate) fn resolve_abs(
+    mods: &BTreeMap<String, String>,
+    module: &str,
+    segs: &[String],
+) -> Option<Vec<String>> {
     let mut cur: Vec<&str> = module.split("::").filter(|s| !s.is_empty()).collect();
     let mut abs: Vec<&str> = Vec::new();
     match segs.first()?.as_str() {
@@ -227,28 +267,48 @@ fn resolve(mods: &BTreeMap<String, String>, module: &str, segs: &[String]) -> Op
             abs.extend(segs.iter().map(String::as_str));
         }
     }
-    (0..=abs.len())
-        .rev()
-        .find_map(|n| mods.get(&abs[..n].join("::")).cloned())
+    Some(abs.into_iter().map(str::to_string).collect())
 }
 
-/// The module graph of the crate whose tracked sources are `files` (paths relative to the crate directory).
-pub(crate) fn module_graph(files: &[SourceFile]) -> anyhow::Result<ModuleGraph> {
+/// How many leading segments of `abs` name a module of the crate (0: the root).
+pub(crate) fn module_prefix(mods: &BTreeMap<String, String>, abs: &[String]) -> usize {
+    (0..=abs.len())
+        .rev()
+        .find(|&n| mods.contains_key(&abs[..n].join("::")))
+        .unwrap_or(0)
+}
+
+/// The file a path written in `module` resolves to, or `None` when it names nothing of this crate.
+fn resolve(mods: &BTreeMap<String, String>, module: &str, segs: &[String]) -> Option<String> {
+    let abs = resolve_abs(mods, module, segs)?;
+    mods.get(&abs[..module_prefix(mods, &abs)].join("::"))
+        .cloned()
+}
+
+/// What reading a crate's sources found: its modules and the paths and re-exports written in them.
+pub(crate) struct Facts {
+    /// Module path -> the file that holds it.
+    pub mods: BTreeMap<String, String>,
+    pub refs: Vec<Ref>,
+    pub reexports: Vec<Reexport>,
+    /// The files reached from the crate root.
+    pub files: BTreeSet<String>,
+    pub notes: Vec<String>,
+}
+
+/// Reads the crate whose tracked sources are `files` (paths relative to the crate directory). `None` when there is no root file.
+pub(crate) fn read(files: &[SourceFile]) -> anyhow::Result<Option<Facts>> {
     let by_path: BTreeMap<&str, &SourceFile> = files.iter().map(|f| (f.path.as_str(), f)).collect();
     let lib = by_path.get("src/lib.rs");
     let main = by_path.get("src/main.rs");
     let Some(root) = lib.or(main) else {
-        return Ok(ModuleGraph {
-            notes: vec![
-                "no src/lib.rs or src/main.rs among the tracked sources; no module graph".into(),
-            ],
-            ..ModuleGraph::default()
-        });
+        return Ok(None);
     };
     let mut w = Walker {
         by_path: &by_path,
         mods: BTreeMap::new(),
         refs: Vec::new(),
+        reexports: Vec::new(),
         notes: Vec::new(),
         seen: BTreeSet::new(),
     };
@@ -258,26 +318,43 @@ pub(crate) fn module_graph(files: &[SourceFile]) -> anyhow::Result<ModuleGraph> 
         w.notes
             .push("src/main.rs is a second crate root; its modules are not in the graph".into());
     }
+    let unreached = files.iter().filter(|f| !w.seen.contains(&f.path)).count();
+    if unreached > 0 {
+        w.notes.push(format!(
+            "{unreached} tracked source file(s) are declared by no `mod` reachable from the root and are not in the graph"
+        ));
+    }
+    Ok(Some(Facts {
+        mods: w.mods,
+        refs: w.refs,
+        reexports: w.reexports,
+        files: w.seen,
+        notes: w.notes,
+    }))
+}
+
+/// The module graph of the crate whose tracked sources are `files` (paths relative to the crate directory).
+pub(crate) fn module_graph(files: &[SourceFile]) -> anyhow::Result<ModuleGraph> {
+    let Some(f) = read(files)? else {
+        return Ok(ModuleGraph {
+            notes: vec![
+                "no src/lib.rs or src/main.rs among the tracked sources; no module graph".into(),
+            ],
+            ..ModuleGraph::default()
+        });
+    };
     let mut edges = BTreeSet::new();
-    for r in &w.refs {
-        if let Some(to) = resolve(&w.mods, &r.module, &r.segs) {
+    for r in &f.refs {
+        if let Some(to) = resolve(&f.mods, &r.module, &r.segs) {
             if to != r.file {
                 edges.insert((r.file.clone(), to));
             }
         }
     }
-    let files_in: BTreeSet<String> = w.seen.clone();
-    let unreached = files.iter().filter(|f| !files_in.contains(&f.path)).count();
-    let mut notes = w.notes;
-    if unreached > 0 {
-        notes.push(format!(
-            "{unreached} tracked source file(s) are declared by no `mod` reachable from the root and are not in the graph"
-        ));
-    }
     Ok(ModuleGraph {
-        files: files_in,
+        files: f.files,
         edges,
-        notes,
+        notes: f.notes,
     })
 }
 
