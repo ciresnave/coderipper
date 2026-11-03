@@ -1,164 +1,115 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 //! The compiled-in checks as one closed set. Everything that used to list them by hand (the registration order, the module's
-//! list of proven claims) is derived from [`BuiltinCheck`], so adding a check is one new variant and the compiler names each
-//! `match` that must decide about it.
+//! list of proven claims, the profile each runs in) is derived from the one table below, so **adding a check is one new row** and
+//! nothing else in this file changes.
+//!
+//! A row is `Variant => RULE_ID_CONSTANT, proven, classic, CheckType;` with the variant's one-line doc comment above it:
+//! - `RULE_ID_CONSTANT`: the constant in `crate::rule_id` generated from `rules/*.toml` (`ARC_008` for `ARC-008`);
+//! - `proven`: whether the claim is earned, i.e. it has a seeded-defect fixture and a clean twin under `conformance/` (see
+//!   [`BuiltinCheck::is_proven`]);
+//! - `classic`: whether the `classic` profile runs it. The `classic` output is a contract fixed before these checks existed, so a
+//!   check added later is `false`; `extended` and `portfolio` take every check;
+//! - `CheckType`: the type in `crate::checks` with a `new()` that builds it.
+//!
+//! Rows run in the order written; append at the end.
 
 use crate::check::Check;
 use crate::checks;
 
-/// One of the checks compiled into CodeRipper.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum BuiltinCheck {
+macro_rules! builtin_checks {
+    ($($(#[$doc:meta])* $variant:ident => $id:ident, $proven:literal, $classic:literal, $check:ident;)+) => {
+        /// One of the checks compiled into CodeRipper.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[non_exhaustive]
+        pub enum BuiltinCheck {
+            $($(#[$doc])* $variant,)+
+        }
+
+        impl BuiltinCheck {
+            /// Every built-in check, in the order they run.
+            pub const ALL: [BuiltinCheck; [$(BuiltinCheck::$variant),+].len()] = [$(BuiltinCheck::$variant),+];
+
+            /// The check's stable id: what `Check::id` returns for the check this builds.
+            pub fn id(self) -> &'static str {
+                match self {
+                    $(Self::$variant => crate::rule_id::$id,)+
+                }
+            }
+
+            /// Whether its claim is earned: it has a seeded-defect fixture and a clean twin under `conformance/`, run by this
+            /// repository's own tests (`tests/conformance.rs` fails if this and the fixtures disagree). The host trusts a built-in
+            /// module's `proof` because that CI proved it; there is no per-build lock file for code that is compiled into the binary.
+            pub fn is_proven(self) -> bool {
+                match self {
+                    $(Self::$variant => $proven,)+
+                }
+            }
+
+            /// Whether the `classic` profile runs it (the checks that existed when its output was fixed); `extended` and `portfolio`
+            /// run every check.
+            pub fn in_classic(self) -> bool {
+                match self {
+                    $(Self::$variant => $classic,)+
+                }
+            }
+
+            /// A fresh instance of the check.
+            pub fn build(self) -> Box<dyn Check> {
+                match self {
+                    $(Self::$variant => Box::new(checks::$check::new()),)+
+                }
+            }
+        }
+    };
+}
+
+builtin_checks! {
     /// `reachability`.
-    Reachability,
+    Reachability => REACHABILITY, true, true, ReachabilityCheck;
     /// `unused-return-values`.
-    UnusedReturnValues,
+    UnusedReturnValues => UNUSED_RETURN_VALUES, true, true, UnusedReturnValuesCheck;
     /// `unused-parameters`.
-    UnusedParameters,
+    UnusedParameters => UNUSED_PARAMETERS, true, true, UnusedParametersCheck;
     /// `version-consistency`.
-    VersionConsistency,
+    VersionConsistency => VERSION_CONSISTENCY, true, true, VersionConsistencyCheck;
     /// `ci-protection-presence`.
-    CiProtectionPresence,
+    CiProtectionPresence => CI_PROTECTION_PRESENCE, false, true, CiProtectionPresenceCheck;
     /// `dependency-freshness`.
-    DependencyFreshness,
+    DependencyFreshness => DEPENDENCY_FRESHNESS, false, true, DependencyFreshnessCheck;
     /// `OPS-011`.
-    CliBasics,
+    CliBasics => OPS_011, true, false, CliBasicsCheck;
     /// `MOD-005`.
-    SizeCoupling,
+    SizeCoupling => MOD_005, true, false, SizeCouplingCheck;
     /// `MOD-004`.
-    Cohesion,
+    Cohesion => MOD_004, true, false, CohesionCheck;
     /// `ARC-001`.
-    ComponentGraph,
+    ComponentGraph => ARC_001, true, false, ComponentGraphCheck;
     /// `ARC-003`.
-    VolatileDetail,
+    VolatileDetail => ARC_003, true, false, VolatileDetailCheck;
     /// `ARC-006`.
-    ApiBudget,
+    ApiBudget => ARC_006, true, false, ApiBudgetCheck;
     /// `ARC-007`.
-    DataOwnership,
+    DataOwnership => ARC_007, true, false, DataOwnershipCheck;
     /// `ARC-002`.
-    ComponentCycles,
+    ComponentCycles => ARC_002, true, false, ComponentCyclesCheck;
     /// `MOD-003`.
-    Internals,
+    Internals => MOD_003, true, false, InternalsCheck;
     /// `MOD-002`.
-    ModuleCycles,
+    ModuleCycles => MOD_002, true, false, ModuleCyclesCheck;
     /// `MOD-010`.
-    InvariantFields,
+    InvariantFields => MOD_010, true, false, InvariantFieldsCheck;
     /// `MOD-001`.
-    PublicSurface,
+    PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
     /// `MOD-008`.
-    PassThrough,
+    PassThrough => MOD_008, true, false, PassThroughCheck;
     /// `ARC-008`.
-    Layers,
+    Layers => ARC_008, true, false, LayersCheck;
 }
 
 impl BuiltinCheck {
-    /// Every built-in check, in the order they run.
-    pub const ALL: [BuiltinCheck; 20] = [
-        Self::Reachability,
-        Self::UnusedReturnValues,
-        Self::UnusedParameters,
-        Self::VersionConsistency,
-        Self::CiProtectionPresence,
-        Self::DependencyFreshness,
-        Self::CliBasics,
-        Self::SizeCoupling,
-        Self::Cohesion,
-        Self::ComponentGraph,
-        Self::VolatileDetail,
-        Self::ApiBudget,
-        Self::DataOwnership,
-        Self::ComponentCycles,
-        Self::Internals,
-        Self::ModuleCycles,
-        Self::InvariantFields,
-        Self::PublicSurface,
-        Self::PassThrough,
-        Self::Layers,
-    ];
-
-    /// The check's stable id: what `Check::id` returns for the check this builds.
-    pub fn id(self) -> &'static str {
-        match self {
-            Self::Reachability => crate::rule_id::REACHABILITY,
-            Self::UnusedReturnValues => crate::rule_id::UNUSED_RETURN_VALUES,
-            Self::UnusedParameters => crate::rule_id::UNUSED_PARAMETERS,
-            Self::VersionConsistency => crate::rule_id::VERSION_CONSISTENCY,
-            Self::CiProtectionPresence => crate::rule_id::CI_PROTECTION_PRESENCE,
-            Self::DependencyFreshness => crate::rule_id::DEPENDENCY_FRESHNESS,
-            Self::CliBasics => crate::rule_id::OPS_011,
-            Self::SizeCoupling => crate::rule_id::MOD_005,
-            Self::Cohesion => crate::rule_id::MOD_004,
-            Self::ComponentGraph => crate::rule_id::ARC_001,
-            Self::VolatileDetail => crate::rule_id::ARC_003,
-            Self::ApiBudget => crate::rule_id::ARC_006,
-            Self::DataOwnership => crate::rule_id::ARC_007,
-            Self::ComponentCycles => crate::rule_id::ARC_002,
-            Self::Internals => crate::rule_id::MOD_003,
-            Self::ModuleCycles => crate::rule_id::MOD_002,
-            Self::InvariantFields => crate::rule_id::MOD_010,
-            Self::PublicSurface => crate::rule_id::MOD_001,
-            Self::PassThrough => crate::rule_id::MOD_008,
-            Self::Layers => crate::rule_id::ARC_008,
-        }
-    }
-
     /// The built-in check with this id, if there is one.
     pub fn from_id(id: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|c| c.id() == id)
-    }
-
-    /// Whether its claim is earned: it has a seeded-defect fixture and a clean twin under `conformance/`, run by this repository's own
-    /// tests (`tests/conformance.rs` fails if this and the fixtures disagree). The host trusts a built-in module's `proof` because
-    /// that CI proved it; there is no per-build lock file for code that is compiled into the binary.
-    pub fn is_proven(self) -> bool {
-        match self {
-            Self::Reachability
-            | Self::UnusedParameters
-            | Self::UnusedReturnValues
-            | Self::VersionConsistency
-            | Self::CliBasics
-            | Self::SizeCoupling
-            | Self::Cohesion
-            | Self::ComponentGraph
-            | Self::VolatileDetail
-            | Self::ApiBudget
-            | Self::DataOwnership
-            | Self::ComponentCycles
-            | Self::Internals
-            | Self::ModuleCycles
-            | Self::InvariantFields
-            | Self::PublicSurface
-            | Self::PassThrough
-            | Self::Layers => true,
-            Self::CiProtectionPresence | Self::DependencyFreshness => false,
-        }
-    }
-
-    /// A fresh instance of the check.
-    pub fn build(self) -> Box<dyn Check> {
-        match self {
-            Self::Reachability => Box::new(checks::ReachabilityCheck::new()),
-            Self::UnusedReturnValues => Box::new(checks::UnusedReturnValuesCheck::new()),
-            Self::UnusedParameters => Box::new(checks::UnusedParametersCheck::new()),
-            Self::VersionConsistency => Box::new(checks::VersionConsistencyCheck::new()),
-            Self::CiProtectionPresence => Box::new(checks::CiProtectionPresenceCheck::new()),
-            Self::DependencyFreshness => Box::new(checks::DependencyFreshnessCheck::new()),
-            Self::CliBasics => Box::new(checks::CliBasicsCheck::new()),
-            Self::SizeCoupling => Box::new(checks::SizeCouplingCheck::new()),
-            Self::Cohesion => Box::new(checks::CohesionCheck::new()),
-            Self::ComponentGraph => Box::new(checks::ComponentGraphCheck::new()),
-            Self::VolatileDetail => Box::new(checks::VolatileDetailCheck::new()),
-            Self::ApiBudget => Box::new(checks::ApiBudgetCheck::new()),
-            Self::DataOwnership => Box::new(checks::DataOwnershipCheck::new()),
-            Self::ComponentCycles => Box::new(checks::ComponentCyclesCheck::new()),
-            Self::Internals => Box::new(checks::InternalsCheck::new()),
-            Self::ModuleCycles => Box::new(checks::ModuleCyclesCheck::new()),
-            Self::InvariantFields => Box::new(checks::InvariantFieldsCheck::new()),
-            Self::PublicSurface => Box::new(checks::PublicSurfaceCheck::new()),
-            Self::PassThrough => Box::new(checks::PassThroughCheck::new()),
-            Self::Layers => Box::new(checks::LayersCheck::new()),
-        }
     }
 }
 
@@ -180,6 +131,32 @@ mod tests {
         let ids: Vec<_> = crate::registered_checks().iter().map(|c| c.id()).collect();
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
-        assert_eq!(all.len(), 20);
+        assert!(!all.is_empty());
+    }
+
+    #[test]
+    fn ids_are_unique_and_the_classic_set_is_the_six_legacy_checks() {
+        let mut ids: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
+        let n = ids.len();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), n, "a check id appears twice");
+        // the `classic` profile's output is a contract: exactly these, in this order, and a new check must not join them
+        let classic: Vec<_> = BuiltinCheck::ALL
+            .iter()
+            .filter(|c| c.in_classic())
+            .map(|c| c.id())
+            .collect();
+        assert_eq!(
+            classic,
+            [
+                "reachability",
+                "unused-return-values",
+                "unused-parameters",
+                "version-consistency",
+                "ci-protection-presence",
+                "dependency-freshness"
+            ]
+        );
     }
 }

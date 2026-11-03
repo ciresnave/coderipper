@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.33.1 - 2026-11-03 (proposed, Fix)
+
+**Parallel-lane preparation, no behaviour change.** `src/builtin.rs` is now one table (`builtin_checks!`): a new check is one row, and the registration order, the proven set and the `classic` membership are derived from it, so five test files no longer hard-code counts (`catalog`, `coverage`, `coverage_cli`, `conformance`, `external_module` now derive them from `BuiltinCheck::ALL`). `NOT_IN_CLASSIC` is gone; `BuiltinCheck::in_classic` replaces it, and a unit test pins the `classic` set to the six legacy checks. `tools/stamp-version.py` stamps a version onto fragments in `changelog.d/` and `patent-sweep.d/`, so lanes stop colliding on `CHANGELOG.md`, `Cargo.toml` and `docs/PATENT-SWEEP.md`. One-page briefs for the next rule packages are in `docs/lanes/`.
+
 ## 0.33.0 - 2026-11-03 (proposed, Breaking: a new default-on rule)
 
 **ARC-008 is built: indirection that earns nothing, advisory** (PM task 2026-11-01, ARC and MOD families; design note 3.10: shapes only). A new Rust rule on the package, default on in `extended` and `portfolio`, not in `classic`; Info at low confidence only, never gating.

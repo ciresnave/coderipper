@@ -392,31 +392,23 @@ fn rust_proofs() -> Vec<(String, Verdict)> {
 }
 
 #[test]
-fn the_rust_module_earns_eighteen_of_its_twenty_claims() {
+fn every_builtin_check_with_a_fixture_is_earned_and_the_two_without_are_claimed_not_earned() {
     let proofs = rust_proofs();
     let verdict = |id: &str| proofs.iter().find(|(r, _)| r == id).map(|(_, v)| v.clone());
-    assert_eq!(proofs.len(), 20, "one verdict per claimed rule: {proofs:?}");
-    for id in [
-        "reachability",
-        "unused-parameters",
-        "unused-return-values",
-        "version-consistency",
-        "OPS-011",
-        "MOD-005",
-        "MOD-004",
-        "ARC-001",
-        "ARC-003",
-        "ARC-006",
-        "ARC-007",
-        "ARC-002",
-        "MOD-003",
-        "MOD-002",
-        "MOD-010",
-        "MOD-001",
-        "MOD-008",
-        "ARC-008",
-    ] {
-        assert_eq!(verdict(id), Some(Verdict::Proven), "{id}");
+    assert_eq!(
+        proofs.len(),
+        coderipper::registered_checks().len(),
+        "one verdict per claimed rule: {proofs:?}"
+    );
+    assert!(
+        proofs.len() > 6,
+        "positive control: more than the legacy checks are claimed"
+    );
+    for (id, v) in &proofs {
+        if id == "ci-protection-presence" || id == "dependency-freshness" {
+            continue;
+        }
+        assert_eq!(*v, Verdict::Proven, "{id}");
     }
     // The positive control for 'proven' meaning anything: this claim has no fixture yet (its rule needs a GitHub repository,
     // a network fixture for a later step), so it is claimed but not earned.
