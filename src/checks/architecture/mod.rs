@@ -547,6 +547,8 @@ pub use modcycles::ModuleCyclesCheck;
 mod invariants;
 pub use invariants::InvariantFieldsCheck;
 mod modgraph;
+mod passthrough;
+pub use passthrough::PassThroughCheck;
 mod public_surface;
 pub use public_surface::PublicSurfaceCheck;
 mod volatile;

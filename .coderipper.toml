@@ -40,3 +40,9 @@ check = "MOD-002"
 file = "src/session.rs"
 symbol = "session,worktree"
 reason = "a real cycle, one concept in two files: `session` creates a throwaway worktree (`worktree::run_worktree_add`) and `worktree` holds the session's inner state (`session::SessionInner`) while it runs. The worktree functions taking the data they need instead of the inner state removes it; not done in the change that introduced the rule. Owner: coderipper lane. Remove this entry when `worktree` no longer names `session`."
+
+# MOD-005 (size and coupling outliers, advisory): the registry of the architecture-family checks.
+[[allow]]
+check = "MOD-005"
+file = "src/checks/architecture/mod.rs"
+reason = "the registry of the architecture-family checks (ARC-001 to ARC-007, MOD-001 to MOD-003, MOD-008, MOD-010 and their shared module graph): one `mod` declaration and one `pub use` per check, so the number of modules it names is the number of checks by construction, not accidental coupling (it reached the threshold of 14 when MOD-008 was added). Owner: coderipper lane. Revisit if it starts to hold logic beyond the ARC-001 component graph it also contains, or when the family is split into sub-directories."

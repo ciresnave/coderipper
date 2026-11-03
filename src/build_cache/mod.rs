@@ -344,13 +344,6 @@ fn toolchain_id(dir: &Path) -> String {
         )
 }
 
-/// [`acquire`] for a session: the same rules (the thread-local or process-wide configuration, the process-wide prune
-/// `Once`, never pruning the directory being acquired); the caller keeps the returned [`CacheDir`], and so the
-/// lock, for the whole run instead of one build.
-pub(crate) fn acquire_for_session(source_repo: &Path) -> CacheChoice {
-    acquire(source_repo)
-}
-
 /// The cache for builds of the repository `source_repo` (the *source*, not the throwaway checkout).
 pub(crate) fn acquire(source_repo: &Path) -> CacheChoice {
     let Some(config) = current_config() else {
