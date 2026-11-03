@@ -242,7 +242,16 @@ struct Collect {
     documented: usize,
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
-    methods: BTreeMap<String, Vec<(String, bool, bool, String, usize)>>,
+    methods: BTreeMap<String, Vec<MethodFact>>,
+}
+
+/// A public inherent function of a type.
+struct MethodFact {
+    name: String,
+    documented: bool,
+    hidden: bool,
+    file: String,
+    line: usize,
 }
 
 fn is_hidden(attrs: &[syn::Attribute]) -> bool {
@@ -321,18 +330,18 @@ pub(crate) fn surface(
     totals.documented = col.documented;
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
-        for (name, documented, hidden, file, line) in col.methods.get(n).into_iter().flatten() {
-            if *hidden {
+        for m in col.methods.get(n).into_iter().flatten() {
+            if m.hidden {
                 continue;
             }
-            if *documented {
+            if m.documented {
                 totals.documented += 1;
             } else {
                 totals.undocumented.push(Undoc {
-                    name: format!("{n}::{name}"),
+                    name: format!("{n}::{}", m.name),
                     kind: "method",
-                    file: file.clone(),
-                    line: *line,
+                    file: m.file.clone(),
+                    line: m.line,
                 });
             }
         }
@@ -573,13 +582,13 @@ impl Walker<'_> {
                                                 .methods
                                                 .entry(last.ident.to_string())
                                                 .or_default()
-                                                .push((
-                                                    f.sig.ident.to_string(),
-                                                    is_documented(&f.attrs),
-                                                    is_hidden(&f.attrs),
-                                                    shown.to_string(),
-                                                    f.sig.ident.span().start().line,
-                                                ));
+                                                .push(MethodFact {
+                                                    name: f.sig.ident.to_string(),
+                                                    documented: is_documented(&f.attrs),
+                                                    hidden: is_hidden(&f.attrs),
+                                                    file: shown.to_string(),
+                                                    line: f.sig.ident.span().start().line,
+                                                });
                                         }
                                     }
                                 }
