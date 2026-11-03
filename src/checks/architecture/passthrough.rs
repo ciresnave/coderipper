@@ -8,7 +8,8 @@
 //! order, unchanged: `fn f(a, b) -> R { g(a, b) }`, `fn f(&self, a) -> R { self.g(a) }` (an alias), `fn f(&self, a) -> R { g(&self.x, a) }`. The call
 //! may be wrapped in `Ok(..)`, `Some(..)`, `?`, `.await` or `.into()`, and written as `return ..;`. The finding names the pair
 //! (wrapper, callee). At least one parameter besides `self` must be forwarded: a function with none is delegation to a field or a
-//! constant, which this rule does not call a wrapper. **A call on a field is not a pass-through**: `fn add(&mut self, r: R) { self.rules.push(r) }` and
+//! constant, which this rule does not call a wrapper. **A constructor is not a wrapper**: `Self(x)`, `Wrapper(x)` and `Self::Variant(x)` (a callee whose
+//! last segment starts with a capital) build a value. **A call on a field is not a pass-through**: `fn add(&mut self, r: R) { self.rules.push(r) }` and
 //! `fn query(&self, q: Q) -> R { self.storage.query(q) }` hide the field behind an interface (information hiding, a facade over a manager), so
 //! they are not what this rule is for. On our own code a first version that counted them flagged 198 methods in one repository, nearly
 //! all of which were documented facade or accessor methods of exactly that kind.
@@ -150,7 +151,14 @@ fn forwarded_callee(block: &syn::Block, params: &[String], has_self: bool) -> Op
             } else {
                 &args
             };
-            (rest.len() == params.len()
+            // `Self(x)`, `Wrapper(x)` and `Self::Variant(x)` build a value: a constructor, not a layer over another function
+            let builds_a_value = fp
+                .path
+                .segments
+                .last()
+                .is_some_and(|s| s.ident.to_string().starts_with(char::is_uppercase));
+            (!builds_a_value
+                && rest.len() == params.len()
                 && rest.iter().zip(params).all(|(a, p)| forwards_ident(a, p)))
             .then(|| fp.path.to_token_stream().to_string().replace(' ', ""))
         }

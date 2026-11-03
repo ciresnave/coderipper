@@ -125,3 +125,17 @@ fn one_info_finding_per_wrapper_names_the_pair_and_the_reasons_to_keep_it() {
 fn an_unparsable_file_is_an_error_never_a_smaller_count() {
     assert!(collect(&[file("src/a.rs", "fn (")]).is_err());
 }
+
+#[test]
+fn a_tuple_struct_or_variant_constructor_is_not_a_wrapper() {
+    let w = wrappers(
+        "struct W(Vec<u8>);
+impl W { pub fn new(v: Vec<u8>) -> Self { Self(v) } }
+enum E { A(u8) }
+impl E { pub fn a(v: u8) -> Self { Self::A(v) } pub fn b(v: u8) -> Self { make(v) } }
+fn c(v: u8) -> W2 { W2(v) }
+",
+    );
+    // only the call of a function named in lower case is a wrapper
+    assert_eq!(names(&w), ["E::b->make"]);
+}

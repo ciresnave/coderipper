@@ -75,7 +75,8 @@ impl Session {
     pub(crate) fn open(source_repo: &Path) -> anyhow::Result<Session> {
         let identity = build_cache::git_common_dir(source_repo)?;
         let (cache, target, cache_dir, temp_target) =
-            match build_cache::acquire_for_session(source_repo) {
+            // a session keeps the returned `CacheDir`, and so the lock, for the whole run instead of one build
+            match build_cache::acquire(source_repo) {
                 CacheChoice::Shared(dir) => {
                     let target = dir.path.join("target");
                     let cache_dir = dir.path.clone();

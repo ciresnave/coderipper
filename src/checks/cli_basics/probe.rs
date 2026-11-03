@@ -284,14 +284,14 @@ fn changes(
             None => said.push(format!(
                 "created {}{}",
                 if entry.0 { "directory " } else { "file " },
-                shown_path(path)
+                first_line(path)
             )),
-            Some(old) if old != entry => said.push(format!("changed {}", shown_path(path))),
+            Some(old) if old != entry => said.push(format!("changed {}", first_line(path))),
             Some(_) => {}
         }
     }
     for path in before.keys().filter(|p| !after.contains_key(*p)) {
-        said.push(format!("removed {}", shown_path(path)));
+        said.push(format!("removed {}", first_line(path)));
     }
     if said.is_empty() {
         return String::new();
@@ -304,11 +304,6 @@ fn changes(
         String::new()
     };
     format!("it touched its surroundings: {}{more}", said.join(", "))
-}
-
-/// A sandbox-relative path, safe to print (the name was chosen by the binary).
-fn shown_path(path: &str) -> String {
-    first_line(path)
 }
 
 fn run(exe: &Path, args: &[&str], sandbox: &Sandbox, timeout: Duration) -> Ended {
