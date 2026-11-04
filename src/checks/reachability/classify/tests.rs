@@ -4,6 +4,7 @@ use super::*;
 fn facts(api: &[(&str, usize)], tests: &[&str]) -> Facts {
     Facts {
         api: api.iter().map(|(f, l)| ((*f).to_string(), *l)).collect(),
+        exported: api.iter().map(|(f, l)| ((*f).to_string(), *l)).collect(),
         test_idents: tests.iter().map(|s| (*s).to_string()).collect(),
     }
 }
@@ -106,5 +107,44 @@ fn test_idents_come_from_cfg_test_items_and_test_files_and_not_from_the_library(
     // names that only the library writes are not test identifiers
     for name in ["plain", "only_named_in_prod"] {
         assert!(!f.test_idents.contains(name), "{name}");
+    }
+}
+
+#[test]
+fn an_undocumented_exported_item_is_exported_and_a_documented_one_stays_library_api() {
+    let mut f = facts(&[("src/lib.rs", 4)], &[]);
+    f.exported.insert(("src/lib.rs".to_string(), 7));
+    assert_eq!(classify(&f, "src/lib.rs", 7, "c", true), Class::Exported);
+    assert_eq!(classify(&f, "src/lib.rs", 4, "c", true), Class::LibraryApi);
+    // controls: not written `pub`, or at a line the surface does not list
+    assert_eq!(classify(&f, "src/lib.rs", 7, "c", false), Class::Plain);
+    assert_eq!(classify(&f, "src/lib.rs", 8, "c", true), Class::Plain);
+}
+
+#[test]
+fn identifiers_come_from_fenced_doc_blocks_only() {
+    let mut out = BTreeSet::new();
+    doc_example_idents(
+        "/// Prose mentions prose_only.
+/// ```
+/// in_block(1);
+/// ```
+/// after_block
+fn f() {}
+//! ```
+//! inner_block();
+//! ```
+// ```
+// plain_comment_block
+// ```
+",
+        &mut out,
+    );
+    assert!(
+        out.contains("in_block") && out.contains("inner_block"),
+        "{out:?}"
+    );
+    for no in ["prose_only", "after_block", "plain_comment_block"] {
+        assert!(!out.contains(no), "{no}: {out:?}");
     }
 }
