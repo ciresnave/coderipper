@@ -1,0 +1,3 @@
+kind: Docs
+---
+**`docs/rules/REMAINING.md`: the catalog rules that have no check yet.** One row for each of the 184 catalog rules that no check of any kind covers (232 catalog rules, 20 `BuiltinCheck` rows, 19 in-process module checks, 9 delegated-tool rules, 48 built by some route), grouped by what a lane can do without a model, with the input each needs, the closest check to copy, a size guess, an advisory flag and a patent-sweep risk. It also records why the package-e brief's count (catalog minus `BuiltinCheck::ALL`, 212) was replaced by the accurate one, and recommends the next three packages. Documentation only; no behaviour changes.
