@@ -119,6 +119,9 @@ pub(crate) struct ConfigFile {
     /// `[mod010] inferred = true`: also report public structs that look invariant-bearing without being declared (see [`Mod010Settings`]).
     #[serde(default)]
     pub mod010: Option<Mod010Settings>,
+    /// `[mod006]`: the window and thresholds of `MOD-006`, divergent change (see [`Mod006Settings`]).
+    #[serde(default)]
+    pub mod006: Option<Mod006Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -252,6 +255,26 @@ pub(crate) struct Mod010Settings {
     /// invariant, 4 as wire-format parsers whose invariant is debatable and 4 as plain data records.
     #[serde(default)]
     pub inferred: bool,
+}
+
+/// `[mod006]`: the window and thresholds of `MOD-006`. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Mod006Settings {
+    /// How many of the newest non-merge commits to read (default 500).
+    pub window: Option<usize>,
+    /// The fewest commits a group of changes needs to count as its own group (default 3).
+    pub min_commits: Option<usize>,
+    /// A commit that touches more files than this is a bulk change (a rename, a format run, a release) and is left out (default 25).
+    pub max_files: Option<usize>,
+}
+
+/// The `[mod006]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn mod006_settings(text: &str) -> Mod006Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.mod006)
+        .unwrap_or_default()
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.

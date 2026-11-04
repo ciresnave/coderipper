@@ -104,6 +104,8 @@ builtin_checks! {
     PassThrough => MOD_008, true, false, PassThroughCheck;
     /// `ARC-008`.
     Layers => ARC_008, true, false, LayersCheck;
+    /// `MOD-006`.
+    DivergentChange => MOD_006, true, false, DivergentChangeCheck;
 }
 
 impl BuiltinCheck {

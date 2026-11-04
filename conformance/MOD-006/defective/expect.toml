@@ -1,0 +1,5 @@
+# `src/m.rs` was edited with `src/a.rs` in two commits and with `src/b.rs` in two others, and no commit touched a and b together:
+# two groups of commits that share no other file.
+[[expect]]
+rule = "MOD-006"
+file = "src/m.rs"
