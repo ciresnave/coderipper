@@ -6,11 +6,11 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
-## 0.39.0 - 2026-11-04 (proposed, Breaking: a new default-on rule)
+## 0.36.0 - 2026-11-04 (proposed, Breaking: a new default-on rule)
 
 **ARC-009 is built: architectural drift since the last release.** For each workspace crate, the module cycles (the count `MOD-002` reports) and the public surface (the sum `ARC-006` budgets) are read at `HEAD` and at the base, the newest `v<version>` tag that is not `HEAD` or `[arc009] base`, from the git object store with no checkout. **Low** when the cycles grew; **Info** when the surface grew by more than 25% and at least 10 items (`[arc009] surface_growth_percent`, `surface_min_items`). A repository with no release tag and no `base` gets "not run" in the coverage, never clean. Measured on eight of our repositories: 1 finding (httpant-server, a real new cycle). Instability margins and violations of declared layers over time are not compared yet. Allowlist `<crate>:cycles` or `<crate>:surface` with a reason.
 
-## 0.38.0 - 2026-11-04 (proposed, Breaking: a new default-on rule)
+## 0.35.0 - 2026-11-04 (proposed, Breaking: a new default-on rule)
 
 **MOD-006 is built: divergent change, from the committed history.** For each source file at `HEAD`, `git log` over the newest 500 non-merge commits (`[mod006] window`) is read, the commits that touched the file are joined when they touched a source file in common, and the file is reported (Info, low confidence, default on in `extended` and `portfolio`, never gating) when two or more groups of at least 3 commits (`min_commits`) result: it is edited together with sets of other files that never overlap. A commit touching more than 25 files (`max_files`), a file that over a fifth of the commits touch, a document edited with the file and a registry (`lib.rs`, `mod.rs`) are set aside and counted in a note. Measured on eight of our repositories: 1 finding at the defaults, 8 with `min_commits = 2`, 75 with `min_commits = 1`. Squash-merge history makes commits coarse; renames are not followed. Conformance fixtures can now carry a `.history` directory of numbered steps, each committed in order before the fixture. To accept a finding, allowlist the file path with a reason.
 

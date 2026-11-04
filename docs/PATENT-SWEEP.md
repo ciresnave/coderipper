@@ -696,9 +696,9 @@ A rule is added over 0.34, read from `src/checks/architecture/stability.rs`: `AR
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry date is Google Patents' estimate, not legal advice. Hits 1 to 75 and ideas 1 to 41 are unchanged by this rule. A due-diligence read, not legal advice.
 
-## Addendum: MOD-006 divergent change (proposed 0.38.0, 0.38 line, 2026-11-04)
+## Addendum: MOD-006 divergent change (proposed 0.35.0, 0.35 line, 2026-11-04)
 
-Version line covered by this addendum: **0.38** (0.38.0). One rule is added: `MOD-006` (divergent change), read from `src/checks/architecture/divergent.rs`. Swept 2026-11-04 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`, claims read with `tools/patent-claims.py`), **one model, unverified**.
+Version line covered by this addendum: **0.35** (0.35.0). One rule is added: `MOD-006` (divergent change), read from `src/checks/architecture/divergent.rs`. Swept 2026-11-04 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`, claims read with `tools/patent-claims.py`), **one model, unverified**.
 
 **Idea 43 (`MOD-006`).** From the committed history of a repository, for each module read the commits that touched it, take the other files each commit touched, join those files into groups that share a commit, and report a module whose commits fall into two or more groups with no file in common, at Info and low confidence.
 
@@ -710,9 +710,9 @@ Version line covered by this addendum: **0.38** (0.38.0). One rule is added: `MO
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
 
-## Addendum: ARC-009 architectural drift (proposed 0.39.0, 0.39 line, 2026-11-04)
+## Addendum: ARC-009 architectural drift (proposed 0.36.0, 0.36 line, 2026-11-04)
 
-Version line covered by this addendum: **0.39** (0.39.0). One rule is added: `ARC-009` (architectural drift), read from `src/checks/architecture/drift.rs`. Swept 2026-11-04 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`, claims read with `tools/patent-claims.py`), **one model, unverified**.
+Version line covered by this addendum: **0.36** (0.36.0). One rule is added: `ARC-009` (architectural drift), read from `src/checks/architecture/drift.rs`. Swept 2026-11-04 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`, claims read with `tools/patent-claims.py`), **one model, unverified**.
 
 **Idea 44 (`ARC-009`).** For each crate of a repository, read the module graph and the public items from the source stored in the version-control object store at the newest release tag and at the current revision, without a checkout, and report a crate whose module cycles increased or whose public surface grew past a percentage and an item count.
 
