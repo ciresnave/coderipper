@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.33.8 - 2026-11-04 (proposed, Fix)
+
+**portfolio.yml installs the newest published release.** `CODERIPPER_VERSION` was 0.10.0 while crates.io has 0.20.1, so the scheduled release-drift check was red and every fix since was unreachable from callers. Pinned to 0.20.1. Callers pin `portfolio.yml` by commit SHA, so `ci.yml` is repinned to the merge commit of this change in a follow-up (a SHA on main exists only after the merge). The 0.21 to 0.33 line is not published; a publish batch repins again.
+
 ## 0.33.7 - 2026-11-04 (proposed, Docs)
 
 **docs/RIG-0E.md: the first precision sample of a real third-party workspace (0xPlaygrounds/rig at 44f8d5b8).** 329 findings judged (up to 30 per rule); `reachability` is the weak rule (23 of 30 false), and the defects it found in CodeRipper are scheduled as separate fixes. Read-only; nothing was posted upstream.
