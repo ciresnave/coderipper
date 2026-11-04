@@ -407,7 +407,13 @@ fn t() {}
         ] {
             let (found, _) = run(src);
             assert_eq!(found.len(), 1, "{src}");
-            assert!(found[0].detail.contains("A comment beside it is not a reason"), "{}", found[0].detail);
+            assert!(
+                found[0]
+                    .detail
+                    .contains("A comment beside it is not a reason"),
+                "{}",
+                found[0].detail
+            );
         }
     }
 
