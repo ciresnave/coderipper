@@ -8,8 +8,11 @@
 //!   documentation: it is part of the interface of a library, whose callers are outside this repository, and removing it is a breaking
 //!   change. (The same reading of the public surface as `ARC-006` and `MOD-001`: `architecture/api_budget.rs`.) A `pub` item that is
 //!   undocumented, or reachable through no `pub` module, stays Medium.
+//! - **Exported.** Written `pub` and reachable through `pub` modules (or a `pub use`) from the library root, but **undocumented** (a
+//!   provider's model-id constants, say). Callers outside this repository import it just the same, so it is Info too; it is not a root
+//!   of the "what it reaches is live" rescue (that stays with documented items, whose author said they are interface).
 //! - **Test-only.** The item's name appears in the crate's own test code (a `#[cfg(test)]` item, or a file named `tests.rs`, `test.rs`,
-//!   `*_test.rs`, `*_tests.rs`) and `rustc` finds no live caller in the library build, which does not compile that code (a caller that
+//!   `*_test.rs`, `*_tests.rs`) or in a documentation example (a fenced block in a `///` or `//!` comment) and `rustc` finds no live caller in the library build, which does not compile that code (a caller that
 //!   is itself dead does not count, so the name may also appear in library code that nothing reaches).
 //!
 //! Everything else stays Medium. `[reachability] public_api` declarations work as before (the allowlist is applied by the host after the
@@ -32,7 +35,9 @@ use std::path::Path;
 pub(super) struct Facts {
     /// `(file, line)` of the public, documented declarations and inherent functions reachable through `pub` modules.
     pub api: BTreeSet<(String, usize)>,
-    /// Identifiers written in test code.
+    /// `(file, line)` of every public declaration reachable through `pub` modules, documented or not.
+    pub exported: BTreeSet<(String, usize)>,
+    /// Identifiers written in test code and in documentation examples.
     pub test_idents: BTreeSet<String>,
 }
 
@@ -40,6 +45,8 @@ pub(super) struct Facts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Class {
     LibraryApi,
+    /// Public through `pub` modules but undocumented.
+    Exported,
     TestOnly,
     Plain,
 }
@@ -81,6 +88,31 @@ fn idents_of_test_items(items: &[syn::Item], out: &mut BTreeSet<String>) {
     }
 }
 
+/// Identifiers inside fenced code blocks of `///` and `//!` comments (the documentation examples `cargo test --doc` compiles).
+fn doc_example_idents(text: &str, out: &mut BTreeSet<String>) {
+    let mut open = false;
+    for line in text.lines() {
+        let t = line.trim_start();
+        let Some(body) = t.strip_prefix("///").or_else(|| t.strip_prefix("//!")) else {
+            open = false;
+            continue;
+        };
+        let body = body.trim_start();
+        if body.starts_with("```") {
+            open = !open;
+        } else if open {
+            let mut cur = String::new();
+            for c in body.chars().chain(std::iter::once(' ')) {
+                if c.is_alphanumeric() || c == '_' {
+                    cur.push(c);
+                } else if !cur.is_empty() {
+                    out.insert(std::mem::take(&mut cur));
+                }
+            }
+        }
+    }
+}
+
 /// The facts of the package at `root` (its tracked sources at `HEAD`). `has_lib`: whether the package has a library; without one there
 /// is no public surface to speak of.
 pub(super) fn read_facts(root: &Path, has_lib: bool) -> anyhow::Result<Facts> {
@@ -89,8 +121,10 @@ pub(super) fn read_facts(root: &Path, has_lib: bool) -> anyhow::Result<Facts> {
     if has_lib {
         let (totals, _) = surface(&files, "", &BTreeSet::new())?;
         facts.api = totals.documented_sites;
+        facts.exported = totals.public_sites;
     }
     for f in &files {
+        doc_example_idents(&f.text, &mut facts.test_idents);
         let parsed = syn::parse_file(&f.text).map_err(|e| {
             anyhow::anyhow!(
                 "could not parse {} with syn ({e}); refusing to guess",
@@ -115,6 +149,8 @@ pub(super) fn read_facts(root: &Path, has_lib: bool) -> anyhow::Result<Facts> {
 pub(super) fn classify(f: &Facts, file: &str, line: u32, symbol: &str, written_pub: bool) -> Class {
     if written_pub && f.api.contains(&(file.to_string(), line as usize)) {
         Class::LibraryApi
+    } else if written_pub && f.exported.contains(&(file.to_string(), line as usize)) {
+        Class::Exported
     } else if f.test_idents.contains(symbol) {
         Class::TestOnly
     } else {
