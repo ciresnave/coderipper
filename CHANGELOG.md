@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.33.2 - 2026-11-03 (proposed, Fix)
+
+**RDB-008 commented-out code no longer reads layout notation as code.** A run of whole-line comments now counts as commented-out code only when at
+least one line is strongly code-shaped (ends in `;`, `{` or `}`, or opens with a statement keyword). Lines that merely end in `(`, `,` or `)` are how
+dispatch tables, layout algebra and shape comments read too, so a run made only of them is documentation. The check stays opt-in
+(`[rdb008] commented_out_code = true`). Measured on NVIDIA/cutlass at v4.8.1 (7978 files at HEAD, opt-in on): 49 files before, 29 after; of 7 dropped files
+sampled, 6 were notation or documentation and 1 (`python/cutlass_library/generator.py`, tuple-literal rows) was real commented-out code that is now missed.
+
 ## 0.33.1 - 2026-11-03 (proposed, Fix)
 
 **Parallel-lane preparation, no behaviour change.** `src/builtin.rs` is now one table (`builtin_checks!`): a new check is one row, and the registration order, the proven set and the `classic` membership are derived from it, so five test files no longer hard-code counts (`catalog`, `coverage`, `coverage_cli`, `conformance`, `external_module` now derive them from `BuiltinCheck::ALL`). `NOT_IN_CLASSIC` is gone; `BuiltinCheck::in_classic` replaces it, and a unit test pins the `classic` set to the six legacy checks. `tools/stamp-version.py` stamps a version onto fragments in `changelog.d/` and `patent-sweep.d/`, so lanes stop colliding on `CHANGELOG.md`, `Cargo.toml` and `docs/PATENT-SWEEP.md`. One-page briefs for the next rule packages are in `docs/lanes/`.
