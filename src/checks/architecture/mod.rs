@@ -561,6 +561,8 @@ pub(crate) mod api_budget;
 pub use api_budget::ApiBudgetCheck;
 mod owns_data;
 pub use owns_data::DataOwnershipCheck;
+mod stability;
+pub use stability::StabilityCheck;
 
 #[cfg(test)]
 mod tests;
