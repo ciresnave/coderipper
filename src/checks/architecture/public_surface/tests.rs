@@ -157,15 +157,27 @@ fn one_gap_in_a_large_surface_is_a_valid_finding_not_an_absence_claim() {
     // Rig's rig-tools: 1 of 142 undocumented rounds to 0%, and the bare word `0` made `Finding::validate` refuse the finding.
     let mut src = String::new();
     for i in 0..141 {
-        src.push_str(&format!("/// F{i}.
+        src.push_str(&format!(
+            "/// F{i}.
 pub fn f{i}() {{}}
-"));
+"
+        ));
     }
-    src.push_str("pub fn gap() {}
-");
+    src.push_str(
+        "pub fn gap() {}
+",
+    );
     let found = judge(&lib(&src), &PARAMS, "p");
     assert_eq!(found.len(), 1);
-    assert!(found[0].summary.contains("1 of 142"), "{}", found[0].summary);
-    assert!(found[0].summary.contains("under 1%"), "{}", found[0].summary);
+    assert!(
+        found[0].summary.contains("1 of 142"),
+        "{}",
+        found[0].summary
+    );
+    assert!(
+        found[0].summary.contains("under 1%"),
+        "{}",
+        found[0].summary
+    );
     found[0].clone().validate().expect("not an absence claim");
 }
