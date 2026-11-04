@@ -106,6 +106,8 @@ builtin_checks! {
     Layers => ARC_008, true, false, LayersCheck;
     /// `ARC-005`.
     Stability => ARC_005, true, false, StabilityCheck;
+    /// `MOD-006`.
+    DivergentChange => MOD_006, true, false, DivergentChangeCheck;
 }
 
 impl BuiltinCheck {

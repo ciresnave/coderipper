@@ -1,0 +1,3 @@
+# MOD-006 reads the history; two commits are enough to make a group in this tiny repository.
+[mod006]
+min_commits = 2

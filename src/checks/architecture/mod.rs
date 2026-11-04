@@ -548,6 +548,8 @@ mod invariants;
 pub use invariants::InvariantFieldsCheck;
 mod layers;
 pub use layers::LayersCheck;
+mod divergent;
+pub use divergent::DivergentChangeCheck;
 mod modgraph;
 mod passthrough;
 pub use passthrough::PassThroughCheck;
