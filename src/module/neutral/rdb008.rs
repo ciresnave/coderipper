@@ -199,17 +199,17 @@ const MIN_RUN: usize = 3;
 
 /// Whether comment text `t` (one whole-line comment) looks like a line of code rather than prose: it ends in `;`, `{` or `}`, or opens
 /// with a statement keyword and does not read as a sentence.
-fn code_shaped(t: &str, family: Family) -> bool {
+fn code_shaped(t: &str, family: Family) -> Shape {
     let t = t.trim();
     if t.is_empty() || t.starts_with(['/', '!', '*']) {
-        return false;
+        return Shape::No;
     }
     let continued = t.starts_with(|c: char| c.is_alphabetic() || c == '.')
         && t.ends_with(['(', ',', ')'])
         && (t.contains('(') || t.contains("::") || t.contains("=>"))
         && !t.contains(". ");
-    if t.ends_with(';') || t.ends_with('{') || t == "}" || continued {
-        return true;
+    if t.ends_with(';') || t.ends_with('{') || t == "}" {
+        return Shape::Strong;
     }
     let keywords: &[&str] = match family {
         Family::C => &[
@@ -218,9 +218,25 @@ fn code_shaped(t: &str, family: Family) -> bool {
         Family::Hash => &["def ", "import ", "from ", "return ", "self.", "print("],
         Family::Dash => &[],
     };
-    keywords.iter().any(|k| t.starts_with(k))
+    if keywords.iter().any(|k| t.starts_with(k))
         && !t.ends_with(['.', ':', '?'])
         && (t.contains('(') || t.contains('=') || t.contains("::"))
+    {
+        Shape::Strong
+    } else if continued {
+        Shape::Continued
+    } else {
+        Shape::No
+    }
+}
+
+/// How a comment line reads. `Continued` (a line ending in `(`, `,` or `)`) is also how layout notation, dispatch tables and shape comments
+/// read, so a run needs at least one `Strong` line (a terminator or a statement keyword) to count as code.
+#[derive(Clone, Copy, PartialEq)]
+enum Shape {
+    No,
+    Continued,
+    Strong,
 }
 
 /// The 1-based first lines of runs of `MIN_RUN` or more consecutive whole-line comments that are all code-shaped. Only C-like and
@@ -237,14 +253,15 @@ fn commented_out_runs(path: &str, text: &str) -> Vec<u32> {
     let mut out = Vec::new();
     // A block is a run of consecutive whole-line comments. It is commented-out code when it holds MIN_RUN or more code-shaped lines and at
     // least three quarters of its non-blank lines are code-shaped; a block that is mostly prose and quotes code to explain it is not.
-    let (mut first_code, mut code, mut prose) = (0usize, 0usize, 0usize);
+    let (mut first_code, mut code, mut prose, mut strong) = (0usize, 0usize, 0usize, 0usize);
     for (i, line) in text.lines().chain(std::iter::once("")).enumerate() {
         match line.trim_start().strip_prefix(marker) {
-            Some(b) if code_shaped(b, family) => {
+            Some(b) if code_shaped(b, family) != Shape::No => {
                 if code == 0 {
                     first_code = i + 1;
                 }
                 code += 1;
+                strong += usize::from(code_shaped(b, family) == Shape::Strong);
             }
             Some(b) => {
                 if !b.trim().is_empty() {
@@ -252,10 +269,10 @@ fn commented_out_runs(path: &str, text: &str) -> Vec<u32> {
                 }
             }
             None => {
-                if code >= MIN_RUN && code * 4 >= (code + prose) * 3 {
+                if code >= MIN_RUN && strong > 0 && code * 4 >= (code + prose) * 3 {
                     out.push(u32::try_from(first_code).unwrap_or(u32::MAX));
                 }
-                (code, prose) = (0, 0);
+                (code, prose, strong) = (0, 0, 0);
             }
         }
     }
@@ -383,6 +400,17 @@ mod tests {
             vec![1]
         );
         assert!(commented_out_runs("a.toml", "# a = 1;\n# b = 2;\n# c = 3;\n").is_empty());
+    }
+
+    #[test]
+    fn layout_notation_and_shape_comments_are_not_commented_out_code() {
+        // Lines that only end in `)` or `,` read as notation (dispatch tables, layouts, shapes) unless a run also holds a strong code line.
+        let notation = "// Dispatch [1]: (V) x (V) => (V)\n// Dispatch [2]: (M) x (N) => (M,N)\n// Dispatch [3]: (M,K) x (N,K) => (M,N)\n";
+        assert!(commented_out_runs("a.hpp", notation).is_empty());
+        let shapes = "// tAsA : (Copy,#Copy),MMA_Rest, SmemStages\n// tBsB : (Copy,#Copy),MMA_Rest, SmemStages\n// tCsC : (Copy,#Copy),MMA_Rest, SmemStages\n";
+        assert!(commented_out_runs("a.hpp", shapes).is_empty());
+        let code = "// foo(a,\n// bar(b),\n// baz(c);\n";
+        assert_eq!(commented_out_runs("a.hpp", code), vec![1]);
     }
 
     #[test]
