@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.33.3 - 2026-11-03 (proposed, Docs)
+
+**CONTRIBUTING.md, docs/DIRECTORY.md, docs/FILE-FORMATS.md and the logo; the README no longer says CodeRipper audits only Rust.** The README, the
+`lib.rs` crate docs and the `--help` summary now say what is true: CodeRipper audits a project in any language it holds, started with Rust, and
+reports a rule that does not cover a project's language as *not run here*. The three new documents were checked field by field against
+`src/finding.rs`, `src/catalog.rs`, `src/allowlist.rs` and `src/conformance.rs`. The logo master is `docs/assets/coderipper-logo-claw.png`
+(1600x1600) with a `.webp` export that the README shows. The `Cargo.toml` description still says "a Rust project" (a lane may not edit it): the PM
+is asked to change it when the version is stamped.
+
 ## 0.33.2 - 2026-11-03 (proposed, Fix)
 
 **RDB-008 commented-out code no longer reads layout notation as code.** A run of whole-line comments now counts as commented-out code only when at
