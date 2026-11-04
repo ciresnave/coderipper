@@ -104,6 +104,8 @@ builtin_checks! {
     PassThrough => MOD_008, true, false, PassThroughCheck;
     /// `ARC-008`.
     Layers => ARC_008, true, false, LayersCheck;
+    /// `ARC-005`.
+    Stability => ARC_005, true, false, StabilityCheck;
     /// `MOD-006`.
     DivergentChange => MOD_006, true, false, DivergentChangeCheck;
     /// `ARC-009`.

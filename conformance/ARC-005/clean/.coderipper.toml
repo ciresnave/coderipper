@@ -1,0 +1,26 @@
+[architecture]
+style = "modular-monolith"
+
+[[architecture.component]]
+name = "x"
+paths = ["src/x.rs"]
+
+[[architecture.component]]
+name = "y"
+paths = ["src/y.rs"]
+
+[[architecture.component]]
+name = "a"
+paths = ["src/a.rs"]
+
+[[architecture.component]]
+name = "b"
+paths = ["src/b.rs"]
+
+[[architecture.component]]
+name = "p"
+paths = ["src/p.rs", "src/lib.rs"]
+
+[[architecture.component]]
+name = "q"
+paths = ["src/q.rs"]
