@@ -106,6 +106,8 @@ builtin_checks! {
     Layers => ARC_008, true, false, LayersCheck;
     /// `ARC-005`.
     Stability => ARC_005, true, false, StabilityCheck;
+    /// `ARC-004`.
+    InfraSignatures => ARC_004, true, false, InfraSignatureCheck;
 }
 
 impl BuiltinCheck {

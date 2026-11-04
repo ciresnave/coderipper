@@ -546,6 +546,9 @@ mod modcycles;
 pub use modcycles::ModuleCyclesCheck;
 mod invariants;
 pub use invariants::InvariantFieldsCheck;
+mod infra_signatures;
+pub use infra_signatures::InfraSignatureCheck;
+
 mod layers;
 pub use layers::LayersCheck;
 mod modgraph;

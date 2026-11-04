@@ -122,6 +122,9 @@ pub(crate) struct ConfigFile {
     /// `[arc005] min_margin`: how much less stable the depended-on component must be before `ARC-005` reports the edge (see [`Arc005Settings`]).
     #[serde(default)]
     pub arc005: Option<Arc005Settings>,
+    /// `[arc004] patterns`: more infrastructure types `ARC-004` looks for in policy signatures (see [`Arc004Settings`]).
+    #[serde(default)]
+    pub arc004: Option<Arc004Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -282,6 +285,25 @@ pub(crate) fn arc005_min_margin(text: &str) -> anyhow::Result<Option<f64>> {
         "{FILE_NAME}: [arc005] min_margin = {m} is outside (0, 1]"
     );
     Ok(Some(m))
+}
+
+/// `[arc004]`: what `ARC-004` treats as infrastructure besides `[architecture.volatile]` and the volatile components. Read from the
+/// repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc004Settings {
+    /// An entry with `::` is a path prefix (`sqlx::`, `axum::extract`); an entry without is a type name (`DbConn`), matched against the last
+    /// segment of the path a signature names after `use` paths are resolved.
+    #[serde(default)]
+    pub patterns: Vec<String>,
+}
+
+/// The `[arc004] patterns` of the repository's own `.coderipper.toml` (empty when there are none).
+pub(crate) fn arc004_patterns(root: &Path) -> anyhow::Result<Vec<String>> {
+    Ok(read_file(&root.join(FILE_NAME), false)?
+        .and_then(|f| f.arc004)
+        .map(|s| s.patterns)
+        .unwrap_or_default())
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.
