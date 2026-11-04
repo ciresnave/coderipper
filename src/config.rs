@@ -119,6 +119,9 @@ pub(crate) struct ConfigFile {
     /// `[mod010] inferred = true`: also report public structs that look invariant-bearing without being declared (see [`Mod010Settings`]).
     #[serde(default)]
     pub mod010: Option<Mod010Settings>,
+    /// `[arc005] min_margin`: how much less stable the depended-on component must be before `ARC-005` reports the edge (see [`Arc005Settings`]).
+    #[serde(default)]
+    pub arc005: Option<Arc005Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -252,6 +255,33 @@ pub(crate) struct Mod010Settings {
     /// invariant, 4 as wire-format parsers whose invariant is debatable and 4 as plain data records.
     #[serde(default)]
     pub inferred: bool,
+}
+
+/// `[arc005]`: the margin of `ARC-005`. Read from the repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc005Settings {
+    /// The least difference `I(depended-on) - I(dependent)` that is reported, in `(0, 1]`. Default 0.3.
+    #[serde(default)]
+    pub min_margin: Option<f64>,
+}
+
+/// The `[arc005] min_margin` the repository's `.coderipper.toml` text sets, `Ok(None)` when it sets none, an error when the value is not in
+/// `(0, 1]` (a margin of 0 would report every edge toward an equally unstable component). A file that does not parse is `Ok(None)` here (the
+/// run's own configuration load reports the error).
+pub(crate) fn arc005_min_margin(text: &str) -> anyhow::Result<Option<f64>> {
+    let Some(m) = ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc005)
+        .and_then(|s| s.min_margin)
+    else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        m > 0.0 && m <= 1.0,
+        "{FILE_NAME}: [arc005] min_margin = {m} is outside (0, 1]"
+    );
+    Ok(Some(m))
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.
