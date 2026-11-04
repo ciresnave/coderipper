@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.35.0 - 2026-11-04 (proposed, Breaking: a new default-on rule)
+
+**MOD-006 is built: divergent change, from the committed history.** For each source file at `HEAD`, `git log` over the newest 500 non-merge commits (`[mod006] window`) is read, the commits that touched the file are joined when they touched a source file in common, and the file is reported (Info, low confidence, default on in `extended` and `portfolio`, never gating) when two or more groups of at least 3 commits (`min_commits`) result: it is edited together with sets of other files that never overlap. A commit touching more than 25 files (`max_files`), a file that over a fifth of the commits touch, a document edited with the file and a registry (`lib.rs`, `mod.rs`) are set aside and counted in a note. Measured on eight of our repositories: 1 finding at the defaults, 8 with `min_commits = 2`, 75 with `min_commits = 1`. Squash-merge history makes commits coarse; renames are not followed. Conformance fixtures can now carry a `.history` directory of numbered steps, each committed in order before the fixture. To accept a finding, allowlist the file path with a reason.
+
 ## 0.33.9 - 2026-11-04 (proposed, Fix)
 
 **ci.yml calls portfolio.yml at the commit that installs 0.20.1** (was `ee9c395`, 0.9.24), so this repository's own portfolio job runs the newest published release rather than one from before many fixes.
