@@ -138,6 +138,34 @@ pub fn rescue(
     Ok(split)
 }
 
+/// Of the documented library entry points `roots` (names), those another entry point reaches. `foreign` and `members` are what the
+/// package's other targets and its dependent members mention. For each name the walk starts from everything else (the other roots'
+/// names included) and leaves that name out, so an entry point is "reached" only through a body that mentions it: an item that a
+/// documented entry point uses is not an item nothing calls. Names, as everywhere here: roots that share a name keep each other
+/// unreached (the name is left out of every walk).
+pub fn api_roots_reached(
+    roots: &BTreeSet<String>,
+    foreign: &BTreeSet<String>,
+    members: &BTreeSet<String>,
+    root: &Path,
+    lib_files: &BTreeSet<String>,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut graph = Graph::default();
+    for rel in lib_files {
+        graph.add_file(root, rel)?;
+    }
+    let mut out = BTreeSet::new();
+    for name in roots {
+        let mut seeds: BTreeSet<String> = foreign.union(members).cloned().collect();
+        seeds.extend(roots.iter().filter(|r| *r != name).cloned());
+        seeds.remove(name);
+        if graph.reachable_from(&seeds).contains(name) {
+            out.insert(name.clone());
+        }
+    }
+    Ok(out)
+}
+
 struct TraitImpl {
     /// Identifiers of the implemented type, minus the impl's own generic parameters.
     self_types: BTreeSet<String>,

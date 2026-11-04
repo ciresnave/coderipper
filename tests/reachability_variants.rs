@@ -183,3 +183,122 @@ fn a_second_item_on_one_line_keeps_the_pub_exemption_a_documented_limit() {
     let src = "pub fn first_on_line() {} pub fn second_on_line() {}\n";
     assert_eq!(reported(src), vec!["first_on_line"]);
 }
+
+#[test]
+fn what_a_documented_public_entry_point_reaches_is_live_and_the_entry_point_stays_reported() {
+    // Rig's rig-steel: a documented `pub` plugin whose `build` reaches a private helper, a constant and a handler. Nothing in the
+    // crate constructs the plugin (downstream does), so after the `pub` narrowing it looks dead and so does everything behind it.
+    let src = "pub trait Plugin { fn build(&self, out: &mut Vec<u32>); }
+/// Adds the helper tool.
+pub struct Entry;
+impl Plugin for Entry {
+    fn build(&self, out: &mut Vec<u32>) { out.push(HELPER_ID); install(out); }
+}
+const HELPER_ID: u32 = 7;
+fn install(out: &mut Vec<u32>) { out.push(deeper()); }
+fn deeper() -> u32 { 9 }
+";
+    assert_eq!(
+        reported(src),
+        ["Entry"],
+        "only the entry point is reported; what it reaches is live"
+    );
+}
+
+#[test]
+fn an_undocumented_public_entry_point_still_reports_what_only_it_reaches() {
+    // The control for the case above: without documentation the item is not declared interface (it stays Medium), and the
+    // chain behind it is still reported, so the rescue is not a blanket one.
+    let src = "pub struct Entry;
+impl Entry {
+    pub fn go(&self) { install(); }
+}
+fn install() { deeper(); }
+fn deeper() {}
+";
+    let got = reported(src);
+    assert!(got.contains(&"Entry::go".to_string()), "{got:?}");
+    assert!(got.contains(&"install".to_string()), "{got:?}");
+    assert!(got.contains(&"deeper".to_string()), "{got:?}");
+}
+
+#[test]
+fn a_dead_private_function_beside_a_documented_entry_point_is_still_reported() {
+    let src = "/// Documented API.
+pub fn entry() { used(); }
+fn used() {}
+fn dead_helper() {}
+";
+    let got = reported(src);
+    assert!(got.contains(&"dead_helper".to_string()), "{got:?}");
+    assert!(!got.contains(&"used".to_string()), "{got:?}");
+}
+
+#[test]
+fn known_limit_a_dead_item_sharing_a_documented_entry_points_name_is_hidden() {
+    // Matching is by bare name (see the module docs): the documented entry point `Entry::go` is a root, so an unrelated dead private
+    // `go` elsewhere is set aside with it. This pins the limit so a change that removes it (or widens it) has to update this test.
+    let src = "/// Documented API.
+pub struct Entry;
+impl Entry {
+    /// Runs.
+    pub fn go(&self) {}
+}
+mod elsewhere {
+    fn go() {}
+}
+";
+    let got = reported(src);
+    assert!(
+        got.contains(&"Entry::go".to_string()),
+        "the root is still reported: {got:?}"
+    );
+    assert!(
+        !got.iter()
+            .any(|s| s.ends_with("elsewhere::go") || s == "go"),
+        "LIMIT: the unrelated dead `go` is hidden by name: {got:?}"
+    );
+}
+
+#[test]
+fn control_the_same_dead_item_is_reported_when_no_entry_point_shares_its_name() {
+    let src = "/// Documented API.
+pub struct Entry;
+impl Entry {
+    /// Runs.
+    pub fn run(&self) {}
+}
+mod elsewhere {
+    fn go() {}
+}
+";
+    let got = reported(src);
+    assert!(
+        got.iter().any(|s| s.contains("go")),
+        "positive control: {got:?}"
+    );
+}
+
+#[test]
+fn a_documented_item_another_documented_entry_point_uses_is_not_reported() {
+    // Rig's corpus crates: a documented constant or method that a documented plugin's code uses is live for whoever calls the plugin;
+    // "documented library API with zero callers" was false of it. Only the outer entry point stays reported.
+    let src = "/// The entry point.
+pub fn entry() -> u32 { KEY + double(1) }
+/// Used by `entry`.
+pub const KEY: u32 = 3;
+/// Used by `entry`.
+pub fn double(x: u32) -> u32 { x * 2 }
+";
+    assert_eq!(reported(src), ["entry"]);
+}
+
+#[test]
+fn control_two_independent_documented_entry_points_are_both_reported() {
+    let src = "/// One.
+pub fn first() {}
+/// Two.
+pub fn second() {}
+";
+    assert_eq!(reported(src), ["first", "second"]);
+}

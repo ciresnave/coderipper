@@ -46,7 +46,7 @@ mod sentinel;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::worktree::RewrittenWorktree;
-use diagnostics::{collect_dead_code_in, Targets};
+use diagnostics::{collect_dead_code_in, DeadCodeHit, Targets};
 use foreign::{dependent_member_identifiers, foreign_identifiers, lib_module_files};
 use rescue::rescue;
 use rewriter::rewrite_pub_to_pub_crate;
@@ -202,26 +202,108 @@ impl Check for ReachabilityCheck {
         // far as this check can tell; set them aside, and everything they reach.
         // Items another workspace member that depends on this package names are live too (a member is
         // judged alone, so without this a library's API used by its sibling crates looks dead).
-        let (candidates, set_aside, by_members, dependents, only_from) = if has_lib {
+        // E8 facts: what the source says about each finding (public, documented library API; named only in the crate's tests).
+        let facts = classify::read_facts(&ctx.project_root, has_lib)?;
+        let (candidates, set_aside, by_members, dependents, only_from, by_api) = if has_lib {
             let lib_files = lib_module_files(&wt.root)?;
             let foreign = foreign_identifiers(&wt.root, &lib_files)?;
             let members = dependent_member_identifiers(&wt.root)?;
-            let split = rescue(
-                candidates,
+            let first = rescue(
+                candidates.clone(),
                 &foreign,
                 &members.identifiers,
                 &wt.root,
                 &lib_files,
             )?;
-            (
-                split.kept,
-                split.rescued.len(),
-                split.rescued_by_members,
-                members.names,
-                split.only_from,
-            )
+            // A documented `pub` item of the library is its interface: callers outside this repository reach whatever it reaches, so
+            // those items are live. Without this one public entry point (a `Plugin::build`, a constructor) with nothing calling it
+            // in the crate is reported together with everything only it reaches, and the advice to "remove those first" would be
+            // advice to delete the interface. The entry points themselves stay reported (Info).
+            let roots: Vec<DeadCodeHit> = first
+                .kept
+                .iter()
+                .filter(|h| {
+                    let written_pub = was_written_pub(&ctx.project_root, &wt.root, &h.file, h.line);
+                    classify::classify(&facts, &h.file, h.line, &h.symbol, written_pub)
+                        == classify::Class::LibraryApi
+                })
+                .cloned()
+                .collect();
+            if roots.is_empty() {
+                (
+                    first.kept,
+                    first.rescued.len(),
+                    first.rescued_by_members,
+                    members.names,
+                    first.only_from,
+                    0,
+                )
+            } else {
+                let mut foreign_and_api = foreign.clone();
+                foreign_and_api.extend(roots.iter().map(|h| h.symbol.clone()));
+                let second = rescue(
+                    candidates,
+                    &foreign_and_api,
+                    &members.identifiers,
+                    &wt.root,
+                    &lib_files,
+                )?;
+                let all_roots = roots.clone();
+                let is_root = |h: &DeadCodeHit| {
+                    all_roots
+                        .iter()
+                        .any(|r| r.file == h.file && r.line == h.line && r.symbol == h.symbol)
+                };
+                let by_api = second
+                    .rescued
+                    .len()
+                    .saturating_sub(first.rescued.len() + roots.len());
+                // A documented item that another documented entry point reaches is not "an item nothing calls" either: it is dropped.
+                let names: std::collections::BTreeSet<String> =
+                    roots.iter().map(|h| h.symbol.clone()).collect();
+                let reached = rescue::api_roots_reached(
+                    &names,
+                    &foreign,
+                    &members.identifiers,
+                    &wt.root,
+                    &lib_files,
+                )?;
+                let (dropped, roots): (Vec<DeadCodeHit>, Vec<DeadCodeHit>) =
+                    roots.into_iter().partition(|h| reached.contains(&h.symbol));
+                let by_api = by_api + dropped.len();
+                let mut kept = roots.clone();
+                kept.extend(second.kept.into_iter().filter(|h| !is_root(h)));
+                // the roots keep what they had; the others' origins come from the second pass
+                let mut only_from = second.only_from;
+                for r in &roots {
+                    let key = (r.file.clone(), r.line, r.symbol.clone());
+                    match first.only_from.get(&key) {
+                        Some(origin) => {
+                            only_from.insert(
+                                key,
+                                rescue::Origin {
+                                    from: origin.from.clone(),
+                                    cyclic: origin.cyclic,
+                                },
+                            );
+                        }
+                        None => {
+                            only_from.remove(&key);
+                        }
+                    }
+                }
+                kept.sort_by(|a, b| (&a.file, a.line).cmp(&(&b.file, b.line)));
+                (
+                    kept,
+                    first.rescued.len(),
+                    first.rescued_by_members,
+                    members.names,
+                    only_from,
+                    by_api,
+                )
+            }
         } else {
-            (candidates, 0, 0, Vec::new(), Default::default())
+            (candidates, 0, 0, Vec::new(), Default::default(), 0)
         };
         let by_members_note = if by_members == 0 {
             String::new()
@@ -246,6 +328,15 @@ impl Check for ReachabilityCheck {
             )
         };
 
+        let set_aside_note = if by_api == 0 {
+            set_aside_note
+        } else {
+            format!(
+                "{set_aside_note} {by_api} more were not reported because a documented `pub` item of the library that is reported \
+                 here reaches them: they are live for whoever calls that interface."
+            )
+        };
+
         let positive_control = format!(
             "this run's own per-run sentinel (a guaranteed-dead function, `{SENTINEL_SYMBOL}`, \
              injected into `{sentinel_file}` before this build) WAS detected as dead_code -- \
@@ -255,8 +346,6 @@ impl Check for ReachabilityCheck {
 
         // the subject is qualified (`S::new`), so same-named items in one file do not share an allowlist entry; the
         // rewrite keeps every line number, so the original file is indexed
-        // E8: what the source says about each finding (public, documented library API; named only in the crate's tests)
-        let facts = classify::read_facts(&ctx.project_root, has_lib)?;
         let mut qualifiers: std::collections::HashMap<String, crate::qualify::Qualifier> =
             std::collections::HashMap::new();
         let findings: Vec<Finding> = candidates
