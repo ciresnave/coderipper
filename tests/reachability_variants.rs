@@ -267,3 +267,27 @@ mod elsewhere {
     let got = reported(src);
     assert!(got.iter().any(|s| s.contains("go")), "positive control: {got:?}");
 }
+
+#[test]
+fn a_documented_item_another_documented_entry_point_uses_is_not_reported() {
+    // Rig's corpus crates: a documented constant or method that a documented plugin's code uses is live for whoever calls the plugin;
+    // "documented library API with zero callers" was false of it. Only the outer entry point stays reported.
+    let src = "/// The entry point.
+pub fn entry() -> u32 { KEY + double(1) }
+/// Used by `entry`.
+pub const KEY: u32 = 3;
+/// Used by `entry`.
+pub fn double(x: u32) -> u32 { x * 2 }
+";
+    assert_eq!(reported(src), ["entry"]);
+}
+
+#[test]
+fn control_two_independent_documented_entry_points_are_both_reported() {
+    let src = "/// One.
+pub fn first() {}
+/// Two.
+pub fn second() {}
+";
+    assert_eq!(reported(src), ["first", "second"]);
+}

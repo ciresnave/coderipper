@@ -248,8 +248,9 @@ impl Check for ReachabilityCheck {
                     &wt.root,
                     &lib_files,
                 )?;
+                let all_roots = roots.clone();
                 let is_root = |h: &DeadCodeHit| {
-                    roots
+                    all_roots
                         .iter()
                         .any(|r| r.file == h.file && r.line == h.line && r.symbol == h.symbol)
                 };
@@ -257,6 +258,20 @@ impl Check for ReachabilityCheck {
                     .rescued
                     .len()
                     .saturating_sub(first.rescued.len() + roots.len());
+                // A documented item that another documented entry point reaches is not "an item nothing calls" either: it is dropped.
+                let names: std::collections::BTreeSet<String> =
+                    roots.iter().map(|h| h.symbol.clone()).collect();
+                let reached = rescue::api_roots_reached(
+                    &names,
+                    &foreign,
+                    &members.identifiers,
+                    &wt.root,
+                    &lib_files,
+                )?;
+                let (dropped, roots): (Vec<DeadCodeHit>, Vec<DeadCodeHit>) = roots
+                    .into_iter()
+                    .partition(|h| reached.contains(&h.symbol));
+                let by_api = by_api + dropped.len();
                 let mut kept = roots.clone();
                 kept.extend(second.kept.into_iter().filter(|h| !is_root(h)));
                 // the roots keep what they had; the others' origins come from the second pass
