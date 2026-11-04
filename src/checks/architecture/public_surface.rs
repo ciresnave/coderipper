@@ -109,6 +109,12 @@ pub(crate) fn judge(t: &Totals, p: &Params, project: &str) -> Vec<Finding> {
         return Vec::new();
     }
     let share = missing * 100 / documentable;
+    // A share under 1% is written "under 1%": the bare word `0` in a summary reads as an absence claim (see `Finding::validate`).
+    let share_text = if share == 0 {
+        "under 1%".to_string()
+    } else {
+        format!("{share}%")
+    };
     let low = documentable >= p.min_items_for_low && share >= p.low_share_percent;
     let first = &t.undocumented[0];
     let shown = t
@@ -130,7 +136,7 @@ pub(crate) fn judge(t: &Totals, p: &Params, project: &str) -> Vec<Finding> {
         }),
         subject: Some(project.into()),
         summary: format!(
-            "{missing} of {documentable} public items lack documentation ({share}%), the first at {}:{}",
+            "{missing} of {documentable} public items lack documentation ({share_text}), the first at {}:{}",
             first.file, first.line
         ),
         detail: format!(
