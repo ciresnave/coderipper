@@ -122,6 +122,9 @@ pub(crate) struct ConfigFile {
     /// `[arc005] min_margin`: how much less stable the depended-on component must be before `ARC-005` reports the edge (see [`Arc005Settings`]).
     #[serde(default)]
     pub arc005: Option<Arc005Settings>,
+    /// `[mod009] min_hops`: how many struct-to-struct links in a row make a chain worth reporting (see [`Mod009Settings`]).
+    #[serde(default)]
+    pub mod009: Option<Mod009Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -282,6 +285,32 @@ pub(crate) fn arc005_min_margin(text: &str) -> anyhow::Result<Option<f64>> {
         "{FILE_NAME}: [arc005] min_margin = {m} is outside (0, 1]"
     );
     Ok(Some(m))
+}
+
+/// `[mod009]`: the depth of `MOD-009`. Read from the repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Mod009Settings {
+    /// The fewest struct-to-struct links in a row that are reported, at least 2.
+    #[serde(default)]
+    pub min_hops: Option<usize>,
+}
+
+/// The `[mod009] min_hops` the repository's `.coderipper.toml` text sets, `Ok(None)` when it sets none, an error when the value is below 2 (one
+/// hop is any field access). A file that does not parse is `Ok(None)` here (the run's own configuration load reports the error).
+pub(crate) fn mod009_min_hops(text: &str) -> anyhow::Result<Option<usize>> {
+    let Some(n) = ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.mod009)
+        .and_then(|s| s.min_hops)
+    else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        n >= 2,
+        "{FILE_NAME}: [mod009] min_hops = {n} is below 2 (one hop is any field access)"
+    );
+    Ok(Some(n))
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.

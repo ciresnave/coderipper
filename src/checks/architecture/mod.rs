@@ -561,6 +561,8 @@ mod owns_data;
 pub use owns_data::DataOwnershipCheck;
 mod stability;
 pub use stability::StabilityCheck;
+mod chains;
+pub use chains::ReachThroughCheck;
 
 #[cfg(test)]
 mod tests;
