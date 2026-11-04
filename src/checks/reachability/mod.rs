@@ -268,9 +268,8 @@ impl Check for ReachabilityCheck {
                     &wt.root,
                     &lib_files,
                 )?;
-                let (dropped, roots): (Vec<DeadCodeHit>, Vec<DeadCodeHit>) = roots
-                    .into_iter()
-                    .partition(|h| reached.contains(&h.symbol));
+                let (dropped, roots): (Vec<DeadCodeHit>, Vec<DeadCodeHit>) =
+                    roots.into_iter().partition(|h| reached.contains(&h.symbol));
                 let by_api = by_api + dropped.len();
                 let mut kept = roots.clone();
                 kept.extend(second.kept.into_iter().filter(|h| !is_root(h)));

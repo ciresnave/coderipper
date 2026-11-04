@@ -198,7 +198,11 @@ const HELPER_ID: u32 = 7;
 fn install(out: &mut Vec<u32>) { out.push(deeper()); }
 fn deeper() -> u32 { 9 }
 ";
-    assert_eq!(reported(src), ["Entry"], "only the entry point is reported; what it reaches is live");
+    assert_eq!(
+        reported(src),
+        ["Entry"],
+        "only the entry point is reported; what it reaches is live"
+    );
 }
 
 #[test]
@@ -245,9 +249,13 @@ mod elsewhere {
 }
 ";
     let got = reported(src);
-    assert!(got.contains(&"Entry::go".to_string()), "the root is still reported: {got:?}");
     assert!(
-        !got.iter().any(|s| s.ends_with("elsewhere::go") || s == "go"),
+        got.contains(&"Entry::go".to_string()),
+        "the root is still reported: {got:?}"
+    );
+    assert!(
+        !got.iter()
+            .any(|s| s.ends_with("elsewhere::go") || s == "go"),
         "LIMIT: the unrelated dead `go` is hidden by name: {got:?}"
     );
 }
@@ -265,7 +273,10 @@ mod elsewhere {
 }
 ";
     let got = reported(src);
-    assert!(got.iter().any(|s| s.contains("go")), "positive control: {got:?}");
+    assert!(
+        got.iter().any(|s| s.contains("go")),
+        "positive control: {got:?}"
+    );
 }
 
 #[test]
