@@ -2,6 +2,7 @@
 use crate::cargo_json::{build_all_targets, build_lib_only, CAP_LINTS};
 use std::path::Path;
 
+#[derive(Clone)]
 pub struct DeadCodeHit {
     pub file: String,
     pub line: u32,
