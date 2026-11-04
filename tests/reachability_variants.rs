@@ -229,3 +229,41 @@ fn dead_helper() {}
     assert!(got.contains(&"dead_helper".to_string()), "{got:?}");
     assert!(!got.contains(&"used".to_string()), "{got:?}");
 }
+
+#[test]
+fn known_limit_a_dead_item_sharing_a_documented_entry_points_name_is_hidden() {
+    // Matching is by bare name (see the module docs): the documented entry point `Entry::go` is a root, so an unrelated dead private
+    // `go` elsewhere is set aside with it. This pins the limit so a change that removes it (or widens it) has to update this test.
+    let src = "/// Documented API.
+pub struct Entry;
+impl Entry {
+    /// Runs.
+    pub fn go(&self) {}
+}
+mod elsewhere {
+    fn go() {}
+}
+";
+    let got = reported(src);
+    assert!(got.contains(&"Entry::go".to_string()), "the root is still reported: {got:?}");
+    assert!(
+        !got.iter().any(|s| s.ends_with("elsewhere::go") || s == "go"),
+        "LIMIT: the unrelated dead `go` is hidden by name: {got:?}"
+    );
+}
+
+#[test]
+fn control_the_same_dead_item_is_reported_when_no_entry_point_shares_its_name() {
+    let src = "/// Documented API.
+pub struct Entry;
+impl Entry {
+    /// Runs.
+    pub fn run(&self) {}
+}
+mod elsewhere {
+    fn go() {}
+}
+";
+    let got = reported(src);
+    assert!(got.iter().any(|s| s.contains("go")), "positive control: {got:?}");
+}
