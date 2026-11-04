@@ -1,0 +1,3 @@
+# Compare with the baseline commit (the fixture runner records it as origin/main); a real repository compares with its last release tag.
+[arc009]
+base = "origin/main"
