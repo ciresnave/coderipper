@@ -34,7 +34,7 @@ fn surface_growth_needs_both_the_share_and_the_item_count() {
     assert!(compare(m(0, 60), m(0, 40), b).is_empty());
 }
 
-fn git(dir: &std::path::Path, args: &[&str]) -> String {
+fn git(dir: &std::path::Path, args: &[&str]) {
     let out = std::process::Command::new("git")
         .args([
             "-c",
@@ -53,7 +53,6 @@ fn git(dir: &std::path::Path, args: &[&str]) -> String {
         "{args:?}: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
 fn write(dir: &std::path::Path, rel: &str, text: &str) {
