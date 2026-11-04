@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/ciresnave/coderipper/main/docs/assets/coderipper-logo-claw.webp" alt="CodeRipper: claw slashes over glowing circuitry" width="240"></p>
+<p align="center"><img src="docs/assets/coderipper-logo-claw.webp" alt="CodeRipper: claw slashes over glowing circuitry" width="240"></p>
 
 # CodeRipper
 
@@ -11,7 +11,7 @@ CodeRipper started with Rust and is built to audit interwoven projects in as man
 deepest checks (`reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`) read Rust, and the
 language-neutral rules (`--profile extended`) run on any repository. A rule that does not cover a project's language is
 reported as *not run here*, never as a failure. To contribute, see
-[CONTRIBUTING.md](https://github.com/ciresnave/coderipper/blob/main/CONTRIBUTING.md).
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 It is one engine with three faces: **a library**, **a command** (`coderipper`) that is also **a cargo subcommand**
 (`cargo coderipper`), and, planned, a hosted service for open-source projects (not part of this crate).
