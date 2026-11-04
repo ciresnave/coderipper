@@ -90,7 +90,7 @@ unjustified indirection (ARC-008) rather than reward ceremony.
 | ARC-009 | Architectural drift over time | H | catalog record; no check yet, needs history and waiver data |
 | ARC-010 | Changes respect recorded architectural intent | L | catalog record; no check yet, needs a model or human; advisory |
 | ARC-011 | Signs of a distributed monolith | H | catalog record; no check yet, needs a service graph, possibly several repositories |
-| ARC-012 | Construction only in composition roots | P | catalog record; no check yet, needs declared roots |
+| ARC-012 | Construction only in composition roots | A | check `ARC-012` (Rust, from the source with `syn`, advisory Medium at medium confidence; default on in `extended` and `portfolio`; reported as not run, never clean, when there is no `[architecture]` table, no `[architecture.composition] roots` and no `composition` component, no adapter or infrastructure component, or no policy component): in the crates of each policy component, outside the roots, `src/main.rs`, `src/bin/**` and test code, a struct literal or constructor-looking call (`new`, `default`, `open`, `connect`, `create`, `build`, `init`, `try_new`, `new_*`, `with_*`, `from_*`) of a struct declared in an adapter or infrastructure component that implements a port (a trait declared in the workspace, or one named in `[architecture.composition] ports`), resolved through `use` paths. One finding per site, subject `<component>:<crate>::<Type>`. Not seen: glob imports, aliases, macros, factory functions elsewhere, dependency containers (the second half of the catalog statement), module-path components |
 
 Classes: P parser-level facts, A needs a declared architecture, H needs history, L needs a
 language model.

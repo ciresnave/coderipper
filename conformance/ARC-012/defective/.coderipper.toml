@@ -1,0 +1,22 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+role = "policy"
+volatility = "stable"
+
+[[architecture.component]]
+name = "store"
+paths = ["store"]
+role = "adapter"
+volatility = "volatile"
+
+[[architecture.component]]
+name = "app"
+paths = ["app"]
+role = "composition"
+
+[architecture.composition]
+roots = ["app/src/main.rs"]

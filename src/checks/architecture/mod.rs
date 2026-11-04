@@ -546,6 +546,8 @@ mod modcycles;
 pub use modcycles::ModuleCyclesCheck;
 mod invariants;
 pub use invariants::InvariantFieldsCheck;
+mod composition;
+pub use composition::CompositionRootsCheck;
 mod layers;
 pub use layers::LayersCheck;
 mod divergent;

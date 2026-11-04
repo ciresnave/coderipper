@@ -1,0 +1,3 @@
+[[expect]]
+rule = "ARC-012"
+file = "core/src/lib.rs"

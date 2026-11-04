@@ -108,6 +108,8 @@ builtin_checks! {
     Stability => ARC_005, true, false, StabilityCheck;
     /// `MOD-006`.
     DivergentChange => MOD_006, true, false, DivergentChangeCheck;
+    /// `ARC-012`.
+    CompositionRoots => ARC_012, true, false, CompositionRootsCheck;
 }
 
 impl BuiltinCheck {
