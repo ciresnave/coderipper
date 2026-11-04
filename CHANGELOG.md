@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.33.5 - 2026-11-04 (proposed, Fix)
+
+**lint-suppression says that a comment beside the attribute is not a reason.** The rule is unchanged (only `reason = ".."` and `#[ignore = ".."]` count, as documented), but a reader who had written `#[allow(dead_code)] // why` was told only "has no reason". The finding's detail now names the attribute form and says a comment is not one. Found on the first third-party sweep (docs/RIG-0E.md), where the reviewer first took three such findings for false positives; the PM ruled them correct.
+
 ## 0.33.4 - 2026-11-04 (proposed, Fix)
 
 **MOD-001 no longer fails a run with an invalid finding when a large public surface has a single gap.** A share under 1% (1 of 142 undocumented items, found on rig-tools) was written `(0%)`, and the bare word `0` made `Finding::validate` take the summary for an absence claim without a positive control, so the finding was dropped with an error. It now reads `under 1%`. Found by the first sweep of a third-party workspace (docs/RIG-0E.md).

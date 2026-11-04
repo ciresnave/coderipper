@@ -269,17 +269,17 @@ fn describe(site: &Site) -> (String, String) {
         Kind::Allow(lints) if lints.iter().any(|l| l == "dead_code" || l == "unused") => (
             format!("{} has no reason", site.subject()),
             "Dead code is deleted, used, or gated with `#[cfg(test)]` / `#[cfg(feature = ..)]`; a suppression is the last resort. \
-             If it must stay, say why: `allow(dead_code, reason = \"..\")`."
+             If it must stay, say why in the attribute: `allow(dead_code, reason = \"..\")`. A comment beside it is not a reason."
                 .to_string(),
         ),
         Kind::Allow(_) => (
             format!("{} has no reason", site.subject()),
-            "Fix what the lint objects to; if the lint is wrong here, say why in the attribute: `allow(lint, reason = \"..\")`."
+            "Fix what the lint objects to; if the lint is wrong here, say why in the attribute: `allow(lint, reason = \"..\")`. A comment beside it is not a reason."
                 .to_string(),
         ),
         Kind::Ignore => (
             "#[ignore] has no reason".to_string(),
-            "An ignored test does not run in the default suite. Run it where it can (a scheduled or self-hosted job), or say where and why: `#[ignore = \"..\"]`."
+            "An ignored test does not run in the default suite. Run it where it can (a scheduled or self-hosted job), or say where and why in the attribute: `#[ignore = \"..\"]`. A comment beside it is not a reason."
                 .to_string(),
         ),
     }
@@ -389,6 +389,32 @@ mod tests {
             run("#[allow(dead_code, reason = \"kept for the linker\")]\nfn f() {}\n");
         assert!(found.is_empty());
         assert!(notes[0].contains("1 allow and 0 ignore"), "{notes:?}");
+    }
+
+    #[test]
+    fn the_finding_says_a_comment_is_not_a_reason() {
+        for src in [
+            "#[allow(unused)] // because
+fn f() {}
+",
+            "#[allow(dead_code)] // because
+fn f() {}
+",
+            "#[test]
+#[ignore] // because
+fn t() {}
+",
+        ] {
+            let (found, _) = run(src);
+            assert_eq!(found.len(), 1, "{src}");
+            assert!(
+                found[0]
+                    .detail
+                    .contains("A comment beside it is not a reason"),
+                "{}",
+                found[0].detail
+            );
+        }
     }
 
     #[test]
