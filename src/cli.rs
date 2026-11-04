@@ -64,7 +64,7 @@ impl Deny {
 #[command(
     name = "coderipper",
     version,
-    about = "Audits a Rust project for what clippy does not report — run it next to cargo clippy."
+    about = "Audits a project for what compilers and linters do not report; run it next to cargo clippy."
 )]
 struct Cli {
     /// Read exactly this configuration file in place of the system and user files (`/etc/coderipper/.coderipper.toml`,
