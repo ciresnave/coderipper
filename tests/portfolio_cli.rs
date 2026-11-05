@@ -422,11 +422,11 @@ public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
     sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
         .assert()
         .stdout(predicate::str::contains(
-            "[Medium/Medium] b — `g` has zero callers",
+            "[Info/Medium] b — `g` is an exported item of the library with zero callers",
         ))
-        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not())
+        .stdout(predicate::str::contains("[Info/Medium] a — `f`").not())
         .stdout(predicate::str::contains(
-            "[declared-public/Medium] a — `f` has zero callers",
+            "[declared-public/Info] a — `f` is an exported item of the library with zero callers",
         ));
     // a misspelt package name declares nothing and says so by name
     let repo = workspace_with_config(
@@ -437,7 +437,7 @@ public_api_crates = [{ crate = \"aa\", reason = \"published library\" }]
     sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
         .assert()
         .stdout(predicate::str::contains(
-            "[Medium/Medium] a — `f` has zero callers",
+            "[Info/Medium] a — `f` is an exported item of the library with zero callers",
         ))
         .stdout(predicate::str::contains("public_api_crates"))
         .stdout(predicate::str::contains("`aa`"));
@@ -472,14 +472,14 @@ public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
     at("a")
         .assert()
         .stdout(predicate::str::contains(
-            "[declared-public/Medium] a — `f` has zero callers",
+            "[declared-public/Info] a — `f` is an exported item of the library with zero callers",
         ))
-        .stdout(predicate::str::contains("[Medium/Medium] a — `f`").not());
+        .stdout(predicate::str::contains("[Info/Medium] a — `f`").not());
     // `b` is not declared: it keeps its finding, and is not told that another package's entry matched nothing
     at("b")
         .assert()
         .stdout(predicate::str::contains(
-            "[Medium/Medium] b — `g` has zero callers",
+            "[Info/Medium] b — `g` is an exported item of the library with zero callers",
         ))
         .stdout(predicate::str::contains("public_api_crates").not());
 }

@@ -321,6 +321,30 @@ fn judge_one(
 ) -> anyhow::Result<(Vec<String>, Vec<String>, Option<String>)> {
     let name = format!("{rule}/{}", kind.dir());
     let project = tempfile::tempdir()?;
+    // a rule that reads the history of the repository (MOD-006) needs more than one earlier commit: the fixture's `.history`
+    // directory holds numbered steps, each the whole project at that commit, committed in order before the baseline and the fixture
+    for step in history_steps(dir)? {
+        clear_worktree(project.path())?;
+        // stage the removal now, as for the baseline below: a file that keeps its size and timestamp from one step to the next would
+        // otherwise be taken for unchanged
+        if project.path().join(".git").exists() {
+            let staged = git_command(project.path())
+                .args(["add", "-A", "-f"])
+                .output()?;
+            anyhow::ensure!(
+                staged.status.success(),
+                "{name}: could not stage the removal before a history step: {}",
+                String::from_utf8_lossy(&staged.stderr).trim()
+            );
+        }
+        copy_tree(&step, project.path(), false)?;
+        git_commit_all(project.path()).with_context(|| {
+            format!(
+                "{name}: could not commit the history step {}",
+                step.display()
+            )
+        })?;
+    }
     if copy_baseline(dir, project.path())? {
         git_commit_all(project.path())
             .with_context(|| format!("{name}: could not commit the fixture's baseline"))?;
@@ -500,11 +524,31 @@ fn place(file: &str, line: Option<u32>) -> String {
 /// The directory of a fixture that holds the project as it was one commit earlier (see [`copy_baseline`]).
 const BASELINE_DIR: &str = ".baseline";
 
+/// The directory of a fixture that holds its earlier commits, one numbered directory per commit, oldest first.
+const HISTORY_DIR: &str = ".history";
+
+/// The step directories of a fixture's `.history`, in name order (none when it has no history).
+fn history_steps(from: &Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
+    let dir = from.join(HISTORY_DIR);
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut steps = Vec::new();
+    for entry in std::fs::read_dir(&dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            steps.push(entry.path());
+        }
+    }
+    steps.sort();
+    Ok(steps)
+}
+
 fn copy_tree(from: &Path, to: &Path, top: bool) -> anyhow::Result<()> {
     for entry in std::fs::read_dir(from)? {
         let entry = entry?;
         let name = entry.file_name();
-        if top && (name == "expect.toml" || name == BASELINE_DIR) {
+        if top && (name == "expect.toml" || name == BASELINE_DIR || name == HISTORY_DIR) {
             continue;
         }
         let target = to.join(&name);

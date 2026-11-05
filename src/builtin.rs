@@ -106,6 +106,10 @@ builtin_checks! {
     Layers => ARC_008, true, false, LayersCheck;
     /// `ARC-005`.
     Stability => ARC_005, true, false, StabilityCheck;
+    /// `MOD-006`.
+    DivergentChange => MOD_006, true, false, DivergentChangeCheck;
+    /// `ARC-009`.
+    Drift => ARC_009, true, false, DriftCheck;
     /// `MOD-009`.
     ReachThrough => MOD_009, true, false, ReachThroughCheck;
 }

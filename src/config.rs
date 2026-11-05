@@ -122,6 +122,12 @@ pub(crate) struct ConfigFile {
     /// `[arc005] min_margin`: how much less stable the depended-on component must be before `ARC-005` reports the edge (see [`Arc005Settings`]).
     #[serde(default)]
     pub arc005: Option<Arc005Settings>,
+    /// `[mod006]`: the window and thresholds of `MOD-006`, divergent change (see [`Mod006Settings`]).
+    #[serde(default)]
+    pub mod006: Option<Mod006Settings>,
+    /// `[arc009]`: the base revision and the budget of `ARC-009`, architectural drift (see [`Arc009Settings`]).
+    #[serde(default)]
+    pub arc009: Option<Arc009Settings>,
     /// `[mod009] min_hops`: how many struct-to-struct links in a row make a chain worth reporting (see [`Mod009Settings`]).
     #[serde(default)]
     pub mod009: Option<Mod009Settings>,
@@ -285,6 +291,46 @@ pub(crate) fn arc005_min_margin(text: &str) -> anyhow::Result<Option<f64>> {
         "{FILE_NAME}: [arc005] min_margin = {m} is outside (0, 1]"
     );
     Ok(Some(m))
+}
+
+/// `[mod006]`: the window and thresholds of `MOD-006`. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Mod006Settings {
+    /// How many of the newest non-merge commits to read (default 500).
+    pub window: Option<usize>,
+    /// The fewest commits a group of changes needs to count as its own group (default 3).
+    pub min_commits: Option<usize>,
+    /// A commit that touches more files than this is a bulk change (a rename, a format run, a release) and is left out (default 25).
+    pub max_files: Option<usize>,
+}
+
+/// `[arc009]`: the revision `ARC-009` compares with and its budget. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc009Settings {
+    /// The revision to compare with (a tag, a branch or a commit). Left out, the newest `v<version>` tag reachable from `HEAD`.
+    pub base: Option<String>,
+    /// How much the public surface may grow, in percent of the base's, before it is reported (default 25).
+    pub surface_growth_percent: Option<usize>,
+    /// The fewest items the surface must also have grown by (default 10).
+    pub surface_min_items: Option<usize>,
+}
+
+/// The `[arc009]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn arc009_settings(text: &str) -> Arc009Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc009)
+        .unwrap_or_default()
+}
+
+/// The `[mod006]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn mod006_settings(text: &str) -> Mod006Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.mod006)
+        .unwrap_or_default()
 }
 
 /// `[mod009]`: the depth of `MOD-009`. Read from the repository's own file only.

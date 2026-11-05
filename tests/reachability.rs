@@ -906,7 +906,7 @@ fn severities(repo: &tempfile::TempDir) -> Vec<(String, coderipper::finding::Sev
 }
 
 #[test]
-fn documented_public_library_api_with_no_caller_is_info_and_an_undocumented_one_stays_medium() {
+fn documented_public_library_api_with_no_caller_is_info_and_so_is_an_undocumented_exported_one() {
     use coderipper::finding::Severity::{Info, Medium};
     let repo = git_repo_with(&[
         ("Cargo.toml", MANIFEST),
@@ -919,7 +919,7 @@ fn documented_public_library_api_with_no_caller_is_info_and_an_undocumented_one_
         severities(&repo),
         vec![
             ("api_documented".to_string(), Info),
-            ("api_undocumented".to_string(), Medium),
+            ("api_undocumented".to_string(), Info),
             ("private_dead".to_string(), Medium)
         ]
     );
@@ -934,6 +934,101 @@ fn documented_public_library_api_with_no_caller_is_info_and_an_undocumented_one_
         api.summary
     );
     assert!(api.detail.contains("breaking change"), "{}", api.detail);
+}
+
+#[test]
+fn an_exported_constant_with_no_caller_is_info_and_says_it_is_exported() {
+    // Rig's providers: `pub const GROK_3: &str = ..` model ids, undocumented, imported by downstream crates.
+    use coderipper::finding::Severity::Info;
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "pub mod providers {
+    pub const GROK_3: &str = \"grok-3\";
+}
+",
+        ),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![("providers::GROK_3".to_string(), Info)]
+    );
+    let f = &run_reachability(&repo).unwrap()[0];
+    assert!(f.summary.contains("exported item"), "{}", f.summary);
+    assert!(f.detail.contains("breaking change"), "{}", f.detail);
+}
+
+#[test]
+fn control_an_undocumented_constant_in_a_private_module_stays_medium() {
+    use coderipper::finding::Severity::Medium;
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "mod providers {
+    pub const GROK_3: &str = \"grok-3\";
+}
+pub fn entry() {}
+",
+        ),
+        (
+            "src/main.rs",
+            "fn main() { fixture::entry(); }
+",
+        ),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![("providers::GROK_3".to_string(), Medium)]
+    );
+}
+
+#[test]
+fn an_item_used_only_in_a_documentation_example_is_info_and_says_so_and_a_control_is_medium() {
+    use coderipper::finding::Severity::{Info, Medium};
+    let repo = git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        (
+            "src/lib.rs",
+            "/// Entry.
+///
+/// ```
+/// fixture::entry();
+/// helper_in_example();
+/// ```
+pub fn entry() {}
+fn helper_in_example() {}
+fn mentioned_in_prose() {}
+// helper_not_in_example is only in a plain comment
+fn helper_not_in_example() {}
+",
+        ),
+        (
+            "src/main.rs",
+            "fn main() { fixture::entry(); }
+",
+        ),
+    ]);
+    assert_eq!(
+        severities(&repo),
+        vec![
+            ("helper_in_example".to_string(), Info),
+            ("helper_not_in_example".to_string(), Medium),
+            ("mentioned_in_prose".to_string(), Medium)
+        ]
+    );
+    let findings = run_reachability(&repo).unwrap();
+    let f = findings
+        .iter()
+        .find(|f| f.subject.as_deref() == Some("helper_in_example"))
+        .unwrap();
+    assert!(
+        f.summary
+            .contains("only used in this crate's tests or documentation examples"),
+        "{}",
+        f.summary
+    );
 }
 
 #[test]
@@ -978,7 +1073,7 @@ fn an_item_named_only_in_the_crates_own_tests_is_info_and_a_dead_one_named_nowhe
         .unwrap();
     assert!(
         t.summary
-            .contains("no live caller in the library and is named in this crate's tests"),
+            .contains("no live caller in the library and is only used in this crate's tests or documentation examples"),
         "{}",
         t.summary
     );

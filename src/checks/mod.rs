@@ -13,9 +13,10 @@ pub mod unused_parameters;
 pub mod unused_return_values;
 pub mod version_consistency;
 pub use architecture::{
-    ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck, InternalsCheck,
-    InvariantFieldsCheck, LayersCheck, ModuleCyclesCheck, PassThroughCheck, PublicSurfaceCheck,
-    ReachThroughCheck, StabilityCheck, VolatileDetailCheck,
+    ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck,
+    DivergentChangeCheck, DriftCheck, InternalsCheck, InvariantFieldsCheck, LayersCheck,
+    ModuleCyclesCheck, PassThroughCheck, PublicSurfaceCheck, ReachThroughCheck, StabilityCheck,
+    VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;
 pub use cli_basics::CliBasicsCheck;
