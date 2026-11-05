@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! The language-neutral module (multi-language P3, PR 1): its nineteen rules, over the real fixtures in `conformance/`, through the
+//! The language-neutral module (multi-language P3, PR 1): its twenty-one rules, over the real fixtures in `conformance/`, through the
 //! conformance runner and through the host.
 
 use coderipper::check::{CheckContext, Tier};
@@ -7,7 +7,7 @@ use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::{Module, NeutralModule};
 use std::path::{Path, PathBuf};
 
-const RULES: [&str; 19] = [
+const RULES: [&str; 21] = [
     "SUP-001",
     "SUP-004",
     "SUP-011",
@@ -27,6 +27,8 @@ const RULES: [&str; 19] = [
     "RDB-008",
     "EFX-003",
     "SEC-004",
+    "SEC-005",
+    "EXT-003",
 ];
 
 fn fixtures() -> PathBuf {
@@ -56,9 +58,9 @@ fn copy_dir(from: &Path, to: &Path) {
 }
 
 #[test]
-fn each_of_the_nineteen_claims_is_earned_by_its_fixtures() {
+fn each_of_the_twenty_one_claims_is_earned_by_its_fixtures() {
     let proofs = proofs();
-    assert_eq!(proofs.len(), 19, "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(proofs.len(), 21, "one verdict per claimed rule: {proofs:?}");
     for rule in RULES {
         let verdict = proofs.iter().find(|(r, _)| r == rule).map(|(_, v)| v);
         assert_eq!(verdict, Some(&Verdict::Proven), "{rule}: {proofs:?}");
@@ -85,7 +87,7 @@ fn the_modules_proof_claims_are_exactly_the_rules_the_fixtures_prove() {
     assert_eq!(claimed, proven);
 }
 
-/// The controls that the nineteen proofs above are not vacuous: a rule that reports nothing, or always reports, cannot pass both
+/// The controls that the twenty-one proofs above are not vacuous: a rule that reports nothing, or always reports, cannot pass both
 /// halves. Here the defect is put into the clean twin, and then removed from the defective project.
 #[test]
 fn a_clean_twin_that_gains_the_defect_fails_and_a_defect_that_is_removed_fails() {
@@ -155,7 +157,7 @@ fn a_directory_that_is_not_a_git_repository_is_an_error_for_every_rule_never_cle
         Tier::Fast,
         coderipper::module::Limits::default(),
     );
-    assert_eq!(result.errors.len(), 19, "{:?}", result.errors);
+    assert_eq!(result.errors.len(), 21, "{:?}", result.errors);
     assert!(result.findings.is_empty());
     assert!(result
         .outcomes
@@ -206,8 +208,8 @@ fn the_host_runs_the_module_and_reports_findings_under_the_catalog_ids() {
         .map(|f| f.check_id.as_str())
         .collect();
     assert_eq!(ids, vec!["WSP-001"], "{:?}", result.findings);
-    // the nineteen rules were asked for, and each reported an outcome
-    assert_eq!(result.outcomes.len(), 19, "{:?}", result.outcomes);
+    // the twenty-one rules were asked for, and each reported an outcome
+    assert_eq!(result.outcomes.len(), 21, "{:?}", result.outcomes);
 }
 
 #[test]

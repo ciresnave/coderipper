@@ -15,6 +15,7 @@ mod conflict_marker;
 mod doc005;
 mod doc009;
 mod efx003;
+mod ext003;
 mod licence;
 mod lint_suppression;
 mod lock_order;
@@ -22,7 +23,9 @@ mod ops012;
 mod patent_index;
 mod patent_sweep;
 mod rdb008;
+mod rust_package;
 mod sec004;
+mod sec005;
 mod sup001;
 mod sup004;
 mod sup011;
@@ -133,6 +136,14 @@ const RULES: &[Rule] = &[
     Rule {
         id: "SEC-004",
         judge: sec004::judge,
+    },
+    Rule {
+        id: "SEC-005",
+        judge: sec005::judge,
+    },
+    Rule {
+        id: "EXT-003",
+        judge: ext003::judge,
     },
 ];
 
@@ -498,6 +509,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("patent-index-match", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
+    ("SEC-005", &["rust"]),
+    ("EXT-003", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -520,6 +533,8 @@ const PROVEN: &[&str] = &[
     "RDB-008",
     "EFX-003",
     "SEC-004",
+    "SEC-005",
+    "EXT-003",
 ];
 
 impl Module for NeutralModule {
