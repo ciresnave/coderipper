@@ -1,3 +1,0 @@
-kind: Fix
----
-**MOD-004 sets aside hub fields.** A field that more than half of a large type's (eight or more) clustered methods use joined every method into one cluster, so big dispatcher types could never be reported (Fuel's `VulkanBackend`). It is now set aside before grouping and named in the finding. Over every package of the nine corpus repos (result cache off): 8 findings before, 13 after, 7 new and 2 dropped; the 7 are read in `docs/rules/mod.md` (3 read as mixed jobs, 4 arguable). A single-field type (Fuel's `Tensor`) cannot be split by field and stays unreported; that limit is now documented. Still Info, low confidence, advisory.
