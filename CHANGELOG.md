@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.37.4 - 2026-11-05 (proposed, Docs)
+
+**`docs/rules/REMAINING.md`: the catalog rules that have no check yet.** One row for each of the 184 catalog rules that no check of any kind covers (232 catalog rules, 20 `BuiltinCheck` rows, 19 in-process module checks, 9 delegated-tool rules, 48 built by some route), grouped by what a lane can do without a model, with the input each needs, the closest check to copy, a size guess, an advisory flag and a patent-sweep risk. It also records why the package-e brief's count (catalog minus `BuiltinCheck::ALL`, 212) was replaced by the accurate one, and recommends the next three packages. Documentation only; no behaviour changes.
+
 ## 0.37.3 - 2026-11-05 (proposed, Fix)
 
 **Dependencies updated to their newest versions** (`cargo update`; `Cargo.lock` only, no manifest requirement changed): cc 1.10.0 to 1.11.0, crc32fast 1.5.3 to 1.5.4, js-sys 0.3.106 to 0.3.107, log 0.4.34 to 0.4.35, toml 1.1.8 to 1.2.0, toml_writer 1.1.3 to 1.2.0, ureq 3.5.0 to 3.5.1, ureq-proto 0.6.5 to 0.7.1, wasm-bindgen 0.2.129 to 0.2.130 (with wasm-bindgen-macro, wasm-bindgen-macro-support and wasm-bindgen-shared), winnow 1.0.4 to 1.0.5 and zip 9.1.3 to 9.4.0. These are the 14 packages the repository's own `dependency-freshness` rule reported as behind on 2026-11-05; none was held back.
