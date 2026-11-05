@@ -189,6 +189,9 @@ pub(crate) struct Totals {
     pub undocumented: Vec<Undoc>,
     /// `(file, line)` of each documented one, for a reader that asks "is the item at this line public and documented?".
     pub documented_sites: std::collections::BTreeSet<(String, usize)>,
+    /// `(file, line)` of every public declaration and public inherent function counted above, documented or not (a `#[doc(hidden)]`
+    /// item is in none of the lists): the interface a library offers whoever depends on it.
+    pub public_sites: std::collections::BTreeSet<(String, usize)>,
     /// The names of the public types (structs, enums, unions, traits, aliases) declared through `pub` modules or re-exported.
     pub public_names: std::collections::BTreeSet<String>,
 }
@@ -218,6 +221,7 @@ impl Totals {
         self.documented += o.documented;
         self.undocumented.extend(o.undocumented);
         self.documented_sites.extend(o.documented_sites);
+        self.public_sites.extend(o.public_sites);
         self.public_names.extend(o.public_names);
     }
 }
@@ -247,6 +251,7 @@ struct Collect {
     /// Documented public declarations.
     documented: usize,
     documented_sites: Vec<(String, usize)>,
+    public_sites: Vec<(String, usize)>,
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
     methods: BTreeMap<String, Vec<MethodFact>>,
@@ -336,6 +341,7 @@ pub(crate) fn surface(
     totals.members = public_types.iter().filter_map(|n| col.types.get(n)).sum();
     totals.documented = col.documented;
     totals.documented_sites = col.documented_sites.iter().cloned().collect();
+    totals.public_sites = col.public_sites.iter().cloned().collect();
     totals.public_names = public_types.clone();
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
@@ -343,6 +349,7 @@ pub(crate) fn surface(
             if m.hidden {
                 continue;
             }
+            totals.public_sites.insert((m.file.clone(), m.line));
             if m.documented {
                 totals.documented += 1;
                 totals.documented_sites.insert((m.file.clone(), m.line));
@@ -423,6 +430,7 @@ impl Walker<'_> {
         if is_hidden(attrs) {
             return;
         }
+        self.col.public_sites.push((file.to_string(), line));
         if is_documented(attrs) {
             self.col.documented += 1;
             self.col.documented_sites.push((file.to_string(), line));
@@ -648,6 +656,7 @@ impl Walker<'_> {
                             && self.file_module_has_inner_docs(child_dir, &name);
                         let line = m.ident.span().start().line;
                         if inner {
+                            self.col.public_sites.push((shown.to_string(), line));
                             self.col.documented += 1;
                             self.col.documented_sites.push((shown.to_string(), line));
                         } else {

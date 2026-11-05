@@ -86,9 +86,12 @@ pub(crate) fn collect(files: &[SourceFile]) -> anyhow::Result<(Vec<TypeFacts>, V
     Ok((out, notes))
 }
 
-/// The clusters of a type's methods. Trivial methods and methods that touch no state are not clustered; a method's fields include the
-/// fields of every sibling it calls, transitively, so a caller and its callee are one cluster.
-pub(crate) fn clusters(t: &TypeFacts) -> Vec<Cluster> {
+/// A type needs at least this many clustered methods to have a hub field.
+const HUB_MIN_METHODS: usize = 8;
+
+/// Each method that is not thin, with the fields it uses, its own and those of every sibling it calls, transitively. A method that
+/// reaches no field is left out.
+fn state_users(t: &TypeFacts) -> Vec<(&Method, BTreeSet<String>)> {
     let by_name: BTreeMap<&str, &Method> = t.methods.iter().map(|m| (m.name.as_str(), m)).collect();
     let effective = |m: &Method| -> BTreeSet<String> {
         let mut fields = m.fields.clone();
@@ -105,11 +108,47 @@ pub(crate) fn clusters(t: &TypeFacts) -> Vec<Cluster> {
         }
         fields
     };
-    let nodes: Vec<(&Method, BTreeSet<String>)> = t
-        .methods
+    t.methods
         .iter()
         .filter(|m| !m.trivial)
         .map(|m| (m, effective(m)))
+        .filter(|(_, f)| !f.is_empty())
+        .collect()
+}
+
+/// Fields that more than half of a large type's methods reach. A field nearly every method uses (a device handle, a shared pool)
+/// joins all of them into one cluster and says nothing about which belong together, so it is set aside before the methods are
+/// grouped; a method that reaches only such fields is then in no cluster.
+fn hub_fields_of(nodes: &[(&Method, BTreeSet<String>)]) -> BTreeSet<String> {
+    if nodes.len() < HUB_MIN_METHODS {
+        return BTreeSet::new();
+    }
+    let mut count: BTreeMap<&str, usize> = BTreeMap::new();
+    for (_, fields) in nodes {
+        for f in fields {
+            *count.entry(f.as_str()).or_default() += 1;
+        }
+    }
+    count
+        .into_iter()
+        .filter(|(_, n)| n * 2 > nodes.len())
+        .map(|(f, _)| f.to_string())
+        .collect()
+}
+
+/// The fields of a type that its methods share so widely that clustering sets them aside.
+pub(crate) fn hub_fields(t: &TypeFacts) -> BTreeSet<String> {
+    hub_fields_of(&state_users(t))
+}
+
+/// The clusters of a type's methods. Trivial methods and methods that touch no state are not clustered; a method's fields include the
+/// fields of every sibling it calls, transitively, so a caller and its callee are one cluster.
+pub(crate) fn clusters(t: &TypeFacts) -> Vec<Cluster> {
+    let all = state_users(t);
+    let hubs = hub_fields_of(&all);
+    let nodes: Vec<(&Method, BTreeSet<String>)> = all
+        .into_iter()
+        .map(|(m, f)| (m, f.difference(&hubs).cloned().collect::<BTreeSet<_>>()))
         .filter(|(_, f)| !f.is_empty())
         .collect();
     // union-find over the methods, joined by a shared field
@@ -435,6 +474,67 @@ impl S { fn f(&self) -> u8 { let a = self.a; a } }
 #[cfg(test)]
 impl S { fn g(&self) -> u8 { let a = self.a; a } }";
         assert_eq!(types(src)[0].methods.len(), 1);
+    }
+
+    #[test]
+    fn a_hub_field_every_method_uses_is_set_aside_so_the_rest_can_split() {
+        let mut src = String::from(
+            "pub struct S { hub: u8, a: u8, b: u8 }
+impl S {
+",
+        );
+        for i in 0..5 {
+            src += &format!(
+                "    fn a{i}(&self) -> u8 {{ let h = self.hub; let x = self.a; h + x }}
+"
+            );
+            src += &format!(
+                "    fn b{i}(&self) -> u8 {{ let h = self.hub; let y = self.b; h + y }}
+"
+            );
+        }
+        src += "}";
+        let t = &types(&src)[0];
+        assert_eq!(hub_fields(t), BTreeSet::from(["hub".to_string()]));
+        assert_eq!(clusters(t).len(), 2, "{src}");
+    }
+
+    #[test]
+    fn a_small_type_has_no_hub_field() {
+        let src = "pub struct S { hub: u8, a: u8, b: u8 }
+impl S {
+    fn a1(&self) -> u8 { let h = self.hub; let x = self.a; h + x }
+    fn a2(&self) -> u8 { let h = self.hub; let x = self.a; h + x }
+    fn b1(&self) -> u8 { let h = self.hub; let y = self.b; h + y }
+    fn b2(&self) -> u8 { let h = self.hub; let y = self.b; h + y }
+}";
+        let t = &types(src)[0];
+        assert!(hub_fields(t).is_empty());
+        assert_eq!(clusters(t).len(), 1);
+    }
+
+    #[test]
+    fn a_method_using_only_the_hub_is_in_no_cluster() {
+        let mut src = String::from(
+            "pub struct S { hub: u8, a: u8 }
+impl S {
+",
+        );
+        for i in 0..9 {
+            src += &format!(
+                "    fn h{i}(&self) -> u8 {{ let h = self.hub; let k = self.hub; h + k }}
+"
+            );
+        }
+        src += "    fn a1(&self) -> u8 { let h = self.hub; let x = self.a; h + x }
+}";
+        let t = &types(&src)[0];
+        assert!(
+            clusters(t)
+                .iter()
+                .all(|c| !c.methods.iter().any(|m| m.starts_with('h'))),
+            "{src}"
+        );
     }
 
     #[test]

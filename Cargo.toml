@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.34.0"
+version = "0.37.3"
 edition = "2021"
 description = "Audits projects for the integration defects compilers and linters do not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. Started with Rust; built for multi-language projects. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
@@ -61,3 +61,8 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"], opt
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
+
+# `BuiltinCheck` is `#[non_exhaustive]` and its rows are kept sorted by id (src/builtin.rs), so inserting one moves the implicit
+# discriminants of the rows after it. Nothing may rely on them (cast the variant to an integer); `BuiltinCheck::ALL` is the order.
+[package.metadata.cargo-semver-checks.lints]
+enum_no_repr_variant_discriminant_changed = "allow"

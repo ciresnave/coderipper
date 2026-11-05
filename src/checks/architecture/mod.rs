@@ -538,32 +538,38 @@ fn declaration_finding(
     }
 }
 
+// Sorted by module name, one `mod` (and its `pub use`) per check, so a new check lands in its own place.
+pub(crate) mod api_budget;
+pub use api_budget::ApiBudgetCheck;
+mod chains;
+pub use chains::ReachThroughCheck;
 mod cycles;
 pub use cycles::ComponentCyclesCheck;
-mod internals;
-pub use internals::InternalsCheck;
-mod modcycles;
-pub use modcycles::ModuleCyclesCheck;
-mod invariants;
-pub use invariants::InvariantFieldsCheck;
+mod divergent;
+pub use divergent::DivergentChangeCheck;
+mod drift;
+pub use drift::DriftCheck;
 mod infra_signatures;
 pub use infra_signatures::InfraSignatureCheck;
-
+mod internals;
+pub use internals::InternalsCheck;
+mod invariants;
+pub use invariants::InvariantFieldsCheck;
 mod layers;
 pub use layers::LayersCheck;
+mod modcycles;
+pub use modcycles::ModuleCyclesCheck;
 mod modgraph;
+mod owns_data;
+pub use owns_data::DataOwnershipCheck;
 mod passthrough;
 pub use passthrough::PassThroughCheck;
 mod public_surface;
 pub use public_surface::PublicSurfaceCheck;
-mod volatile;
-pub use volatile::VolatileDetailCheck;
-pub(crate) mod api_budget;
-pub use api_budget::ApiBudgetCheck;
-mod owns_data;
-pub use owns_data::DataOwnershipCheck;
 mod stability;
 pub use stability::StabilityCheck;
+mod volatile;
+pub use volatile::VolatileDetailCheck;
 
 #[cfg(test)]
 mod tests;
