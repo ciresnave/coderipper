@@ -767,3 +767,22 @@ Version line covered by this addendum: **0.38** (0.38.0). One rule is added: `AR
 **Result: no hit reads on `ARC-011` as read.** **Watches:** (1) **row 82 (active, estimated expiry 2031-11-05): do not add a generated prescription, an evaluation of its effect on a modularity measure, a choice among prescriptions or an automatic refactoring to `ARC-011` or `MOD-002`**; (2) rows 77 and 50 stay out as for `MOD-006`: no fault count or likelihood, no cost growth model; (3) **row 84 is abandoned but its claim 1 is broad: no trigger on a check-in and no maintained database of coupled sets**; (4) do not read defect or issue identifiers from commit messages (row 83).
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
+
+## Addendum: the 0.39 line (2026-11-05, 0.39.0)
+
+Version line covered by this addendum: **0.39** (0.39.0). One rule is added, read from `src/checks/architecture/infra_signatures.rs`: `ARC-004` (infrastructure types kept out of policy signatures), with an opt-in-by-declaration setting `[arc004] patterns`. Swept 2026-11-05 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`). Claims were not read: no result was on the subject (see below).
+
+**Idea 47 (`ARC-004`).** From the source of a Rust workspace, take the public functions, methods, fields and trait items of a component declared as policy, resolve the types they name through the module's `use` paths, and report each signature that names a type of a declared infrastructure namespace, name or component.
+
+| # | Idea | Query (2026-11-05) |
+|---|---|---|
+| Q103 | 47 | static analysis detecting infrastructure types in public function signatures of domain layer, architecture conformance, forbidden namespace in interface |
+| Q104 | 47 | source code analysis detect database or framework types exposed through public interface of module layer violation report |
+
+**Positive controls:** weak: Q103 reached static-analysis frameworks (US20160180096A1, US10127135B2, US20100287214A1) and a business-software layered-architecture application (US20040230559A1), and Q104 reached source-code security analyzers and violation-matching families (US20160132326A1, the "Locating security vulnerabilities in source code" family, US9208056), so the engine reaches static analysis of layers; **no patent about reporting a public signature of a policy or domain component that names a type from a declared infrastructure namespace, resolved through use paths, was found, and that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** none. **Not read:** every result above; by title and snippet none concerns type names in public signatures against a declared layer, and the snippets of US20160132326A1 and US9208056 are about matching violations across snapshots, which this rule does not do.
+
+**Result: no hit found for `ARC-004`; unread results are not cleared by this.** **Watches:** the `ARC-001`/`ARC-002`/`ARC-008` watches (rows 61, 67, 68, 75) apply unchanged: the finding is text only, names the signature and the type, offers no rewrite, and draws no layered view or coloured arrows.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no claims read, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
