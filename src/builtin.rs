@@ -11,7 +11,9 @@
 //!   check added later is `false`; `extended` and `portfolio` take every check;
 //! - `CheckType`: the type in `crate::checks` with a `new()` that builds it.
 //!
-//! Rows run in the order written; append at the end.
+//! The six legacy rows come first, in the order the `classic` profile's output is fixed to. Every other row follows, sorted by id
+//! (a test enforces it): put a new row at its place in that order, not at the end, so changes that add different rules do not
+//! edit the same lines. Nothing depends on the run order of these (the registration test below compares it with `ALL`).
 
 use crate::check::Check;
 use crate::checks;
@@ -76,42 +78,45 @@ builtin_checks! {
     CiProtectionPresence => CI_PROTECTION_PRESENCE, false, true, CiProtectionPresenceCheck;
     /// `dependency-freshness`.
     DependencyFreshness => DEPENDENCY_FRESHNESS, false, true, DependencyFreshnessCheck;
-    /// `OPS-011`.
-    CliBasics => OPS_011, true, false, CliBasicsCheck;
-    /// `MOD-005`.
-    SizeCoupling => MOD_005, true, false, SizeCouplingCheck;
-    /// `MOD-004`.
-    Cohesion => MOD_004, true, false, CohesionCheck;
+
+    // The checks below the six legacy ones: one family at a time, sorted by id, so a new row lands in its own place and two
+    // changes adding different rules do not touch the same lines.
     /// `ARC-001`.
     ComponentGraph => ARC_001, true, false, ComponentGraphCheck;
+    /// `ARC-002`.
+    ComponentCycles => ARC_002, true, false, ComponentCyclesCheck;
     /// `ARC-003`.
     VolatileDetail => ARC_003, true, false, VolatileDetailCheck;
+    /// `ARC-005`.
+    Stability => ARC_005, true, false, StabilityCheck;
     /// `ARC-006`.
     ApiBudget => ARC_006, true, false, ApiBudgetCheck;
     /// `ARC-007`.
     DataOwnership => ARC_007, true, false, DataOwnershipCheck;
-    /// `ARC-002`.
-    ComponentCycles => ARC_002, true, false, ComponentCyclesCheck;
-    /// `MOD-003`.
-    Internals => MOD_003, true, false, InternalsCheck;
-    /// `MOD-002`.
-    ModuleCycles => MOD_002, true, false, ModuleCyclesCheck;
-    /// `MOD-010`.
-    InvariantFields => MOD_010, true, false, InvariantFieldsCheck;
-    /// `MOD-001`.
-    PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
-    /// `MOD-008`.
-    PassThrough => MOD_008, true, false, PassThroughCheck;
     /// `ARC-008`.
     Layers => ARC_008, true, false, LayersCheck;
-    /// `ARC-005`.
-    Stability => ARC_005, true, false, StabilityCheck;
-    /// `MOD-006`.
-    DivergentChange => MOD_006, true, false, DivergentChangeCheck;
     /// `ARC-009`.
     Drift => ARC_009, true, false, DriftCheck;
+    /// `MOD-001`.
+    PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
+    /// `MOD-002`.
+    ModuleCycles => MOD_002, true, false, ModuleCyclesCheck;
+    /// `MOD-003`.
+    Internals => MOD_003, true, false, InternalsCheck;
+    /// `MOD-004`.
+    Cohesion => MOD_004, true, false, CohesionCheck;
+    /// `MOD-005`.
+    SizeCoupling => MOD_005, true, false, SizeCouplingCheck;
+    /// `MOD-006`.
+    DivergentChange => MOD_006, true, false, DivergentChangeCheck;
+    /// `MOD-008`.
+    PassThrough => MOD_008, true, false, PassThroughCheck;
     /// `MOD-009`.
     ReachThrough => MOD_009, true, false, ReachThroughCheck;
+    /// `MOD-010`.
+    InvariantFields => MOD_010, true, false, InvariantFieldsCheck;
+    /// `OPS-011`.
+    CliBasics => OPS_011, true, false, CliBasicsCheck;
 }
 
 impl BuiltinCheck {
@@ -140,6 +145,50 @@ mod tests {
         let all: Vec<_> = BuiltinCheck::ALL.iter().map(|c| c.id()).collect();
         assert_eq!(ids, all);
         assert!(!all.is_empty());
+    }
+
+    #[test]
+    fn rows_after_the_legacy_six_are_sorted_by_id() {
+        let ids: Vec<_> = BuiltinCheck::ALL.iter().skip(6).map(|c| c.id()).collect();
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            ids, sorted,
+            "keep the rows of `builtin_checks!` sorted by id"
+        );
+    }
+
+    #[test]
+    fn the_readme_lists_every_rule_row_in_id_order_and_every_new_check_has_one() {
+        // The README rows are prose, so they are written by hand; what is checked is the layout that keeps parallel changes from
+        // editing the same lines: the run of `| `ID` |` rows that holds the Rust rules is sorted, and each check has a row.
+        let readme = include_str!("../README.md").replace(
+            "
+", "
+",
+        );
+        let ids: Vec<&str> = readme
+            .lines()
+            .filter_map(|l| l.strip_prefix("| `"))
+            .filter_map(|l| l.split_once("` |").map(|(id, _)| id))
+            .filter(|id| {
+                id.contains('-') && id.chars().next().is_some_and(|c| c.is_ascii_uppercase())
+            })
+            .collect();
+        for c in BuiltinCheck::ALL.iter().skip(6) {
+            assert!(ids.contains(&c.id()), "README.md has no row for {}", c.id());
+        }
+        let rust: Vec<&str> = ids
+            .iter()
+            .copied()
+            .skip_while(|id| *id != "CON-006")
+            .collect();
+        let mut sorted = rust.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            rust, sorted,
+            "keep the README's Rust rule rows sorted by id"
+        );
     }
 
     #[test]
