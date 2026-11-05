@@ -1,0 +1,1 @@
+# A clean twin expects nothing: the channel holds at most 64 items and a full queue blocks the producer.
