@@ -111,6 +111,8 @@ builtin_checks! {
     DivergentChange => MOD_006, true, false, DivergentChangeCheck;
     /// `MOD-008`.
     PassThrough => MOD_008, true, false, PassThroughCheck;
+    /// `MOD-009`.
+    ReachThrough => MOD_009, true, false, ReachThroughCheck;
     /// `MOD-010`.
     InvariantFields => MOD_010, true, false, InvariantFieldsCheck;
     /// `OPS-011`.

@@ -541,6 +541,8 @@ fn declaration_finding(
 // Sorted by module name, one `mod` (and its `pub use`) per check, so a new check lands in its own place.
 pub(crate) mod api_budget;
 pub use api_budget::ApiBudgetCheck;
+mod chains;
+pub use chains::ReachThroughCheck;
 mod cycles;
 pub use cycles::ComponentCyclesCheck;
 mod divergent;

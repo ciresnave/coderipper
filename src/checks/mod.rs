@@ -27,6 +27,7 @@ pub use architecture::{
     ModuleCyclesCheck,
     PassThroughCheck,
     PublicSurfaceCheck,
+    ReachThroughCheck,
     StabilityCheck,
     VolatileDetailCheck,
 };
