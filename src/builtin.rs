@@ -110,6 +110,8 @@ builtin_checks! {
     DivergentChange => MOD_006, true, false, DivergentChangeCheck;
     /// `ARC-009`.
     Drift => ARC_009, true, false, DriftCheck;
+    /// `MOD-009`.
+    ReachThrough => MOD_009, true, false, ReachThroughCheck;
 }
 
 impl BuiltinCheck {

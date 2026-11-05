@@ -1,0 +1,1 @@
+# The clean twin: the same five structs, each handing the question to the next one, so no expression reaches through more than one of them. The rule must report nothing.
