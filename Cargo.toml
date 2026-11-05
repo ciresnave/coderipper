@@ -61,3 +61,8 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls"], opt
 [dev-dependencies]
 assert_cmd = "2"
 predicates = "3"
+
+# `BuiltinCheck` is `#[non_exhaustive]` and its rows are kept sorted by id (src/builtin.rs), so inserting one moves the implicit
+# discriminants of the rows after it. Nothing may rely on them (cast the variant to an integer); `BuiltinCheck::ALL` is the order.
+[package.metadata.cargo-semver-checks.lints]
+enum_no_repr_variant_discriminant_changed = "allow"
