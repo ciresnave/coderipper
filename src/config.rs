@@ -125,6 +125,15 @@ pub(crate) struct ConfigFile {
     /// `[mod006]`: the window and thresholds of `MOD-006`, divergent change (see [`Mod006Settings`]).
     #[serde(default)]
     pub mod006: Option<Mod006Settings>,
+    /// `[arc009]`: the base revision and the budget of `ARC-009`, architectural drift (see [`Arc009Settings`]).
+    #[serde(default)]
+    pub arc009: Option<Arc009Settings>,
+    /// `[arc011]`: the window and thresholds of `ARC-011`, signs of a distributed monolith (see [`Arc011Settings`]).
+    #[serde(default)]
+    pub arc011: Option<Arc011Settings>,
+    /// `[mod009] min_hops`: how many struct-to-struct links in a row make a chain worth reporting (see [`Mod009Settings`]).
+    #[serde(default)]
+    pub mod009: Option<Mod009Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -299,12 +308,80 @@ pub(crate) struct Mod006Settings {
     pub max_files: Option<usize>,
 }
 
+/// `[arc009]`: the revision `ARC-009` compares with and its budget. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc009Settings {
+    /// The revision to compare with (a tag, a branch or a commit). Left out, the newest `v<version>` tag reachable from `HEAD`.
+    pub base: Option<String>,
+    /// How much the public surface may grow, in percent of the base's, before it is reported (default 25).
+    pub surface_growth_percent: Option<usize>,
+    /// The fewest items the surface must also have grown by (default 10).
+    pub surface_min_items: Option<usize>,
+}
+
+/// The `[arc009]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn arc009_settings(text: &str) -> Arc009Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc009)
+        .unwrap_or_default()
+}
+
+/// `[arc011]`: the window and thresholds of `ARC-011`. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc011Settings {
+    /// How many of the newest non-merge commits to read (default 500).
+    pub window: Option<usize>,
+    /// The fewest commits that must have touched both modules (default 3).
+    pub min_commits: Option<usize>,
+    /// The share, in percent, of the commits that touched either module that must have touched both (default 60).
+    pub min_share_percent: Option<usize>,
+    /// A commit that touches more files than this is a bulk change and is left out (default 25).
+    pub max_files: Option<usize>,
+}
+
+/// The `[arc011]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn arc011_settings(text: &str) -> Arc011Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc011)
+        .unwrap_or_default()
+}
+
 /// The `[mod006]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
 pub(crate) fn mod006_settings(text: &str) -> Mod006Settings {
     ConfigFile::parse(text, Path::new(FILE_NAME))
         .ok()
         .and_then(|f| f.mod006)
         .unwrap_or_default()
+}
+
+/// `[mod009]`: the depth of `MOD-009`. Read from the repository's own file only.
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Mod009Settings {
+    /// The fewest struct-to-struct links in a row that are reported, at least 2.
+    #[serde(default)]
+    pub min_hops: Option<usize>,
+}
+
+/// The `[mod009] min_hops` the repository's `.coderipper.toml` text sets, `Ok(None)` when it sets none, an error when the value is below 2 (one
+/// hop is any field access). A file that does not parse is `Ok(None)` here (the run's own configuration load reports the error).
+pub(crate) fn mod009_min_hops(text: &str) -> anyhow::Result<Option<usize>> {
+    let Some(n) = ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.mod009)
+        .and_then(|s| s.min_hops)
+    else {
+        return Ok(None);
+    };
+    anyhow::ensure!(
+        n >= 2,
+        "{FILE_NAME}: [mod009] min_hops = {n} is below 2 (one hop is any field access)"
+    );
+    Ok(Some(n))
 }
 
 /// Whether the repository's `.coderipper.toml` text turns on the inferred half of `MOD-010`. A file that does not parse is `false` here.
