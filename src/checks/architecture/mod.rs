@@ -549,6 +549,8 @@ mod divergent;
 pub use divergent::DivergentChangeCheck;
 mod drift;
 pub use drift::DriftCheck;
+mod entangled;
+pub use entangled::EntangledCheck;
 mod internals;
 pub use internals::InternalsCheck;
 mod invariants;
