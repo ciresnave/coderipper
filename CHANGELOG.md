@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.37.3 - 2026-11-05 (proposed, Fix)
+
+**Dependencies updated to their newest versions** (`cargo update`; `Cargo.lock` only, no manifest requirement changed): cc 1.10.0 to 1.11.0, crc32fast 1.5.3 to 1.5.4, js-sys 0.3.106 to 0.3.107, log 0.4.34 to 0.4.35, toml 1.1.8 to 1.2.0, toml_writer 1.1.3 to 1.2.0, ureq 3.5.0 to 3.5.1, ureq-proto 0.6.5 to 0.7.1, wasm-bindgen 0.2.129 to 0.2.130 (with wasm-bindgen-macro, wasm-bindgen-macro-support and wasm-bindgen-shared), winnow 1.0.4 to 1.0.5 and zip 9.1.3 to 9.4.0. These are the 14 packages the repository's own `dependency-freshness` rule reported as behind on 2026-11-05; none was held back.
+
 ## 0.37.2 - 2026-11-05 (proposed, Fix)
 
 **MOD-004 sets aside hub fields.** A field that more than half of a large type's (eight or more) clustered methods use joined every method into one cluster, so big dispatcher types could never be reported (Fuel's `VulkanBackend`). It is now set aside before grouping and named in the finding. Over every package of the nine corpus repos (result cache off): 8 findings before, 13 after, 7 new and 2 dropped; the 7 are read in `docs/rules/mod.md` (3 read as mixed jobs, 4 arguable). A single-field type (Fuel's `Tensor`) cannot be split by field and stays unreported; that limit is now documented. Still Info, low confidence, advisory.
