@@ -1,3 +1,0 @@
-kind: Fix
----
-**Dependencies updated to their newest versions** (`cargo update`; `Cargo.lock` only, no manifest requirement changed): cc 1.10.0 to 1.11.0, crc32fast 1.5.3 to 1.5.4, js-sys 0.3.106 to 0.3.107, log 0.4.34 to 0.4.35, toml 1.1.8 to 1.2.0, toml_writer 1.1.3 to 1.2.0, ureq 3.5.0 to 3.5.1, ureq-proto 0.6.5 to 0.7.1, wasm-bindgen 0.2.129 to 0.2.130 (with wasm-bindgen-macro, wasm-bindgen-macro-support and wasm-bindgen-shared), winnow 1.0.4 to 1.0.5 and zip 9.1.3 to 9.4.0. These are the 14 packages the repository's own `dependency-freshness` rule reported as behind on 2026-11-05; none was held back.
