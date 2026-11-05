@@ -549,6 +549,8 @@ mod divergent;
 pub use divergent::DivergentChangeCheck;
 mod drift;
 pub use drift::DriftCheck;
+mod entangled;
+pub use entangled::EntangledCheck;
 mod infra_signatures;
 pub use infra_signatures::InfraSignatureCheck;
 mod internals;

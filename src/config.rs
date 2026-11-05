@@ -128,6 +128,9 @@ pub(crate) struct ConfigFile {
     /// `[arc009]`: the base revision and the budget of `ARC-009`, architectural drift (see [`Arc009Settings`]).
     #[serde(default)]
     pub arc009: Option<Arc009Settings>,
+    /// `[arc011]`: the window and thresholds of `ARC-011`, signs of a distributed monolith (see [`Arc011Settings`]).
+    #[serde(default)]
+    pub arc011: Option<Arc011Settings>,
     /// `[mod009] min_hops`: how many struct-to-struct links in a row make a chain worth reporting (see [`Mod009Settings`]).
     #[serde(default)]
     pub mod009: Option<Mod009Settings>,
@@ -325,6 +328,28 @@ pub(crate) fn arc009_settings(text: &str) -> Arc009Settings {
     ConfigFile::parse(text, Path::new(FILE_NAME))
         .ok()
         .and_then(|f| f.arc009)
+        .unwrap_or_default()
+}
+
+/// `[arc011]`: the window and thresholds of `ARC-011`. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc011Settings {
+    /// How many of the newest non-merge commits to read (default 500).
+    pub window: Option<usize>,
+    /// The fewest commits that must have touched both modules (default 3).
+    pub min_commits: Option<usize>,
+    /// The share, in percent, of the commits that touched either module that must have touched both (default 60).
+    pub min_share_percent: Option<usize>,
+    /// A commit that touches more files than this is a bulk change and is left out (default 25).
+    pub max_files: Option<usize>,
+}
+
+/// The `[arc011]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn arc011_settings(text: &str) -> Arc011Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc011)
         .unwrap_or_default()
 }
 
