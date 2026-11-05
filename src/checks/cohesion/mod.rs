@@ -17,6 +17,11 @@
 //! - Accessors and setters (one statement, at most one field, no call) are not members of any cluster: a struct with a getter per
 //!   field would otherwise split into as many clusters as it has fields.
 //! - A method that touches no field and calls no sibling is not clustered either.
+//! - A field that more than half of a large type's (eight or more) clustered methods reach is set aside before grouping, named in
+//!   the finding: otherwise one shared handle (a device, a pool) joins every method into one cluster and a large dispatcher type
+//!   can never split. A method that reaches only such fields is in no cluster.
+//! - A type with a single field cannot be partitioned by field at all (a newtype handle such as a tensor around one graph node):
+//!   it is never reported, and that is a scope limit of the measure, not a miss to fix here.
 //! - Syntactic (see `facts`): a field reached through a destructuring or passed on through a helper taking `&self.a` is not seen, so
 //!   clusters can look more separate than they are.
 //! - Methods in trait `impl`s are not members (the trait dictates their signatures). Test items are not read. Only structs; an
@@ -28,7 +33,7 @@ mod facts;
 use crate::check::{Check, CheckContext, Network, Scope};
 use crate::checks::rust_sources::read_sources;
 use crate::finding::{Claim, Confidence, Finding, Location, Severity};
-use facts::{clusters, collect, Cluster, TypeFacts};
+use facts::{clusters, collect, hub_fields, Cluster, TypeFacts};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
 pub const CHECK_ID: &str = crate::rule_id::MOD_004;
@@ -137,6 +142,15 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
                 c.fields.iter().cloned().collect::<Vec<_>>().join(", ")
             )
         };
+        let hubs = hub_fields(t);
+        let hub_note = if hubs.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " Fields set aside because more than half of the type's methods use them, which would join every method into one cluster: [{}]; a method that uses only those is in no cluster.",
+                hubs.into_iter().collect::<Vec<_>>().join(", ")
+            )
+        };
         out.push(Finding {
             check_id: CHECK_ID.into(),
             claim: Claim::Presence,
@@ -157,11 +171,12 @@ fn judge(types: &[TypeFacts], p: &Params, project: &str) -> Vec<Finding> {
             ),
             detail: format!(
                 "Methods are in one cluster when they use a common field, directly or through the sibling methods they call. \
-                 Clusters: {}. {} This is weak evidence on its own: the type may be a set of independent helpers, or it may hold \
+                 Clusters: {}.{} {} This is weak evidence on its own: the type may be a set of independent helpers, or it may hold \
                  more than one job. If the groups really never meet, split the type along them; if they belong together, leave it \
                  and say why in an allowlist reason. Syntactic: a field reached by destructuring or passed on through a helper is \
                  not seen, and accessors, trait-impl methods and test items are not counted.",
                 big.iter().map(describe).collect::<Vec<_>>().join("; "),
+                hub_note,
                 p.source,
             ),
             positive_control: None,
