@@ -1,0 +1,4 @@
+# A cycle between `a` and `b` that the baseline did not have: more module cycles than at the base.
+[[expect]]
+rule = "ARC-009"
+file = "Cargo.toml"

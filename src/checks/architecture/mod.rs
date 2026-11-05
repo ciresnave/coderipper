@@ -550,6 +550,8 @@ mod layers;
 pub use layers::LayersCheck;
 mod divergent;
 pub use divergent::DivergentChangeCheck;
+mod drift;
+pub use drift::DriftCheck;
 mod modgraph;
 mod passthrough;
 pub use passthrough::PassThroughCheck;

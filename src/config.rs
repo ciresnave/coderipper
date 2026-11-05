@@ -125,6 +125,9 @@ pub(crate) struct ConfigFile {
     /// `[mod006]`: the window and thresholds of `MOD-006`, divergent change (see [`Mod006Settings`]).
     #[serde(default)]
     pub mod006: Option<Mod006Settings>,
+    /// `[arc009]`: the base revision and the budget of `ARC-009`, architectural drift (see [`Arc009Settings`]).
+    #[serde(default)]
+    pub arc009: Option<Arc009Settings>,
     /// A default for `--profile`.
     #[cfg_attr(
         not(any(feature = "cli", test)),
@@ -297,6 +300,26 @@ pub(crate) struct Mod006Settings {
     pub min_commits: Option<usize>,
     /// A commit that touches more files than this is a bulk change (a rename, a format run, a release) and is left out (default 25).
     pub max_files: Option<usize>,
+}
+
+/// `[arc009]`: the revision `ARC-009` compares with and its budget. Every key is optional; read from the repository's own file only.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Arc009Settings {
+    /// The revision to compare with (a tag, a branch or a commit). Left out, the newest `v<version>` tag reachable from `HEAD`.
+    pub base: Option<String>,
+    /// How much the public surface may grow, in percent of the base's, before it is reported (default 25).
+    pub surface_growth_percent: Option<usize>,
+    /// The fewest items the surface must also have grown by (default 10).
+    pub surface_min_items: Option<usize>,
+}
+
+/// The `[arc009]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
+pub(crate) fn arc009_settings(text: &str) -> Arc009Settings {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .ok()
+        .and_then(|f| f.arc009)
+        .unwrap_or_default()
 }
 
 /// The `[mod006]` table of the repository's `.coderipper.toml` text; the defaults when the file does not parse or has no table.
