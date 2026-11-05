@@ -12,10 +12,24 @@ pub mod size_coupling;
 pub mod unused_parameters;
 pub mod unused_return_values;
 pub mod version_consistency;
+// One name per line, sorted, so adding a check edits its own line and not a wrapped list.
+#[rustfmt::skip]
 pub use architecture::{
-    ApiBudgetCheck, ComponentCyclesCheck, ComponentGraphCheck, DataOwnershipCheck,
-    DivergentChangeCheck, DriftCheck, InternalsCheck, InvariantFieldsCheck, LayersCheck,
-    ModuleCyclesCheck, PassThroughCheck, PublicSurfaceCheck, StabilityCheck, VolatileDetailCheck,
+    ApiBudgetCheck,
+    ComponentCyclesCheck,
+    ComponentGraphCheck,
+    DataOwnershipCheck,
+    DivergentChangeCheck,
+    DriftCheck,
+    InternalsCheck,
+    InvariantFieldsCheck,
+    LayersCheck,
+    ModuleCyclesCheck,
+    PassThroughCheck,
+    PublicSurfaceCheck,
+    ReachThroughCheck,
+    StabilityCheck,
+    VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;
 pub use cli_basics::CliBasicsCheck;
