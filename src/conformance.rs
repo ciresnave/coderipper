@@ -366,6 +366,19 @@ fn judge_one(
             String::from_utf8_lossy(&staged.stderr).trim()
         );
     }
+    // after a history step (no baseline), clear and stage the removal as the steps do: a fixture file with the size and timestamp of
+    // the last step's would otherwise be taken for unchanged and the fixture committed empty
+    if project.path().join(".git").exists() {
+        clear_worktree(project.path())?;
+        let staged = git_command(project.path())
+            .args(["add", "-A", "-f"])
+            .output()?;
+        anyhow::ensure!(
+            staged.status.success(),
+            "{name}: could not stage the removal before the fixture: {}",
+            String::from_utf8_lossy(&staged.stderr).trim()
+        );
+    }
     copy_fixture(dir, project.path())?;
     git_commit_all(project.path())
         .with_context(|| format!("{name}: could not make the fixture a git repository"))?;

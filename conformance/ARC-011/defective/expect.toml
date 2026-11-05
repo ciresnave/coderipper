@@ -1,0 +1,4 @@
+# `a` and `b` name each other, and four commits (three history steps and the fixture itself) edited both: a pair that is one module split in two.
+[[expect]]
+rule = "ARC-011"
+file = "src/a.rs"

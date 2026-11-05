@@ -474,7 +474,7 @@ fn judge(found: &[Divergent], project: &str, params: Params) -> Vec<Finding> {
         .collect()
 }
 
-fn git(dir: &Path, args: &[&str]) -> anyhow::Result<Vec<u8>> {
+pub(crate) fn git(dir: &Path, args: &[&str]) -> anyhow::Result<Vec<u8>> {
     let out = Command::new("git").args(args).current_dir(dir).output()?;
     anyhow::ensure!(
         out.status.success(),

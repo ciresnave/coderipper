@@ -97,6 +97,8 @@ builtin_checks! {
     Layers => ARC_008, true, false, LayersCheck;
     /// `ARC-009`.
     Drift => ARC_009, true, false, DriftCheck;
+    /// `ARC-011`.
+    Entangled => ARC_011, true, false, EntangledCheck;
     /// `MOD-001`.
     PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
     /// `MOD-002`.
