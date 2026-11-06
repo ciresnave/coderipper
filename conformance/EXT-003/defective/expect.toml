@@ -1,0 +1,6 @@
+# The seeded defect: a trait impl method that is a todo! stub.
+
+[[expect]]
+rule = "EXT-003"
+file = "src/lib.rs"
+line = 13
