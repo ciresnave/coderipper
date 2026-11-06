@@ -71,7 +71,7 @@ depend on judgment about intent (EXT-010) or on history (EXT-007 to EXT-009).
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | EXT-001 | Exhaustive matching on closed variant sets | P | catalog record; no check yet (triage names the Clippy restriction lint `wildcard_enum_match_arm`, typescript-eslint `switch-exhaustiveness-check`, pyright `reportMatchNotExhaustive`) |
-| EXT-002 | No downcasts on abstractions | P | catalog record; no check yet (planned native search for downcasts and type tests in client code) |
+| EXT-002 | No downcasts on abstractions | P | built in part (Rust, `syn`, outside tests; `downcast_ref`, `downcast_mut`, `downcast`, `is::<T>`, `type_id` and `TypeId::of`, a downcast to an error type excepted, Medium; opt-in (`check EXT-002`); the receiver's type is not resolved; other languages not read) |
 | EXT-003 | Implementations honour their contract | P | catalog record; no check yet (triage names Clippy `unimplemented` and `todo` for Rust; native checks for the others; no-op overrides in Rust are not detected) |
 | EXT-004 | Fat interfaces | P | catalog record; no check yet, needs per-client usage analysis (not worth building yet for Rust) |
 | EXT-005 | Bounded inheritance | P | catalog record; no check yet (pylint too-many-ancestors for Python; not applicable to Rust, which has no implementation inheritance) |
