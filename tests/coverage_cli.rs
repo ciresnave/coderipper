@@ -209,7 +209,7 @@ fn proven_rust_checks() -> u64 {
 /// The language-neutral rules and the Rust-only neutral rules (lint-suppression, conflict-marker, patent-index-match, licence, OPS-012,
 /// security-support-statement, RDB-008, EFX-003, SEC-004, SEC-005, EXT-003 and the others with a fixture) that the Rust language also gets. It changes when
 /// one of those rules gains or loses a fixture, never when a built-in Rust check is added.
-const LANGUAGE_NEUTRAL_COVERED: u64 = 25;
+const LANGUAGE_NEUTRAL_COVERED: u64 = 26;
 
 #[test]
 fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape() {
