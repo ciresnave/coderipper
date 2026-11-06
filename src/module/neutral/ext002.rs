@@ -10,7 +10,9 @@
 //! * a method call `.is::<T>()` (a type test on `dyn Any`; read only with the turbofish, since `is` alone is a common name);
 //! * `TypeId::of::<T>()`, and a method call `.type_id()` (the identity of the type behind a value).
 //!
-//! **Not reported:** a downcast to an error type (the turbofish names a type whose last segment ends in `Error`, or is `Elapsed`):
+//! **Not reported:** a downcast of a value named like an error or a panic payload (`err`, `source`, `cause`, `inner`, `payload` and the
+//! like: walking an error chain and reading a `catch_unwind` payload are what `dyn Error` and `Box<dyn Any + Send>` are for), a
+//! downcast to `String` (a panic payload), a downcast to an error type (the turbofish names a type whose last segment ends in `Error`, or is `Elapsed`):
 //! `anyhow::Error`, `Box<dyn Error>` and `io::Error` are inspected this way by design, and the error type is the library's, not an
 //! abstraction of the project. Code in tests. A downcast through a helper, a trait method or a macro (`syn` does not look inside macro
 //! tokens). Other languages (`instanceof`, `isinstance`, type switches are not read).
@@ -87,6 +89,43 @@ fn is_error_type(ty: &str) -> bool {
     last.ends_with("Error") || last == "Elapsed"
 }
 
+/// Names of values that carry an error or a panic payload: inspecting them with a downcast is what `dyn Error`, `anyhow::Error` and
+/// `catch_unwind` are for.
+const ERROR_LIKE: &[&str] = &[
+    "e", "err", "error", "source", "cause", "inner", "node", "payload", "panic", "reason",
+];
+
+/// The name a receiver expression ends in: `err`, `self.cause`, `x.source()` give `err`, `cause`, `source`.
+fn receiver_name(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
+        Expr::Field(f) => match &f.member {
+            syn::Member::Named(n) => Some(n.to_string()),
+            syn::Member::Unnamed(_) => None,
+        },
+        // `x.source().unwrap()`: the unwrapping says nothing, the call under it does
+        Expr::MethodCall(m)
+            if matches!(
+                m.method.to_string().as_str(),
+                "unwrap" | "expect" | "as_ref" | "as_deref" | "as_mut" | "as_deref_mut"
+            ) =>
+        {
+            receiver_name(&m.receiver)
+        }
+        Expr::MethodCall(m) => Some(m.method.to_string()),
+        Expr::Reference(r) => receiver_name(&r.expr),
+        Expr::Paren(p) => receiver_name(&p.expr),
+        Expr::Unary(u) => receiver_name(&u.expr),
+        _ => None,
+    }
+}
+
+fn is_error_like(name: &str) -> bool {
+    ERROR_LIKE.iter().any(|n| {
+        name == *n || name.ends_with(&format!("_{n}")) || name.starts_with(&format!("{n}_"))
+    })
+}
+
 impl Scan {
     fn function(&mut self, attrs: &[Attribute], name: &str, read: impl FnOnce(&mut Self)) {
         if attrs.iter().any(is_test_attr) {
@@ -138,7 +177,9 @@ impl<'ast> Visit<'ast> for Scan {
             "type_id" if no_args => true,
             _ => false,
         };
-        let skip = ty.as_deref().is_some_and(is_error_type);
+        let skip = ty.as_deref().is_some_and(is_error_type)
+            || (name.starts_with("downcast") && ty.as_deref().is_some_and(|t| t == "String"))
+            || receiver_name(&call.receiver).is_some_and(|n| is_error_like(&n));
         if hit && !skip {
             let what = match &ty {
                 Some(t) => format!("{name}::<{t}>"),
@@ -291,6 +332,25 @@ fn f(a: &dyn Any) -> bool {
     e.downcast_ref::<std::io::Error>().is_some() || e.downcast_ref::<MyError>().is_some()
 }";
         assert!(whats(src).is_empty());
+    }
+
+    #[test]
+    fn walking_an_error_chain_and_reading_a_panic_payload_are_not_reported() {
+        let src =
+            "fn f(e: &(dyn std::error::Error + 'static), payload: Box<dyn std::any::Any + Send>) {
+    let _ = e.downcast_ref::<Timeout>();
+    let _ = self.cause.downcast_ref::<Timeout>();
+    let _ = e.source().unwrap().downcast_ref::<Timeout>();
+    let _ = payload.downcast::<String>();
+    let _ = other.downcast::<String>();
+}";
+        assert!(whats(src).is_empty(), "{:?}", whats(src));
+    }
+
+    #[test]
+    fn an_abstraction_downcast_through_as_any_is_still_reported() {
+        let src = "fn f(s: &dyn Shape) -> bool { s.as_any().downcast_ref::<Circle>().is_some() }";
+        assert_eq!(whats(src), vec!["downcast_ref::<Circle>"]);
     }
 
     #[test]
