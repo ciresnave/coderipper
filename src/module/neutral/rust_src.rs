@@ -60,11 +60,10 @@ fn has_comment(line: &str) -> bool {
             b'"' => in_str = !in_str,
             b'/' if !in_str
                 && i + 1 < bytes.len()
-                && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*') =>
+                && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*')
+                && (i == 0 || bytes[i - 1] != b':') =>
             {
-                if i == 0 || bytes[i - 1] != b':' {
-                    return true;
-                }
+                return true;
             }
             _ => {}
         }
