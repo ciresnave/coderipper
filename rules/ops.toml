@@ -133,6 +133,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Remove the secret, rotate it, and load it from a secret store or the environment at runtime. Detection itself is the job of the secrets rule."
 related = ["SEC-002"]
+checked_today = "The pinned gitleaks scan that SEC-002 runs (the whole history, the tool's default rules, nothing the repository supplies, no gitleaks:allow comment honoured), narrowed to configuration files: .yml, .yaml, .toml, .ini, .cfg, .conf, .config, .properties, .tfvars, .xml and .json files (lockfiles excepted), dotenv files and docker-compose files. A secret in source code or a document is SEC-002's only. No detection of its own. Not judged: a secret in a configuration file that gitleaks's default rules do not recognise, a secret that is not a literal value (a reference to a secret store is the goal, not a finding), and files outside the history. Needs gitleaks installed (a gap otherwise)."
 lifecycle = "experimental"
 
 [rule.applicability]
