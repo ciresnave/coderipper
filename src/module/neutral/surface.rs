@@ -68,10 +68,22 @@ fn is_test_attr(attr: &Attribute) -> bool {
     {
         return true;
     }
-    attr.path().is_ident("cfg")
-        && attr
-            .parse_args::<Meta>()
-            .is_ok_and(|m| m.path().is_ident("test"))
+    attr.path().is_ident("cfg") && attr.parse_args::<Meta>().is_ok_and(|m| cfg_is_test(&m))
+}
+
+/// `test`, or `all(..)` with `test` among its terms: the item exists only in a test build. `any(..)` and `not(..)` do not.
+fn cfg_is_test(meta: &Meta) -> bool {
+    if meta.path().is_ident("test") {
+        return true;
+    }
+    let Meta::List(list) = meta else {
+        return false;
+    };
+    if !list.path.is_ident("all") {
+        return false;
+    }
+    list.parse_args_with(syn::punctuated::Punctuated::<Meta, syn::Token![,]>::parse_terminated)
+        .is_ok_and(|terms| terms.iter().any(cfg_is_test))
 }
 
 fn is_doc_hidden(attr: &Attribute) -> bool {
@@ -151,7 +163,13 @@ fn deprecation(attrs: &[Attribute], name: &str, out: &mut Vec<Site>) {
 const CLOSED_WORDS: &[&str] = &["exhaustive", "closed", "sealed", "fixed set"];
 
 fn says_closed(attrs: &[Attribute]) -> bool {
-    let doc = doc_text(attrs).to_lowercase();
+    let mut doc = doc_text(attrs).to_lowercase();
+    // a negated phrase says the opposite: "not exhaustive", "non-exhaustive", "isn't closed"
+    for neg in ["not ", "non-", "non ", "n't ", "never ", "no "] {
+        for w in CLOSED_WORDS {
+            doc = doc.replace(&format!("{neg}{w}"), "");
+        }
+    }
     CLOSED_WORDS.iter().any(|w| doc.contains(w))
 }
 
@@ -160,19 +178,20 @@ fn closed_type(attrs: &[Attribute], item: &Item, out: &mut Vec<Site>) {
         return;
     }
     match item {
-        Item::Enum(e) if !e.variants.is_empty() => out.push(Site {
-            kind: Kind::Closed,
-            line: line_of(e.ident.span()),
-            name: e.ident.to_string(),
-            detail: format!("is a public enum of {} variant(s)", e.variants.len()),
-        }),
+        Item::Enum(e) => {
+            let n = e.variants.iter().filter(|v| visible(&v.attrs)).count();
+            if n > 0 {
+                out.push(Site {
+                    kind: Kind::Closed,
+                    line: line_of(e.ident.span()),
+                    name: e.ident.to_string(),
+                    detail: format!("is a public enum of {n} variant(s)"),
+                });
+            }
+        }
         Item::Struct(s) => {
             let named = match &s.fields {
-                Fields::Named(f)
-                    if !f.named.is_empty() && f.named.iter().all(|x| is_pub(&x.vis)) =>
-                {
-                    Some(f)
-                }
+                Fields::Named(f) if f.named.iter().all(|x| is_pub(&x.vis)) => Some(f),
                 _ => None,
             };
             if let Some(f) = named {
@@ -212,9 +231,7 @@ fn untyped_error(sig: &Signature) -> Option<String> {
     if last.ident != "Result" {
         return None;
     }
-    if tail(&p.path) == "anyhow::Result" {
-        return Some("anyhow::Result".into());
-    }
+    let alias = tail(&p.path);
     let PathArguments::AngleBracketed(args) = &last.arguments else {
         return None;
     };
@@ -226,6 +243,9 @@ fn untyped_error(sig: &Signature) -> Option<String> {
             _ => None,
         })
         .collect();
+    if (alias == "anyhow::Result" || alias == "eyre::Result") && types.len() == 1 {
+        return Some(alias);
+    }
     let err = types.get(1)?;
     match err {
         Type::Reference(r) => match &*r.elem {
@@ -235,7 +255,23 @@ fn untyped_error(sig: &Signature) -> Option<String> {
         Type::Path(q) => {
             let t = tail(&q.path);
             let last = q.path.segments.last()?.ident.to_string();
-            if t == "String" || t == "anyhow::Error" || t == "eyre::Report" || t == "eyre::Error" {
+            let std_string = matches!(
+                q.path
+                    .segments
+                    .iter()
+                    .map(|s| s.ident.to_string())
+                    .collect::<Vec<_>>()
+                    .join("::")
+                    .as_str(),
+                "std::string::String" | "alloc::string::String" | "string::String"
+            );
+            if std_string {
+                Some("String".into())
+            } else if t == "String"
+                || t == "anyhow::Error"
+                || t == "eyre::Report"
+                || t == "eyre::Error"
+            {
                 Some(t)
             } else if last == "Box" {
                 match &q.path.segments.last()?.arguments {
@@ -274,6 +310,7 @@ fn private_type(item: &Item) -> Option<String> {
     match item {
         Item::Struct(s) if !is_pub(&s.vis) => Some(s.ident.to_string()),
         Item::Enum(e) if !is_pub(&e.vis) => Some(e.ident.to_string()),
+        Item::Union(u) if !is_pub(&u.vis) => Some(u.ident.to_string()),
         _ => None,
     }
 }
@@ -292,14 +329,22 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
             Item::Fn(f) if is_pub(&f.vis) && visible(&f.attrs) => function(&f.attrs, &f.sig, out),
             Item::Struct(s) if is_pub(&s.vis) && visible(&s.attrs) => {
                 deprecation(&s.attrs, &s.ident.to_string(), out);
+                for f in s.fields.iter() {
+                    if let (true, true, Some(id)) = (is_pub(&f.vis), visible(&f.attrs), &f.ident) {
+                        deprecation(&f.attrs, &format!("{}.{id}", s.ident), out);
+                    }
+                }
                 closed_type(&s.attrs, item, out);
             }
             Item::Enum(e) if is_pub(&e.vis) && visible(&e.attrs) => {
                 deprecation(&e.attrs, &e.ident.to_string(), out);
-                for v in &e.variants {
+                for v in e.variants.iter().filter(|v| visible(&v.attrs)) {
                     deprecation(&v.attrs, &format!("{}::{}", e.ident, v.ident), out);
                 }
                 closed_type(&e.attrs, item, out);
+            }
+            Item::Union(u) if is_pub(&u.vis) && visible(&u.attrs) => {
+                deprecation(&u.attrs, &u.ident.to_string(), out)
             }
             Item::Const(c) if is_pub(&c.vis) && visible(&c.attrs) => {
                 deprecation(&c.attrs, &c.ident.to_string(), out)
@@ -313,10 +358,15 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
             Item::Trait(t) if is_pub(&t.vis) && visible(&t.attrs) => {
                 deprecation(&t.attrs, &t.ident.to_string(), out);
                 for ti in &t.items {
-                    if let TraitItem::Fn(f) = ti {
-                        if visible(&f.attrs) {
-                            deprecation(&f.attrs, &f.sig.ident.to_string(), out);
+                    match ti {
+                        TraitItem::Fn(f) if visible(&f.attrs) => function(&f.attrs, &f.sig, out),
+                        TraitItem::Const(c) if visible(&c.attrs) => {
+                            deprecation(&c.attrs, &c.ident.to_string(), out)
                         }
+                        TraitItem::Type(c) if visible(&c.attrs) => {
+                            deprecation(&c.attrs, &c.ident.to_string(), out)
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -334,6 +384,7 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
                 }
             }
             Item::Mod(m) if is_pub(&m.vis) && visible(&m.attrs) => {
+                deprecation(&m.attrs, &m.ident.to_string(), out);
                 if let Some((_, inner)) = &m.content {
                     walk(inner, out);
                 }
@@ -543,6 +594,49 @@ impl std::str::FromStr for P {
             .map(|s| s.name)
             .collect();
         assert_eq!(names, ["m"]);
+    }
+
+    #[test]
+    fn review_cases_negation_cfg_all_union_variants_trait_fns_paths_and_aliases() {
+        let closed = |src: &str| run(src, Kind::Closed).len();
+        // a negated phrase does not say the type is closed
+        assert_eq!(closed("/// Not exhaustive.\npub enum E { A }\n"), 1);
+        assert_eq!(closed("/// This set is closed.\npub enum E { A }\n"), 0);
+        // an empty named struct can be built as `S {}`
+        assert_eq!(closed("pub struct S {}\n"), 1);
+        // a hidden variant does not count
+        assert_eq!(closed("pub enum E { #[doc(hidden)] A }\n"), 0);
+        // test-only under all(..) is left out, any(..) is not
+        assert_eq!(closed("#[cfg(all(test, unix))]\npub enum E { A }\n"), 0);
+        assert_eq!(closed("#[cfg(any(test, unix))]\npub enum E { A }\n"), 1);
+        let dep = |src: &str| run(src, Kind::Deprecation).len();
+        assert_eq!(dep("pub struct S { #[deprecated] pub x: u8 }\n"), 1);
+        assert_eq!(dep("#[deprecated]\npub mod m {}\n"), 1);
+        assert_eq!(dep("#[deprecated]\npub union U { a: u8 }\n"), 1);
+        assert_eq!(
+            dep("pub trait T { #[deprecated] const C: u8; #[deprecated] type A; }\n"),
+            2
+        );
+        assert_eq!(dep("pub enum E { #[doc(hidden)] #[deprecated] A }\n"), 0);
+        let err = |src: &str| run(src, Kind::UntypedError).len();
+        assert_eq!(
+            err("pub trait T { fn f(&self) -> Result<(), String>; }\n"),
+            1
+        );
+        assert_eq!(
+            err("pub fn f() -> Result<(), std::string::String> { Ok(()) }\n"),
+            1
+        );
+        assert_eq!(
+            err("pub fn f() -> anyhow::Result<u8, MyError> { Ok(1) }\n"),
+            0
+        );
+        assert_eq!(err("pub fn f() -> eyre::Result<u8> { Ok(1) }\n"), 1);
+        // a method of a private union is not public
+        assert_eq!(
+            err("union U { a: u8 }\nimpl U { pub fn f() -> Result<(), String> { Ok(()) } }\n"),
+            0
+        );
     }
 
     #[test]
