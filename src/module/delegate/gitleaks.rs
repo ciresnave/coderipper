@@ -25,6 +25,8 @@ use std::path::{Path, PathBuf};
 
 /// The catalog rule this evidences.
 pub(super) const RULE: &str = crate::rule_id::SEC_002;
+/// The second rule this tool evidences: secrets in files that are configuration.
+pub(super) const OPS_RULE: &str = crate::rule_id::OPS_006;
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "gitleaks";
 
@@ -156,6 +158,63 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
         Resolved::Failed(kind, why) => return Verdict::Failed(kind, why),
     };
     scan_with(&program, scan_args, request)
+}
+
+/// Whether `path` is a configuration file: the formats and names a program is set up with (`app.yaml`, `settings.ini`, a dotenv
+/// file, `application.properties`, `docker-compose.yml`), by extension or name. Source code, documents and lockfiles are not: a
+/// secret in them is `SEC-002`'s, not this rule's.
+fn is_config_file(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path).to_ascii_lowercase();
+    if name == ".env" || name.starts_with(".env.") || name.ends_with(".env") {
+        return true;
+    }
+    if name.starts_with("docker-compose") {
+        return true;
+    }
+    if name.ends_with("lock.json") {
+        return false;
+    }
+    let Some((_, ext)) = name.rsplit_once('.') else {
+        return false;
+    };
+    matches!(
+        ext,
+        "yml"
+            | "yaml"
+            | "toml"
+            | "ini"
+            | "cfg"
+            | "conf"
+            | "config"
+            | "properties"
+            | "tfvars"
+            | "xml"
+            | "json"
+    )
+}
+
+/// `OPS-006`: what the secret scan found in configuration files, under this rule's id. It is the same scan as `SEC-002` (the
+/// whole history, the tool's default rules), narrowed to the files above; a secret in source code or a document is not reported
+/// here. No detection of its own.
+pub(super) fn run_config(env: &ToolEnv, request: &Request) -> Verdict {
+    match run(env, request) {
+        Verdict::Findings(found) => Verdict::Findings(
+            found
+                .into_iter()
+                .filter(|f| f.location.as_ref().is_some_and(|l| is_config_file(&l.file)))
+                .map(|mut f| {
+                    f.check_id = OPS_RULE.to_string();
+                    f.summary = f.summary.replacen(
+                        "a committed secret",
+                        "a committed secret in a configuration file",
+                        1,
+                    );
+                    f
+                })
+                .collect(),
+        ),
+        other => other,
+    }
 }
 
 /// `git <args>` in `dir`: its output when it succeeded (only the line ending is trimmed: a path may begin with a space).
@@ -306,6 +365,31 @@ pub(super) fn scan_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_configuration_files_are_this_rules() {
+        for yes in [
+            "config/app.yaml",
+            "prod.env",
+            "settings.ini",
+            "application.properties",
+            "docker-compose.yml",
+            "deploy/values.json",
+            "terraform.tfvars",
+        ] {
+            assert!(is_config_file(yes), "{yes}");
+        }
+        for no in [
+            "src/main.rs",
+            "README.md",
+            "Cargo.lock",
+            "package-lock.json",
+            "notes.txt",
+            "scripts/run.sh",
+        ] {
+            assert!(!is_config_file(no), "{no}");
+        }
+    }
 
     /// What gitleaks 8.30.1 wrote for a one-commit repository holding `vendor_api_key = "..."` (measured 2026-10-09 with `--redact`).
     const REPORT: &str = r#"[

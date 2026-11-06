@@ -97,7 +97,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.39", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.40", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run
@@ -353,6 +353,10 @@ gitleaks' own patterns at the pinned version and nothing outside git.
 coderipper tools install gitleaks --install-tools     # once; or pass --install-tools to the run itself
 coderipper check SEC-002 --profile extended --deny high
 ```
+
+`OPS-006` (no secrets in configuration files) is the same scan under its own id, narrowed to configuration files (`.yml`, `.yaml`, `.toml`,
+`.ini`, `.cfg`, `.conf`, `.properties`, `.tfvars`, `.xml`, `.json` other than lockfiles, dotenv and docker-compose files): `coderipper check OPS-006`. It
+has no detection of its own, so a secret in source code is `SEC-002`'s only and a secret in a configuration file is reported under both.
 
 The repository cannot silence the rule: a committed `.gitleaksignore`, `.gitleaks.toml` or `gitleaks:allow` comment is not honoured (the
 project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project in a subdirectory gets the leaks under it, with

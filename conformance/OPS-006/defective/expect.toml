@@ -1,0 +1,7 @@
+# The seeded defect: a committed API key in a configuration file (a made-up value that matches no real service).
+# gitleaks reports it, under this rule, in the commit the conformance runner makes of this directory.
+
+[[expect]]
+rule = "OPS-006"
+file = "settings.cfg"
+line = 2

@@ -114,6 +114,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Give each container spec its own liveness probe, readiness probe, and CPU and memory caps; enforce this with a policy engine over the manifests."
 related = ["REL-006"]
+checked_today = "The pinned checkov, run over the tracked Kubernetes (and other infrastructure) definitions as SEC-009 does, asked for four checks: CKV_K8S_8 (liveness probe), CKV_K8S_9 (readiness probe), CKV_K8S_11 (CPU limits) and CKV_K8S_13 (memory limits). One Medium finding per failed check, at the resource. The requests checks (CKV_K8S_10, CKV_K8S_12) are not this rule's. A project with no tracked infrastructure definition is a gap, as is a file checkov could not parse. Not judged: probes or limits set by an admission controller, a Helm chart's templates (not rendered), and whether the two probes differ. Needs checkov installed (a gap otherwise)."
 lifecycle = "experimental"
 
 [rule.applicability]
