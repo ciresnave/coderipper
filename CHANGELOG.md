@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.1 - 2026-11-06 (proposed, Fix)
+
+**The reusable portfolio workflow installs coderipper 0.39.0** (`CODERIPPER_VERSION` in `.github/workflows/portfolio.yml`, from 0.20.1), the newest published release (crates.io, tagged `v0.39.0`). The 0.20.1 install printed the two MOD-002 "not registered" Info lines because it lagged 19 minor versions behind the rules the repository's own configuration names; 0.39.0 registers them. The caller pin in `ci.yml` (`portfolio.yml@<commit> # 0.20.1`) moves to the commit of this change in a second, fragment-only change once this one is on `main`, as for 0.20.1.
+
 ## 0.43.0 - 2026-11-06 (proposed, Breaking: a new default-on rule (API-004) and two opt-in rules)
 
 **API-004, API-009 and ERR-004 are built** (the public-surface package, `src/module/neutral/surface.rs`, one `syn` walk over first-party Rust outside tests and binary roots; the neutral module's rules 20 to 22). An item counts as public when its visibility is a bare `pub` and every inline module above it is `pub`; the methods read are the `pub` methods of inherent `impl` blocks of types that are not private in the same file. **API-004** reports a `#[deprecated]` attribute with no `since` or no `note` (Low severity, Medium confidence). **API-009** reports a `pub enum` with variants, or a `pub struct` whose named fields are all `pub`, that has no `#[non_exhaustive]` and no doc comment calling it closed (Low, Medium). **ERR-004** reports a `pub fn` returning `Result` whose error is `String`, `&str`, a boxed trait object, `anyhow::Error` or `eyre::Report`, or `anyhow::Result` (Medium, Medium). Each has fixtures under `conformance/` and a `checked_today` record that says what is not seen (items reached through `pub use` or a module in its own file, macros, whether a note names a replacement, a type alias that hides the error).
