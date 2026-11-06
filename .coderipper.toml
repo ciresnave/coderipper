@@ -26,6 +26,10 @@ file = "src/cli.rs"
 reason = "a real candidate, not a false alarm: 1,439 code lines holding the argument definitions, dispatch, the tools/cache/conformance subcommands, report printing and the cargo-subcommand shim, and `run_and_report` alone is about 437 lines. It should become a cli/ module split (args, report, one file per subcommand). Not done in the change that introduced the rule, to keep that change reviewable. Owner: coderipper lane. Remove this entry when the file is split or falls under 1,035 code lines."
 [[allow]]
 check = "MOD-005"
+file = "src/config.rs"
+reason = "`ConfigFile` is the parsed shape of the repository file and gains one `Option<...Settings>` member for each rule that reads a table of its own (`[mod006]`, `[arc005]`, `[arc009]`, `[mod009]`, now `[arc004]`), so its member count (30, the threshold) grows with the number of such rules, which is by design and not accidental coupling. Owner: coderipper lane. Remove this entry when the per-rule tables move into one nested settings struct, or when `ConfigFile` falls under 30 members."
+[[allow]]
+check = "MOD-005"
 file = "src/module/neutral/mod.rs"
 reason = "the registry of the language-neutral rules: one `mod` declaration and one entry per rule module, so the number of modules it names (21) is the number of rules by construction, not accidental coupling. Owner: coderipper lane. Revisit if it starts to hold logic of its own."
 

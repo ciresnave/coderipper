@@ -1,0 +1,1 @@
+# The same mutual references, but `a` and `b` were edited in separate commits: only the commit that created them touched both.

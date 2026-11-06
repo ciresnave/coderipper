@@ -21,6 +21,8 @@ pub use architecture::{
     DataOwnershipCheck,
     DivergentChangeCheck,
     DriftCheck,
+    EntangledCheck,
+    InfraSignatureCheck,
     InternalsCheck,
     InvariantFieldsCheck,
     LayersCheck,
