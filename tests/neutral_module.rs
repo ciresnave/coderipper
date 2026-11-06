@@ -7,7 +7,7 @@ use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::{Module, NeutralModule};
 use std::path::{Path, PathBuf};
 
-const RULES: [&str; 24] = [
+const RULES: [&str; 26] = [
     "SUP-001",
     "SUP-004",
     "SUP-011",
@@ -31,6 +31,8 @@ const RULES: [&str; 24] = [
     "CON-003",
     "CON-004",
     "REL-003",
+    "SEC-005",
+    "EXT-003",
     "ERR-001",
 ];
 

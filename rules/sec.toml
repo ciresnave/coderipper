@@ -116,6 +116,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Forbid unsafe code where possible, otherwise isolate it in a small module with a written safety argument and track the count over time."
 related = ["SEC-010"]
+checked_today = "Tracked Rust files of each package (nearest Cargo.toml), outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) skipped: unsafe blocks, unsafe fns, and unsafe impl and trait items are counted. One Info finding per package when an unsafe block or unsafe impl has no SAFETY comment on its line or in the comment lines directly above it (the count and the sites are in the finding), or when a package with no unsafe neither forbids nor denies unsafe_code in a lib.rs or main.rs or under lints in a Cargo.toml. A package whose unsafe is all justified, or that forbids it, says nothing. Not judged: unsafe inside macro arguments or generated code, native code in another language, whether a SAFETY comment is true, TypeScript and Python, and COR-006 (this inventory is its static half but does not claim it)."
 lifecycle = "experimental"
 
 [rule.applicability]
