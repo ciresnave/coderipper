@@ -4,7 +4,7 @@
 //! **What this judges:** each tracked GitHub Actions workflow (`.github/workflows/*.yml` or `.yaml`) that **publishes or tags a
 //! release** is read as text, comment lines excluded. A workflow is a release workflow when it names one of: `cargo publish`,
 //! `cargo release`, `npm publish`, `twine upload`, `gh release`, `pypa/gh-action-pypi-publish`, `softprops/action-gh-release`,
-//! `actions/create-release`, `goreleaser`, `docker push`. (A name this list does not hold is not guessed.) It generates an SBOM when the
+//! `actions/create-release`, `goreleaser`. A line that says `--dry-run` publishes nothing and is not read as a publisher, and `docker push` is not in the list (it deploys images as often as it releases). (A name this list does not hold is not guessed.) It generates an SBOM when the
 //! same file names, in any case, one of `cyclonedx`, `cargo sbom`, `cargo-sbom`, `syft`, `spdx` or `sbom` (which covers
 //! `anchore/sbom-action`). One **Info** finding per release workflow with none of them.
 //!
@@ -29,7 +29,6 @@ const PUBLISHERS: &[&str] = &[
     "softprops/action-gh-release",
     "actions/create-release",
     "goreleaser",
-    "docker push",
 ];
 
 const SBOM_WORDS: &[&str] = &[
@@ -53,6 +52,9 @@ fn publishing_step(text: &str) -> Option<(u32, &'static str)> {
             continue;
         }
         let lower = t.to_ascii_lowercase();
+        if lower.contains("--dry-run") {
+            continue;
+        }
         if let Some(p) = PUBLISHERS.iter().find(|p| lower.contains(*p)) {
             return Some((u32::try_from(i + 1).unwrap_or(u32::MAX), p));
         }
@@ -147,6 +149,20 @@ mod tests {
         // a comment that names an SBOM tool is not a step
         let text = format!("{RELEASE}      # TODO cargo cyclonedx\n");
         assert_eq!(found(&[(".github/workflows/release.yml", &text)]).len(), 1);
+    }
+
+    #[test]
+    fn a_dry_run_and_an_image_push_are_not_releases() {
+        let dry = "jobs:
+  t:
+    steps:
+      - run: cargo publish --workspace --dry-run --locked
+      - run: docker push registry/app:tag
+";
+        assert!(matches!(
+            judge(&RepoView::from_files(&[(".github/workflows/ci.yml", dry)])),
+            Verdict::NotApplicable(_)
+        ));
     }
 
     #[test]
