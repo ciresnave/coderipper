@@ -72,7 +72,7 @@ Toxiproxy for REL-008).
 | :--- | :--- | :--- | :--- |
 | REL-001 | Outbound calls have deadlines | P | catalog record; no check yet (needs a parser; Semgrep patterns are a candidate) |
 | REL-002 | Retries follow a safe policy | P | catalog record; no check yet (needs a parser; judging idempotency needs a model) |
-| REL-003 | Bounded channels with overflow policy | P | catalog record; no check yet (needs a parser; duplicates CON-004) |
+| REL-003 | Bounded channels with overflow policy | P | built in part (the same Rust reading as CON-004, reported under this id: channels created with no capacity; opt-in, `check REL-003`) |
 | REL-004 | Idempotent message handlers | L | catalog record; no check yet (needs a human decision or a model, plus replay tests) |
 | REL-005 | Probes and resource limits in manifests | N | built: delegated to checkov, asked for four checks (`CKV_K8S_8` liveness probe, `_9` readiness probe, `_11` CPU limits, `_13` memory limits), Medium, one finding per failed check at the resource; requests (`_10`, `_12`) are not this rule's; Helm templates are not rendered; needs checkov installed |
 | REL-006 | Graceful shutdown | P | catalog record; no check yet (needs a parser; the shutdown test runs code) |

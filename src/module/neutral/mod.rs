@@ -11,6 +11,7 @@
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
 mod ci_security;
+mod concurrency;
 mod conflict_marker;
 mod doc005;
 mod doc009;
@@ -138,12 +139,20 @@ const RULES: &[Rule] = &[
         judge: sec004::judge,
     },
     Rule {
-        id: "SEC-005",
-        judge: sec005::judge,
+        id: "CON-002",
+        judge: concurrency::judge_con002,
     },
     Rule {
-        id: "EXT-003",
-        judge: ext003::judge,
+        id: "CON-003",
+        judge: concurrency::judge_con003,
+    },
+    Rule {
+        id: "CON-004",
+        judge: concurrency::judge_con004,
+    },
+    Rule {
+        id: "REL-003",
+        judge: concurrency::judge_rel003,
     },
 ];
 
@@ -155,7 +164,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// The rules of [`rule_ids`] that no profile runs on its own: they are claimed and proven like the others, and run when asked for
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
-    &["EFX-003", "SEC-005"]
+    &["EFX-003", "CON-003", "CON-004", "REL-003"]
 }
 
 /// Where a [`RepoView`] gets its files.
@@ -509,8 +518,10 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("patent-index-match", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
-    ("SEC-005", &["rust"]),
-    ("EXT-003", &["rust"]),
+    ("CON-002", &["rust"]),
+    ("CON-003", &["rust"]),
+    ("CON-004", &["rust"]),
+    ("REL-003", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -533,8 +544,10 @@ const PROVEN: &[&str] = &[
     "RDB-008",
     "EFX-003",
     "SEC-004",
-    "SEC-005",
-    "EXT-003",
+    "CON-002",
+    "CON-003",
+    "CON-004",
+    "REL-003",
 ];
 
 impl Module for NeutralModule {
@@ -669,7 +682,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 21);
+        assert_eq!(rule_ids().len(), 23);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
