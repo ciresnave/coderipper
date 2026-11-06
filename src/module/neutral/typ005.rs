@@ -22,7 +22,6 @@ use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};
 use crate::checks::size_coupling::is_cfg_test;
 use crate::finding::{Confidence, Finding, Location, Severity};
-use syn::spanned::Spanned;
 use syn::visit::Visit;
 
 const ID: &str = crate::rule_id::TYP_005;
