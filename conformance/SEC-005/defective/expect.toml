@@ -1,0 +1,6 @@
+# The seeded defect: an unsafe block with no SAFETY comment.
+
+[[expect]]
+rule = "SEC-005"
+file = "src/lib.rs"
+line = 3

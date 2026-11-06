@@ -70,7 +70,7 @@ None of these rules is run by the current release. The notes say what is planned
 | :--- | :--- | :--- | :--- |
 | TYP-001 | Public APIs wrap domain values in dedicated types | P | no check yet; planned: native name heuristics; semantic judgement needs an LLM |
 | TYP-002 | Strings standing in for enums | P | no check yet; planned: native syntax-tree check |
-| TYP-003 | Invariant-bearing types can only be built through validation | P | no check yet; planned: native visibility check, which needs a declared tag or annotation |
+| TYP-003 | (alias of MOD-010) | A | the same rule as `MOD-010`, which answers to the name `TYP-003`: one detection (a declared invariant type has private fields and is built through a validating constructor); see `docs/rules/mod.md` |
 | TYP-004 | Outside data becomes domain types at the boundary | P | no check yet; planned: native flow check for TypeScript and Python; Rust needs data-flow analysis |
 | TYP-005 | Money and exact amounts avoid binary floats | P | no check yet; planned: native check inside money-tagged modules, which needs a declared architecture of tagged modules |
 | TYP-006 | No unwrap or null assertions on production paths | P | no check yet; planned: surface Clippy unwrap_used, typescript-eslint no-non-null-assertion and Pyright |

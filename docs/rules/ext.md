@@ -72,7 +72,7 @@ depend on judgment about intent (EXT-010) or on history (EXT-007 to EXT-009).
 | :--- | :--- | :--- | :--- |
 | EXT-001 | Exhaustive matching on closed variant sets | P | catalog record; no check yet (triage names the Clippy restriction lint `wildcard_enum_match_arm`, typescript-eslint `switch-exhaustiveness-check`, pyright `reportMatchNotExhaustive`) |
 | EXT-002 | No downcasts on abstractions | P | catalog record; no check yet (planned native search for downcasts and type tests in client code) |
-| EXT-003 | Implementations honour their contract | P | catalog record; no check yet (triage names Clippy `unimplemented` and `todo` for Rust; native checks for the others; no-op overrides in Rust are not detected) |
+| EXT-003 | Implementations honour their contract | P | check `EXT-003` (Rust, `syn`, Medium): a method of a non-test trait impl whose body calls `todo!` or `unimplemented!`, or is a short straight-line body holding "not supported" or "not implemented"; trait default bodies, `panic!` stubs, silent empty overrides and macro-generated impls are not seen; other languages not covered |
 | EXT-004 | Fat interfaces | P | catalog record; no check yet, needs per-client usage analysis (not worth building yet for Rust) |
 | EXT-005 | Bounded inheritance | P | catalog record; no check yet (pylint too-many-ancestors for Python; not applicable to Rust, which has no implementation inheritance) |
 | EXT-006 | Shared contract tests for every implementation | X | catalog record; no check yet, presence is static but passing needs running tests (Pact for cross-component) |
