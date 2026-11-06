@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.2 - 2026-11-06 (proposed, Fix)
+
+**The tests no longer pin the number of rules, so a new rule no longer conflicts with every other rule PR.** `tests/neutral_module.rs` read a hard-coded list and count of the neutral module's rules (22, 25, 26, 29...), `tests/coverage_cli.rs` a count of the covered neutral rules and of the claimed-but-unproven delegated ones, and two unit tests the number of rules registered. They now read the registry (`NeutralModule::describe`, `delegated_rule_ids`), with a positive control that the registry holds a known rule, and a test that a rule id is registered exactly once. A registered rule without fixtures still fails the proof test. No source change.
+
 ## 0.43.1 - 2026-11-06 (proposed, Fix)
 
 **The reusable portfolio workflow installs coderipper 0.39.0** (`CODERIPPER_VERSION` in `.github/workflows/portfolio.yml`, from 0.20.1), the newest published release (crates.io, tagged `v0.39.0`). The 0.20.1 install printed the two MOD-002 "not registered" Info lines because it lagged 19 minor versions behind the rules the repository's own configuration names; 0.39.0 registers them. The caller pin in `ci.yml` (`portfolio.yml@<commit> # 0.20.1`) moves to the commit of this change in a second, fragment-only change once this one is on `main`, as for 0.20.1.

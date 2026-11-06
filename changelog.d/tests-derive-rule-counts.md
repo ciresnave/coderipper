@@ -1,3 +1,0 @@
-kind: Fix
----
-**The tests no longer pin the number of rules, so a new rule no longer conflicts with every other rule PR.** `tests/neutral_module.rs` read a hard-coded list and count of the neutral module's rules (22, 25, 26, 29...), `tests/coverage_cli.rs` a count of the covered neutral rules and of the claimed-but-unproven delegated ones, and two unit tests the number of rules registered. They now read the registry (`NeutralModule::describe`, `delegated_rule_ids`), with a positive control that the registry holds a known rule, and a test that a rule id is registered exactly once. A registered rule without fixtures still fails the proof test. No source change.
