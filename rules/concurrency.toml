@@ -44,6 +44,8 @@ remediation = "Shrink the critical section so the guard is dropped before the aw
 related = ["CON-003"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions (tokio::test too) skipped. A guard is X.lock(), X.read() or X.write() with no arguments (then optionally unwrap, expect, unwrap_or_else or ?), or X.borrow() / X.borrow_mut(), in an async fn, an async block or an async closure; one bound by let is held to the end of its block or to drop(g), a temporary to the end of its statement (through the body for match, if let, while let and for); an .await evaluated while a guard is held is reported at the acquisition (Medium severity, Medium confidence). An acquisition that is itself awaited (an async lock) is not a guard of this kind. Not judged: a guard reached through a helper, a trait method or a macro, the receiver's type, a guard the compiler proves dropped earlier in a branch, TypeScript and Python."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
@@ -68,6 +70,8 @@ remediation = "Replace the blocking call with its async equivalent, or hand it t
 related = ["CON-002", "CON-008"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions (tokio::test too) skipped. In an async fn, async block or async closure (a closure that is not async is not read, since spawn_blocking and block_in_place take one): a call that resolves through the file's use items to std::thread::sleep, a function of std::fs, std::net::TcpStream::connect, an item of reqwest::blocking, std::process::Command::new(..) followed by .output() or .status(), or a .block_on(..) method call (Medium severity, Medium confidence). Not judged: blocking inside a helper the async code calls, a blocking API not on this list (a list of known names cannot see the rest; stall detection in tests can), glob imports, macros, other languages."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -91,6 +95,8 @@ kb_refs = []
 remediation = "Give each queue a capacity and state in the specification whether a full queue blocks the producer, sheds load or returns an error; cap pool sizes the same way."
 related = ["REL-003", "CON-008"]
 lifecycle = "experimental"
+
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions (tokio::test too) skipped. A call that resolves through the file's use items to std::sync::mpsc::channel, tokio's unbounded_channel, futures::channel::mpsc::unbounded, crossbeam_channel::unbounded (or crossbeam::channel), flume::unbounded or async_channel::unbounded (Medium severity, Medium confidence); a channel given a capacity (sync_channel, tokio's mpsc::channel(n), bounded(n)) is not reported. Not judged: whether a stated overflow policy exists in the specification, queues that are not channels (a Vec or VecDeque used as one), worker pools and spawn sites with no capacity, other languages."
 
 [rule.applicability]
 languages = ["any"]

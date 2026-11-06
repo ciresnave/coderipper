@@ -1,0 +1,6 @@
+# The seeded defect: a std sleep on an executor thread, line 8.
+
+[[expect]]
+rule = "CON-003"
+file = "src/lib.rs"
+line = 8
