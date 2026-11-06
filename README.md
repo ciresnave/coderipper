@@ -354,6 +354,10 @@ coderipper tools install gitleaks --install-tools     # once; or pass --install-
 coderipper check SEC-002 --profile extended --deny high
 ```
 
+`OPS-006` (no secrets in configuration files) is the same scan under its own id, narrowed to configuration files (`.yml`, `.yaml`, `.toml`,
+`.ini`, `.cfg`, `.conf`, `.properties`, `.tfvars`, `.xml`, `.json` other than lockfiles, dotenv and docker-compose files): `coderipper check OPS-006`. It
+has no detection of its own, so a secret in source code is `SEC-002`'s only and a secret in a configuration file is reported under both.
+
 The repository cannot silence the rule: a committed `.gitleaksignore`, `.gitleaks.toml` or `gitleaks:allow` comment is not honoured (the
 project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project in a subdirectory gets the leaks under it, with
 paths relative to it; a path that is not a git repository with a commit is an error, not a clean run.

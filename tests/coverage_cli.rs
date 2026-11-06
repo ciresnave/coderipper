@@ -245,15 +245,15 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
         rust["covered"],
         proven_rust_checks() + LANGUAGE_NEUTRAL_COVERED
     );
-    // ci-protection-presence, dependency-freshness and the nine delegated ones: SEC-002, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, API-001, API-007 (no tool is installed in the empty tools directory
+    // ci-protection-presence, dependency-freshness and the eleven delegated ones: SEC-002, OPS-006, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, REL-005, API-001, API-007 (no tool is installed in the empty tools directory
     // this run uses)
-    assert_eq!(rust["claimed_unproven"], 11);
+    assert_eq!(rust["claimed_unproven"], 13);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the six language-neutral rules apply to it (the nine delegated rules are gaps while their tools are not installed)
+    // no TypeScript module, but the six language-neutral rules apply to it (the eleven delegated rules are gaps while their tools are not installed)
     assert_eq!(ts["covered"], 16);
-    assert_eq!(ts["claimed_unproven"], 9);
+    assert_eq!(ts["claimed_unproven"], 11);
     assert_eq!(
         ts["note"],
         "no module for typescript, only the language-neutral rules"
