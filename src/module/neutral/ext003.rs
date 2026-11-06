@@ -6,9 +6,11 @@
 //! is reported when its body
 //!
 //! 1. calls `todo!` or `unimplemented!` (anywhere in the body, macro tokens included), or
-//! 2. is short (at most three statements) and holds a string literal that says `not supported` or `not implemented` (any case), which
-//!    is how an `Err(Error::Unsupported(".. not supported"))` or `bail!("not implemented")` refusal reads. The short-body limit is what
-//!    keeps a long method that happens to log such a phrase out of the report.
+//! 2. is short (at most three statements), does not branch or loop (no `match`, `if`, `loop`, `while`, `for`) and holds a string
+//!    literal that says `not supported` or `not implemented` (any case), which is how an `Err(Error::Unsupported(".. not supported"))`
+//!    or `bail!("not implemented")` refusal reads. The short, straight-line body is what keeps a method that does work and happens to
+//!    name such a phrase in one arm out of the report; the methods of `Display` and `Debug` impls, which write messages, are not read
+//!    for the phrase (they are for `todo!`).
 //!
 //! A trait method that has a default body in the trait definition is not a stub and is not looked at: only implementations are. `Drop`
 //! implementations are skipped. One **Medium**-severity, Medium-confidence finding per stub, at the method.
@@ -32,12 +34,17 @@ const SHORT_BODY: usize = 3;
 
 const PHRASES: &[&str] = &["not supported", "not implemented"];
 
+/// Traits whose methods write a message: a phrase in them describes an error, it does not refuse one.
+const MESSAGE_TRAITS: &[&str] = &["Display", "Debug"];
+
 const STUB_MACROS: &[&str] = &["todo", "unimplemented"];
 
 #[derive(Default)]
 struct Body {
     stub_macro: Option<&'static str>,
     phrase: bool,
+    /// The body branches or loops: it does real work, whatever its messages say.
+    branches: bool,
 }
 
 impl Body {
@@ -66,6 +73,31 @@ impl<'ast> Visit<'ast> for Body {
             }
         }
         self.tokens(m.tokens.clone());
+    }
+
+    fn visit_expr_match(&mut self, e: &'ast syn::ExprMatch) {
+        self.branches = true;
+        syn::visit::visit_expr_match(self, e);
+    }
+
+    fn visit_expr_if(&mut self, e: &'ast syn::ExprIf) {
+        self.branches = true;
+        syn::visit::visit_expr_if(self, e);
+    }
+
+    fn visit_expr_loop(&mut self, e: &'ast syn::ExprLoop) {
+        self.branches = true;
+        syn::visit::visit_expr_loop(self, e);
+    }
+
+    fn visit_expr_while(&mut self, e: &'ast syn::ExprWhile) {
+        self.branches = true;
+        syn::visit::visit_expr_while(self, e);
+    }
+
+    fn visit_expr_for_loop(&mut self, e: &'ast syn::ExprForLoop) {
+        self.branches = true;
+        syn::visit::visit_expr_for_loop(self, e);
     }
 
     fn visit_lit_str(&mut self, s: &'ast syn::LitStr) {
@@ -136,7 +168,11 @@ impl<'ast> Visit<'ast> for Walk {
                     body.visit_block(&f.block);
                     let what = if let Some(m) = body.stub_macro {
                         Some(format!("calls `{m}!`"))
-                    } else if body.phrase && f.block.stmts.len() <= SHORT_BODY {
+                    } else if body.phrase
+                        && !body.branches
+                        && !MESSAGE_TRAITS.contains(&trait_name.as_str())
+                        && f.block.stmts.len() <= SHORT_BODY
+                    {
                         Some(
                             "only reports that the operation is not supported or not implemented"
                                 .to_string(),
@@ -248,6 +284,22 @@ mod tests {
     fn a_refusal_through_a_macro_is_seen() {
         let f = found("trait T { fn a(&self) -> Result<(), E>; }\nstruct S;\nimpl T for S { fn a(&self) -> Result<(), E> { bail!(\"not implemented for this backend\") } }\n");
         assert_eq!(f.len(), 1, "{f:?}");
+    }
+
+    #[test]
+    fn a_method_that_branches_or_writes_a_message_is_not_a_refusal() {
+        let src = "trait T { fn a(&self, k: u8) -> Result<(), String>; }
+struct S;
+impl T for S {
+    fn a(&self, k: u8) -> Result<(), String> {
+        match k { 0 => Ok(()), _ => Err(\"kind not supported\".into()) }
+    }
+}
+impl std::fmt::Display for S {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, \"not supported\") }
+}
+";
+        assert!(found(src).is_empty(), "{:?}", found(src));
     }
 
     #[test]
