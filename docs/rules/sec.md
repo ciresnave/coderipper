@@ -73,7 +73,7 @@ checks are implemented in CodeRipper at present, and none of them covers securit
 | SEC-002 | No committed secrets | N | delegated to gitleaks (`--profile extended`; scans the whole git history; needs the tool installed, else a reported gap) |
 | SEC-003 | Authorization on every entry point | P | no check yet; planned: route inventory joined to auth middleware for TypeScript and Python; Rust needs framework mapping and a model |
 | SEC-004 | No cryptography misuse | P | built in part (4a hard-coded key material, 4b TLS verification off, High; 4c weak algorithm in use, Info; Rust, `syn`, outside tests); the type-dependent checks (4d, 4e) not built; Semgrep for TypeScript and Bandit for Python planned |
-| SEC-005 | Unsafe and native code inventory | P | no check yet; planned: cargo-geiger for Rust, native inventories for TypeScript and Python |
+| SEC-005 | Unsafe and native code inventory | P | check `SEC-005` (Rust, `syn`, opt-in, Info): per package, `unsafe` blocks, `unsafe fn`s and `unsafe impl`/`trait` items counted; a finding when a block or `unsafe impl` has no `SAFETY` comment directly above, or when a package with none does not forbid `unsafe_code`; COR-006's static half falls out of it but is not claimed; native code and TypeScript and Python are not inventoried |
 | SEC-006 | No known exploitable dependency vulnerabilities | N | built: delegated to osv-scanner, in the same run as SUP-002, narrowed to advisories of CVSS 7.0 or higher or with no score |
 | SEC-007 | A current threat model | M | no check yet (presence is checkable, currency needs a human decision) |
 | SEC-008 | No sensitive data in logs or telemetry | P | no check yet; planned: native heuristics for TypeScript and Python; Rust needs taint analysis |

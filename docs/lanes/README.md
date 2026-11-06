@@ -2,7 +2,7 @@
 
 One page per package of the remaining ARC/MOD rules, written so a new lane can start without this conversation. Read this file, then
 your package. Packages: [B](package-b.md) ARC-005 + MOD-009 · [C](package-c.md) ARC-004 + ARC-012 · [D](package-d.md) MOD-006 + ARC-009 (+ ARC-011) ·
-[E](package-e.md) the remaining rules, documentation only.
+[E](package-e.md) the remaining rules, documentation only (done: [`docs/rules/REMAINING.md`](../rules/REMAINING.md)) · [F](package-f.md) CON-002/003/004 + REL-003 · [G](package-g.md) ERR-001, TYP-006, EXT-003, SEC-005 · [H](package-h.md) OPS-006, REL-005, SUP-005, SUP-009, SEC-007, REL-007, OPS-009.
 
 ## Preconditions (every lane)
 
