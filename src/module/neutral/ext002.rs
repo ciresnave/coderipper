@@ -78,6 +78,7 @@ fn first_type(a: &syn::AngleBracketedGenericArguments) -> Option<String> {
                 .collect::<Vec<_>>()
                 .join("::"),
         ),
+        GenericArgument::Type(syn::Type::Reference(_)) => Some("&".to_string()),
         GenericArgument::Type(_) => Some("_".to_string()),
         _ => None,
     })
@@ -178,7 +179,8 @@ impl<'ast> Visit<'ast> for Scan {
             _ => false,
         };
         let skip = ty.as_deref().is_some_and(is_error_type)
-            || (name.starts_with("downcast") && ty.as_deref().is_some_and(|t| t == "String"))
+            || (name.starts_with("downcast")
+                && ty.as_deref().is_some_and(|t| t == "String" || t == "&"))
             || receiver_name(&call.receiver).is_some_and(|n| is_error_like(&n));
         if hit && !skip {
             let what = match &ty {
@@ -343,6 +345,7 @@ fn f(a: &dyn Any) -> bool {
     let _ = e.source().unwrap().downcast_ref::<Timeout>();
     let _ = payload.downcast::<String>();
     let _ = other.downcast::<String>();
+    let _ = other.downcast::<&'static str>();
 }";
         assert!(whats(src).is_empty(), "{:?}", whats(src));
     }
