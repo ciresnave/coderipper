@@ -72,7 +72,7 @@ None of these rules is run by the current release. The notes say what is planned
 | TYP-002 | Strings standing in for enums | P | no check yet; planned: native syntax-tree check |
 | TYP-003 | (alias of MOD-010) | A | the same rule as `MOD-010`, which answers to the name `TYP-003`: one detection (a declared invariant type has private fields and is built through a validating constructor); see `docs/rules/mod.md` |
 | TYP-004 | Outside data becomes domain types at the boundary | P | no check yet; planned: native flow check for TypeScript and Python; Rust needs data-flow analysis |
-| TYP-005 | Money and exact amounts avoid binary floats | P | no check yet; planned: native check inside money-tagged modules, which needs a declared architecture of tagged modules |
+| TYP-005 | Money and exact amounts avoid binary floats | P | built in part (Rust, `syn`, outside tests; a field, parameter, annotated `let` or return named price, cost, balance, fee, salary, wage, payment, amount, money, revenue or charge and typed `f32` or `f64`, a ratio-like name excepted, Medium/Low; opt-in (`check TYP-005`); guessed from names, not from module tags; other languages not read) |
 | TYP-006 | No unwrap or null assertions on production paths | P | no check yet; planned: surface Clippy unwrap_used, typescript-eslint no-non-null-assertion and Pyright |
 | TYP-007 | Boolean blindness in signatures | P | no check yet; planned: Clippy and Ruff results; no TypeScript tool (licence) |
 | TYP-008 | Invariants are written down and checked | P | no check yet; planned: native presence check of docs versus enforcement; consistency needs an LLM |
