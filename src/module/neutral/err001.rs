@@ -59,6 +59,26 @@ const FALLIBLE: &[&str] = &[
     "connect",
 ];
 
+/// Methods whose result is a `bool`, an `Option`, a count or a new value, never a `Result`: `let _ = v.iter().any(..)` drops no failure.
+const INFALLIBLE: &[&str] = &[
+    "any",
+    "all",
+    "contains",
+    "contains_key",
+    "starts_with",
+    "ends_with",
+    "is_empty",
+    "len",
+    "insert",
+    "remove",
+    "push",
+    "get",
+    "clone",
+    "to_string",
+    "to_owned",
+    "count",
+];
+
 #[derive(Clone, Copy)]
 enum Kind {
     LetUnderscore,
@@ -86,14 +106,22 @@ fn call_name(expr: &Expr) -> Option<String> {
         Expr::Paren(p) => call_name(&p.expr),
         Expr::Call(c) => match &*c.func {
             Expr::Path(p) => {
-                let segs: Vec<String> = p.path.segments.iter().map(|s| s.ident.to_string()).collect();
+                let segs: Vec<String> = p
+                    .path
+                    .segments
+                    .iter()
+                    .map(|s| s.ident.to_string())
+                    .collect();
                 let n = segs.len();
                 let name = segs[n.saturating_sub(2)..].join("::");
                 (name != "drop").then(|| format!("{name}(..)"))
             }
             _ => Some("a call".into()),
         },
-        Expr::MethodCall(m) => Some(format!(".{}(..)", m.method)),
+        Expr::MethodCall(m) => {
+            let method = m.method.to_string();
+            (!INFALLIBLE.contains(&method.as_str())).then(|| format!(".{method}(..)"))
+        }
         _ => None,
     }
 }
@@ -127,7 +155,11 @@ fn is_ok_pattern(pat: &Pat) -> bool {
 impl Scan<'_> {
     fn add(&mut self, kind: Kind, first: u32, last: u32, what: String) {
         if !comment_beside(self.lines, first, last) {
-            self.hits.push(Hit { kind, line: first, what });
+            self.hits.push(Hit {
+                kind,
+                line: first,
+                what,
+            });
         }
     }
 }
@@ -222,7 +254,12 @@ impl<'ast> Visit<'ast> for Scan<'_> {
                 names_in(&l.expr, &mut names);
                 if let Some(n) = names.iter().find(|n| FALLIBLE.contains(&n.as_str())) {
                     let first = line_of(e.if_token.span);
-                    self.add(Kind::IfLetOkNoElse, first, first, format!("if let Ok(..) = ..{n}.. with no else"));
+                    self.add(
+                        Kind::IfLetOkNoElse,
+                        first,
+                        first,
+                        format!("if let Ok(..) = ..{n}.. with no else"),
+                    );
                 }
             }
         }
@@ -264,7 +301,10 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         };
         parsed += 1;
         let lines: Vec<&str> = text.lines().collect();
-        let mut scan = Scan { lines: &lines, hits: Vec::new() };
+        let mut scan = Scan {
+            lines: &lines,
+            hits: Vec::new(),
+        };
         scan.visit_file(&file);
         for h in scan.hits {
             findings.push((path.clone(), h));
@@ -297,7 +337,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let note = format!(
             "{} Rust file(s) could not be parsed and were not read: {}",
             unparsed.len(),
-            unparsed.iter().take(5).copied().collect::<Vec<_>>().join(", ")
+            unparsed
+                .iter()
+                .take(5)
+                .copied()
+                .collect::<Vec<_>>()
+                .join(", ")
         );
         Verdict::Noted(out, vec![note])
     }
@@ -326,8 +371,18 @@ fn f() {
 }
 ";
         let f = run(src);
-        let lines: Vec<u32> = f.iter().map(|x| x.location.as_ref().and_then(|l| l.line).unwrap()).collect();
+        let lines: Vec<u32> = f
+            .iter()
+            .map(|x| x.location.as_ref().and_then(|l| l.line).unwrap())
+            .collect();
         assert_eq!(lines, vec![2, 3, 4, 5, 6], "{f:?}");
+    }
+
+    #[test]
+    fn a_method_that_returns_a_bool_or_an_option_drops_no_failure() {
+        let src = "fn f(v: &[u8]) { let _ = v.iter().any(|x| *x == 1); let _ = set.insert(3); }
+";
+        assert!(run(src).is_empty());
     }
 
     #[test]
@@ -381,7 +436,10 @@ mod tests { fn u() { let _ = std::fs::remove_file(\"a\"); } }
 
     #[test]
     fn a_file_that_does_not_parse_is_noted_never_clean() {
-        match judge(&RepoView::from_files(&[("src/lib.rs", "fn ( let _ = f();")])) {
+        match judge(&RepoView::from_files(&[(
+            "src/lib.rs",
+            "fn ( let _ = f();",
+        )])) {
             Verdict::Noted(f, notes) => {
                 assert!(f.is_empty());
                 assert!(notes[0].contains("could not be parsed"), "{notes:?}");

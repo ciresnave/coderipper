@@ -58,7 +58,10 @@ fn has_comment(line: &str) -> bool {
         match bytes[i] {
             b'\\' if in_str => i += 1,
             b'"' => in_str = !in_str,
-            b'/' if !in_str && i + 1 < bytes.len() && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*') => {
+            b'/' if !in_str
+                && i + 1 < bytes.len()
+                && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*') =>
+            {
                 if i == 0 || bytes[i - 1] != b':' {
                     return true;
                 }
@@ -97,7 +100,13 @@ mod tests {
 
     #[test]
     fn a_comment_is_found_on_the_line_or_the_one_before_and_a_url_is_not_one() {
-        let src = ["// why", "let _ = f();", "let _ = g(); // why", "let u = \"http://x\";", "let _ = h();"];
+        let src = [
+            "// why",
+            "let _ = f();",
+            "let _ = g(); // why",
+            "let u = \"http://x\";",
+            "let _ = h();",
+        ];
         assert!(comment_beside(&src, 2, 2));
         assert!(comment_beside(&src, 3, 3));
         assert!(!comment_beside(&src, 4, 4));

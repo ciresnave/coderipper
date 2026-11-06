@@ -59,7 +59,11 @@ fn copy_dir(from: &Path, to: &Path) {
 #[test]
 fn each_of_the_claims_is_earned_by_its_fixtures() {
     let proofs = proofs();
-    assert_eq!(proofs.len(), RULES.len(), "one verdict per claimed rule: {proofs:?}");
+    assert_eq!(
+        proofs.len(),
+        RULES.len(),
+        "one verdict per claimed rule: {proofs:?}"
+    );
     for rule in RULES {
         let verdict = proofs.iter().find(|(r, _)| r == rule).map(|(_, v)| v);
         assert_eq!(verdict, Some(&Verdict::Proven), "{rule}: {proofs:?}");
