@@ -50,14 +50,3 @@ reason = "a real cycle, one concept in two files: `session` creates a throwaway 
 check = "MOD-005"
 file = "src/checks/architecture/mod.rs"
 reason = "the registry of the architecture-family checks (ARC-001 to ARC-007, MOD-001 to MOD-003, MOD-008, MOD-010 and their shared module graph): one `mod` declaration and one `pub use` per check, so the number of modules it names is the number of checks by construction, not accidental coupling (it reached the threshold of 14 when MOD-008 was added). Owner: coderipper lane. Revisit if it starts to hold logic beyond the ARC-001 component graph it also contains, or when the family is split into sub-directories."
-
-# CON-004 and REL-003 (a channel with no capacity) read one site of this repository. It is bounded by bytes, not by count, which the rule cannot see.
-[[allow]]
-check = "CON-004"
-file = "src/module/external.rs"
-reason = "the reader thread of a module's stdout sends one `Piece` per line, and stops (`TooLarge`) once the bytes read pass `limits.max_output_bytes`, with each line bounded by `take(room)`; the queue therefore holds at most that many bytes however slow the host is, and a dropped receiver ends the thread. Bounded by a byte budget rather than an item count, which the rule does not read. Owner: coderipper lane. Remove if the cap is removed."
-
-[[allow]]
-check = "REL-003"
-file = "src/module/external.rs"
-reason = "the same site as CON-004 above: bounded by the output byte budget, not by an item count. Owner: coderipper lane. Remove with the CON-004 entry."
