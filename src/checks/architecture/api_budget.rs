@@ -695,7 +695,7 @@ impl Walker<'_> {
 }
 
 /// The leaves of a use tree as `(path segments, introduced name, is glob, starts with ::)`.
-fn flatten_use(
+pub(super) fn flatten_use(
     t: &syn::UseTree,
     prefix: &mut Vec<String>,
     abs: bool,

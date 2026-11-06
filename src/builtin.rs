@@ -87,6 +87,8 @@ builtin_checks! {
     ComponentCycles => ARC_002, true, false, ComponentCyclesCheck;
     /// `ARC-003`.
     VolatileDetail => ARC_003, true, false, VolatileDetailCheck;
+    /// `ARC-004`.
+    InfraSignatures => ARC_004, true, false, InfraSignatureCheck;
     /// `ARC-005`.
     Stability => ARC_005, true, false, StabilityCheck;
     /// `ARC-006`.
@@ -97,6 +99,8 @@ builtin_checks! {
     Layers => ARC_008, true, false, LayersCheck;
     /// `ARC-009`.
     Drift => ARC_009, true, false, DriftCheck;
+    /// `ARC-011`.
+    Entangled => ARC_011, true, false, EntangledCheck;
     /// `MOD-001`.
     PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
     /// `MOD-002`.
