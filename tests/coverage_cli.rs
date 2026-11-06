@@ -251,9 +251,9 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the six language-neutral rules apply to it (the eleven delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], 16);
-    assert_eq!(ts["claimed_unproven"], 11);
+    // no TypeScript module, but the ten language-neutral rules apply to it (the nine delegated rules are gaps while their tools are not installed)
+    assert_eq!(ts["covered"], 20);
+    assert_eq!(ts["claimed_unproven"], 9);
     assert_eq!(
         ts["note"],
         "no module for typescript, only the language-neutral rules"
@@ -314,7 +314,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
         .find(|l| l["language"] == "python")
         .unwrap_or_else(|| panic!("{text}"));
     // the five rules that read any file kind are covered; SUP-001 reads Cargo and npm files only
-    assert_eq!(py["covered"], 15, "{py}");
+    assert_eq!(py["covered"], 19, "{py}");
     let gaps: Vec<&str> = py["gaps"]
         .as_array()
         .unwrap()
