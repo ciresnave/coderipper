@@ -1,0 +1,6 @@
+# The seeded defect: the guard taken at line 9 is still held when the task suspends at the await on line 10.
+
+[[expect]]
+rule = "CON-002"
+file = "src/lib.rs"
+line = 9

@@ -61,7 +61,7 @@ Two rules in this domain are run by the current release (OPS-011 and OPS-012, Ru
 | OPS-003 | Structured logging, no raw printing in libraries | P | catalog record; no check yet (needs a parser); planned: Clippy print and dbg lints, ESLint no-console |
 | OPS-004 | Trace context follows outbound calls | P | catalog record; no check yet (needs a parser and runtime tests that assert propagation) |
 | OPS-005 | Golden-signal metrics for endpoints and dependencies | P | catalog record; no check yet (needs a parser and a running service) |
-| OPS-006 | No secrets in configuration files | N | catalog record; no check yet (delegates to the secrets rule SEC-002) |
+| OPS-006 | No secrets in configuration files | N | built: the gitleaks scan of SEC-002, narrowed to configuration files (YAML, TOML, INI, properties, XML, JSON other than lockfiles, dotenv, docker-compose) and reported under this id; no detection of its own; needs gitleaks installed |
 | OPS-007 | Flags need an accountable owner and a sunset date | N | catalog record; no check yet (a registry check is static, staleness needs history) |
 | OPS-008 | Liveness and readiness endpoints exist | P | catalog record; no check yet (needs a parser and probe tests) |
 | OPS-009 | Alerts are tied to objectives and have runbooks | N | catalog record; no check yet (needs a human decision and external alert definitions) |

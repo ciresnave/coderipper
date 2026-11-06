@@ -68,6 +68,8 @@ remediation = "Set a capacity and document whether producers wait, items are she
 related = ["CON-004"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions (tokio::test too) skipped. The same reading as CON-004, reported under this id as its reliability face: A call that resolves through the file's use items to std::sync::mpsc::channel, tokio's unbounded_channel, futures::channel::mpsc::unbounded, crossbeam_channel::unbounded (or crossbeam::channel), flume::unbounded or async_channel::unbounded (Medium severity, Medium confidence); a channel given a capacity (sync_channel, tokio's mpsc::channel(n), bounded(n)) is not reported. Not judged: whether a stated overflow policy exists in the specification, queues that are not channels (a Vec or VecDeque used as one), worker pools and spawn sites with no capacity, other languages."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -114,6 +116,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Give each container spec its own liveness probe, readiness probe, and CPU and memory caps; enforce this with a policy engine over the manifests."
 related = ["REL-006"]
+checked_today = "The pinned checkov, run over the tracked Kubernetes (and other infrastructure) definitions as SEC-009 does, asked for four checks: CKV_K8S_8 (liveness probe), CKV_K8S_9 (readiness probe), CKV_K8S_11 (CPU limits) and CKV_K8S_13 (memory limits). One Medium finding per failed check, at the resource. The requests checks (CKV_K8S_10, CKV_K8S_12) are not this rule's. A project with no tracked infrastructure definition is a gap, as is a file checkov could not parse. Not judged: probes or limits set by an admission controller, a Helm chart's templates (not rendered), and whether the two probes differ. Needs checkov installed (a gap otherwise)."
 lifecycle = "experimental"
 
 [rule.applicability]
