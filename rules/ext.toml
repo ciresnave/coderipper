@@ -68,6 +68,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Implement the behaviour, or narrow the abstraction so the type is not asked to promise it."
 related = ["EXT-002", "EXT-004"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) skipped: in each impl of a trait (Drop excepted) a method whose body calls todo! or unimplemented!, or has at most three statements and holds a string literal saying not supported or not implemented. One Medium finding per method. Not judged: trait methods with default bodies, panic! or unreachable! stubs, silent empty overrides, errors worded another way, macro-generated impls, and whether the trait meant the method to be optional."
 lifecycle = "experimental"
 
 [rule.applicability]
