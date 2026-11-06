@@ -1,0 +1,6 @@
+# The seeded defect: a function returning Result whose docs have no Errors section, line 2.
+
+[[expect]]
+rule = "COR-001"
+file = "src/lib.rs"
+line = 2
