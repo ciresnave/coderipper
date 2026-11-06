@@ -117,6 +117,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Align version requirements so the graph resolves to one version, or raise the budget for a justified exception."
 related = []
+checked_today = "Rust, from the tracked Cargo.lock files outside vendored, fixture and test directories: a package the lockfile resolves to more than three distinct versions is listed with its versions, one Info finding per lockfile. The limit of three is chosen from the corpus (13 of 3,173 package entries in nine lockfiles resolve to four or more), not tuned, and is a constant: a max_versions setting is not read because settings do not reach the language-neutral module. Not judged: whether the versions could be unified, why they are there, other lockfile formats (npm, pip, go), and a lockfile that is not valid TOML (named in a note)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -214,6 +215,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Add an SBOM generation step to the release workflow and publish the output alongside the artifacts."
 related = ["SUP-010"]
+checked_today = "From the tracked GitHub Actions workflows (.github/workflows/*.yml and .yaml), read as text with comment lines excluded: a workflow that names cargo publish, cargo release, npm publish, twine upload, gh release, pypa/gh-action-pypi-publish, softprops/action-gh-release, actions/create-release, goreleaser or docker push is a release workflow; one that also names cyclonedx, cargo sbom, cargo-sbom, syft, spdx or sbom (any case) generates an SBOM. One Info finding per release workflow without one, at its first publishing line. A repository with no release workflow is not applicable. Not judged: releases made outside GitHub Actions, an SBOM made in a reusable workflow or composite action the file calls, and whether the SBOM is attached to the release."
 lifecycle = "experimental"
 
 [rule.applicability]

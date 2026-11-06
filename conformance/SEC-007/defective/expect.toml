@@ -1,0 +1,5 @@
+# The seeded defect: a project with a manifest and no threat model. The finding is at the manifest.
+
+[[expect]]
+rule = "SEC-007"
+file = "Cargo.toml"
