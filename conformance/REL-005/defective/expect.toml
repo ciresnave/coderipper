@@ -1,0 +1,22 @@
+# The seeded defect: a Deployment whose container has no liveness probe, no readiness probe and no CPU or memory limits
+# (checkov CKV_K8S_8, _9, _11 and _13, all reported at the resource, line 1).
+
+[[expect]]
+rule = "REL-005"
+file = "deployment.yaml"
+line = 1
+
+[[expect]]
+rule = "REL-005"
+file = "deployment.yaml"
+line = 1
+
+[[expect]]
+rule = "REL-005"
+file = "deployment.yaml"
+line = 1
+
+[[expect]]
+rule = "REL-005"
+file = "deployment.yaml"
+line = 1

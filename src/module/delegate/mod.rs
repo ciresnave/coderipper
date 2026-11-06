@@ -206,6 +206,11 @@ const RULES: &[Rule] = &[
         run: gitleaks::run,
     },
     Rule {
+        id: gitleaks::OPS_RULE,
+        tool: gitleaks::TOOL,
+        run: gitleaks::run_config,
+    },
+    Rule {
         id: osv::SUP,
         tool: osv::TOOL,
         run: osv::run_sup,
@@ -234,6 +239,11 @@ const RULES: &[Rule] = &[
         id: checkov::RULE,
         tool: checkov::TOOL,
         run: checkov::run,
+    },
+    Rule {
+        id: checkov::REL_RULE,
+        tool: checkov::TOOL,
+        run: checkov::run_rel,
     },
     Rule {
         id: semver::RULE,
