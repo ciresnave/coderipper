@@ -102,12 +102,24 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("OPS-012");
     // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("security-support-statement");
+    // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
+    triaged.retain(|id| *id != "TYP-003");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     // a registered check can also be a knowledge-base rule (MOD-005 is both): it is one catalog record, named twice here
     triaged.dedup();
     in_catalog.sort_unstable();
     assert_eq!(in_catalog, triaged);
+}
+
+#[test]
+fn typ_003_is_an_alias_of_mod_010() {
+    let catalog = Catalog::builtin();
+    assert_eq!(catalog.canonical_id("TYP-003"), Some("MOD-010"));
+    assert_eq!(catalog.canonical_id("MOD-010"), Some("MOD-010"));
+    // control: an id that is neither a record nor an alias names nothing
+    assert_eq!(catalog.canonical_id("TYP-099"), None);
+    assert!(!catalog.rules().iter().any(|r| r.id() == "TYP-003"));
 }
 
 #[test]

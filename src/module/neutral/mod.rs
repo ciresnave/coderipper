@@ -16,6 +16,7 @@ mod conflict_marker;
 mod doc005;
 mod doc009;
 mod efx003;
+mod ext003;
 mod licence;
 mod lint_suppression;
 mod lock_order;
@@ -23,7 +24,9 @@ mod ops012;
 mod patent_index;
 mod patent_sweep;
 mod rdb008;
+mod rust_package;
 mod sec004;
+mod sec005;
 mod sup001;
 mod sup004;
 mod sup011;
@@ -164,6 +167,14 @@ const RULES: &[Rule] = &[
         id: "ERR-004",
         judge: surface::judge_err004,
     },
+    Rule {
+        id: "SEC-005",
+        judge: sec005::judge,
+    },
+    Rule {
+        id: "EXT-003",
+        judge: ext003::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -175,7 +186,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "API-009", "ERR-004",
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004",
     ]
 }
 
@@ -537,6 +548,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("API-004", &["rust"]),
     ("API-009", &["rust"]),
     ("ERR-004", &["rust"]),
+    ("SEC-005", &["rust"]),
+    ("EXT-003", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -566,6 +579,8 @@ const PROVEN: &[&str] = &[
     "API-004",
     "API-009",
     "ERR-004",
+    "SEC-005",
+    "EXT-003",
 ];
 
 impl Module for NeutralModule {
@@ -700,7 +715,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 26);
+        assert_eq!(rule_ids().len(), 28);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
