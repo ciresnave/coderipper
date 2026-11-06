@@ -87,6 +87,8 @@ builtin_checks! {
     ComponentCycles => ARC_002, true, false, ComponentCyclesCheck;
     /// `ARC-003`.
     VolatileDetail => ARC_003, true, false, VolatileDetailCheck;
+    /// `ARC-004`.
+    InfraSignatures => ARC_004, true, false, InfraSignatureCheck;
     /// `ARC-005`.
     Stability => ARC_005, true, false, StabilityCheck;
     /// `ARC-006`.

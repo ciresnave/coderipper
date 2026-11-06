@@ -23,6 +23,7 @@ pub use architecture::{
     DivergentChangeCheck,
     DriftCheck,
     EntangledCheck,
+    InfraSignatureCheck,
     InternalsCheck,
     InvariantFieldsCheck,
     LayersCheck,

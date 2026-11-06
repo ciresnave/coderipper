@@ -42,6 +42,37 @@ use std::path::Path;
 
 /// The catalog rule this evidences.
 pub(super) const RULE: &str = crate::rule_id::SEC_009;
+/// The second rule this tool evidences: probes and resource limits in Kubernetes manifests.
+pub(super) const REL_RULE: &str = crate::rule_id::REL_005;
+
+/// One rule's view of checkov: the catalog id its findings carry, the checks it runs, and the advice its findings give.
+struct Spec {
+    rule: &'static str,
+    checks: &'static [(&'static str, Severity)],
+    advice: &'static str,
+}
+
+const SEC_SPEC: Spec = Spec {
+    rule: RULE,
+    checks: CHECKS,
+    advice: "Grant only the named actions and resources the workload needs, and drop container privileges and capabilities.",
+};
+
+const REL_SPEC: Spec = Spec {
+    rule: REL_RULE,
+    checks: REL_CHECKS,
+    advice: "Give each container a liveness probe and a readiness probe (separate signals) and CPU and memory limits.",
+};
+
+/// The checkov checks that are `REL-005`'s wording: a liveness probe, a readiness probe, and CPU and memory limits on every
+/// container of a Kubernetes workload (`CKV_K8S_8`, `_9`, `_11`, `_13`). The requests checks (`_10`, `_12`) are the scheduler's
+/// business and are not this rule's: the rule asks for ceilings. Medium, as the rule's default severity.
+const REL_CHECKS: &[(&str, Severity)] = &[
+    ("CKV_K8S_8", Severity::Medium),
+    ("CKV_K8S_9", Severity::Medium),
+    ("CKV_K8S_11", Severity::Medium),
+    ("CKV_K8S_13", Severity::Medium),
+];
 /// The tool's name in the lock.
 pub(super) const TOOL: &str = "checkov";
 
@@ -219,8 +250,8 @@ struct Hit {
     suppressed: Option<String>,
 }
 
-fn severity_of(id: &str) -> Option<Severity> {
-    CHECKS.iter().find(|(c, _)| *c == id).map(|(_, s)| *s)
+fn severity_of(spec: &Spec, id: &str) -> Option<Severity> {
+    spec.checks.iter().find(|(c, _)| *c == id).map(|(_, s)| *s)
 }
 
 /// What a report came to: the hits of this rule's checks and how many files checkov could not parse.
@@ -232,7 +263,12 @@ struct Read {
 /// Reads checkov's JSON report (`--output json`): one object per framework that found files, or a bare object when only one did.
 /// A report that is not checkov's, or a check that cannot be placed in a file, is unreadable (a partial list must not look
 /// like a complete one). Checks outside [`CHECKS`] are dropped.
+#[cfg(test)]
 fn parse_report(text: &str) -> Result<Read, String> {
+    parse_report_for(text, &SEC_SPEC)
+}
+
+fn parse_report_for(text: &str, spec: &Spec) -> Result<Read, String> {
     let value: serde_json::Value = serde_json::from_str(text).map_err(|e| {
         format!(
             "the report is not a checkov result ({e}): {}",
@@ -262,7 +298,7 @@ fn parse_report(text: &str) -> Result<Read, String> {
         let failed = results.failed_checks.into_iter().map(|c| (c, false));
         let skipped = results.skipped_checks.into_iter().map(|c| (c, true));
         for (check, was_skipped) in failed.chain(skipped) {
-            let Some(severity) = severity_of(&check.check_id) else {
+            let Some(severity) = severity_of(spec, &check.check_id) else {
                 continue;
             };
             let line = *check
@@ -292,15 +328,25 @@ fn parse_report(text: &str) -> Result<Read, String> {
 }
 
 /// The finding for one checkov finding. `roots` are the names the project root can be printed as.
+#[cfg(test)]
 fn to_finding(hit: &Hit, project: &str, roots: &[String], extra: Option<&str>) -> Finding {
+    to_finding_for(hit, project, roots, extra, &SEC_SPEC)
+}
+
+fn to_finding_for(
+    hit: &Hit,
+    project: &str,
+    roots: &[String],
+    extra: Option<&str>,
+    spec: &Spec,
+) -> Finding {
     let file = clean(&relative(&hit.file, roots), 200);
     let resource = clean(&hit.resource, 200);
     let name = clean(&hit.name, 200);
     let summary = format!("{resource}: {name}");
     let mut detail = format!(
-        "checkov ({}) reports {file} line {}: {name}. Grant only the named actions and resources the workload needs, and drop \
-         container privileges and capabilities.",
-        hit.check, hit.line
+        "checkov ({}) reports {file} line {}: {name}. {}",
+        hit.check, hit.line, spec.advice
     );
     if let Some(reason) = &hit.suppressed {
         detail.push_str(&format!(
@@ -314,7 +360,7 @@ fn to_finding(hit: &Hit, project: &str, roots: &[String], extra: Option<&str>) -
         detail.push_str(extra);
     }
     let finding = Finding::new(
-        RULE,
+        spec.rule,
         hit.severity,
         Confidence::High,
         project,
@@ -336,8 +382,13 @@ fn to_finding(hit: &Hit, project: &str, roots: &[String], extra: Option<&str>) -
 
 /// The arguments of one run over `inputs` (absolute paths): offline, only [`CHECKS`] in the frameworks of [`FRAMEWORKS`], one JSON
 /// document on stdout without code blocks.
+#[cfg(test)]
 fn check_args(inputs: &[OsString]) -> Vec<OsString> {
-    let ids: Vec<&str> = CHECKS.iter().map(|(c, _)| *c).collect();
+    check_args_for(inputs, &SEC_SPEC)
+}
+
+fn check_args_for(inputs: &[OsString], spec: &Spec) -> Vec<OsString> {
+    let ids: Vec<&str> = spec.checks.iter().map(|(c, _)| *c).collect();
     let mut args: Vec<OsString> = [
         "--output",
         "json",
@@ -370,7 +421,7 @@ enum Scan {
 }
 
 /// Runs `program` over the project's tracked infrastructure files and reads what it prints.
-fn scan(program: &Path, request: &Request) -> Scan {
+fn scan(program: &Path, request: &Request, spec: &Spec) -> Scan {
     // The tool runs in a scratch directory, so a relative project path would be read from the wrong place and check nothing.
     let root =
         std::path::absolute(&request.project_root).unwrap_or_else(|_| request.project_root.clone());
@@ -394,7 +445,7 @@ fn scan(program: &Path, request: &Request) -> Scan {
     for group in chunks(&inputs) {
         let run = match run_tool_with_env(
             program,
-            |_scratch| check_args(group),
+            |_scratch| check_args_for(group, spec),
             &request.limits,
             // checkov exits 1 when a check failed, which is an answer, not a failure
             &[1],
@@ -408,7 +459,7 @@ fn scan(program: &Path, request: &Request) -> Scan {
         if text.trim().is_empty() {
             continue;
         }
-        match parse_report(&text) {
+        match parse_report_for(&text, spec) {
             Ok(read) => {
                 hits.extend(read.hits);
                 unparsed += read.unparsed;
@@ -435,6 +486,15 @@ fn scan(program: &Path, request: &Request) -> Scan {
 }
 
 pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
+    run_for(env, request, &SEC_SPEC)
+}
+
+/// `REL-005`: the same tool over the same files, asked for the probe and limit checks.
+pub(super) fn run_rel(env: &ToolEnv, request: &Request) -> Verdict {
+    run_for(env, request, &REL_SPEC)
+}
+
+fn run_for(env: &ToolEnv, request: &Request, spec: &Spec) -> Verdict {
     let program = match resolve(env, TOOL) {
         Resolved::Ready(program) => program,
         Resolved::Unavailable(why) => {
@@ -442,7 +502,7 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
         }
         Resolved::Failed(kind, why) => return Verdict::Failed(kind, why),
     };
-    match scan(&program, request) {
+    match scan(&program, request, spec) {
         Scan::Read { hits, unparsed } => {
             let note = (unparsed > 0).then(|| {
                 format!(
@@ -466,7 +526,7 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
             let roots = roots_of(&root);
             Verdict::Findings(
                 hits.iter()
-                    .map(|h| to_finding(h, &project, &roots, note.as_deref()))
+                    .map(|h| to_finding_for(h, &project, &roots, note.as_deref(), spec))
                     .collect(),
             )
         }
@@ -514,6 +574,48 @@ mod tests {
             read.hits[1].suppressed.as_deref(),
             Some("needed for the driver")
         );
+    }
+
+    #[test]
+    fn the_probe_and_limit_rule_keeps_only_its_own_checks_and_says_its_own_advice() {
+        let report = r#"{"check_type":"kubernetes","results":{"failed_checks":[
+          {"check_id":"CKV_K8S_8","check_name":"Liveness Probe Should be Configured","file_abs_path":"/r/d.yaml",
+           "file_line_range":[1,17],"resource":"Deployment.default.web"},
+          {"check_id":"CKV_K8S_10","check_name":"CPU requests should be set","file_abs_path":"/r/d.yaml",
+           "file_line_range":[1,17],"resource":"Deployment.default.web"},
+          {"check_id":"CKV_K8S_16","check_name":"Container should not be privileged","file_abs_path":"/r/d.yaml",
+           "file_line_range":[1,17],"resource":"Deployment.default.web"}]}}"#;
+        let read = parse_report_for(report, &REL_SPEC).unwrap();
+        let ids: Vec<&str> = read.hits.iter().map(|h| h.check.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["CKV_K8S_8"],
+            "requests and privilege are other rules'"
+        );
+        let f = to_finding_for(&read.hits[0], "r", &["/r".to_string()], None, &REL_SPEC);
+        assert_eq!(f.check_id, "REL-005");
+        assert!(f.detail.contains("liveness probe"), "{}", f.detail);
+        // the same report read for SEC-009 keeps the privilege check and none of the probe ones
+        let sec = parse_report(report).unwrap();
+        assert_eq!(sec.hits.len(), 1);
+        assert_eq!(sec.hits[0].check, "CKV_K8S_16");
+    }
+
+    #[test]
+    fn the_two_rules_never_share_a_check() {
+        for (id, _) in REL_CHECKS {
+            assert!(
+                !CHECKS.iter().any(|(c, _)| c == id),
+                "{id} is listed for both rules"
+            );
+        }
+        let args = check_args_for(&[OsString::from("/r/d.yaml")], &REL_SPEC);
+        let text: Vec<String> = args
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        let list = &text[text.iter().position(|a| a == "--check").unwrap() + 1];
+        assert_eq!(list, "CKV_K8S_8,CKV_K8S_9,CKV_K8S_11,CKV_K8S_13");
     }
 
     #[test]
