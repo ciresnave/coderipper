@@ -35,6 +35,7 @@ mod sup005;
 mod sup009;
 mod sup011;
 mod support_statement;
+mod surface;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -159,6 +160,18 @@ const RULES: &[Rule] = &[
         judge: concurrency::judge_rel003,
     },
     Rule {
+        id: "API-004",
+        judge: surface::judge_api004,
+    },
+    Rule {
+        id: "API-009",
+        judge: surface::judge_api009,
+    },
+    Rule {
+        id: "ERR-004",
+        judge: surface::judge_err004,
+    },
+    Rule {
         id: "SEC-005",
         judge: sec005::judge,
     },
@@ -197,7 +210,8 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "SEC-007", "REL-007",
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
+        "REL-007",
     ]
 }
 
@@ -556,6 +570,9 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
     ("REL-003", &["rust"]),
+    ("API-004", &["rust"]),
+    ("API-009", &["rust"]),
+    ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
     ("SUP-005", &["rust"]),
@@ -585,6 +602,9 @@ const PROVEN: &[&str] = &[
     "CON-003",
     "CON-004",
     "REL-003",
+    "API-004",
+    "API-009",
+    "ERR-004",
     "SEC-005",
     "EXT-003",
     "SEC-007",
@@ -726,7 +746,20 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 30);
+        // a rule is registered exactly once (the count is not pinned: adding a rule must not touch this test)
+        let mut sorted = rule_ids();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            rule_ids().len(),
+            "a rule id is registered twice: {:?}",
+            rule_ids()
+        );
+        assert!(
+            !sorted.is_empty(),
+            "positive control: the registry is not empty"
+        );
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
