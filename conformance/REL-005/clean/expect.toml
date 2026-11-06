@@ -1,0 +1,1 @@
+# A clean twin expects nothing: separate liveness and readiness probes, and CPU and memory limits.
