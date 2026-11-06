@@ -31,6 +31,7 @@ mod sup001;
 mod sup004;
 mod sup011;
 mod support_statement;
+mod surface;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -155,6 +156,18 @@ const RULES: &[Rule] = &[
         judge: concurrency::judge_rel003,
     },
     Rule {
+        id: "API-004",
+        judge: surface::judge_api004,
+    },
+    Rule {
+        id: "API-009",
+        judge: surface::judge_api009,
+    },
+    Rule {
+        id: "ERR-004",
+        judge: surface::judge_err004,
+    },
+    Rule {
         id: "SEC-005",
         judge: sec005::judge,
     },
@@ -172,7 +185,9 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// The rules of [`rule_ids`] that no profile runs on its own: they are claimed and proven like the others, and run when asked for
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
-    &["EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005"]
+    &[
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004",
+    ]
 }
 
 /// Where a [`RepoView`] gets its files.
@@ -530,6 +545,9 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
     ("REL-003", &["rust"]),
+    ("API-004", &["rust"]),
+    ("API-009", &["rust"]),
+    ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
 ];
@@ -558,6 +576,9 @@ const PROVEN: &[&str] = &[
     "CON-003",
     "CON-004",
     "REL-003",
+    "API-004",
+    "API-009",
+    "ERR-004",
     "SEC-005",
     "EXT-003",
 ];
@@ -694,7 +715,7 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 25);
+        assert_eq!(rule_ids().len(), 28);
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
