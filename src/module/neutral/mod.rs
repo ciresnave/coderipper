@@ -178,7 +178,9 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// The rules of [`rule_ids`] that no profile runs on its own: they are claimed and proven like the others, and run when asked for
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
-    &["EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "ERR-001"]
+    &[
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "ERR-001",
+    ]
 }
 
 /// Where a [`RepoView`] gets its files.
