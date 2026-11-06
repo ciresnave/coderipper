@@ -257,6 +257,7 @@ executes_project_code = false
 default_severity = "low"
 confidence_class = "medium"
 kb_refs = []
+aliases = ["TYP-003"]
 remediation = "Make the fields private and offer a constructor or factory that checks the invariant."
 related = ["MOD-001"]
 lifecycle = "experimental"

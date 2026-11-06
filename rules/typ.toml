@@ -17,7 +17,7 @@ default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Introduce a newtype or branded type for the concept, but only where confusion is plausible or an invariant exists."
-related = ["TYP-003", "TYP-005", "RDB-007"]
+related = ["MOD-010", "TYP-005", "RDB-007"]
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -49,30 +49,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "TYP-003"
-title = "Invariant-bearing types can only be built through validation"
-domain = "TYP"
-statement = "A type marked as carrying an invariant has private fields and is created only through a constructor that checks the invariant."
-rationale = "If anyone can build the value directly, the guarantee the type is meant to give disappears and callers must re-check."
-evidence_tiers = ["V0", "V1"]
-evidence_strength = "C"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = false
-default_severity = "medium"
-confidence_class = "medium"
-kb_refs = []
-remediation = "Make the fields private and expose a validating constructor or parse function."
-related = ["TYP-004", "TYP-008"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "TYP-004"
 title = "Outside data becomes domain types at the boundary"
 domain = "TYP"
@@ -89,7 +65,7 @@ default_severity = "medium"
 confidence_class = "low"
 kb_refs = []
 remediation = "Add a parsing step at the point of entry that returns a validated domain type, and pass that type inward."
-related = ["TYP-003", "TYP-008"]
+related = ["MOD-010", "TYP-008"]
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -185,7 +161,7 @@ default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Document the invariant next to the type and add the check that guarantees it; make the two agree."
-related = ["TYP-003", "TYP-006"]
+related = ["MOD-010", "TYP-006"]
 lifecycle = "experimental"
 
 [rule.applicability]
