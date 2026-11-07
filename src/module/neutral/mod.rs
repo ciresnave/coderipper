@@ -16,6 +16,7 @@ mod conflict_marker;
 mod doc005;
 mod doc009;
 mod efx003;
+mod err001;
 mod ext003;
 mod licence;
 mod lint_suppression;
@@ -25,6 +26,7 @@ mod patent_index;
 mod patent_sweep;
 mod rdb008;
 mod rust_package;
+mod rust_src;
 mod sec004;
 mod sec005;
 mod sup001;
@@ -32,6 +34,7 @@ mod sup004;
 mod sup011;
 mod support_statement;
 mod surface;
+mod typ006;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -179,6 +182,14 @@ const RULES: &[Rule] = &[
         id: "EXT-003",
         judge: ext003::judge,
     },
+    Rule {
+        id: "ERR-001",
+        judge: err001::judge,
+    },
+    Rule {
+        id: "TYP-006",
+        judge: typ006::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -191,6 +202,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
+        "ERR-001", "TYP-006",
     ]
 }
 
@@ -555,6 +567,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("ERR-001", &["rust"]),
+    ("TYP-006", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -587,6 +601,8 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "ERR-001",
+    "TYP-006",
 ];
 
 impl Module for NeutralModule {
@@ -721,7 +737,20 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 29);
+        // a rule is registered exactly once (the count is not pinned: adding a rule must not touch this test)
+        let mut sorted = rule_ids();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            rule_ids().len(),
+            "a rule id is registered twice: {:?}",
+            rule_ids()
+        );
+        assert!(
+            !sorted.is_empty(),
+            "positive control: the registry is not empty"
+        );
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }
