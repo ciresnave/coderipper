@@ -1,0 +1,3 @@
+kind: Fixed: the portfolio workflow no longer fails a repository for not declaring an `[architecture]` table
+---
+**The reusable portfolio workflow treated "ARC-001 not run: this repository declares no [architecture] table" as a rule that failed to run**, so every repository without a declaration (CodeRipper's own main included, red since 0.39.0 put the ARC rules in the portfolio profile) failed its sweep job with "a rule did not run". Declaring an architecture is the repository's choice and the rules say so in their own note ("a gap, not a pass"); the step now leaves those notes out of the failure test. Every other "not run" note still fails the job.
