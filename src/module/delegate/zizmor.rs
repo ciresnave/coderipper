@@ -519,12 +519,27 @@ const CONFIG_FILES: &[&str] = &[
     ".github/zizmor.yaml",
 ];
 
-/// Whether a zizmor configuration waives anything: it disables an audit or ignores a place.
-fn config_waives(text: &str) -> bool {
-    text.lines().map(str::trim).any(|l| {
-        !l.starts_with('#')
-            && (l.starts_with("disable:") && l.contains("true") || l.starts_with("ignore:"))
-    })
+/// What a zizmor configuration waives: `None` when nothing, else whether every waiver says why (a comment on the line above it, or
+/// after it on the same line). A bare `disable: true` silences an audit with no reason.
+fn config_waives(text: &str) -> Option<bool> {
+    let lines: Vec<&str> = text.lines().map(str::trim).collect();
+    let mut found = None;
+    for (i, l) in lines.iter().enumerate() {
+        let code = l.split('#').next().unwrap_or("").trim();
+        let waives = !l.starts_with('#')
+            && (code.starts_with("disable:") && code.contains("true") || code.starts_with("ignore:"));
+        if !waives {
+            continue;
+        }
+        let trailing = l.contains('#');
+        let above = lines[..i]
+            .iter()
+            .rev()
+            .find(|p| !p.is_empty())
+            .is_some_and(|p| p.starts_with('#') && p.trim_start_matches('#').trim().len() >= 8);
+        found = Some(found.unwrap_or(true) && (trailing || above));
+    }
+    found
 }
 
 /// One Info finding per tracked zizmor configuration that waives something: it is honoured, and it carries no reason, owner or expiry.
@@ -537,13 +552,18 @@ fn config_findings(root: &Path, project: &str) -> Vec<Finding> {
         .filter(|p| CONFIG_FILES.contains(p))
         .filter_map(|path| {
             let text = std::fs::read_to_string(root.join(path)).ok()?;
-            config_waives(&text).then(|| {
+            config_waives(&text).map(|explained| {
                 Finding::new(
                     RULE,
-                    Severity::Info,
+                    // a waiver that says why is a note; one that does not silences an audit with nothing recorded, so it gates
+                    if explained { Severity::Info } else { Severity::Medium },
                     Confidence::High,
                     project,
-                    format!("{path} waives zizmor findings and needs a reason"),
+                    if explained {
+                        format!("{path} waives zizmor findings (a reason is given in a comment; an owner and expiry are not)")
+                    } else {
+                        format!("{path} waives zizmor findings and needs a reason")
+                    },
                     format!(
                         "{path} disables an audit or ignores a place, and zizmor honours it, so findings of that audit or place are not \
                          reported. That is the project's own waiver and it is respected, but it gives no reason, owner or expiry \
@@ -971,12 +991,24 @@ mod tests {
         git(&["add", "."]);
         let found = config_findings(dir.path(), "demo");
         assert_eq!(found.len(), 1, "{found:?}");
-        assert_eq!(found[0].severity, Severity::Info);
+        assert_eq!(found[0].severity, Severity::Medium);
         assert!(
             found[0].summary.contains("needs a reason"),
             "{}",
             found[0].summary
         );
+        // a comment that says why makes it a note
+        std::fs::write(
+            dir.path().join(".github/zizmor.yml"),
+            "rules:
+  unpinned-uses:
+    # pinned by our mirror, see issue 12
+    disable: true
+",
+        )
+        .unwrap();
+        let found = config_findings(dir.path(), "demo");
+        assert_eq!(found[0].severity, Severity::Info, "{found:?}");
         // control: a config that waives nothing, and a comment that mentions disable, say nothing
         std::fs::write(
             dir.path().join(".github/zizmor.yml"),

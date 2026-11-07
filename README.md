@@ -435,7 +435,7 @@ One finding per zizmor finding, at the file and line it is on, with zizmor's sev
 so a workflow-level `contents: write` that is needed is reported too; say so in the `.coderipper.toml` allowlist. A workflow zizmor could not read (a YAML
 syntax error: it skips the file and still exits 0) makes a clean result **not run**, never clean, as does a project with no workflow. The
 project's own zizmor ignores are honoured, as a waiver source: a committed `zizmor.yml` that disables an audit or ignores a place is
-respected and reported as one Info finding at the file, and a finding that carries a `# zizmor: ignore` comment is reported at Info; each
+respected and reported as one finding at the file (Medium when nothing in a comment says why, Info when one does), and a finding that carries a `# zizmor: ignore` comment is reported at Info; each
 says the waiver needs a reason, an owner and an expiry (GOV-002), which an `[[allow]]` entry carries.
 
 ### Rule run by a tool: `API-001`
