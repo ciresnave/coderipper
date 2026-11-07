@@ -59,7 +59,7 @@ should be chosen per dependency and recorded, not copied from a default.
 
 - Over-application: retries in every layer (retry storms), circuit breakers that nobody tuned, and
   resilience machinery wrapped around in-process calls where returning an error is the right answer.
-- REL-003 is the reliability view of the same bounded-buffer concern as CON-004.
+- REL-003 is an alias of CON-004 (the same bounded-buffer concern, one record, one finding).
 - REL-012 judges service-level objectives from live telemetry, so it needs network access to a data source.
 
 ## Where it is checked
@@ -72,7 +72,7 @@ Toxiproxy for REL-008).
 | :--- | :--- | :--- | :--- |
 | REL-001 | Outbound calls have deadlines | P | catalog record; no check yet (needs a parser; Semgrep patterns are a candidate) |
 | REL-002 | Retries follow a safe policy | P | catalog record; no check yet (needs a parser; judging idempotency needs a model) |
-| REL-003 | Bounded channels with overflow policy | P | built in part (the same Rust reading as CON-004, reported under this id: channels created with no capacity; opt-in, `check REL-003`) |
+| REL-003 | Bounded channels with overflow policy | P | alias of CON-004 (2026-11-07): one finding, under `CON-004`; `check REL-003` and an allowlist entry naming `REL-003` still work |
 | REL-004 | Idempotent message handlers | L | catalog record; no check yet (needs a human decision or a model, plus replay tests) |
 | REL-005 | Probes and resource limits in manifests | N | built: delegated to checkov, asked for four checks (`CKV_K8S_8` liveness probe, `_9` readiness probe, `_11` CPU limits, `_13` memory limits), Medium, one finding per failed check at the resource; requests (`_10`, `_12`) are not this rule's; Helm templates are not rendered; needs checkov installed |
 | REL-006 | Graceful shutdown | P | catalog record; no check yet (needs a parser; the shutdown test runs code) |

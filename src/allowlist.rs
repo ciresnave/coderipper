@@ -87,6 +87,8 @@ impl CliWaiver {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AllowEntry {
+    /// The rule's canonical id: an entry that names a rule by an alias (`check = "REL-003"`) is read as the rule the alias names.
+    #[serde(deserialize_with = "canonical_check")]
     pub check: String,
     pub file: String,
     #[serde(default)]
@@ -279,6 +281,10 @@ fn parse_line_range(text: &str) -> Result<LineRange, String> {
         return Err(bad());
     }
     Ok(LineRange { first, last })
+}
+
+fn canonical_check<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    Ok(crate::catalog::canonical_name(&String::deserialize(d)?))
 }
 
 fn line_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<LineRange>, D::Error> {
@@ -574,6 +580,29 @@ reason = \"r\"
         )
         .unwrap();
         Allowlist::load(tmp.path())
+    }
+
+    #[test]
+    fn an_entry_that_names_a_rule_by_an_alias_is_read_as_the_rule() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[allow]]
+check = \"REL-003\"
+file = \"src/x.rs\"
+reason = \"r\"
+
+[[allow]]
+check = \"no-such-rule\"
+file = \"src/y.rs\"
+reason = \"r\"
+",
+        )
+        .unwrap();
+        let al = Allowlist::load(tmp.path()).unwrap();
+        assert_eq!(al.entries()[0].check, "CON-004");
+        // control: a name that is no alias is left exactly as written, so a typo fails where it always did
+        assert_eq!(al.entries()[1].check, "no-such-rule");
     }
 
     #[test]

@@ -1,0 +1,5 @@
+kind: Breaking: seven duplicate rule ids become aliases; REL-003 findings are CON-004 findings
+---
+**RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005 and REL-003 are no longer records; each is an alias of the rule it duplicated** (CireSnave 2026-11-07, ruling 1: "merge as aliases"): DOC-006, DOC-002, MOD-006, ERR-009, WSP-007, TST-013 and CON-004. The catalog has 224 rules (was 231). SEC-008 now applies where ERR-009 does (Rust as well as TypeScript and Python), which is the Rust gap Pip's review found.
+
+**One finding with both names.** REL-003 and CON-004 read the same channel creation, so a project that ran both got two findings for one site. There is one rule now, `CON-004`, and one finding. A name that is an alias is resolved wherever a rule is named: `coderipper check REL-003`, `check = "REL-003"` in an `[[allow]]` entry, `blocking = ["REL-003"]` and `--skip-rule REL-003=why` all mean `CON-004`, so no `.coderipper.toml` has to change. The only visible change is the id on the finding (`CON-004` for what was `REL-003`), and the removed `conformance/REL-003` fixtures (identical to CON-004's apart from the name).
