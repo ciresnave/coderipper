@@ -84,6 +84,15 @@ impl<'ast> Visit<'ast> for Nest {
         self.enter(|s| syn::visit::visit_expr_for_loop(s, e));
     }
 
+    /// A closure adds no level: its body is measured from the level it sits at, not under it.
+    fn visit_expr_closure(&mut self, e: &'ast syn::ExprClosure) {
+        let (depth, max) = (self.depth, self.max);
+        self.depth = 0;
+        syn::visit::visit_expr_closure(self, e);
+        self.depth = depth;
+        self.max = max;
+    }
+
     /// A function inside a body is measured on its own.
     fn visit_item(&mut self, _: &'ast syn::Item) {}
 }
@@ -95,11 +104,13 @@ struct Flags<'a> {
 }
 
 impl Flags<'_> {
-    /// The name when the expression is a bare identifier, a negation of one, or parenthesised.
+    /// The name when the expression is a bare identifier, a negation or dereference of one, or parenthesised.
     fn bare(e: &syn::Expr) -> Option<String> {
         match e {
             syn::Expr::Paren(p) => Self::bare(&p.expr),
-            syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Not(_)) => Self::bare(&u.expr),
+            syn::Expr::Unary(u) if matches!(u.op, syn::UnOp::Not(_) | syn::UnOp::Deref(_)) => {
+                Self::bare(&u.expr)
+            }
             syn::Expr::Path(p) if p.qself.is_none() => p.path.get_ident().map(ToString::to_string),
             _ => None,
         }
@@ -134,7 +145,17 @@ impl<'ast> Visit<'ast> for Flags<'_> {
 }
 
 fn is_bool(ty: &syn::Type) -> bool {
-    matches!(ty, syn::Type::Path(p) if p.qself.is_none() && p.path.is_ident("bool"))
+    match ty {
+        syn::Type::Reference(r) => is_bool(&r.elem),
+        syn::Type::Paren(p) => is_bool(&p.elem),
+        syn::Type::Path(p) => p.qself.is_none() && p.path.is_ident("bool"),
+        _ => false,
+    }
+}
+
+/// `#[test]` or a runner's `#[tokio::test]`, `#[async_std::test]`: the last path segment is `test`.
+fn is_test_attr(a: &syn::Attribute) -> bool {
+    a.path().segments.last().is_some_and(|s| s.ident == "test")
 }
 
 struct Hit {
@@ -158,7 +179,7 @@ impl Walk {
         attrs: &[syn::Attribute],
         in_trait_impl: bool,
     ) {
-        if is_cfg_test(attrs) || attrs.iter().any(|a| a.path().is_ident("test")) {
+        if is_cfg_test(attrs) || attrs.iter().any(is_test_attr) {
             return;
         }
         let line = u32::try_from(sig.span().start().line).unwrap_or(0);
@@ -178,7 +199,10 @@ impl Walk {
             .inputs
             .iter()
             .filter_map(|a| match a {
-                syn::FnArg::Typed(t) => Some((&*t.pat, &*t.ty)),
+                syn::FnArg::Typed(t) if !matches!(&*t.pat, syn::Pat::Ident(i) if i.ident == "self") => {
+                    Some((&*t.pat, &*t.ty))
+                }
+                syn::FnArg::Typed(_) => None,
                 syn::FnArg::Receiver(_) => None,
             })
             .collect();
@@ -287,6 +311,9 @@ impl<'ast> Visit<'ast> for Walk {
                 }
             }
         }
+        // a function declared inside a default method body is reached through the default walk, owned by no type
+        self.owner = None;
+        syn::visit::visit_item_trait(self, i);
         self.owner = owner;
     }
 }
@@ -406,6 +433,56 @@ mod tests {
         let f = found(src);
         assert_eq!(f.len(), 1, "{f:?}");
         assert_eq!(f[0].subject.as_deref(), Some("inner"));
+    }
+
+    #[test]
+    fn a_closure_if_does_not_deepen_the_enclosing_function() {
+        let src = "fn f(x: u8) {
+ if x > 0 { if x > 1 { if x > 2 { if x > 3 {
+ let c = || { if x > 4 { } };
+ c();
+ } } } }
+}
+";
+        assert!(found(src).is_empty(), "closure if counted as a fifth level");
+    }
+
+    #[test]
+    fn a_typed_self_receiver_is_not_a_parameter() {
+        let src = "struct S;
+impl S { fn m(self: Box<Self>, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8) {} }
+";
+        assert!(found(src).is_empty());
+        let eight = "struct S;
+impl S { fn m(self: Box<Self>, a: u8, b: u8, c: u8, d: u8, e: u8, f: u8, g: u8, h: u8) {} }
+";
+        assert_eq!(found(eight).len(), 1);
+    }
+
+    #[test]
+    fn a_runner_test_attribute_and_a_reference_flag_are_read_as_they_are() {
+        assert!(found(
+            "#[tokio::test]
+async fn t(go: bool) { if go {} }
+"
+        )
+        .is_empty());
+        let f = found(
+            "fn f(go: &bool) { if *go {} }
+",
+        );
+        assert_eq!(f.len(), 1, "{f:?}");
+    }
+
+    #[test]
+    fn a_function_inside_a_trait_default_body_is_measured_on_its_own() {
+        let src = "trait T {
+ fn d(&self) {
+ fn deep(y: u8) { if y > 0 { if y > 1 { if y > 2 { if y > 3 { if y > 4 {} } } } } }
+ }
+}
+";
+        assert_eq!(found(src).len(), 1);
     }
 
     #[test]
