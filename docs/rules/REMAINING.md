@@ -321,9 +321,9 @@ Proposed ids; each becomes a record, with `checked_today`, in the PR that builds
 | AIH-010 | Tests were run before the work is called done | AIH | the commit's CI status | `src/checks/ci_protection_presence/` | S | RULING: harness hook in scope, or CI status only |
 | SEC-011 | Authentication and authorization on Rust entry points (SEC-003/SEC-010 Rust half) | SEC | source only | `src/module/neutral/sec005.rs` | L | route inventory for axum, actix-web, rocket, warp; SEC-003 and SEC-008 gain Rust applicability |
 | CON-012 | Public async functions return `Send` futures | CON | source only | `src/module/neutral/concurrency.rs` | M | clippy `future_not_send` is nursery |
-| SUP-013 | Cargo features are additive | SUP | Cargo.toml | `src/module/neutral/sup001.rs` | S | `no-*` features, mutually exclusive pairs |
+| SUP-020 | Cargo features are additive | SUP | Cargo.toml | `src/module/neutral/sup001.rs` | S | `no-*` features, mutually exclusive pairs |
 | SEC-012 | No `Debug` on secret-holding types | SEC | source only | `src/module/neutral/sec004.rs` | S | `derive(Debug)` on a type with a secret-named field and no wrapper |
-| SUP-014 | `build.rs` and proc-macro hygiene | SUP | source only | `src/module/neutral/rust_package.rs` | S | network, writes outside `OUT_DIR`, no `rerun-if-changed` |
+| SUP-021 | `build.rs` and proc-macro hygiene | SUP | source only | `src/module/neutral/rust_package.rs` | S | network, writes outside `OUT_DIR`, no `rerun-if-changed` |
 | COR-011 | Arithmetic safety in numeric code | COR | Cargo.toml, source | `src/module/neutral/rust_src.rs` | M | `[lints]` arithmetic and cast lints first, narrowing `as` casts second |
 | COR-012 | `Send`/`Sync` impls are sound | COR | source only | `src/module/neutral/sec005.rs` | M | SEC-005 already reports an `unsafe impl` with no `SAFETY` comment; add field types (raw pointer, `Cell`, `Rc`) |
 | AIH-011 | Agent-authored changes get a human review | AIH | branch protection | `src/checks/ci_protection_presence/` | S | required reviews |
