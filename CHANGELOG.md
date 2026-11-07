@@ -6,6 +6,34 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.8 - 2026-11-07 (proposed, Fix)
+
+**The `ci.yml` caller of the reusable portfolio workflow is pinned to the commit that installs coderipper 0.39.0** (`portfolio.yml@556c7c587b4c...`, from the 0.20.1 commit `84cb133`), the second step of the two-step pin after the workflow itself moved to 0.39.0 (#253), as for 0.20.1 (#235, #236). No source change.
+
+## 0.43.7 - 2026-11-07 (proposed, Added: TYP-006 (opt-in, Rust))
+
+**TYP-006 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check TYP-006`; it is in no profile. It reads production source with `syn` and reports a `.unwrap()` or `.expect(..)` call that has no written invariant, as one Medium finding per file at high confidence naming the first site and the count. A site is justified by a comment on the same line, up to the end of the statement, or alone on the line above that begins with `INVARIANT`, `SAFETY` or `UNWRAP-OK`, or by an `expect("..")` message that states why it cannot fail. Test code is skipped; `unwrap_or`, `unwrap_or_else`, `unwrap_or_default`, `unwrap_err` and `expect_err` are not sites. **Why opt-in:** run on the committed trees of eight repositories it counts 517 unjustified calls in 125 files (coderipper 7 in 6 files, auth-framework 64 in 30, Unpopped 74 in 29, PersistAnt 75 in 20, configurant 1 in 1, httpant 33 in 8, releaseant 7 in 5, synapse 256 in 26), so it is a count to read, not a gate. These are counts only; no sample was read for false positives, and a type with its own `unwrap` method is counted. It is also the static core of ERR-003, which is not built. Not seen: TypeScript non-null assertions and other languages, the receiver's type, calls inside macros.
+
+## 0.43.6 - 2026-11-06 (proposed, Breaking: a new default-on rule)
+
+**ARC-012 is built: construction only in composition roots.** For each policy component of an `[architecture]` declaration, the rule reads its crates with `syn` and reports a struct literal or constructor-looking call (`new`, `default`, `open`, `connect`, `create`, `build`, `init`, `try_new`, `new_*`, `with_*`, `from_*`) of a struct that is declared in an adapter or infrastructure component and implements a port (a trait declared in the workspace, or one named in the new `[architecture.composition] ports`), resolved through `use` paths, outside the declared `[architecture.composition] roots`, `src/main.rs`, `src/bin/**` and test code. One finding per site at Medium severity and medium confidence, subject `<component>:<crate>::<Type>`; a deliberate exception is an allowlist entry with a reason. A repository that declares no roots (or no composition component), no adapter component or no policy component gets "not run", never clean, so a repository without the declaration is unaffected. Syntactic: glob imports, aliases, macros and factory functions elsewhere are not seen; dependency containers consulted outside a root are not looked for. Fixtures: `conformance/ARC-012`.
+
+## 0.43.5 - 2026-11-06 (proposed, Added: ERR-001 (opt-in, Rust))
+
+**ERR-001 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check ERR-001`; it is in no profile. It reads production source with `syn` and reports a failure dropped with no stated reason, one finding per site at Medium severity and medium confidence: `let _ = call();`, `_ = call();`, `call().ok();` as a statement, an `Err(_) => {}` arm, and `if let Ok(..) = call` with no `else` when the call is a file-system, file, socket or `Command` call or a read, write or flush method. A comment on the same line, up to the end of the statement, or alone on the line above is the stated reason the rule asks for and silences the site, the opposite of `lint-suppression`. Test code and `impl Drop` are skipped; a bare `call();` that discards a `Result` stays with `unused-return-values`. **Why opt-in:** run on the committed trees of eight repositories (coderipper, auth-framework, Unpopped, PersistAnt, configurant, httpant, releaseant, synapse) it reports 191 sites, 22 of them in CodeRipper itself, most of them real uncommented drops (`kill`, `wait`, cleanup `remove_file`, channel `send`) and a few deliberate fallbacks, so default-on needs the owners' decision. The counts were taken before a list of bool- and Option-returning methods (`any`, `insert`, ...) was excluded. Not seen: TypeScript and Python (the catalog names both), whether the dropped value is a `Result`, a drop through a macro. Also adds the shared `rust_src` helper for the Rust source checks.
+
+## 0.43.4 - 2026-11-06 (proposed, Fix)
+
+**The one rule-count pin #262 left in `tests/neutral_module.rs` (`proofs.len() == 28`) reads the registry**, with a check that no rule is registered twice. It passed only while the neutral module had exactly 28 rules, so the first rule PR after #262 failed `every_registered_claim_is_earned_by_its_fixtures`. No source change.
+
+## 0.43.3 - 2026-11-06 (proposed, Fix)
+
+**`zip` 9.4.0 to 9.4.1 in `Cargo.lock`** (a patch release of the archive reader the tool installer uses for the zip-packaged tools: gitleaks, lychee, zizmor, checkov on Windows). Found by the installed 0.39.0 portfolio sweep (`dependency-freshness`, Medium: "zip is locked at 9.4.0 and 9.4.1 is available"). No source change; the tool-install tests (`tools::` archive and download tests) pass on the new version.
+
+## 0.43.2 - 2026-11-06 (proposed, Fix)
+
+**The tests no longer pin the number of rules, so a new rule no longer conflicts with every other rule PR.** `tests/neutral_module.rs` read a hard-coded list and count of the neutral module's rules (22, 25, 26, 29...), `tests/coverage_cli.rs` a count of the covered neutral rules and of the claimed-but-unproven delegated ones, and two unit tests the number of rules registered. They now read the registry (`NeutralModule::describe`, `delegated_rule_ids`), with a positive control that the registry holds a known rule, and a test that a rule id is registered exactly once. A registered rule without fixtures still fails the proof test. No source change.
+
 ## 0.43.1 - 2026-11-06 (proposed, Fix)
 
 **The reusable portfolio workflow installs coderipper 0.39.0** (`CODERIPPER_VERSION` in `.github/workflows/portfolio.yml`, from 0.20.1), the newest published release (crates.io, tagged `v0.39.0`). The 0.20.1 install printed the two MOD-002 "not registered" Info lines because it lagged 19 minor versions behind the rules the repository's own configuration names; 0.39.0 registers them. The caller pin in `ci.yml` (`portfolio.yml@<commit> # 0.20.1`) moves to the commit of this change in a second, fragment-only change once this one is on `main`, as for 0.20.1.
