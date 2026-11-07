@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.9 - 2026-11-07 (proposed, Docs)
+
+**`docs/PATENT-SWEEP.md` records that CireSnave agreed with the reading of US11269626B2 for idea 24 (EFX-003) on 2026-11-06** (board 351). The reading is still a model's reading of a summarised Google Patents page, not a review of the original claims, not legal advice, and with no attorney. EFX-003 may ship in a release. No source change.
+
 ## 0.43.8 - 2026-11-07 (proposed, Fix)
 
 **The `ci.yml` caller of the reusable portfolio workflow is pinned to the commit that installs coderipper 0.39.0** (`portfolio.yml@556c7c587b4c...`, from the 0.20.1 commit `84cb133`), the second step of the two-step pin after the workflow itself moved to 0.39.0 (#253), as for 0.20.1 (#235, #236). No source change.
