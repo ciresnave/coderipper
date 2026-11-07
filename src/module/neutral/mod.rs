@@ -17,6 +17,7 @@ mod doc005;
 mod doc009;
 mod efx003;
 mod err001;
+mod ext002;
 mod ext003;
 mod licence;
 mod lint_suppression;
@@ -191,6 +192,10 @@ const RULES: &[Rule] = &[
         id: "RDB-007",
         judge: rdb007::judge,
     },
+    Rule {
+        id: "EXT-002",
+        judge: ext002::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -203,7 +208,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006", "RDB-007",
+        "TYP-006", "RDB-007", "EXT-002",
     ]
 }
 
@@ -570,6 +575,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
     ("RDB-007", &["rust"]),
+    ("EXT-002", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -604,6 +610,7 @@ const PROVEN: &[&str] = &[
     "ERR-001",
     "TYP-006",
     "RDB-007",
+    "EXT-002",
 ];
 
 impl Module for NeutralModule {
