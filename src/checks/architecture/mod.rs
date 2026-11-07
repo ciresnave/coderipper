@@ -543,6 +543,8 @@ pub(crate) mod api_budget;
 pub use api_budget::ApiBudgetCheck;
 mod chains;
 pub use chains::ReachThroughCheck;
+mod composition;
+pub use composition::CompositionRootsCheck;
 mod cycles;
 pub use cycles::ComponentCyclesCheck;
 mod divergent;
