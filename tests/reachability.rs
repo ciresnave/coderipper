@@ -89,7 +89,7 @@ fn an_allowlisted_dead_symbol_is_suppressed() {
         repo.path().join(".coderipper.toml"),
         r#"
 [[allow]]
-check = "reachability"
+check = "MOD-011"
 file = "src/main.rs"
 symbol = "dead_function"
 reason = "test: confirm the allowlist suppresses a real finding"
@@ -100,7 +100,7 @@ reason = "test: confirm the allowlist suppresses a real finding"
     let ctx = CheckContext::new(repo.path().to_path_buf());
     // Suppression is the host's job: the check itself returns the raw finding.
     assert_eq!(ReachabilityCheck::new().run(&ctx).unwrap().len(), 1);
-    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
+    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("MOD-011"));
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert!(result.findings.is_empty(), "{:?}", result.findings);
 }
@@ -501,7 +501,7 @@ fn when_everything_is_set_aside_it_is_a_note_and_not_a_finding() {
     assert!(findings.is_empty(), "{findings:?}");
     // the host still says it, as a note
     let ctx = coderipper::check::CheckContext::new(repo.path());
-    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("reachability"));
+    let result = coderipper::run_checks(&ctx, coderipper::check::Tier::Fast, Some("MOD-011"));
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert!(result.findings.is_empty(), "{:?}", result.findings);
     assert!(

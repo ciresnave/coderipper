@@ -42,7 +42,7 @@ fn a_dependency_on_an_avoid_entry_blocks() {
     portfolio(&project("requests\ngensim>=4\n"), &[])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("(patent-index-match)"))
+        .stdout(predicate::str::contains("(SUP-014)"))
         .stdout(predicate::str::contains("index match"));
 }
 
@@ -61,7 +61,7 @@ fn deny_none_still_never_fails_on_a_finding() {
     portfolio(&project("gensim\n"), &["--deny", "none"])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("(patent-index-match)"));
+        .stdout(predicate::str::contains("(SUP-014)"));
 }
 
 #[test]
@@ -81,17 +81,11 @@ fn the_floors_block_mechanical_rules_and_leave_expectation_rules_advisory() {
     use coderipper::finding::Severity;
     use coderipper::portfolio_floor;
     assert_eq!(portfolio_floor("SUP-004"), Some(Severity::Medium));
-    assert_eq!(portfolio_floor("conflict-marker"), Some(Severity::Low));
-    assert_eq!(portfolio_floor("patent-index-match"), Some(Severity::High));
-    assert_eq!(portfolio_floor("licence"), Some(Severity::High));
+    assert_eq!(portfolio_floor("GOV-011"), Some(Severity::Low));
+    assert_eq!(portfolio_floor("SUP-014"), Some(Severity::High));
+    assert_eq!(portfolio_floor("SUP-016"), Some(Severity::High));
     // positive control above: the table answers; these are advisory
-    for advisory in [
-        "DOC-005",
-        "DOC-009",
-        "SUP-011",
-        "lint-suppression",
-        "reachability",
-    ] {
+    for advisory in ["DOC-005", "DOC-009", "SUP-011", "GOV-010", "MOD-011"] {
         assert_eq!(portfolio_floor(advisory), None, "{advisory}");
     }
 }
@@ -146,7 +140,7 @@ fn a_repository_with_no_licence_file_blocks() {
     portfolio(&no_licence, &[])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("(licence)"))
+        .stdout(predicate::str::contains("(SUP-016)"))
         .stdout(predicate::str::contains("no licence file"));
 }
 
@@ -213,7 +207,7 @@ fn the_list_of_registered_rules_in_an_unknown_entry_names_each_rule_once() {
         .find(|l| l.contains("NO-SUCH-RULE"))
         .expect("the unknown-entry finding");
     // the finding lists the registered rules twice (its detail and its positive control), each list naming `conflict-marker` once
-    assert_eq!(line.matches("conflict-marker").count(), 2, "{line}");
+    assert_eq!(line.matches("GOV-011").count(), 2, "{line}");
 }
 
 /// A virtual workspace root (no `[package]`, two members): the layout of baracuda and fuel.
@@ -265,7 +259,7 @@ fn a_virtual_workspace_root_runs_the_rust_checks_only_with_workspace() {
     // with it they run on each member: the seeded defect in member `b` is found (the control that the rules ran at all)
     sweep_portfolio(&repo, &["--workspace"])
         .assert()
-        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stdout(predicate::str::contains("(ERR-012)"))
         .stderr(predicate::str::contains("virtual workspace root").not());
 }
 
@@ -293,7 +287,7 @@ fn workspace_with_a_member_that_needs_a_toolchain() -> tempfile::TempDir {
 fn a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_read() {
     let repo = workspace_with_a_member_that_needs_a_toolchain();
     // the test repository has no `origin`, so the branch-protection check is skipped: the exit code is then about the build alone
-    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    let skip = ["--skip-rule", "WSP-011=no forge in a test"];
     // without the variable the member's build fails: the run says so (exit 3) and names the member, it does not skip it quietly
     sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
         .env_remove("DOCS_RS")
@@ -327,12 +321,12 @@ fn a_package_whose_targets_are_outside_src_is_analysed_from_its_cargo_targets() 
     // all three Rust checks run on the root file cargo names, each with its sentinel: a result, not an error
     sweep_portfolio(
         &repo,
-        &["--skip-rule", "ci-protection-presence=no forge in a test"],
+        &["--skip-rule", "WSP-011=no forge in a test"],
     )
     .assert()
     .code(0)
     .stdout(predicate::str::contains("`unused_helper` has zero callers"))
-    .stdout(predicate::str::contains("(unused-return-values)"))
+    .stdout(predicate::str::contains("(ERR-012)"))
     .stderr(predicate::str::contains("os error").not())
     .stderr(predicate::str::contains("check error").not());
 }
@@ -351,7 +345,7 @@ fn a_target_outside_src_with_a_file_module_is_refused_by_name_not_half_read() {
     ]);
     sweep_portfolio(
         &repo,
-        &["--skip-rule", "ci-protection-presence=no forge in a test"],
+        &["--skip-rule", "WSP-011=no forge in a test"],
     )
     .assert()
     .code(3)
@@ -412,7 +406,7 @@ edition = \"2021\"
 
 #[test]
 fn a_crate_level_public_api_declaration_covers_one_package_of_a_workspace() {
-    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    let skip = ["--skip-rule", "WSP-011=no forge in a test"];
     // `a` and `b` each have an unreferenced public function; the declaration names only `a`
     let repo = workspace_with_config(
         "[reachability]
@@ -451,7 +445,7 @@ fn a_member_run_by_hand_agrees_with_the_workspace_run_on_a_root_only_declaration
 public_api_crates = [{ crate = \"a\", reason = \"published library\" }]
 ",
     );
-    let skip = ["--skip-rule", "ci-protection-presence=no forge in a test"];
+    let skip = ["--skip-rule", "WSP-011=no forge in a test"];
     let at = |dir: &str| {
         let mut cmd = Command::cargo_bin("coderipper").unwrap();
         cmd.args([
@@ -528,5 +522,5 @@ fn the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_r
         .assert()
         .stderr(predicate::str::contains("ratchet not applicable").not())
         .stderr(predicate::str::contains("ratchet not run").not())
-        .stdout(predicate::str::contains("(lint-suppression)"));
+        .stdout(predicate::str::contains("(GOV-010)"));
 }

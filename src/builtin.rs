@@ -212,14 +212,7 @@ mod tests {
             .collect();
         assert_eq!(
             classic,
-            [
-                "reachability",
-                "unused-return-values",
-                "unused-parameters",
-                "version-consistency",
-                "ci-protection-presence",
-                "dependency-freshness"
-            ]
+            ["MOD-011", "ERR-012", "RDB-014", "WSP-010", "WSP-011", "SUP-015"]
         );
     }
 }

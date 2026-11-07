@@ -85,31 +85,57 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     );
     triaged.extend(coderipper::registered_checks().iter().map(|c| c.id()));
     // the one rule that is not a knowledge-base rule and not an original check: the neutral module's lint-suppression
-    triaged.push("lint-suppression");
+    triaged.push("GOV-010");
     // and the rule every profile takes
-    triaged.push("conflict-marker");
+    triaged.push("GOV-011");
     // the patent-index rule
-    triaged.push("patent-index-match");
+    triaged.push("SUP-014");
     // the licence rule
-    triaged.push("licence");
+    triaged.push("SUP-016");
     // the CI-security rule
-    triaged.push("ci-security");
+    triaged.push("SUP-017");
     // the version-and-changelog rule
-    triaged.push("version-and-changelog");
+    triaged.push("WSP-012");
     // the patent-sweep-record rule
-    triaged.push("patent-sweep-record");
+    triaged.push("WSP-013");
     // the CLI-conventions rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("OPS-012");
     // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
-    triaged.push("security-support-statement");
+    triaged.push("WSP-014");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
     triaged.retain(|id| *id != "TYP-003");
+    // the seven duplicate pairs merged on 2026-11-07: each second id is an alias of the first (see `merged_duplicates_are_aliases`)
+    triaged.retain(|id| !MERGED.iter().any(|(_, alias)| alias == id));
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     // a registered check can also be a knowledge-base rule (MOD-005 is both): it is one catalog record, named twice here
     triaged.dedup();
     in_catalog.sort_unstable();
     assert_eq!(in_catalog, triaged);
+}
+
+/// `(canonical id, the id that became its alias)`, CireSnave 2026-11-07: "merge as aliases".
+const MERGED: &[(&str, &str)] = &[
+    ("DOC-006", "RDB-010"),
+    ("DOC-002", "API-010"),
+    ("MOD-006", "EVO-003"),
+    ("ERR-009", "SEC-008"),
+    ("WSP-007", "TST-010"),
+    ("TST-013", "AIH-005"),
+    ("CON-004", "REL-003"),
+];
+
+#[test]
+fn merged_duplicates_are_aliases() {
+    let catalog = Catalog::builtin();
+    for (canonical, alias) in MERGED {
+        assert_eq!(catalog.canonical_id(alias), Some(*canonical), "{alias}");
+        assert_eq!(catalog.canonical_id(canonical), Some(*canonical));
+        assert!(
+            !catalog.rules().iter().any(|r| r.id() == *alias),
+            "{alias} is still a record"
+        );
+    }
 }
 
 #[test]
@@ -142,6 +168,10 @@ fn every_new_rule_starts_experimental_with_no_overlap_refs() {
             .next()
             .is_some_and(|c| c.is_ascii_uppercase())
         {
+            // the fourteen rules renamed from slugs keep their lifecycle: they are old rules under new ids
+            if rule.aliases().iter().any(|a| a.starts_with(|c: char| c.is_ascii_lowercase())) {
+                continue;
+            }
             assert_eq!(rule.lifecycle(), Lifecycle::Experimental, "{}", rule.id());
             assert!(rule.kb_refs().is_empty(), "{}", rule.id());
         }
@@ -165,12 +195,12 @@ fn each_legacy_record_agrees_with_its_check() {
 fn the_expected_attributes_are_what_the_checks_have_today() {
     // Positive control for the loop above: it would pass vacuously if both sides were read through the same wrong lens.
     let catalog = Catalog::builtin();
-    let ci = catalog.get("ci-protection-presence").expect("record");
+    let ci = catalog.get("WSP-011").expect("record");
     assert_eq!(
         (ci.scope(), ci.network(), ci.unit()),
         (Scope::Project, Network::NetworkRequired, Unit::Repository)
     );
-    let reach = catalog.get("reachability").expect("record");
+    let reach = catalog.get("MOD-011").expect("record");
     assert_eq!(
         (reach.scope(), reach.network(), reach.unit()),
         (Scope::Project, Network::LocalOnly, Unit::Package)
@@ -181,11 +211,11 @@ fn the_expected_attributes_are_what_the_checks_have_today() {
 fn the_legacy_ids_keep_their_kb_refs() {
     let catalog = Catalog::builtin();
     let expected: [(&str, &[&str]); 5] = [
-        ("reachability", &["RDB-006", "MOD-001"]),
-        ("unused-parameters", &["RDB-006"]),
-        ("unused-return-values", &["ERR-001", "ERR-011"]),
-        ("version-consistency", &["WSP-003"]),
-        ("ci-protection-presence", &[]),
+        ("MOD-011", &["RDB-006", "MOD-001"]),
+        ("RDB-014", &["RDB-006"]),
+        ("ERR-012", &["ERR-001", "ERR-011"]),
+        ("WSP-010", &["WSP-003"]),
+        ("WSP-011", &[]),
     ];
     for (id, refs) in expected {
         assert_eq!(catalog.get(id).expect("record").kb_refs(), refs, "{id}");
@@ -198,26 +228,11 @@ fn the_legacy_records_state_what_each_check_emits_and_does() {
     let catalog = Catalog::builtin();
     // (id, executes project code, default severity, confidence class), read from the checks' own findings.
     let expected = [
-        ("reachability", true, Severity::Medium, Confidence::Medium),
-        ("unused-parameters", true, Severity::Low, Confidence::High),
-        (
-            "unused-return-values",
-            true,
-            Severity::Medium,
-            Confidence::Medium,
-        ),
-        (
-            "version-consistency",
-            false,
-            Severity::High,
-            Confidence::High,
-        ),
-        (
-            "ci-protection-presence",
-            false,
-            Severity::High,
-            Confidence::High,
-        ),
+        ("MOD-011", true, Severity::Medium, Confidence::Medium),
+        ("RDB-014", true, Severity::Low, Confidence::High),
+        ("ERR-012", true, Severity::Medium, Confidence::Medium),
+        ("WSP-010", false, Severity::High, Confidence::High),
+        ("WSP-011", false, Severity::High, Confidence::High),
     ];
     for (id, runs_code, severity, confidence) in expected {
         let rule = catalog.get(id).expect("record");
@@ -272,13 +287,10 @@ fn an_alias_that_collides_with_an_id_is_rejected() {
 
 #[test]
 fn an_alias_resolves_to_the_canonical_id() {
-    let text = record("version-consistency").replace("aliases = []", "aliases = [\"WSP-003\"]");
+    let text = record("WSP-010").replace("aliases = []", "aliases = [\"WSP-003\"]");
     let catalog = parse(&[("wsp.toml", text)]).expect("valid");
-    assert_eq!(catalog.canonical_id("WSP-003"), Some("version-consistency"));
-    assert_eq!(
-        catalog.canonical_id("version-consistency"),
-        Some("version-consistency")
-    );
+    assert_eq!(catalog.canonical_id("WSP-003"), Some("WSP-010"));
+    assert_eq!(catalog.canonical_id("WSP-010"), Some("WSP-010"));
     assert_eq!(catalog.canonical_id("nonexistent"), None);
 }
 
@@ -387,4 +399,34 @@ fn an_unknown_domain_language_or_scope_is_rejected() {
         let err = parse(&[("a.toml", record("WSP-900").replace(from, to))]).expect_err(word);
         assert!(err.to_string().contains(word), "{err}");
     }
+}
+
+/// The migration tool's table of old names is the catalog's own: every kebab-case alias is in `tools/migrate-rule-ids.py` with the id it
+/// became, and the tool names nothing else, so the two cannot drift.
+#[test]
+fn the_migration_tool_renames_exactly_the_slug_aliases() {
+    let source = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/migrate-rule-ids.py"),
+    )
+    .unwrap();
+    let mut tool: Vec<(String, String)> = source
+        .lines()
+        .filter_map(|l| {
+            let l = l.trim().strip_suffix(',')?;
+            let (old, new) = l.split_once("\": \"")?;
+            Some((old.strip_prefix('"')?.to_string(), new.strip_suffix('"')?.to_string()))
+        })
+        .collect();
+    let mut catalog: Vec<(String, String)> = Vec::new();
+    for rule in Catalog::builtin().rules() {
+        for alias in rule.aliases() {
+            if alias.starts_with(|c: char| c.is_ascii_lowercase()) {
+                catalog.push((alias.clone(), rule.id().to_string()));
+            }
+        }
+    }
+    tool.sort();
+    catalog.sort();
+    assert_eq!(catalog.len(), 14, "positive control: fourteen slug aliases: {catalog:?}");
+    assert_eq!(tool, catalog);
 }

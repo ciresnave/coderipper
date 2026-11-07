@@ -12,7 +12,7 @@
 //!
 //! One finding per package, named by its package name in `Cargo.lock`: **Medium** for a dependency a workspace member declares,
 //! **Low** for a transitive one (a parent crate's release has to move first, so the fix may not be ours to make). A package
-//! that cannot move is waived, with the reason, by an `[[allow]]` entry (`check = "dependency-freshness"`, `file = "Cargo.lock"`,
+//! that cannot move is waived, with the reason, by an `[[allow]]` entry (`check = "SUP-015"`, `file = "Cargo.lock"`,
 //! `symbol = <package name>`).
 //!
 //! Network tier, scheduled rather than per PR: a PR would turn red the day any dependency published. It runs `cargo update

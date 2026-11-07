@@ -1,0 +1,4 @@
+[[expect]]
+rule = "RDB-014"
+file = "src/lib.rs"
+line = 1

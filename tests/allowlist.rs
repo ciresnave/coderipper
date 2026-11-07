@@ -12,7 +12,7 @@ mod manifest;
 use common::git_repo_with;
 use manifest::MANIFEST;
 
-const URV: &str = "unused-return-values";
+const URV: &str = "ERR-012";
 
 fn ctx(repo: &tempfile::TempDir) -> CheckContext {
     CheckContext::new(repo.path().to_path_buf())
@@ -113,7 +113,7 @@ fn an_entry_for_a_check_that_failed_to_run_is_not_judged() {
 fn an_entry_for_a_registered_check_that_did_not_run_is_not_judged() {
     // `--check reachability` never ran URV, so a URV entry says nothing about this run.
     let repo = crate_with_one_finding(&entry(URV, "src/main.rs", "f"));
-    let result = run_one(&repo, "reachability");
+    let result = run_one(&repo, "MOD-011");
     assert!(stale(&result.findings).is_empty(), "{:?}", result.findings);
 }
 
@@ -151,7 +151,7 @@ fn a_malformed_allowlist_is_an_error_but_does_not_swallow_the_findings() {
     );
 }
 
-const RA: &str = "reachability";
+const RA: &str = "MOD-011";
 
 /// A library whose public API has no consumer: `src/api.rs` holds two items, `src/other.rs` one.
 fn library_with_unconsumed_api(config: &str) -> tempfile::TempDir {

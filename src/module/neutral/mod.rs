@@ -91,31 +91,31 @@ const RULES: &[Rule] = &[
         judge: wsp001::judge,
     },
     Rule {
-        id: "lint-suppression",
+        id: "GOV-010",
         judge: lint_suppression::judge,
     },
     Rule {
-        id: "conflict-marker",
+        id: "GOV-011",
         judge: conflict_marker::judge,
     },
     Rule {
-        id: "patent-index-match",
+        id: "SUP-014",
         judge: patent_index::judge,
     },
     Rule {
-        id: "licence",
+        id: "SUP-016",
         judge: licence::judge,
     },
     Rule {
-        id: "ci-security",
+        id: "SUP-017",
         judge: ci_security::judge,
     },
     Rule {
-        id: "version-and-changelog",
+        id: "WSP-012",
         judge: version_changelog::judge,
     },
     Rule {
-        id: "patent-sweep-record",
+        id: "WSP-013",
         judge: patent_sweep::judge,
     },
     Rule {
@@ -127,7 +127,7 @@ const RULES: &[Rule] = &[
         judge: ops012::judge,
     },
     Rule {
-        id: "security-support-statement",
+        id: "WSP-014",
         judge: support_statement::judge,
     },
     Rule {
@@ -153,10 +153,6 @@ const RULES: &[Rule] = &[
     Rule {
         id: "CON-004",
         judge: concurrency::judge_con004,
-    },
-    Rule {
-        id: "REL-003",
-        judge: concurrency::judge_rel003,
     },
     Rule {
         id: "API-004",
@@ -197,8 +193,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006",
+        "EFX-003", "CON-003", "CON-004", "SEC-005", "API-009", "ERR-004", "ERR-001", "TYP-006",
     ]
 }
 
@@ -550,13 +545,12 @@ impl NeutralModule {
 /// JavaScript family); Python, Go and the rest are not read.
 const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-001", &["rust", "typescript"]),
-    ("patent-index-match", &["rust", "typescript", "python"]),
+    ("SUP-014", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
     ("CON-002", &["rust"]),
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
-    ("REL-003", &["rust"]),
     ("API-004", &["rust"]),
     ("API-009", &["rust"]),
     ("ERR-004", &["rust"]),
@@ -567,36 +561,10 @@ const READS_ONLY: &[(&str, &[&str])] = &[
 ];
 
 const PROVEN: &[&str] = &[
-    "SUP-001",
-    "SUP-004",
-    "SUP-011",
-    "DOC-005",
-    "DOC-009",
-    "WSP-001",
-    "lint-suppression",
-    "conflict-marker",
-    "patent-index-match",
-    "licence",
-    "ci-security",
-    "version-and-changelog",
-    "patent-sweep-record",
-    "CON-006",
-    "OPS-012",
-    "security-support-statement",
-    "RDB-008",
-    "EFX-003",
-    "SEC-004",
-    "CON-002",
-    "CON-003",
-    "CON-004",
-    "REL-003",
-    "API-004",
-    "API-009",
-    "ERR-004",
-    "SEC-005",
-    "EXT-003",
-    "ERR-001",
-    "TYP-006",
+    "SUP-001", "SUP-004", "SUP-011", "DOC-005", "DOC-009", "WSP-001", "GOV-010", "GOV-011",
+    "SUP-014", "SUP-016", "SUP-017", "WSP-012", "WSP-013", "CON-006", "OPS-012", "WSP-014",
+    "RDB-008", "EFX-003", "SEC-004", "CON-002", "CON-003", "CON-004", "API-004", "API-009",
+    "ERR-004", "SEC-005", "EXT-003", "ERR-001", "TYP-006",
 ];
 
 impl Module for NeutralModule {

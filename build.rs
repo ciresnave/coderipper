@@ -64,6 +64,32 @@ fn rule_ids() {
                 file.display()
             );
             consts.push((name, id.to_string()));
+            // an alias is a name for the same rule, so its constant has the canonical id as its value: code that still says
+            // `rule_id::REACHABILITY` names `MOD-011`
+            for alias in rule
+                .get("aliases")
+                .and_then(toml::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(toml::Value::as_str)
+            {
+                let alias_name: String = alias
+                    .chars()
+                    .map(|c| {
+                        if c.is_ascii_alphanumeric() {
+                            c.to_ascii_uppercase()
+                        } else {
+                            '_'
+                        }
+                    })
+                    .collect();
+                assert!(
+                    !consts.iter().any(|(n, _)| *n == alias_name),
+                    "{}: alias {alias:?} of {id:?} collides with another rule or alias",
+                    file.display()
+                );
+                consts.push((alias_name, id.to_string()));
+            }
         }
     }
     let mut out = String::from(

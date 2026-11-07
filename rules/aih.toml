@@ -97,30 +97,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "AIH-005"
-title = "Tests check the specification, not the code's own output"
-domain = "AIH"
-statement = "Tests added alongside generated code must express required behavior taken from a specification, not simply record whatever the generated code currently returns."
-rationale = "A test derived from the implementation can only confirm it; such circular tests pass even when the behavior is wrong."
-evidence_tiers = ["V2", "V4"]
-evidence_strength = "C"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = true
-default_severity = "medium"
-confidence_class = "low"
-kb_refs = []
-remediation = "Write the expected results from the requirement before running the code, and check the changed code with mutation testing to see that the tests would notice a fault."
-related = ["AIH-002"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "AIH-006"
 title = "Generated code follows the local conventions"
 domain = "AIH"

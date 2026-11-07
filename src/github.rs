@@ -211,7 +211,7 @@ pub fn origin_url(dir: &Path) -> anyhow::Result<String> {
     let output = git_command(dir, &["remote", "get-url", "origin"]).output()?;
     anyhow::ensure!(
         output.status.success(),
-        "{} has no `origin` remote ({}); ci-protection-presence needs to know which GitHub repository it is",
+        "{} has no `origin` remote ({}); WSP-011 needs to know which GitHub repository it is",
         dir.display(),
         String::from_utf8_lossy(&output.stderr).trim()
     );

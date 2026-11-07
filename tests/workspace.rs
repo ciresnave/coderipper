@@ -136,12 +136,12 @@ fn a_virtual_workspace_root_is_refused_by_every_check_and_names_the_members() {
 fn the_allowlist_is_the_members_own() {
     let repo = workspace_repo(&[(
         "b/.coderipper.toml",
-        "[[allow]]\ncheck = \"unused-parameters\"\nfile = \"src/lib.rs\"\nsymbol = \"b_dead::unused_b\"\nreason = \"kept for the next release\"\n",
+        "[[allow]]\ncheck = \"RDB-014\"\nfile = \"src/lib.rs\"\nsymbol = \"b_dead::unused_b\"\nreason = \"kept for the next release\"\n",
     )]);
     let result = coderipper::run_checks(
         &CheckContext::new(repo.path().join("b")).portfolio_root(repo.path().to_path_buf()),
         Tier::Fast,
-        Some("unused-parameters"),
+        Some("RDB-014"),
     );
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert!(result.findings.is_empty(), "{:?}", result.findings);

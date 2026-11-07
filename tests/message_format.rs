@@ -58,12 +58,12 @@ fn keys(v: &Value) -> Vec<&str> {
 #[test]
 fn a_finding_is_one_json_line_followed_by_a_summary_line() {
     let repo = project_with_a_medium_finding();
-    let (code, lines) = run_json(&["check", "unused-return-values"], repo.path());
+    let (code, lines) = run_json(&["check", "ERR-012"], repo.path());
     assert_eq!(code, 1, "a finding fails the run by default (0.5.0)");
     assert_eq!(lines.len(), 2, "{lines:?}");
     let finding = &lines[0];
     assert_eq!(finding["reason"], "coderipper-finding");
-    assert_eq!(finding["check_id"], "unused-return-values");
+    assert_eq!(finding["check_id"], "ERR-012");
     assert_eq!(finding["severity"], "medium");
     assert_eq!(finding["subject"], "f");
     assert_eq!(finding["claim"], "absence");
@@ -79,7 +79,7 @@ fn a_finding_is_one_json_line_followed_by_a_summary_line() {
 #[test]
 fn golden_the_keys_of_a_finding_line_and_of_the_summary_line() {
     let repo = project_with_a_medium_finding();
-    let (_, lines) = run_json(&["check", "unused-return-values"], repo.path());
+    let (_, lines) = run_json(&["check", "ERR-012"], repo.path());
     assert_eq!(
         keys(&lines[0]),
         GOLDEN_FINDING_KEYS,
@@ -105,7 +105,7 @@ fn golden_the_keys_of_a_finding_line_and_of_the_summary_line() {
 #[test]
 fn the_summary_line_reports_the_percentage_of_rules_passed() {
     let repo = project_with_a_medium_finding();
-    let (_, lines) = run_json(&["check", "unused-return-values"], repo.path());
+    let (_, lines) = run_json(&["check", "ERR-012"], repo.path());
     let summary = &lines[1];
     assert_eq!(summary["rules_ran"], 1);
     assert_eq!(summary["rules_passed"], 0);
@@ -132,10 +132,7 @@ const GOLDEN_FINDING_KEYS: [&str; 11] = [
 #[test]
 fn the_summary_carries_the_exit_code_the_process_returns() {
     let repo = project_with_a_medium_finding();
-    let (code, lines) = run_json(
-        &["check", "unused-return-values", "--deny", "medium"],
-        repo.path(),
-    );
+    let (code, lines) = run_json(&["check", "ERR-012", "--deny", "medium"], repo.path());
     assert_eq!(code, 1);
     assert_eq!(lines.last().unwrap()["exit_code"], 1);
 }
@@ -164,7 +161,7 @@ fn a_check_that_could_not_run_is_in_the_summary_and_exits_3() {
     assert_eq!(summary["exit_code"], 3);
     let errors = summary["errors"].as_array().unwrap();
     assert!(!errors.is_empty());
-    assert!(errors[0].as_str().unwrap().contains("reachability"));
+    assert!(errors[0].as_str().unwrap().contains("MOD-011"));
 }
 
 #[test]
@@ -188,13 +185,7 @@ fn an_unknown_message_format_is_a_usage_error() {
 fn the_default_format_is_still_the_human_text() {
     let repo = project_with_a_medium_finding();
     coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "ERR-012", "--deny", "none", "--project"])
         .arg(repo.path())
         .assert()
         .code(0)
@@ -205,13 +196,7 @@ fn the_default_format_is_still_the_human_text() {
 fn the_classic_run_says_the_percentage_of_rules_passed_on_stderr() {
     let repo = project_with_a_medium_finding();
     let out = coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--profile",
-            "classic",
-            "--project",
-        ])
+        .args(["check", "ERR-012", "--profile", "classic", "--project"])
         .arg(repo.path())
         .output()
         .unwrap();

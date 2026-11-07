@@ -558,7 +558,7 @@ fn the_rust_module_describes_every_builtin_check() {
     assert_eq!(ids, table);
     assert_eq!(
         &ids[..2],
-        ["reachability", "unused-return-values"],
+        ["MOD-011", "ERR-012"],
         "positive control: the legacy checks come first"
     );
     assert_eq!(hello.languages, ["rust"]);

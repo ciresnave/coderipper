@@ -1,6 +1,0 @@
-# The seeded defect: the rule must report exactly this place (the opening marker).
-
-[[expect]]
-rule = "conflict-marker"
-file = "docs/DEVICE-TESTS.md"
-line = 5

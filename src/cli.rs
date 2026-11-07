@@ -140,7 +140,7 @@ impl Conf {
 struct RunOpts {
     /// Project to check. Defaults to the current directory. `reachability`, `unused-return-values` and `unused-parameters`
     /// analyse the committed tree (`HEAD`) in a throwaway worktree: uncommitted changes (tracked or untracked) are not analysed by
-    /// them, and the run says so when there are any; `version-consistency` and API-006 read the working tree.
+    /// them, and the run says so when there are any; `WSP-010` and API-006 read the working tree.
     #[arg(long)]
     project: Option<PathBuf>,
     /// As `cargo --manifest-path`: the `Cargo.toml` of the project to check, in place of `--project` (the directory that holds it).
@@ -813,7 +813,7 @@ fn dispatch(
 
 /// What to tell the user when `project` has changes git has not committed (tracked edits or untracked files): `reachability`,
 /// `unused-return-values` and `unused-parameters` read `HEAD` in a throwaway worktree, so a fix that is only in the working
-/// tree changes nothing for them (`version-consistency` and API-006 do read the working tree). `None` when the tree is clean
+/// tree changes nothing for them (`WSP-010` and API-006 do read the working tree). `None` when the tree is clean
 /// or git cannot say.
 fn uncommitted_note(project: &Path) -> Option<String> {
     let output = crate::github::git_command(
@@ -831,7 +831,7 @@ fn uncommitted_note(project: &Path) -> Option<String> {
         .count();
     (changed > 0).then(|| {
         format!(
-            "{changed} file(s) under {} have uncommitted changes (tracked edits or untracked files); reachability, unused-return-values and unused-parameters analyse the committed tree (HEAD) in a throwaway worktree, so those changes are not analysed by them: commit them to see their effect (version-consistency and API-006 read the working tree)",
+            "{changed} file(s) under {} have uncommitted changes (tracked edits or untracked files); MOD-011, ERR-012 and RDB-014 analyse the committed tree (HEAD) in a throwaway worktree, so those changes are not analysed by them: commit them to see their effect (WSP-010 and API-006 read the working tree)",
             project.display()
         )
     })
@@ -981,6 +981,8 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         tier,
         only_check_id,
     } = args;
+    // a rule named by an alias is the rule the alias names
+    let only_check_id = only_check_id.map(|id| crate::catalog::canonical_name(&id));
     let project = match manifest_path {
         Some(m) if m.is_file() && m.file_name().is_some_and(|n| n == "Cargo.toml") => Some(
             m.parent()
@@ -999,9 +1001,10 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let skip = skip_rule
         .iter()
         .map(|s| match s.split_once('=') {
-            Some((id, why)) if !id.trim().is_empty() && !why.trim().is_empty() => {
-                Ok((id.trim().to_string(), why.trim().to_string()))
-            }
+            Some((id, why)) if !id.trim().is_empty() && !why.trim().is_empty() => Ok((
+                crate::catalog::canonical_name(id.trim()),
+                why.trim().to_string(),
+            )),
             _ => Err(UsageError(format!(
                 "--skip-rule takes ID=WHY, and a skip says why; got \"{s}\""
             ))),
@@ -1050,7 +1053,12 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     // `blocking = [..]` in the repository's file: rules it has made blocking under `--profile portfolio`; a name that is no rule is an error
     let blocking: Vec<String> = repository
         .as_ref()
-        .map(|f| f.blocking.clone())
+        .map(|f| {
+            f.blocking
+                .iter()
+                .map(|n| crate::catalog::canonical_name(n))
+                .collect()
+        })
         .unwrap_or_default();
     if !blocking.is_empty() {
         let checks = crate::registered_checks();
@@ -1080,7 +1088,7 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
             known.extend(&neutral);
         } else {
             // the one rule every profile takes
-            known.push("conflict-marker");
+            known.push("GOV-011");
         }
         if !known.contains(&id.as_str()) {
             let hint = if neutral.contains(&id.as_str()) {

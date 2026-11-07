@@ -135,20 +135,20 @@ mod tests {
         let mut result = RunResult::new(
             vec![
                 finding("WSP-001", Severity::Medium),
-                finding("reachability", Severity::Medium),
-                finding("reachability", Severity::Low),
+                finding("MOD-011", Severity::Medium),
+                finding("MOD-011", Severity::Low),
             ],
             Vec::new(),
         );
         result.waived = vec![
-            waived("reachability", true),
-            waived("reachability", true),
+            waived("MOD-011", true),
+            waived("MOD-011", true),
             waived("SUP-004", false),
         ];
         let rows = rows(&result);
         let ids: Vec<&str> = rows.iter().map(|r| r.rule.as_str()).collect();
-        assert_eq!(ids, vec!["SUP-004", "WSP-001", "reachability"]);
-        let reach = &rows[2];
+        assert_eq!(ids, vec!["MOD-011", "SUP-004", "WSP-001"]);
+        let reach = &rows[0];
         assert_eq!(
             (reach.findings, reach.waived, reach.declared_public),
             (2, 0, 2)
@@ -159,7 +159,7 @@ mod tests {
         assert_eq!(json["reason"], "coderipper-rule-summary");
         assert_eq!(json["findings"], 3);
         assert_eq!(json["opt_outs"], 3);
-        assert_eq!(json["rules"][0]["rule"], "SUP-004");
+        assert_eq!(json["rules"][0]["rule"], "MOD-011");
     }
 
     #[test]

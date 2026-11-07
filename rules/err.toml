@@ -1,7 +1,7 @@
 # Rule records, domain ERR (errors). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "unused-return-values"
+id = "ERR-012"
 title = "A return value every caller discards"
 domain = "ERR"
 statement = "A function whose result is thrown away at every call site either returns something nobody needs or hides a result callers should be checking."
@@ -17,9 +17,9 @@ executes_project_code = true
 default_severity = "medium"
 confidence_class = "medium"
 kb_refs = ["ERR-001", "ERR-011"]
-aliases = []
+aliases = ["unused-return-values"]
 remediation = "Stop returning the value, or make the callers use it; if discarding it is deliberate, allowlist the function with the reason."
-related = ["unused-parameters"]
+related = ["RDB-014"]
 lifecycle = "advisory"
 
 [rule.applicability]
@@ -43,7 +43,7 @@ default_severity = "high"
 confidence_class = "high"
 kb_refs = []
 remediation = "Handle the failure, propagate it to the owner, or record in a comment why dropping it is safe at that exact spot."
-related = ["ERR-011", "unused-return-values"]
+related = ["ERR-011", "ERR-012"]
 lifecycle = "experimental"
 
 checked_today = "Rust only (the catalog also names TypeScript and Python, which are not read): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) or test and impl Drop blocks skipped. Five ways of dropping a failure are reported at Medium severity and Medium confidence, one finding per site: let _ = call(); _ = call(); call().ok(); as a statement; an Err(_) => {} arm; and if let Ok(..) = call with no else when the call is on a short named list (file-system, file, socket and Command calls, read, write and flush methods). A comment on the same line, up to the end of the statement, or alone on the line above is the stated reason this rule asks for and silences the site (the opposite of lint-suppression). A bare call(); whose Result is discarded is the legacy check unused-return-values. Not judged: other languages, whether the dropped value is a Result at all (syn has no types), a drop through a macro, a function that swallows internally."
@@ -240,6 +240,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Redact or omit sensitive fields when building messages, log identifiers instead of values, and keep internal detail out of anything shown to callers."
 related = ["ERR-005"]
+aliases = ["SEC-008"]
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -287,7 +288,7 @@ default_severity = "medium"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Branch on the success flag or the presence of the value, and handle the failure case explicitly."
-related = ["ERR-001", "unused-return-values"]
+related = ["ERR-001", "ERR-012"]
 lifecycle = "experimental"
 
 [rule.applicability]

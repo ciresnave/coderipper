@@ -87,6 +87,8 @@ impl CliWaiver {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AllowEntry {
+    /// The rule's canonical id: an entry that names a rule by an alias (`check = "REL-003"`) is read as the rule the alias names.
+    #[serde(deserialize_with = "canonical_check")]
     pub check: String,
     pub file: String,
     #[serde(default)]
@@ -166,7 +168,7 @@ impl ReachabilitySettings {
 impl PublicApiCrate {
     fn as_entry(&self, source: Option<String>) -> AllowEntry {
         AllowEntry {
-            check: "reachability".to_string(),
+            check: "MOD-011".to_string(),
             file: "**".to_string(),
             symbol: None,
             lines: None,
@@ -183,7 +185,7 @@ impl PublicApiEntry {
     /// The suppression entry this declaration is applied as.
     fn as_entry(&self, source: Option<String>) -> AllowEntry {
         AllowEntry {
-            check: "reachability".to_string(),
+            check: "MOD-011".to_string(),
             file: self.file.clone(),
             symbol: self.symbol.clone(),
             lines: None,
@@ -279,6 +281,10 @@ fn parse_line_range(text: &str) -> Result<LineRange, String> {
         return Err(bad());
     }
     Ok(LineRange { first, last })
+}
+
+fn canonical_check<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    Ok(crate::catalog::canonical_name(&String::deserialize(d)?))
 }
 
 fn line_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<LineRange>, D::Error> {
@@ -416,7 +422,7 @@ mod tests {
     fn missing_allowlist_file_allows_nothing_not_an_error() {
         let tmp = tempfile::tempdir().unwrap();
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(!allowed(&al, "reachability", "src/lib.rs", "anything"));
+        assert!(!allowed(&al, "MOD-011", "src/lib.rs", "anything"));
     }
 
     #[test]
@@ -426,7 +432,7 @@ mod tests {
             tmp.path().join(".coderipper.toml"),
             r#"
 [[allow]]
-check = "reachability"
+check = "MOD-011"
 file = "src/api.rs"
 symbol = "public_entry_point"
 reason = "published crate API, consumed outside this portfolio"
@@ -435,17 +441,12 @@ reason = "published crate API, consumed outside this portfolio"
         .unwrap();
 
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(allowed(
-            &al,
-            "reachability",
-            "src/api.rs",
-            "public_entry_point"
-        ));
+        assert!(allowed(&al, "MOD-011", "src/api.rs", "public_entry_point"));
         // Review Focus: must match by identity, not loose path containment.
-        assert!(!allowed(&al, "reachability", "src/api.rs", "some_other_fn"));
+        assert!(!allowed(&al, "MOD-011", "src/api.rs", "some_other_fn"));
         assert!(!allowed(
             &al,
-            "reachability",
+            "MOD-011",
             "src/api_v2.rs",
             "public_entry_point"
         ));
@@ -577,6 +578,29 @@ reason = \"r\"
     }
 
     #[test]
+    fn an_entry_that_names_a_rule_by_an_alias_is_read_as_the_rule() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join(".coderipper.toml"),
+            "[[allow]]
+check = \"REL-003\"
+file = \"src/x.rs\"
+reason = \"r\"
+
+[[allow]]
+check = \"no-such-rule\"
+file = \"src/y.rs\"
+reason = \"r\"
+",
+        )
+        .unwrap();
+        let al = Allowlist::load(tmp.path()).unwrap();
+        assert_eq!(al.entries()[0].check, "CON-004");
+        // control: a name that is no alias is left exactly as written, so a typo fails where it always did
+        assert_eq!(al.entries()[1].check, "no-such-rule");
+    }
+
+    #[test]
     fn an_entry_needs_no_symbol_and_no_lines() {
         let al = load("").unwrap();
         assert_eq!(al.entries()[0].symbol, None);
@@ -659,7 +683,7 @@ reason = \"r\"
             tmp.path().join(".coderipper.toml"),
             r#"
 [[allow]]
-check = "reachability"
+check = "MOD-011"
 file = "src/api.rs"
 symbol = "x"
 "#,

@@ -30,7 +30,7 @@ fn run(project: &std::path::Path, cache: &std::path::Path, result_cache: &str) -
         .env("CODERIPPER_RESULT_CACHE", result_cache)
         .args([
             "check",
-            "unused-return-values",
+            "ERR-012",
             "--profile",
             "classic",
             "--deny",
@@ -52,7 +52,7 @@ fn a_second_run_over_the_same_tree_reports_the_same_findings_and_says_it_reused_
     let cache = tempfile::tempdir().unwrap();
     let (first, first_err) = run(repo.path(), cache.path(), "on");
     assert!(
-        first.contains("(unused-return-values)"),
+        first.contains("(ERR-012)"),
         "{first}\n{first_err}"
     );
     assert!(
