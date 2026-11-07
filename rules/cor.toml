@@ -162,6 +162,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Compare with an explicit absolute or relative tolerance, and define the policy for NaN and infinity where they can occur."
 related = ["COR-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a == or != with a float operand that is visibly one (a non-zero float literal, a cast to f32 or f64, or an associated constant of f32, f64 or a consts module such as EPSILON, NAN or PI), and assert_eq, assert_ne, debug_assert_eq or debug_assert_ne with a non-zero float literal. A comparison with a zero literal, INFINITY, NEG_INFINITY, MAX, MIN or MIN_POSITIVE is an exact sentinel and is not reported. One Medium finding per comparison; opt-in (check COR-007). Not judged: two variables whose float type only a type checker knows, PartialEq::eq calls, whether a tolerance is declared, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

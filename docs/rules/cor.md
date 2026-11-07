@@ -65,7 +65,7 @@ Only five checks exist today (none for this domain), so no rule below is run by 
 | COR-004 | Reference-implementation algorithms get differential tests | X | catalog record; no check yet, needs a spec tag and a test harness |
 | COR-005 | Requirements and doc claims traced to asserting tests | L | catalog record; no check yet, needs an LLM to judge whether assertions imply the claim |
 | COR-006 | Unsafe confined, justified and run under Miri | P | catalog record; no check yet. Planned: Miri plus a `forbid(unsafe_code)` and SAFETY inventory (Rust); not applicable to TypeScript and Python |
-| COR-007 | No float equality; tolerances declared | P | catalog record; no check yet. Planned: Clippy `float_cmp` (Rust), native AST checks for TypeScript and Python |
+| COR-007 | No float equality; tolerances declared | P | built in part (Rust, `syn`, outside tests; `==` and `!=` against a non-zero float literal, a cast to a float or a float constant, and `assert_eq!` style macros with a float literal, Medium; opt-in (`check COR-007`); two float variables, whether a tolerance is declared and other languages are not read) |
 | COR-008 | Critical protocols modelled and code traced to model | A | catalog record; no check yet, needs a declared specification and model artifacts |
 | COR-009 | Critical functions have proof harnesses in CI | X | catalog record; no check yet, which functions are critical comes from the spec |
 | COR-010 | Idempotency and ordering claims tested with replay | X | catalog record; no check yet, needs a fault and replay harness |
