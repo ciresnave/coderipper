@@ -1290,6 +1290,9 @@ mod tests {
             assert!(!profile.run_rules(None).contains(&"TYP-006"));
             assert!(profile.run_rules(Some("TYP-006")).contains(&"TYP-006"));
             assert!(profile.extra_rules().contains(&"TYP-006"));
+            assert!(!profile.run_rules(None).contains(&"RDB-007"));
+            assert!(profile.run_rules(Some("RDB-007")).contains(&"RDB-007"));
+            assert!(profile.extra_rules().contains(&"RDB-007"));
         }
     }
 
