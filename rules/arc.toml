@@ -20,6 +20,8 @@ remediation = "Remove the offending dependency, or, if the design has really cha
 related = ["ARC-002", "ARC-003"]
 lifecycle = "experimental"
 
+checked_today = "Workspace crates (cargo metadata --no-deps, which runs no build script; normal and build dependencies between members by path, dev-dependencies not judged) and, where a component declares module paths inside a crate, the files of that crate (a module-graph lower bound: macro tokens, aliases and glob re-exports are not followed), compared with the [architecture] table of .coderipper.toml. An edge between two components is fine when both ends are in one component, when the depending component's layer is the same as or above the other's, or when an [[architecture.allow]] names it; otherwise it is one Low, High-confidence finding per edge (subject from->to), unless an unexpired [[architecture.waiver]] covers it (then only a note on the run). The declaration is judged too, each at Info: a member placed in no component or layer, a component that matches no member or no module file, and a waiver that covers an edge that is not a violation; an expired waiver no longer covers its edge. Default on in extended and portfolio, not in classic. Not run (reported as not configured, never clean) with no [architecture] table or with no layers declared. Not judged: edges to or from a member the declaration does not place, dev-dependencies, a dependency by version alone, TypeScript and Python, and whether the declared layering is a good design."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -43,6 +45,8 @@ kb_refs = []
 remediation = "Report the strongly connected set and break it at the edge whose removal is cheapest, usually by inverting a dependency."
 related = ["MOD-002", "ARC-001"]
 lifecycle = "experimental"
+
+checked_today = "The component graph that ARC-001 reads (workspace crate edges by path, plus edges between declared module groups of a crate), each end mapped to its component: components in one strongly connected set are one Low finding per set (subject: the component names sorted and comma-joined) with the number of components, the edges between them and the edges whose removal dissolves it (every single edge that does when one is enough, otherwise a depth-first set in name order that is not necessarily the smallest). Confidence is High when only crate edges are involved and Medium when a module group is in the set. Default on in extended and portfolio, not in classic. Not run (never clean) with no [architecture] table or one that declares neither components nor layers. Not judged: cycles inside one component (not reported at any severity), cycles through macro tokens, aliases or glob re-exports, and dev-dependencies; an allow edge or waiver of ARC-001 does not excuse a cycle. Cargo already refuses a cycle between crates, so a finding is between components of several crates or between module groups."
 
 [rule.applicability]
 languages = ["any"]
@@ -68,6 +72,8 @@ remediation = "Introduce a boundary the policy owns and let the volatile compone
 related = ["ARC-001", "ARC-004", "ARC-005"]
 lifecycle = "experimental"
 
+checked_today = "For each component the [architecture] declaration tags volatility = stable with role policy or no role, the tracked .rs files under the src/ of its crates at HEAD (test items skipped): identifier tokens equal to a name in [architecture.volatile] names, uses of a path prefix in namespaces, and, when feature_cfg_in_policy is set, #[cfg] and #[cfg_attr] attributes that test a Cargo feature. One finding per component (subject: the component name) with the counts, the most affected files and the features: Low, medium confidence, when a name or namespace is used, Info when only feature attributes are found. Default on in extended and portfolio, not in classic. Not run (never clean) with no [architecture] table, no volatile names, namespaces or feature_cfg_in_policy, or no stable policy component. Not judged: dependencies on volatile components (only names and namespaces written in the source are counted), a type alias or re-export that hides a use, macro output, cfg!(feature = ..) calls, build.rs, tests, benches and examples, and a component of module paths inside a crate (noted, not judged); the count is syntactic, so a field or method that shares a volatile name is counted."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -91,6 +97,8 @@ kb_refs = []
 remediation = "Translate at the boundary so policy code sees plain domain types, or record a justified exception, for example annotation-only derives."
 related = ["ARC-003", "ARC-006"]
 lifecycle = "experimental"
+
+checked_today = "For each policy component (role = policy, or no role and volatility = stable), the public items of the library root src/lib.rs of its crates at HEAD, reached only through pub modules, test items skipped: a pub function, a pub method of an inherent impl of a public type, a public trait's items, pub fields of public structs and unions, enum variant fields, and the targets of public aliases, constants and statics (a public alias in the same crate is looked through one level). A type named there is infrastructure when, resolved through the module's use declarations, it starts with a declared namespace ([architecture.volatile] namespaces or an [arc004] patterns entry with ::), ends in a declared name or name pattern, or starts with a workspace crate of a component that is volatile or has role adapter or infrastructure. One Medium-severity, medium-confidence finding per signature site (subject component:item). Default on in extended and portfolio, not in classic. Not run (never clean) with no [architecture] table, no policy component, or nothing declared as infrastructure. Not judged: glob imports, aliases or re-exports through a facade in another crate, macro-generated items, #[path] modules, trait impl items, a library whose root is not src/lib.rs (noted, nothing read), and any banned category (request objects, open transactions, framework markers) that is not declared as a name, namespace or pattern; the match is on paths resolved through use declarations, not on compiler type resolution."
 
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
@@ -116,6 +124,8 @@ remediation = "Depend on a more stable abstraction, or move the volatile code be
 related = ["ARC-003"]
 lifecycle = "experimental"
 
+checked_today = "The component graph ARC-002 reads (workspace crates by path and declared module groups; with no [architecture] table, each workspace member is a component): instability I = Ce / (Ca + Ce) from counts of distinct neighbouring components, and an edge A->B is reported when I(B) - I(A) reaches the margin (default 0.3; set [arc005] min_margin in the repository's own .coderipper.toml; a value outside (0, 1] is an error), ranked by the margin. One Info, low-confidence finding per edge (subject a->b), never gating. Default on in extended and portfolio, not in classic. It runs without a declaration; a single-crate repository with no module groups has no edge and the note says so. Not judged: an edge to a component declared volatility = volatile, an edge inside a cycle (ARC-002's), and anything outside the workspace; instability counts neighbours, not size or how often a component changes, so a frozen dependency can be flagged; Martin's abstractness is not used; module-group edges are a lower bound."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
@@ -139,6 +149,8 @@ kb_refs = []
 remediation = "Shrink the API to what consumers need and wrap third-party types in the component's own."
 related = ["ARC-004", "MOD-001"]
 lifecycle = "experimental"
+
+checked_today = "For each component with an entry in [architecture.api_budget], the library root src/lib.rs of its crates at HEAD, from the tracked .rs files under src/ (test items skipped): public items (pub function, struct, enum, union, trait, alias, constant, static, module, #[macro_export] macro, each leaf of a pub use, a glob once) reached only through pub modules, plus members (pub fields, variants, trait items, pub associated items of inherent impls). Items plus members over the budget is one Low, medium-confidence finding (subject component) stating both counts; a pub use of a library the crate does not own is one Info, medium-confidence finding per component (subject component:third-party), and a budget entry naming no declared component is Info. Default on in extended and portfolio, not in classic. Not run (never clean) with no [architecture] table or no [architecture.api_budget] entries. Not judged: macro-generated items, #[path] modules, cfg-gated items (counted as if on), a third-party type in a public signature rather than a pub use (not seen), a library root other than src/lib.rs and binary-only crates (noted, count zero), and module-path components inside a crate (noted, not judged); the count is syntactic."
 
 [rule.applicability]
 languages = ["any"]
@@ -164,6 +176,8 @@ remediation = "Route access through the owner's interface, or declare and move o
 related = ["ARC-011"]
 lifecycle = "experimental"
 
+checked_today = "For each component that is not the declared owner (owns_data) of a name, in its crates at HEAD: string literals in .rs files under src/ (test items skipped; literals inside macro arguments are read) that equal the name or are SQL-shaped (contain select, insert, update, delete, join, into, table, alter, truncate, drop or create) and hold the name as a whole word, case-insensitively, and the name as a whole word outside -- comments in .sql files anywhere under the crate directory. One Low, low-confidence finding per owner, name and other component (subject component:name) with counts and files; two components declaring the same name is Info, high confidence (subject name:owners). Default on in extended and portfolio, not in classic. Not run (never clean) with no [architecture] table or no component declaring owns_data. Not judged: reads versus writes (it matches text, so a log label equal to the name counts), names built at run time or read from configuration, ORM type-to-table mappings, tests, benches, examples and build.rs, non-Rust crates other than .sql files, module-path components inside a crate, and whether the declared owner is the right one."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -188,6 +202,8 @@ remediation = "Collapse the layer or inline the abstraction unless one of its ju
 related = ["MOD-008", "EXT-007"]
 lifecycle = "experimental"
 
+checked_today = "Tracked Rust code of each package, test code read separately, two shapes only, each one Info, low-confidence finding that names the shape and does not judge it (never gating): a trait defined in the package with at least one method, implemented exactly once in non-test code, with no implementation in test code and no implementing type named like a double (Mock, Fake, Stub, Dummy, Spy, InMemory, Noop, Null, Test), unless it has a blanket implementation, is a supertrait of another trait or is a pub trait of a library (subject: the trait name); and a chain of two or more forwarding types, a struct with one field whose every self-taking method (at least two) is one call to that field with the same arguments, reported once at its first type (subject: that type name). Default on in extended and portfolio, not in classic. Needs no [architecture] declaration. Not judged: chains of near-identical data mappers and long call paths before any I/O (they need data flow), whether the indirection earns anything, implementations or trait objects made by macros or elsewhere (types are matched by name). The exact set of files read was not checked beyond the module header."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
@@ -211,6 +227,8 @@ kb_refs = []
 remediation = "Pay down or retire old waivers, and investigate components whose violation counts keep growing."
 related = ["ARC-001"]
 lifecycle = "experimental"
+
+checked_today = "For each workspace crate, two numbers at HEAD and at a base read from the git object store with no checkout (the base is [arc009] base in .coderipper.toml, else the newest v<version> release tag reachable from HEAD that is not HEAD): the strongly connected sets of two or more modules (the count MOD-002 reports) and the public surface (items plus members, the sum ARC-006 budgets). More cycles than at the base is one Low finding (subject crate:cycles); a surface that grew by more than [arc009] surface_growth_percent (default 25) and at least surface_min_items (default 10) is one Info finding (subject crate:surface); both low confidence. A crate absent at the base is not compared. Default on in extended and portfolio, not in classic. Not run (never clean) when no release tag is reachable and no base is set. Not judged: boundary violations, active waivers and the age of exceptions over history, instability margins and violations of declared layers at the base (none is computed), whether the growth was wanted; the syntactic limits of MOD-002 and ARC-006 apply to both readings."
 
 [rule.applicability]
 languages = ["any"]
@@ -259,6 +277,8 @@ kb_refs = []
 remediation = "Give each service its own data, replace chatty synchronous calls with contracts or events, or merge services that always move together."
 related = ["ARC-007"]
 lifecycle = "experimental"
+
+checked_today = "For each workspace crate, pairs of top-level modules that each name an item of the other (the module-graph edges MOD-002 reports; the crate root and #[path] modules are not read) and that changed together in the crate's newest [arc011] window non-merge commits (default 500, from git log, no network): at least min_commits (default 3) commits touched both and they are at least min_share_percent (default 60) of the commits that touched either, a commit touching more than max_files (default 25) files being left out. One Info, low-confidence finding per pair (subject crate:a,b) naming both edges with file and line; never gating. Default on in extended and portfolio, not in classic. No declaration is needed, and no not-run condition was found in the code. Not judged: services, shared schemas, wide synchronous call fan-out and releases that happen together (none is read), a longer loop through a third module, renames, and a pair that does not refer to each other whatever its history; squash-merge history makes commits coarse, and a shallow clone cuts the history (said in a note)."
 
 [rule.applicability]
 languages = ["any"]

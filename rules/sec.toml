@@ -44,6 +44,8 @@ remediation = "Revoke and rotate any exposed secret, move values into a secret s
 related = ["SEC-008"]
 lifecycle = "experimental"
 
+checked_today = "The whole git history of the repository (gitleaks git: every commit, so a secret committed and later deleted is still reported) is scanned by gitleaks with its default rule set at the pinned version, run with --redact (the value is never read into CodeRipper) and with no gitleaks:allow comment, .gitleaksignore or .gitleaks.toml of the repository honoured. One finding per gitleaks match at the file and line, subject the file, High severity; Medium confidence, Low for gitleaks's generic-api-key rule (entropy near a name, the one that fires on non-secrets). A project in a subdirectory of a repository keeps only the matches below it. Runs in the extended profile only (not in classic or portfolio). Not run (a reported gap, never clean): gitleaks not installed or no pinned build for the platform, and an empty report on a shallow clone (only the fetched commits were read). Errors, never clean: no git commit, a gitleaks log showing the history was not read (git errors, 0 commits scanned), a tool failure. Not judged: a secret in a format gitleaks's default rules do not know, a secret that is not in a commit (an untracked or uncommitted file, a build log, an environment), and a project outside git."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -215,6 +217,8 @@ kb_refs = []
 remediation = "Narrow policies to named actions and resources, drop container privileges and capabilities, and scan the definitions with a policy tool in CI."
 related = ["REL-005"]
 lifecycle = "experimental"
+
+checked_today = "The tracked infrastructure files (from git ls-files, up to 2 MiB; not below node_modules, vendor, third_party, target, .git or the top-level .github): Terraform (.tf, .tf.json), Dockerfiles, and .yaml, .yml, .json, .template and .bicep files other than package.json, package-lock.json, composer.json, composer.lock, tsconfig.json, deno.json, renovate.json, dependabot.yml and dependabot.yaml, codecov.yml and mkdocs.yml, are given to checkov, run offline in its terraform, cloudformation, kubernetes, dockerfile, arm, bicep and serverless frameworks and asked for 37 named checks only: wildcard and administrator grants (AWS IAM, GCP, Kubernetes RBAC), privilege escalation, privileged containers and shared host namespaces (High), root containers and added Linux capabilities (Medium). The list holds AWS, GCP, Kubernetes and Dockerfile checks, so ARM, Bicep and other Azure definitions are read but no listed check targets them. The repository's own checkov configuration is not read. One finding per failed check at the first line of the resource, High confidence. A #checkov:skip comment is not honoured: a skipped check of this list is still reported and the finding says so. Runs in the extended profile only. Not run (a reported gap, never clean): checkov not installed or no pinned build for the platform (none for Apple silicon), no tracked infrastructure file, and a clean result when checkov could not parse a file. A tool failure or a report that is not checkov's is an error. Not judged: the rest of checkov's checks (encryption, logging, versioning, network exposure), Helm and Kustomize (those frameworks are not enabled), Terraform modules from outside the repository (downloads are off), live cloud or cluster configuration, and least privilege expressed anywhere but these definitions."
 
 [rule.applicability]
 languages = ["any"]

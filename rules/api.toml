@@ -20,6 +20,8 @@ remediation = "Restore compatibility, or release the change as a breaking one wi
 related = ["API-003", "API-002"]
 lifecycle = "experimental"
 
+checked_today = "The crate at the working tree (or, when the root Cargo.toml has a [workspace] table, every library of the workspace) is compared by cargo-semver-checks (check-release) with a baseline taken from git, not from crates.io: the newest release tag reachable from HEAD (v1.2.3 or 1.2.3, no pre-release), else the merge-base of HEAD with origin/HEAD, origin/main or origin/master. Each failed lint item is a finding (a removed or renamed public item, a changed signature, ...), High severity and Medium confidence, placed where the item was in the baseline. A break released with the version bump it needs (the major, and before 1.0 the second number) is not a failure. Runs in the extended profile only. The tool builds both sides with cargo rustdoc, so the project's build scripts and procedural macros run and cargo may download dependencies. Not run (a reported gap, never clean): cargo-semver-checks not installed or no pinned build for the platform, no Cargo.toml at the project root, no git commit, no release tag and no origin default branch (or a shallow clone without the merge-base), and a crate with no library target. A tool failure or an unreadable report is an error. Not judged: Python and TypeScript, public surfaces that are not Rust items (HTTP, Protocol Buffers: see API-006), behaviour changes that keep the signature, anything the tool has no lint for, and whether a break was announced in a changelog or notice."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -52,7 +54,7 @@ scopes = ["first_party"]
 id = "API-003"
 title = "Version number matches kind of change"
 domain = "API"
-statement = "The version bump in a release is at least as large as the kind of change detected: major for breaking, minor for additions."
+statement = "The version bump in a release is at least as large as the kind of change detected: major for breaking, minor for additions. Before 1.0 the second number plays the major role (0.5.x to 0.6.0 is a breaking change) and the third the minor."
 rationale = "Version numbers are how consumers decide whether an upgrade is safe, so a mismatch silently misleads them."
 evidence_tiers = ["V0"]
 evidence_strength = "E"
@@ -166,6 +168,8 @@ kb_refs = []
 remediation = "Split the change into expand, backfill, switch and contract steps, each safe on its own."
 related = []
 lifecycle = "experimental"
+
+checked_today = "The tracked PostgreSQL migration files (from git ls-files: .sql files below a directory named migrations, migration, migrate or migrates, or named like a versioned migration, V12__name.sql or 20260101120000_name.sql; not below node_modules, vendor, third_party, target or .git; files over 4 MiB skipped) are linted by squawk, run with its style rules switched off (prefer-robust-stmts, prefer-bigint-over-int, prefer-bigint-over-smallint, prefer-identity, prefer-text-field, prefer-timestamptz, require-lock-timeout, require-statement-timeout) and with the repository's .squawk.toml not read. One finding per squawk finding at the file and line, Medium confidence: High for a dropped column, table or database, a truncate cascade, a changed column type, a renamed column or table, and a NOT NULL column added without a default; Medium for every other squawk rule (locking and transaction advice, such as an index built without CONCURRENTLY or a constraint added without NOT VALID). A -- squawk-ignore comment in a migration is honoured by squawk and cannot be switched off, so the findings carry a note counting them. Runs in the extended profile only. Not run (a reported gap, never clean): squawk not installed or no pinned build for the platform, no tracked migration file, and a clean result when squawk could not parse a statement (reported as not judged). A tool failure is an error. Not judged: dialects other than PostgreSQL (MySQL, SQLite, SQL Server, Oracle), migrations kept in other forms (Rails or Django migration code, an XML or YAML changelog) or outside the naming above, whether the previous version of the application still works with each step, the order of steps across migrations, and table size (so whether a lock matters)."
 
 [rule.applicability]
 languages = ["any"]
