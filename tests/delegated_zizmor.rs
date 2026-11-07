@@ -277,13 +277,13 @@ fn the_repositorys_own_zizmor_config_and_ignore_comment_are_honoured_and_said_at
     );
 
     // ruling 8: zizmor's own ignore files are a waiver source. The config disables the audit, so the audit's finding is gone, and the
-    // two configs are each reported at Info (they carry no reason, owner or expiry); nothing here fails the run
+    // two configs are each reported at Medium (a bare disable carries no reason, owner or expiry)
     let (code, out, err) = run_json(repo.path());
     assert_eq!(code, 0, "{out}\n{err}");
     let all = findings(&out);
     assert_eq!(all.len(), 2, "{out}\n{err}");
     for f in &all {
-        assert_eq!(f["severity"], "info", "{f}");
+        assert_eq!(f["severity"], "medium", "{f}");
         assert!(
             f["summary"].as_str().unwrap().contains("needs a reason"),
             "{f}"
