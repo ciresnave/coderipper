@@ -1287,6 +1287,9 @@ mod tests {
             assert!(!profile.run_rules(None).contains(&"ERR-001"));
             assert!(profile.run_rules(Some("ERR-001")).contains(&"ERR-001"));
             assert!(profile.extra_rules().contains(&"ERR-001"));
+            assert!(!profile.run_rules(None).contains(&"TYP-006"));
+            assert!(profile.run_rules(Some("TYP-006")).contains(&"TYP-006"));
+            assert!(profile.extra_rules().contains(&"TYP-006"));
         }
     }
 
