@@ -1,0 +1,6 @@
+# The seeded defect: a public enum that cannot gain a variant without a major version, line 3.
+
+[[expect]]
+rule = "API-009"
+file = "src/lib.rs"
+line = 2

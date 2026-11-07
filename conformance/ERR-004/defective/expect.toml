@@ -1,0 +1,6 @@
+# The seeded defect: a public function that fails with a plain string, line 2.
+
+[[expect]]
+rule = "ERR-004"
+file = "src/lib.rs"
+line = 2
