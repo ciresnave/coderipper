@@ -35,6 +35,7 @@ mod sup004;
 mod sup011;
 mod support_statement;
 mod surface;
+mod typ006;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -183,6 +184,10 @@ const RULES: &[Rule] = &[
         judge: err001::judge,
     },
     Rule {
+        id: "TYP-006",
+        judge: typ006::judge,
+    },
+    Rule {
         id: "RDB-004",
         judge: rdb004::judge,
     },
@@ -198,7 +203,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "RDB-004",
+        "TYP-006", "RDB-004",
     ]
 }
 
@@ -563,6 +568,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
     ("ERR-001", &["rust"]),
+    ("TYP-006", &["rust"]),
     ("RDB-004", &["rust"]),
 ];
 
@@ -596,6 +602,7 @@ const PROVEN: &[&str] = &[
     "SEC-005",
     "EXT-003",
     "ERR-001",
+    "TYP-006",
     "RDB-004",
 ];
 

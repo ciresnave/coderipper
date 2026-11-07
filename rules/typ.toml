@@ -116,6 +116,8 @@ remediation = "Handle the absent case explicitly, propagate it, or document the 
 related = ["TYP-008"]
 lifecycle = "experimental"
 
+checked_today = "Rust only (the catalog also names TypeScript non-null assertions and other languages, which are not read): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) or test skipped. A method call unwrap() with no argument or expect(arg) with one argument is a site; a site is justified when a comment on the same line, up to the end of the statement, or alone on the line above begins with INVARIANT, SAFETY or UNWRAP-OK, or when an expect message says why it cannot fail (it contains invariant, always, never, cannot, guaranteed, validated, checked or by construction). A file with at least one unjustified site gets one Medium finding at high confidence, naming the first site and the count; opt-in, run by naming the id, because it fires widely. unwrap_or, unwrap_or_else, unwrap_or_default, unwrap_err and expect_err are not sites. Not judged: other languages, whether the receiver is a Result, an Option or a type with its own unwrap method (syn has no types), calls inside macro tokens, whether a stated invariant is true."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
