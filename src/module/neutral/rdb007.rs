@@ -6,8 +6,9 @@
 //! counted per file and reported as **one Info finding per file at low confidence**, at the first site, with the counts and the first
 //! sites:
 //!
-//! 1. **Numbers:** an integer or float literal that is an operand of an arithmetic or comparison operator, or an argument of a
-//!    function or method call, and is not in the trivial set: `0`, `1`, `2`, `10`, `100`, `1000` (`1_000`), `1024`, `255`, `60`,
+//! 1. **Numbers:** an integer or float literal (decimal, hex, octal or binary) that is an operand of an arithmetic, comparison or
+//!    compound-assignment operator, an argument of a function or method call, or a bare value (a `let` initialiser, a `return`
+//!    value, the right side of `=`, a struct-field value, a block's tail expression), and is not in the trivial set: `0`, `1`, `2`, `10`, `100`, `1000` (`1_000`), `1024`, `255`, `60`,
 //!    `24`, the powers of two up to `4096`, and the floats `0.0`, `1.0` and `0.5`; a negated trivial value is trivial. Not read: a
 //!    `const` or `static` item (the name *is* the fix), an enum discriminant, an array length (type or repeat), an attribute, a macro
 //!    argument, and the arguments of a tuple-struct or enum constructor (a callee whose last segment starts with a capital).
@@ -132,6 +133,40 @@ impl<'ast> Visit<'ast> for Scan {
         self.visit_expr(&e.expr);
     }
 
+    // a bare value: `let t = 86400;`, `return 86400;`, `x = 86400`, `S { t: 86400 }` and a block's tail
+    fn visit_local(&mut self, l: &'ast syn::Local) {
+        if let Some(init) = &l.init {
+            self.operand(&init.expr);
+        }
+        syn::visit::visit_local(self, l);
+    }
+
+    fn visit_expr_return(&mut self, e: &'ast syn::ExprReturn) {
+        if let Some(v) = &e.expr {
+            self.operand(v);
+        }
+        syn::visit::visit_expr_return(self, e);
+    }
+
+    fn visit_expr_assign(&mut self, e: &'ast syn::ExprAssign) {
+        self.operand(&e.right);
+        syn::visit::visit_expr_assign(self, e);
+    }
+
+    fn visit_expr_struct(&mut self, e: &'ast syn::ExprStruct) {
+        for f in &e.fields {
+            self.operand(&f.expr);
+        }
+        syn::visit::visit_expr_struct(self, e);
+    }
+
+    fn visit_block(&mut self, b: &'ast syn::Block) {
+        if let Some(syn::Stmt::Expr(tail, None)) = b.stmts.last() {
+            self.operand(tail);
+        }
+        syn::visit::visit_block(self, b);
+    }
+
     fn visit_expr_binary(&mut self, e: &'ast syn::ExprBinary) {
         self.operand(&e.left);
         self.operand(&e.right);
@@ -237,6 +272,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     }
     let mut findings = Vec::new();
     let mut unparsed: Vec<&str> = Vec::new();
+    let mut oversize: Vec<&str> = Vec::new();
     let mut parsed = 0usize;
     for path in &files {
         let Some(text) = view.read(path) else {
@@ -244,6 +280,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             continue;
         };
         if text.len() > MAX_BYTES {
+            oversize.push(path);
             continue;
         }
         let Ok(file) = syn::parse_file(&text) else {
@@ -277,21 +314,31 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             ))
         })
         .collect();
-    if unparsed.is_empty() {
-        Verdict::Findings(out)
-    } else {
-        let note = format!(
+    let mut notes = Vec::new();
+    if !unparsed.is_empty() {
+        notes.push(format!(
             "{} Rust file(s) could not be parsed and were not read: {}",
             unparsed.len(),
-            unparsed
-                .iter()
-                .take(5)
-                .copied()
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        Verdict::Noted(out, vec![note])
+            list(&unparsed)
+        ));
     }
+    if !oversize.is_empty() {
+        notes.push(format!(
+            "{} Rust file(s) over 2 MiB were not read: {}",
+            oversize.len(),
+            list(&oversize)
+        ));
+    }
+    if notes.is_empty() {
+        Verdict::Findings(out)
+    } else {
+        Verdict::Noted(out, notes)
+    }
+}
+
+/// Up to five paths, comma separated.
+fn list(paths: &[&str]) -> String {
+    paths.iter().take(5).copied().collect::<Vec<_>>().join(", ")
 }
 
 #[cfg(test)]
@@ -315,7 +362,7 @@ mod tests {
         let f = found("fn f(x: u64) -> u64 {\n    if x > 86400 { return 7; }\n    g(x * 37)\n}\nfn g(_: u64) -> u64 { 0 }\n");
         assert_eq!(f.len(), 1, "{f:?}");
         assert_eq!(f[0].location.as_ref().unwrap().line, Some(2));
-        assert!(f[0].summary.contains("2 number(s)"), "{}", f[0].summary);
+        assert!(f[0].summary.contains("3 number(s)"), "{}", f[0].summary);
         assert_eq!(f[0].subject.as_deref(), Some("src/lib.rs"));
     }
 
@@ -356,6 +403,79 @@ mod tests {
         let f = found(src);
         assert_eq!(f.len(), 1, "{f:?}");
         assert!(f[0].summary.contains("number(s)") && f[0].summary.contains("string(s)"));
+    }
+
+    #[test]
+    fn compound_assignment_is_read() {
+        let f = found(
+            "fn f(mut x: u64) { x += 86400; }
+",
+        );
+        assert_eq!(f.len(), 1, "{f:?}");
+    }
+
+    #[test]
+    fn a_bare_value_in_a_binding_return_field_assignment_or_tail_is_reported() {
+        for src in [
+            "fn f() -> u64 { let timeout = 86400; timeout }
+",
+            "fn f() -> u64 { return 86400; }
+",
+            "fn f() -> u64 { 86400 }
+",
+            "struct S { t: u64 }
+fn f() -> S { S { t: 86400 } }
+",
+            "fn f(x: &mut u64) { *x = 86400; }
+",
+        ] {
+            assert_eq!(found(src).len(), 1, "{src}");
+        }
+        let trivial = "fn f() -> u64 { let a = 1; let b = 0; if a > b { return 60; } 1024 }
+";
+        assert!(found(trivial).is_empty(), "{:?}", found(trivial));
+    }
+
+    #[test]
+    fn hex_octal_and_binary_literals_are_read() {
+        for src in [
+            "fn f(x: u64) -> bool { x > 0xDEAD_BEEF }
+",
+            "fn f(x: u64) -> bool { x > 0o7777 }
+",
+            "fn f(x: u64) -> bool { x > 0b1010_1010_1 }
+",
+        ] {
+            assert_eq!(found(src).len(), 1, "{src}");
+        }
+        assert!(found(
+            "fn f(x: u64) -> bool { x > 0x40 && x < 0b1000 }
+"
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn a_file_over_the_size_cap_is_named_in_a_note() {
+        let big = format!(
+            "fn f(x: u64) -> bool {{ x > 86400 }}
+// {}
+",
+            "a".repeat(MAX_BYTES)
+        );
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            ("src/lib.rs", &big),
+        ])) {
+            Verdict::Noted(f, notes) => {
+                assert!(f.is_empty());
+                assert!(
+                    notes[0].contains("src/lib.rs") && notes[0].contains("2 MiB"),
+                    "{notes:?}"
+                );
+            }
+            _ => panic!("expected a note"),
+        }
     }
 
     #[test]
