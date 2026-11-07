@@ -146,7 +146,7 @@ fn a_committed_secret_is_a_sec_002_finding_and_the_value_is_never_printed() {
         .unwrap_or_else(|| panic!("no finding line in: {out}\nstderr: {err}"));
     let v: serde_json::Value = serde_json::from_str(finding).unwrap();
     assert_eq!(v["check_id"], "SEC-002");
-    assert_eq!(v["severity"], "high");
+    assert_eq!(v["severity"], "critical");
     assert_eq!(v["location"]["file"], "settings.cfg");
     assert_eq!(v["location"]["line"], 2);
     assert!(
