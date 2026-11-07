@@ -1284,6 +1284,9 @@ mod tests {
             // positive control: an ordinary neutral rule is in the default set, and the full list still holds the opt-in one
             assert!(profile.run_rules(None).contains(&"RDB-008"));
             assert!(profile.extra_rules().contains(&"EFX-003"));
+            assert!(!profile.run_rules(None).contains(&"ERR-001"));
+            assert!(profile.run_rules(Some("ERR-001")).contains(&"ERR-001"));
+            assert!(profile.extra_rules().contains(&"ERR-001"));
         }
     }
 
