@@ -1,0 +1,1 @@
+# A clean twin expects nothing: the varying behaviour is a trait method, so no caller asks for the concrete type.

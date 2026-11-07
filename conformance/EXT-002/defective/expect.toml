@@ -1,0 +1,6 @@
+# The seeded defect: client code asks which concrete type is behind the trait object, line 8.
+
+[[expect]]
+rule = "EXT-002"
+file = "src/lib.rs"
+line = 8
