@@ -18,6 +18,7 @@ mod doc005;
 mod doc009;
 mod efx003;
 mod err001;
+mod ext002;
 mod ext003;
 mod licence;
 mod lint_suppression;
@@ -188,6 +189,10 @@ const RULES: &[Rule] = &[
         judge: typ006::judge,
     },
     Rule {
+        id: "EXT-002",
+        judge: ext002::judge,
+    },
+    Rule {
         id: "COR-007",
         judge: cor007::judge,
     },
@@ -203,7 +208,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006", "COR-007",
+        "TYP-006", "EXT-002", "COR-007",
     ]
 }
 
@@ -569,6 +574,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EXT-003", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("EXT-002", &["rust"]),
     ("COR-007", &["rust"]),
 ];
 
@@ -603,6 +609,7 @@ const PROVEN: &[&str] = &[
     "EXT-003",
     "ERR-001",
     "TYP-006",
+    "EXT-002",
     "COR-007",
 ];
 
