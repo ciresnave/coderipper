@@ -10,9 +10,10 @@
 //! * **API-004, a deprecation without lifecycle data.** `#[deprecated]` with no `since` or with no `note` (the note is where the
 //!   replacement and the removal target are written). `#[deprecated = "text"]` has a note and no `since`. Whether the note names a
 //!   replacement is not read: a note is the author's statement of one.
-//! * **API-009, an exported type that cannot grow.** A `pub enum` with variants, or a `pub struct` with named fields that are all
-//!   `pub`, with no `#[non_exhaustive]` and no doc comment that says the type is closed (the words `exhaustive`, `closed`,
-//!   `sealed`, `fixed set`). Adding a variant or a field to such a type is a breaking change.
+//! * **API-009, an exported enum that cannot grow (opt-in; enums only).** A `pub enum` with variants and no `#[non_exhaustive]`
+//!   and no doc comment that says the type is closed (the words `exhaustive`, `closed`, `sealed`, `fixed set`). Adding a variant
+//!   to such an enum is a breaking change. A struct is not read: `#[non_exhaustive]` on a data struct stops a downstream crate
+//!   building it with a struct expression, so a struct whose fields are all `pub` is usually the design.
 //! * **ERR-004, a public function that fails with an untyped error.** A `pub fn` returning `Result<_, E>` where `E` is `String`,
 //!   `&str`, `Box<dyn ..>`, `anyhow::Error` or `eyre::Report`, or `anyhow::Result<_>`.
 //!
@@ -25,7 +26,7 @@ use super::{RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use std::collections::BTreeSet;
 use syn::{
-    Attribute, Fields, GenericArgument, ImplItem, Item, Meta, PathArguments, ReturnType, Signature,
+    Attribute, GenericArgument, ImplItem, Item, Meta, PathArguments, ReturnType, Signature,
     TraitItem, Type, Visibility,
 };
 
@@ -189,23 +190,8 @@ fn closed_type(attrs: &[Attribute], item: &Item, out: &mut Vec<Site>) {
                 });
             }
         }
-        Item::Struct(s) => {
-            let named = match &s.fields {
-                Fields::Named(f) if f.named.iter().all(|x| is_pub(&x.vis)) => Some(f),
-                _ => None,
-            };
-            if let Some(f) = named {
-                out.push(Site {
-                    kind: Kind::Closed,
-                    line: line_of(s.ident.span()),
-                    name: s.ident.to_string(),
-                    detail: format!(
-                        "is a public struct whose {} field(s) are all public",
-                        f.named.len()
-                    ),
-                });
-            }
-        }
+        // a struct is not read (CireSnave 2026-11-07, ruling 3: "enums only"): `#[non_exhaustive]` on a data struct stops a
+        // downstream crate building it, so an all-`pub` struct is usually the design, not a defect
         _ => {}
     }
 }
@@ -569,7 +555,8 @@ pub struct Hidden { pub a: u8, b: u8 }
 pub struct Tuple(pub u8);
 "#;
         let names: Vec<_> = run(src, Kind::Closed).into_iter().map(|s| s.name).collect();
-        assert_eq!(names, ["Open", "Bag"]);
+        // control: the enum is reported; the all-`pub` struct `Bag` is not (ruling 3: enums only)
+        assert_eq!(names, ["Open"]);
     }
 
     #[test]
@@ -602,8 +589,8 @@ impl std::str::FromStr for P {
         // a negated phrase does not say the type is closed
         assert_eq!(closed("/// Not exhaustive.\npub enum E { A }\n"), 1);
         assert_eq!(closed("/// This set is closed.\npub enum E { A }\n"), 0);
-        // an empty named struct can be built as `S {}`
-        assert_eq!(closed("pub struct S {}\n"), 1);
+        // a struct is not read, empty or not
+        assert_eq!(closed("pub struct S {}\n"), 0);
         // a hidden variant does not count
         assert_eq!(closed("pub enum E { #[doc(hidden)] A }\n"), 0);
         // test-only under all(..) is left out, any(..) is not
