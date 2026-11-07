@@ -24,6 +24,7 @@ mod lock_order;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
+mod rdb004;
 mod rdb008;
 mod rust_package;
 mod rust_src;
@@ -186,6 +187,10 @@ const RULES: &[Rule] = &[
         id: "TYP-006",
         judge: typ006::judge,
     },
+    Rule {
+        id: "RDB-004",
+        judge: rdb004::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -198,7 +203,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006",
+        "TYP-006", "RDB-004",
     ]
 }
 
@@ -564,6 +569,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EXT-003", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("RDB-004", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -597,6 +603,7 @@ const PROVEN: &[&str] = &[
     "EXT-003",
     "ERR-001",
     "TYP-006",
+    "RDB-004",
 ];
 
 impl Module for NeutralModule {
