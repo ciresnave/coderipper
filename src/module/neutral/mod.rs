@@ -34,6 +34,7 @@ mod sup004;
 mod sup011;
 mod support_statement;
 mod surface;
+mod tst009;
 mod typ006;
 #[cfg(test)]
 mod variants;
@@ -186,6 +187,10 @@ const RULES: &[Rule] = &[
         id: "TYP-006",
         judge: typ006::judge,
     },
+    Rule {
+        id: "TST-009",
+        judge: tst009::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -198,7 +203,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006",
+        "TYP-006", "TST-009",
     ]
 }
 
@@ -564,6 +569,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EXT-003", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("TST-009", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -597,6 +603,7 @@ const PROVEN: &[&str] = &[
     "EXT-003",
     "ERR-001",
     "TYP-006",
+    "TST-009",
 ];
 
 impl Module for NeutralModule {

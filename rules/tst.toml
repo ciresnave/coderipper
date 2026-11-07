@@ -211,6 +211,7 @@ kb_refs = []
 remediation = "Identify the risky modules, add a property or fuzz target to each, and run them regularly, with longer fuzz runs on a nightly schedule."
 related = ["COR-003"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source and the manifest: for each Cargo package (outside vendored directories, tests, examples, tools, build.rs and cfg(test) items), the package is risky when it has a pub fn (free or inherent method) named parse, decode, deserialize, from_str or from_bytes that takes &str, String, &[u8], Vec<u8> or Bytes, or an impl FromStr, or at least five unsafe blocks and unsafe fns; a risky package is reported (Medium severity, Low confidence, at its Cargo.toml) unless its manifest or the repository root manifest names proptest, quickcheck, arbitrary, bolero, arbtest, libfuzzer-sys, honggfuzz or afl, or a fuzz/Cargo.toml is tracked in the package or at the root. Not judged: that a target is wired into the pipeline or run regularly, whether a target covers the risky module, input functions with other names, hand-rolled generated-input tests, the module level (the unit is the package), TypeScript and Python."
 
 [rule.applicability]
 languages = ["any"]

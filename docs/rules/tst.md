@@ -70,7 +70,7 @@ Only five checks exist today, none of them in this domain, so no rule below is r
 | TST-006 | Tests hermetic: no network, clock or shared filesystem | X | catalog record; no check yet, needs runs with network off and time frozen |
 | TST-007 | Bug fixes ship a regression test | H | catalog record; no check yet, needs a human decision, classifying the commit then inspecting the diff |
 | TST-008 | Test names agree with assertions | L | catalog record; no check yet, needs an LLM reading |
-| TST-009 | Risky modules have fuzz or property targets | P | catalog record; no check yet, needs module classification by tags or LLM |
+| TST-009 | Risky modules have fuzz or property targets | P | built in part, opt-in (`coderipper check TST-009`): a Rust package with a `pub` text or bytes decoder (`parse*`, `decode*`, `deserialize*`, `from_str*`, `from_bytes*`), a `FromStr` impl, or five `unsafe` sites, and no property-test or fuzz crate or `fuzz/Cargo.toml` (Medium severity, Low confidence); the unit is the package, and a target that is not wired into the pipeline is not seen |
 | TST-010 | Cross-component interfaces have two-sided contract tests | X | catalog record; no check yet, spans repositories (Pact) |
 | TST-011 | Test order and parallelism do not change results | X | catalog record; no check yet, needs randomized and parallel runs (cargo-nextest, pytest-xdist) |
 | TST-012 | Test duration budgets with size classes | X | catalog record; no check yet, needs CI timing |
