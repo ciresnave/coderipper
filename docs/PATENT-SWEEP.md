@@ -928,3 +928,22 @@ Version line covered by this addendum: **0.43** (0.43.6). One rule is added, rea
 ### 0.43.7 (0.43 line) - 2026-11-07
 
 Version line covered by this addendum: **0.43** (0.43.7). `TYP-006` (no unwrap or null assertion on a production path, opt-in) is now built in `src/module/neutral/typ006.rs`. Its idea, its queries and the three rows read are in the addendum of version 0.43.5 above (idea 60 and the rows it cites); this version adds the check itself and no new idea, query or hit. Swept 2026-11-05 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as that addendum: no new search was made for this change, and the watches written there (re-read the two Chinese patents before the rule is described as new in public; do not add a trace statement, an inserted statement or an index score; clippy's `unwrap_used` is public prior art) still apply. **Result: no new hit; the 0.43.5 result stands.** A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-07, 0.43.10)
+
+Version line covered by this addendum: **0.43** (0.43.10). One rule is added, read from `src/module/neutral/ext002.rs`: `EXT-002` (downcasts and type tests on abstractions, Rust). Swept 2026-11-07 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 62 (`EXT-002`).** Parse the Rust source files outside test code and report a call that asks which concrete type is behind a value (`downcast_ref`, `downcast_mut`, `downcast`, `is::<T>`, `type_id`, `TypeId::of`), except a downcast to an error type.
+
+| # | Idea | Query (2026-11-07) |
+|---|---|---|
+| Q121 | 62 | patent static analysis detect downcast or runtime type test of concrete type behind abstract interface in source code Liskov substitution violation |
+| Q122 | 62 | detecting downcast or instanceof type test on abstract type in source code, static analysis, reporting object-oriented design violation (restricted to patents.google.com) |
+
+**Positive controls:** Q122 returned patents that mention `instanceof` as a dispatch step (US10585945B2, graph-type specialization in a DSL compiler), as a query primitive (WO2017196381A1, model-based analysis of software) and the resolution of an implementation type behind an abstract class (US11442845, automatic test generation), so the engine reaches the neighbourhood. Q121 returned developer guides, a verification seminar and lint-tool pages (PVS-Studio, CodeQL, JetBrains, Klocwork and CAST rules that flag `instanceof` chains and unsafe casts), which are prior art for the idea, not patents. The patent results use a type test as a step of another method; **a patent that reports downcasts or type tests in client code as a design defect was not found, and that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** US10585945B2, WO2017196381A1, US11442845, US10275226, US7937692, US9652358, US6865730; none is about reporting a type test as a defect of the code under analysis, by its snippet.
+
+**Result: no hit reads on `EXT-002` as read.** **Watch:** re-read the claims of WO2017196381A1 before `EXT-002` takes a query language over type operators or a model of the program; the rule is a syntactic match and stays one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
