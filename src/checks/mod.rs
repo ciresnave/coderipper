@@ -18,6 +18,7 @@ pub use architecture::{
     ApiBudgetCheck,
     ComponentCyclesCheck,
     ComponentGraphCheck,
+    CompositionRootsCheck,
     DataOwnershipCheck,
     DivergentChangeCheck,
     DriftCheck,

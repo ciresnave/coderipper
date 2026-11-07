@@ -1,0 +1,1 @@
+# The clean twin: policy takes the port; the adapter is built only in the composition root app/src/main.rs. The rule must report nothing.
