@@ -49,8 +49,8 @@ pub(super) fn is_test_item(attrs: &[Attribute]) -> bool {
     })
 }
 
-/// Whether `line` has a comment of its own: `//` or `/*` not preceded by `:` (a URL), outside a string.
-fn has_comment(line: &str) -> bool {
+/// The text of the comment on `line`, from its `//` or `/*` on: not one preceded by `:` (a URL), and not one inside a string.
+pub(super) fn comment_text(line: &str) -> Option<&str> {
     let bytes = line.as_bytes();
     let mut in_str = false;
     let mut i = 0;
@@ -63,13 +63,17 @@ fn has_comment(line: &str) -> bool {
                 && (bytes[i + 1] == b'/' || bytes[i + 1] == b'*')
                 && (i == 0 || bytes[i - 1] != b':') =>
             {
-                return true;
+                return Some(&line[i..]);
             }
             _ => {}
         }
         i += 1;
     }
-    false
+    None
+}
+
+fn has_comment(line: &str) -> bool {
+    comment_text(line).is_some()
 }
 
 /// Whether a comment sits on the previous line (when it is only a comment) or on any of the lines `first..=last` (1-based).
@@ -110,6 +114,13 @@ mod tests {
         assert!(comment_beside(&src, 3, 3));
         assert!(!comment_beside(&src, 4, 4));
         assert!(!comment_beside(&src, 5, 5));
+    }
+
+    #[test]
+    fn the_comment_text_starts_at_the_marker_and_ignores_strings() {
+        assert_eq!(comment_text("x(); // why"), Some("// why"));
+        assert_eq!(comment_text("let u = \"a//b\"; /* c */"), Some("/* c */"));
+        assert_eq!(comment_text("let u = \"http://x\";"), None);
     }
 
     #[test]
