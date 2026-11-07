@@ -25,11 +25,14 @@
 //! partial read: a clean result becomes a **coverage gap**, and findings carry a note. When *no* input could be read (exit 3,
 //! "no inputs collected") the rule is a gap. A project with no tracked workflow or action is a gap too: nothing was there to judge.
 //!
-//! **The repository cannot silence the rule:** zizmor reads a `zizmor.yml` (or `.github/zizmor.yml`) found from the file it audits
-//! upward (measured: a committed `rules: unpinned-uses: disable: true` drops the findings), and honours `# zizmor: ignore[...]`
-//! comments. `--no-config` and `--no-ignores` turn both off (a finding that carries such a comment still comes back flagged
-//! `ignored`, and says so), and `.gitignore` does not apply to files named on the command line (measured). The project's way to
-//! suppress a finding is the `.coderipper.toml` allowlist, which is visible.
+//! **The project's own zizmor ignores are a waiver source (CireSnave 2026-11-07, ruling 8: "Honor each tools' own ignore files"):**
+//! zizmor reads a `zizmor.yml` (or `.github/zizmor.yml`) found from the file it audits upward (measured: a committed `rules:
+//! unpinned-uses: disable: true` drops the findings), and that file is now honoured: the run no longer passes `--no-config`. A
+//! tracked config that disables an audit or ignores a place is reported as one **Info** finding at the file, because it waives
+//! findings with no reason, owner or expiry, which GOV-002 still asks for. A `# zizmor: ignore[...]` comment is not honoured
+//! silently either: `--no-ignores` stays, so zizmor returns the finding flagged `ignored`, and it is reported at **Info** with a
+//! note that the waiver needs a reason, an owner and an expiry (an `[[allow]]` entry carries all three). Info does not gate. `.gitignore`
+//! does not apply to files named on the command line (measured).
 //!
 //! **The mapping record:** one finding per zizmor finding, at the file and line of its primary location (zizmor counts lines from
 //! 0). Severity and confidence are zizmor's own (`Informational` is `Info`). Subject: the `uses:` value for an unpinned reference,
@@ -307,15 +310,24 @@ fn to_finding(hit: &Hit, project: &str, roots: &[String], extra: Option<&str>) -
     );
     if hit.ignored {
         detail.push_str(
-            " This finding carries a `# zizmor: ignore` comment, which CodeRipper does not honour (the project's way to suppress a \
-             finding is the .coderipper.toml allowlist).",
+            " This finding carries a `# zizmor: ignore` comment, which waives it (zizmor's own ignore is honoured) but gives no reason, \
+             owner or expiry (GOV-002): an `[[allow]]` entry in .coderipper.toml carries all three.",
         );
     }
     if let Some(extra) = extra {
         detail.push(' ');
         detail.push_str(extra);
     }
-    let finding = Finding::new(RULE, hit.severity, hit.confidence, project, summary, detail)
+    // a finding the project waived with zizmor's own comment is reported, at Info, and says the waiver needs a reason
+    let (severity, summary) = if hit.ignored {
+        (
+            Severity::Info,
+            format!("waived by `# zizmor: ignore`, needs a reason: {summary}"),
+        )
+    } else {
+        (hit.severity, summary)
+    };
+    let finding = Finding::new(RULE, severity, hit.confidence, project, summary, detail)
         .location(Location::new(file.clone(), Some(hit.line)))
         .subject(subject.clone());
     // the summary quotes the workflow and zizmor's words, and could contain a whole word the host reads as an absence claim ("no
@@ -396,13 +408,12 @@ enum Scan {
     Failed(ErrorKind, String),
 }
 
-/// The arguments of one run over `inputs` (absolute paths): offline, the repository's own configuration and ignore comments
-/// replaced by none, the audits of the `pedantic` persona, JSON on stdout, quiet (warnings and errors only on stderr), and exit
+/// The arguments of one run over `inputs` (absolute paths): offline, the repository's own `zizmor.yml` honoured but its ignore
+/// comments reported rather than hidden (`--no-ignores`), the audits of the `pedantic` persona, JSON on stdout, quiet (warnings and errors only on stderr), and exit
 /// codes that say only whether the tool worked. `--` ends the options: an input is never read as one.
 fn check_args(inputs: &[OsString]) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "--offline",
-        "--no-config",
         "--no-ignores",
         "--no-exit-codes",
         "--no-progress",
@@ -500,6 +511,52 @@ fn scan_with(program: &Path, args: fn(&[OsString]) -> Vec<OsString>, request: &R
     Scan::Read { hits, unread }
 }
 
+/// The names zizmor reads its configuration from, found from a workflow upward.
+const CONFIG_FILES: &[&str] = &[
+    "zizmor.yml",
+    "zizmor.yaml",
+    ".github/zizmor.yml",
+    ".github/zizmor.yaml",
+];
+
+/// Whether a zizmor configuration waives anything: it disables an audit or ignores a place.
+fn config_waives(text: &str) -> bool {
+    text.lines().map(str::trim).any(|l| {
+        !l.starts_with('#')
+            && (l.starts_with("disable:") && l.contains("true") || l.starts_with("ignore:"))
+    })
+}
+
+/// One Info finding per tracked zizmor configuration that waives something: it is honoured, and it carries no reason, owner or expiry.
+fn config_findings(root: &Path, project: &str) -> Vec<Finding> {
+    let Ok(listing) = tracked_listing(root) else {
+        return Vec::new();
+    };
+    listing
+        .split('\0')
+        .filter(|p| CONFIG_FILES.contains(p))
+        .filter_map(|path| {
+            let text = std::fs::read_to_string(root.join(path)).ok()?;
+            config_waives(&text).then(|| {
+                Finding::new(
+                    RULE,
+                    Severity::Info,
+                    Confidence::High,
+                    project,
+                    format!("{path} waives zizmor findings and needs a reason"),
+                    format!(
+                        "{path} disables an audit or ignores a place, and zizmor honours it, so findings of that audit or place are not \
+                         reported. That is the project's own waiver and it is respected, but it gives no reason, owner or expiry \
+                         (GOV-002): say why in the file's comments, or move the waiver to an `[[allow]]` entry, which carries all three."
+                    ),
+                )
+                .location(Location::new(path.to_string(), Some(1)))
+                .subject(path.to_string())
+            })
+        })
+        .collect()
+}
+
 /// What a result says about the files that were not read.
 fn caveat(unread: Option<&str>) -> Option<String> {
     unread.map(|why| {
@@ -521,26 +578,28 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
     match scan_with(&program, check_args, request) {
         Scan::Read { hits, unread } => {
             let note = caveat(unread.as_deref());
-            if hits.is_empty() {
-                if let Some(note) = note {
-                    return Verdict::Unavailable(format!(
-                        "{TOOL} found nothing to report, but it cannot say the workflows are fine. {note}"
-                    ));
-                }
-                return Verdict::Findings(vec![]);
-            }
             let root = std::path::absolute(&request.project_root)
                 .unwrap_or_else(|_| request.project_root.clone());
             let project = root
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
+            let waivers = config_findings(&root, &project);
+            if hits.is_empty() {
+                if let Some(note) = note {
+                    return Verdict::Unavailable(format!(
+                        "{TOOL} found nothing to report, but it cannot say the workflows are fine. {note}"
+                    ));
+                }
+                return Verdict::Findings(waivers);
+            }
             let roots = roots_of(&root);
-            Verdict::Findings(
-                hits.iter()
-                    .map(|h| to_finding(h, &project, &roots, note.as_deref()))
-                    .collect(),
-            )
+            let mut found: Vec<Finding> = hits
+                .iter()
+                .map(|h| to_finding(h, &project, &roots, note.as_deref()))
+                .collect();
+            found.extend(waivers);
+            Verdict::Findings(found)
         }
         Scan::Gap(detail) => Verdict::Unavailable(detail),
         Scan::Failed(kind, detail) => Verdict::Failed(kind, detail),
@@ -728,21 +787,17 @@ mod tests {
     }
 
     #[test]
-    fn the_arguments_turn_off_the_repositorys_configuration_and_ignore_comments_and_the_network() {
+    fn the_arguments_keep_the_repositorys_configuration_report_ignore_comments_and_stay_offline() {
         let args = check_args(&[OsString::from("/p/a.yml")]);
         let args: Vec<_> = args
             .iter()
             .map(|a| a.to_string_lossy().to_string())
             .collect();
-        for flag in [
-            "--offline",
-            "--no-config",
-            "--no-ignores",
-            "--no-exit-codes",
-            "-q",
-        ] {
+        for flag in ["--offline", "--no-ignores", "--no-exit-codes", "-q"] {
             assert!(args.iter().any(|a| a == flag), "{flag} in {args:?}");
         }
+        // the project's own zizmor.yml is honoured (ruling 8), so the run no longer turns it off
+        assert!(!args.iter().any(|a| a == "--no-config"), "{args:?}");
         // the persona is what makes `permissions: write-all` visible
         let at = args.iter().position(|a| a == "--persona").unwrap();
         assert_eq!(args[at + 1], "pedantic");
@@ -804,7 +859,8 @@ mod tests {
     }
 
     #[test]
-    fn the_finding_says_where_what_zizmor_said_and_that_an_ignore_comment_is_not_honoured() {
+    fn the_finding_says_where_what_zizmor_said_and_that_an_ignore_comment_is_a_waiver_needing_a_reason(
+    ) {
         let found = parse_report(REPORT).unwrap();
         let unpinned = to_finding(&found[2], "demo", &roots(), None);
         assert_eq!(unpinned.check_id, RULE);
@@ -815,7 +871,8 @@ mod tests {
                 unpinned.subject.as_deref()
             ),
             (
-                Severity::High,
+                // this report entry carries a `# zizmor: ignore` comment: reported at Info, not hidden and not gating
+                Severity::Info,
                 Confidence::High,
                 Some("actions/checkout@v4")
             )
@@ -831,7 +888,7 @@ mod tests {
             unpinned.summary
         );
         assert!(
-            unpinned.detail.contains("zizmor: ignore") && unpinned.detail.contains("allowlist"),
+            unpinned.detail.contains("zizmor: ignore") && unpinned.detail.contains("[[allow]]"),
             "{}",
             unpinned.detail
         );
@@ -844,6 +901,13 @@ mod tests {
             permission.detail
         );
         assert!(permission.positive_control.is_some());
+        // control: a finding with no ignore comment keeps zizmor's own severity
+        assert_ne!(permission.severity, Severity::Info);
+        assert!(
+            unpinned.summary.contains("needs a reason"),
+            "{}",
+            unpinned.summary
+        );
         assert!(
             !permission.detail.contains("ignore"),
             "{}",
@@ -883,6 +947,43 @@ mod tests {
         assert!(text.contains("pinned"), "{text}");
         assert!(text.contains("permissions"), "{text}");
         assert!(text.contains("Not judged"), "{text}");
+    }
+
+    #[test]
+    fn a_zizmor_config_that_disables_or_ignores_is_an_info_finding_and_an_empty_one_is_not() {
+        let dir = tempfile::tempdir().unwrap();
+        let git = |args: &[&str]| {
+            assert!(std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .status()
+                .unwrap()
+                .success())
+        };
+        git(&["init", "-q"]);
+        std::fs::create_dir_all(dir.path().join(".github")).unwrap();
+        std::fs::write(
+            dir.path().join(".github/zizmor.yml"),
+            "rules:\n  unpinned-uses:\n    disable: true\n",
+        )
+        .unwrap();
+        git(&["add", "."]);
+        let found = config_findings(dir.path(), "demo");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].severity, Severity::Info);
+        assert!(
+            found[0].summary.contains("needs a reason"),
+            "{}",
+            found[0].summary
+        );
+        // control: a config that waives nothing, and a comment that mentions disable, say nothing
+        std::fs::write(
+            dir.path().join(".github/zizmor.yml"),
+            "# disable: true is how to turn one off\nrules: {}\n",
+        )
+        .unwrap();
+        assert!(config_findings(dir.path(), "demo").is_empty());
     }
 
     #[test]
