@@ -101,6 +101,8 @@ builtin_checks! {
     Drift => ARC_009, true, false, DriftCheck;
     /// `ARC-011`.
     Entangled => ARC_011, true, false, EntangledCheck;
+    /// `ARC-012`.
+    CompositionRoots => ARC_012, true, false, CompositionRootsCheck;
     /// `MOD-001`.
     PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
     /// `MOD-002`.
