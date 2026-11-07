@@ -18,27 +18,22 @@ fn coderipper() -> Command {
 #[test]
 fn an_earned_rule_is_reported_proven_and_exits_0() {
     coderipper()
-        .args(["conformance", "--rule", "unused-parameters", "--fixtures"])
+        .args(["conformance", "--rule", "RDB-014", "--fixtures"])
         .arg(fixtures())
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("unused-parameters: proven"));
+        .stdout(predicate::str::contains("RDB-014: proven"));
 }
 
 #[test]
 fn a_claim_without_a_fixture_is_reported_but_does_not_fail() {
     coderipper()
-        .args([
-            "conformance",
-            "--rule",
-            "ci-protection-presence",
-            "--fixtures",
-        ])
+        .args(["conformance", "--rule", "WSP-011", "--fixtures"])
         .arg(fixtures())
         .assert()
         .code(0)
         .stdout(predicate::str::contains(
-            "ci-protection-presence: no fixture",
+            "WSP-011: no fixture",
         ));
 }
 
@@ -48,7 +43,7 @@ fn json_output_has_one_line_per_rule() {
         .args([
             "conformance",
             "--rule",
-            "unused-parameters",
+            "RDB-014",
             "--message-format",
             "json",
             "--fixtures",
@@ -64,7 +59,7 @@ fn json_output_has_one_line_per_rule() {
     assert_eq!(lines.len(), 1, "{text}");
     let value: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
     assert_eq!(value["reason"], "coderipper-conformance");
-    assert_eq!(value["rule"], "unused-parameters");
+    assert_eq!(value["rule"], "RDB-014");
     assert_eq!(value["verdict"], "proven");
 }
 
@@ -72,10 +67,10 @@ fn json_output_has_one_line_per_rule() {
 fn a_fixture_that_contradicts_the_claim_exits_1() {
     // The defective project of a rule, used as its own clean twin: the rule reports in the "clean" project.
     let dir = tempfile::tempdir().unwrap();
-    let source = fixtures().join("unused-parameters");
+    let source = fixtures().join("RDB-014");
     for kind in ["defective", "clean"] {
         for file in ["Cargo.toml", "src/lib.rs", "expect.toml"] {
-            let to = dir.path().join("unused-parameters").join(kind).join(file);
+            let to = dir.path().join("RDB-014").join(kind).join(file);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();
             let from = if kind == "clean" && file == "src/lib.rs" {
                 source.join("defective").join(file)
@@ -86,11 +81,11 @@ fn a_fixture_that_contradicts_the_claim_exits_1() {
         }
     }
     coderipper()
-        .args(["conformance", "--rule", "unused-parameters", "--fixtures"])
+        .args(["conformance", "--rule", "RDB-014", "--fixtures"])
         .arg(dir.path())
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("unused-parameters: FAILED"))
+        .stdout(predicate::str::contains("RDB-014: FAILED"))
         .stdout(predicate::str::contains("clean twin"));
 }
 
@@ -120,7 +115,7 @@ fn a_missing_fixtures_directory_is_a_usage_error_not_a_pass() {
         .args([
             "conformance",
             "--rule",
-            "unused-parameters",
+            "RDB-014",
             "--fixtures",
             "does-not-exist",
         ])
@@ -136,7 +131,7 @@ fn requiring_proof_fails_a_claim_that_is_not_earned() {
         .args([
             "conformance",
             "--rule",
-            "ci-protection-presence",
+            "WSP-011",
             "--require-proven",
             "--fixtures",
         ])
@@ -144,13 +139,13 @@ fn requiring_proof_fails_a_claim_that_is_not_earned() {
         .assert()
         .code(1)
         .stdout(predicate::str::contains(
-            "ci-protection-presence: no fixture",
+            "WSP-011: no fixture",
         ));
     coderipper()
         .args([
             "conformance",
             "--rule",
-            "unused-parameters",
+            "RDB-014",
             "--require-proven",
             "--fixtures",
         ])
@@ -162,10 +157,10 @@ fn requiring_proof_fails_a_claim_that_is_not_earned() {
 #[test]
 fn json_names_a_failed_verdict_and_its_reasons() {
     let dir = tempfile::tempdir().unwrap();
-    let source = fixtures().join("unused-parameters");
+    let source = fixtures().join("RDB-014");
     for kind in ["defective", "clean"] {
         for file in ["Cargo.toml", "src/lib.rs", "expect.toml"] {
-            let to = dir.path().join("unused-parameters").join(kind).join(file);
+            let to = dir.path().join("RDB-014").join(kind).join(file);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();
             let from = if kind == "clean" && file == "src/lib.rs" {
                 source.join("defective").join(file)
@@ -179,7 +174,7 @@ fn json_names_a_failed_verdict_and_its_reasons() {
         .args([
             "conformance",
             "--rule",
-            "unused-parameters",
+            "RDB-014",
             "--message-format",
             "json",
             "--fixtures",
@@ -203,16 +198,16 @@ fn json_names_a_failed_verdict_and_its_reasons() {
 /// that quotes a secret-shaped value: the rule cannot run, and the reason is third-party text (the build's own words).
 fn fixtures_whose_defective_project_quotes_a_secret() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
-    let source = fixtures().join("unused-parameters");
+    let source = fixtures().join("RDB-014");
     for kind in ["defective", "clean"] {
         for file in ["Cargo.toml", "src/lib.rs", "expect.toml"] {
-            let to = dir.path().join("unused-parameters").join(kind).join(file);
+            let to = dir.path().join("RDB-014").join(kind).join(file);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();
             std::fs::copy(source.join(kind).join(file), to).unwrap();
         }
     }
     std::fs::write(
-        dir.path().join("unused-parameters/defective/src/lib.rs"),
+        dir.path().join("RDB-014/defective/src/lib.rs"),
         "compile_error!(\"set API_KEY=hunter2hunter2hunter2xyz\");\n",
     )
     .unwrap();
@@ -224,7 +219,7 @@ fn without_redact_a_reason_may_quote_the_build_as_it_was_written() {
     // The control for the test below: the secret-shaped value does reach the output when redaction is not asked for.
     let dir = fixtures_whose_defective_project_quotes_a_secret();
     let out = coderipper()
-        .args(["conformance", "--rule", "unused-parameters", "--fixtures"])
+        .args(["conformance", "--rule", "RDB-014", "--fixtures"])
         .arg(dir.path())
         .assert()
         .code(3)
@@ -246,7 +241,7 @@ fn redact_removes_a_secret_a_reason_quotes_and_does_not_change_the_exit_code() {
             .args([
                 "conformance",
                 "--rule",
-                "unused-parameters",
+                "RDB-014",
                 "--redact",
                 "--message-format",
                 format,
@@ -275,13 +270,13 @@ fn redact_also_covers_an_error_that_stops_the_whole_run() {
     // An unreadable `expect.toml`: the parse error quotes the line it stopped at, which is the fixture's own text.
     let dir = fixtures_whose_defective_project_quotes_a_secret();
     std::fs::write(
-        dir.path().join("unused-parameters/defective/expect.toml"),
+        dir.path().join("RDB-014/defective/expect.toml"),
         "API_KEY=hunter2hunter2hunter2xyz\n",
     )
     .unwrap();
     let run = |redact: bool| {
         let mut cmd = coderipper();
-        cmd.args(["conformance", "--rule", "unused-parameters"]);
+        cmd.args(["conformance", "--rule", "RDB-014"]);
         if redact {
             cmd.arg("--redact");
         }

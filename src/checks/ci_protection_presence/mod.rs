@@ -89,7 +89,7 @@ impl Check for CiProtectionPresenceCheck {
         let url = origin_url(&ctx.project_root)?;
         let repo = parse_github_remote(&url).ok_or_else(|| {
             anyhow::anyhow!(
-                "origin ({url}) is not a GitHub repository; ci-protection-presence reads GitHub's \
+                "origin ({url}) is not a GitHub repository; WSP-011 reads GitHub's \
                  branch-protection settings"
             )
         })?;

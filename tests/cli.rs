@@ -186,17 +186,11 @@ fn the_unused_return_values_check_runs_by_id_and_reports_a_finding() {
         tmp
     };
     coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "ERR-012", "--deny", "none", "--project"])
         .arg(repo.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stdout(predicate::str::contains("(ERR-012)"))
         .stdout(predicate::str::contains("`f`"));
 }
 
@@ -212,7 +206,7 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_fails_the_
     std::fs::write(tmp.path().join("src/main.rs"), "fn main() {}\n").unwrap();
     std::fs::write(
         tmp.path().join(".coderipper.toml"),
-        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nsymbol = \"long_gone\"\nreason = \"was a real discard once\"\n",
+        "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nsymbol = \"long_gone\"\nreason = \"was a real discard once\"\n",
     )
     .unwrap();
     for args in [
@@ -237,7 +231,7 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_fails_the_
     }
 
     coderipper()
-        .args(["check", "unused-return-values", "--project"])
+        .args(["check", "ERR-012", "--project"])
         .arg(tmp.path())
         .assert()
         .code(1)
@@ -246,13 +240,7 @@ fn a_stale_allowlist_entry_is_printed_as_an_informational_finding_and_fails_the_
         .stdout(predicate::str::contains("(allowlist)"));
     // `--deny none` restores the old behaviour: the same finding is printed and the run passes
     coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "ERR-012", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .success()
@@ -297,13 +285,7 @@ fn a_malformed_allowlist_fails_the_run_with_an_honest_message() {
     }
 
     coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "ERR-012", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .failure()
@@ -346,14 +328,14 @@ fn the_unused_parameters_check_runs_by_id_and_reports_a_parameter() {
             .unwrap();
     }
     coderipper()
-        .args(["check", "unused-parameters", "--deny", "none", "--project"])
+        .args(["check", "RDB-014", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .success()
         .stdout(predicate::str::contains(
             "parameter `ignored` of `f` is never used",
         ))
-        .stdout(predicate::str::contains("(unused-parameters)"));
+        .stdout(predicate::str::contains("(RDB-014)"));
 }
 
 fn workspace_fixture() -> tempfile::TempDir {
@@ -406,7 +388,7 @@ fn workspace_fixture() -> tempfile::TempDir {
 fn a_workspace_member_can_be_the_project() {
     let ws = workspace_fixture();
     coderipper()
-        .args(["check", "unused-parameters", "--deny", "none", "--project"])
+        .args(["check", "RDB-014", "--deny", "none", "--project"])
         .arg(ws.path().join("two"))
         .assert()
         .success()
@@ -420,7 +402,7 @@ fn a_workspace_member_can_be_the_project() {
 fn a_virtual_workspace_root_asks_for_a_member() {
     let ws = workspace_fixture();
     coderipper()
-        .args(["check", "unused-parameters", "--deny", "none", "--project"])
+        .args(["check", "RDB-014", "--deny", "none", "--project"])
         .arg(ws.path())
         .assert()
         .failure()
@@ -447,13 +429,7 @@ fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
         std::fs::write(dir.join("src/lib.rs"), "").unwrap();
     }
     coderipper()
-        .args([
-            "check",
-            "version-consistency",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "WSP-010", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .success()
@@ -461,7 +437,7 @@ fn the_version_consistency_check_runs_by_id_and_reports_the_outlier() {
         .stdout(predicate::str::contains(
             "`c` is at version 0.9.0 but this project is at 1.0.0",
         ))
-        .stdout(predicate::str::contains("(version-consistency)"));
+        .stdout(predicate::str::contains("(WSP-010)"));
 }
 
 #[test]
@@ -483,13 +459,7 @@ fn ci_protection_presence_on_a_non_github_origin_fails_loudly_without_touching_t
             .unwrap();
     }
     coderipper()
-        .args([
-            "check",
-            "ci-protection-presence",
-            "--deny",
-            "none",
-            "--project",
-        ])
+        .args(["check", "WSP-011", "--deny", "none", "--project"])
         .arg(tmp.path())
         .assert()
         .failure()
@@ -539,7 +509,7 @@ fn features_flags_reach_the_build_so_a_gated_bin_is_checked() {
     let repo = gated_bin_repo();
     // the control: without the flag the bin is not built, and the run says so
     coderipper()
-        .args(["check", "unused-parameters", "--deny", "none", "--project"])
+        .args(["check", "RDB-014", "--deny", "none", "--project"])
         .arg(repo.path())
         .assert()
         .success()
@@ -549,7 +519,7 @@ fn features_flags_reach_the_build_so_a_gated_bin_is_checked() {
         ));
     for flag in [vec!["--features", "capture"], vec!["--all-features"]] {
         coderipper()
-            .args(["check", "unused-parameters", "--deny", "none", "--project"])
+            .args(["check", "RDB-014", "--deny", "none", "--project"])
             .arg(repo.path())
             .args(&flag)
             .assert()
@@ -585,7 +555,7 @@ fn uncommitted_changes_are_named_in_a_note_and_a_clean_tree_has_none() {
             "analyse the committed tree (HEAD) in a throwaway worktree",
         ))
         .stderr(predicate::str::contains(
-            "version-consistency and API-006 read the working tree",
+            "WSP-010 and API-006 read the working tree",
         ));
 }
 
@@ -618,14 +588,14 @@ fn skip_rule_runs_a_check_out_with_its_reason_and_refuses_a_typo_or_a_missing_re
     };
     // control: without the skip the check runs, cannot, and the run says so
     sweep(&[]).assert().code(3).stderr(predicate::str::contains(
-        "ci-protection-presence failed to run",
+        "WSP-011 failed to run",
     ));
     // with it the check is not called, and the reason is on the run
-    sweep(&["--skip-rule", "ci-protection-presence=needs admin read; the PM sweep runs it"])
+    sweep(&["--skip-rule", "WSP-011=needs admin read; the PM sweep runs it"])
         .assert()
         .success()
         .stderr(predicate::str::contains(
-            "ci-protection-presence not run: skipped on request (needs admin read; the PM sweep runs it)",
+            "WSP-011 not run: skipped on request (needs admin read; the PM sweep runs it)",
         ))
         .stderr(predicate::str::contains("failed to run").not());
     // a name that is no built-in check is an error, not a quiet no-op
@@ -636,11 +606,11 @@ fn skip_rule_runs_a_check_out_with_its_reason_and_refuses_a_typo_or_a_missing_re
             "cannot skip \"ci-protection-presense\"",
         ));
     // a skip says why
-    sweep(&["--skip-rule", "ci-protection-presence"])
+    sweep(&["--skip-rule", "WSP-011"])
         .assert()
         .failure()
         .stderr(predicate::str::contains("takes ID=WHY"));
-    sweep(&["--skip-rule", "ci-protection-presence="])
+    sweep(&["--skip-rule", "WSP-011="])
         .assert()
         .failure()
         .stderr(predicate::str::contains("takes ID=WHY"));

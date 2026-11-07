@@ -61,7 +61,7 @@ acceptable) is a number each organization chooses for itself.
   not proof of it.
 - Clone detection across repositories finds textual copies far better than copies that were
   rewritten but do the same thing; the second kind needs a model-based judgment.
-- The existing check `version-consistency` is about one project's own packages sharing a number,
+- The existing check `WSP-010` is about one project's own packages sharing a number,
   which is a different claim from skew between repositories.
 
 ## Where it is checked
@@ -70,15 +70,15 @@ acceptable) is a number each organization chooses for itself.
 | :--- | :--- | :--- | :--- |
 | WSP-001 | Every repository is registered with an owner | N | built: native; a `CODEOWNERS` file exists and names a default (`*`) owner. The importance-level inventory is not checked |
 | WSP-002 | Cross-repository dependencies point the right way and do not loop | A | catalog record; no check yet (needs a declared architecture) |
-| WSP-003 | Internal library versions stay within the skew policy | N | catalog record; no check yet (planned: native manifest comparison per ecosystem); the legacy check `version-consistency` overlaps in part |
+| WSP-003 | Internal library versions stay within the skew policy | N | catalog record; no check yet (planned: native manifest comparison per ecosystem); the legacy check `WSP-010` overlaps in part |
 | WSP-004 | Widely used libraries are tested against their dependents before release | X | catalog record; no check yet (needs project code to run) |
 | WSP-005 | Organization policy is inherited and exceptions are waived | T | catalog record; no check yet (needs policy resolution) |
 | WSP-006 | Copied code across repositories | P | catalog record; no check yet (planned: jscpd run over several checkouts; rewritten copies would need a model) |
 | WSP-007 | Interfaces between repositories have contract tests | X | catalog record; no check yet (needs project code to run) |
 | WSP-008 | Conventions do not drift between repositories | N | catalog record; no check yet (planned: native comparison of generic config files) |
 | WSP-009 | Repositories forced to release together | H | catalog record; no check yet (needs a human judgment over release history) |
-| `version-consistency` | One version across a project | legacy | legacy check: every package of a project shares one version unless it tracks another project; relates to WSP-003 only partly |
-| `ci-protection-presence` | The default branch enforces required checks | legacy | legacy check: reads branch protection and flags rules that require nothing, and (0.9.27) repository settings that differ from the portfolio's (squash-only, delete-branch-on-merge, admin bypass kept, no force-push or deletion; a fork is skipped); no catalog rule covers it, nearest context is the supply-chain CI-hardening rule SUP-008 and the layered-gates rule GOV-008 |
+| `WSP-010` | One version across a project | legacy | legacy check: every package of a project shares one version unless it tracks another project; relates to WSP-003 only partly |
+| `WSP-011` | The default branch enforces required checks | legacy | legacy check: reads branch protection and flags rules that require nothing, and (0.9.27) repository settings that differ from the portfolio's (squash-only, delete-branch-on-merge, admin bypass kept, no force-push or deletion; a fork is skipped); no catalog rule covers it, nearest context is the supply-chain CI-hardening rule SUP-008 and the layered-gates rule GOV-008 |
 
 ## Further reading
 

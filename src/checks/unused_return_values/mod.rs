@@ -104,14 +104,14 @@ impl Check for UnusedReturnValuesCheck {
         anyhow::ensure!(
             !build.is_broken(),
             "this crate's build reported real compiler error(s) (or failed without any diagnostic) \
-             after the unused-return-values rewrite, so no result can be trusted. Cause: {}",
+             after the ERR-012 rewrite, so no result can be trusted. Cause: {}",
             build.failure_cause()
         );
 
         let classification = classify(&build.diagnostics, &tags, &use_ranges);
         anyhow::ensure!(
             classification.sentinel_ok,
-            "unused-return-values' own per-run positive control (a tagged sentinel function with a \
+            "ERR-012' own per-run positive control (a tagged sentinel function with a \
              discarded call, injected into {sentinel_file}) was not reported by BOTH `unused_must_use` \
              and `deprecated` even though the build reported no errors -- one of those lints is \
              suppressed in this crate (e.g. a crate-wide #![allow(deprecated)]), so this run's result \

@@ -1,7 +1,7 @@
 # Rule records, domain WSP (workspace and repository hygiene). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "version-consistency"
+id = "WSP-010"
 title = "One version across a project"
 domain = "WSP"
 statement = "Every package of a project carries the same version number, except a package that deliberately tracks the version of another project it works with."
@@ -16,9 +16,9 @@ executes_project_code = false
 default_severity = "high"
 confidence_class = "high"
 kb_refs = ["WSP-003"]
-aliases = []
+aliases = ["version-consistency"]
 remediation = "Bring the package to the project's version, or declare it as tracking another project in .coderipper.toml."
-related = ["ci-protection-presence"]
+related = ["WSP-011"]
 lifecycle = "advisory"
 
 [rule.applicability]
@@ -26,7 +26,7 @@ languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "ci-protection-presence"
+id = "WSP-011"
 title = "The default branch enforces required checks"
 domain = "WSP"
 statement = "The repository's default branch refuses changes until its required status checks pass; having some protection rule is not enough if it requires nothing. The repository also keeps the portfolio's settings: squash-only merges, merged branches deleted, admins able to bypass, no force-push and no deletion of the default branch."
@@ -41,9 +41,9 @@ executes_project_code = false
 default_severity = "high"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["ci-protection-presence"]
 remediation = "Require the CI checks on the default branch through branch protection or a ruleset."
-related = ["version-consistency"]
+related = ["WSP-010"]
 lifecycle = "advisory"
 
 [rule.applicability]
@@ -271,7 +271,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "version-and-changelog"
+id = "WSP-012"
 title = "A branch that changes the project changes its version and the changelog says so"
 domain = "WSP"
 statement = "The version in the root manifest of a branch differs from the version of the commit the branch started from, and the root changelog has an entry for it."
@@ -286,9 +286,9 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "high"
 kb_refs = ["WSP-003"]
-aliases = []
+aliases = ["version-and-changelog"]
 remediation = "Bump the version in Cargo.toml or package.json (a patch for a fix, a minor for a feature, and for a breaking change the major; before 1.0 the second number) and add a `## <version> - <date>` entry to CHANGELOG.md. If the portfolio manager allocates the number at gate time, say so on the pull request."
-related = ["version-consistency"]
+related = ["WSP-010"]
 lifecycle = "experimental"
 checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version) and package.json at HEAD against the same files at the merge-base of HEAD with origin/HEAD, origin/main or origin/master: an unchanged version is Medium; a changed version (or a manifest the base lacked) with no heading or leading line in the root CHANGELOG*/CHANGES* file naming it as a whole token, or no such file, is Medium. Not applicable on the default branch, with no origin branch, or in a clone without the history. Not judged: the version-deferred label, which component a breaking change moved, manifests below the root, pyproject.toml, lock files, what an entry says."
 
@@ -297,7 +297,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "patent-sweep-record"
+id = "WSP-013"
 title = "A project that can be released has a patent sweep on record for its version line"
 domain = "WSP"
 statement = "A repository whose root manifest declares a publishable version tracks docs/PATENT-SWEEP.md, and the record names a version in the same version line as the manifest's."
@@ -312,9 +312,9 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["patent-sweep-record"]
 remediation = "Run the patent sweep (PATENT-SWEEP-PROCESS.md): list the project's ideas, search patent sources with recorded queries, read the closest hits claim by claim, and record the result in docs/PATENT-SWEEP.md naming the version it covers. A project that will never be released opts out with an [[allow]] entry and a reason."
-related = ["version-and-changelog"]
+related = ["WSP-012"]
 lifecycle = "experimental"
 checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version, unless publish = false) or package.json (version, unless private): docs/PATENT-SWEEP.md must be tracked and must name a version token in the manifest's version line (0.9 for 0.9.x before 1.0, the major after). Not judged: whether the sweep was good, whether the project has been published, manifests below the root, pyproject.toml."
 
@@ -323,7 +323,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "security-support-statement"
+id = "WSP-014"
 title = "A released project's SECURITY.md promises no support period and claims no support for an old line"
 domain = "WSP"
 statement = "In a repository whose root manifest declares a publishable version, the supported-versions section of SECURITY.md marks no line older than the latest as supported, marks only one line, and states no support period in months or years."
@@ -338,9 +338,9 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "medium"
 kb_refs = []
-aliases = []
+aliases = ["security-support-statement"]
 remediation = "Replace the section with: the latest release line receives security fixes; an older line receives a backport when the backport is small, and when it is not the advisory says that line is not fixed and recommends upgrading; no support period is promised. A project that really supports more than one line, or a period, opts out with an [[allow]] entry and a reason."
-related = ["patent-sweep-record"]
+related = ["WSP-013"]
 lifecycle = "experimental"
 checked_today = "The root Cargo.toml ([package] version, else [workspace.package] version, unless publish = false) or package.json (version, unless private); a tracked SECURITY.md at the root, in .github/ or in docs/; the section under a heading that names supported versions, to the next heading of the same or a higher level: a table row marked with a check mark for a line older than the manifest's, or a second marked row; a number (digits, or one to twelve, eighteen, twenty-four as words) followed by month(s) or year(s). Not judged: whether the statement is true, a promise worded without a number, a repository with no SECURITY.md or no such section, manifests below the root."
 

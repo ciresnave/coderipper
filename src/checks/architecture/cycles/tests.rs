@@ -98,7 +98,7 @@ fn two_components_that_reach_each_other_through_their_crates_are_one_finding() {
     let (f, notes) = judge(&arch(TOML), &g, "p");
     assert_eq!(f.len(), 1, "{f:?}");
     assert_eq!(f[0].subject.as_deref(), Some("core,ui"));
-    assert_eq!(f[0].severity, Severity::Low);
+    assert_eq!(f[0].severity, Severity::Medium);
     assert_eq!(f[0].confidence, Confidence::High);
     assert!(f[0].summary.starts_with("2 components"), "{}", f[0].summary);
     assert!(f[0].detail.contains("`ui` -> `core`") && f[0].detail.contains("`core` -> `ui`"));

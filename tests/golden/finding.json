@@ -1,5 +1,5 @@
 {
-  "check_id": "unused-return-values",
+  "check_id": "ERR-012",
   "severity": "medium",
   "confidence": "high",
   "project": "widgets",

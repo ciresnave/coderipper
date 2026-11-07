@@ -156,26 +156,20 @@ fn lint_suppression_runs_only_under_extended_and_counts_the_attributes_that_say_
     coderipper(&repo, &["fast", "--profile", "classic"])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("lint-suppression").not());
-    coderipper(
-        &repo,
-        &["check", "lint-suppression", "--profile", "classic"],
-    )
-    .assert()
-    .code(2)
-    .stderr(predicate::str::contains("belongs to --profile extended"));
-    coderipper(
-        &repo,
-        &["check", "lint-suppression", "--profile", "extended"],
-    )
-    .assert()
-    .code(0)
-    .stdout(predicate::str::contains(
-        "allow(dead_code) has no reason at src/main.rs:1 (lint-suppression)",
-    ))
-    .stderr(predicate::str::contains(
-        "1 allow and 0 ignore attribute(s) carry a reason",
-    ));
+        .stdout(predicate::str::contains("GOV-010").not());
+    coderipper(&repo, &["check", "GOV-010", "--profile", "classic"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("belongs to --profile extended"));
+    coderipper(&repo, &["check", "GOV-010", "--profile", "extended"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(
+            "allow(dead_code) has no reason at src/main.rs:1 (GOV-010)",
+        ))
+        .stderr(predicate::str::contains(
+            "1 allow and 0 ignore attribute(s) carry a reason",
+        ));
 }
 
 #[test]
@@ -207,7 +201,7 @@ theirs
             .assert()
             .code(0)
             .stdout(predicate::str::contains(
-                "docs/DEVICE-TESTS.md:3 (conflict-marker)",
+                "docs/DEVICE-TESTS.md:3 (GOV-011)",
             ));
         Command::cargo_bin("coderipper")
             .unwrap()
@@ -236,5 +230,5 @@ theirs
     coderipper(&clean, &["fast"])
         .assert()
         .code(0)
-        .stdout(predicate::str::contains("conflict-marker").not());
+        .stdout(predicate::str::contains("GOV-011").not());
 }

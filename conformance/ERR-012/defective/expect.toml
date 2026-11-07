@@ -1,0 +1,4 @@
+[[expect]]
+rule = "ERR-012"
+file = "src/lib.rs"
+line = 1

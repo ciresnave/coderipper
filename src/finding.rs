@@ -335,7 +335,7 @@ mod tests {
 
     fn sample(summary: &str, positive_control: Option<&str>) -> Finding {
         Finding {
-            check_id: "reachability".into(),
+            check_id: "MOD-011".into(),
             severity: Severity::High,
             confidence: Confidence::Medium,
             project: "lightbulb".into(),
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn a_finding_written_before_subject_existed_still_deserializes() {
         // Old JSON reports have no `subject`; the field must default to None, not fail.
-        let json = r#"{"check_id":"reachability","severity":"high","confidence":"medium","project":"p","location":null,"summary":"s","detail":"d","positive_control":null}"#;
+        let json = r#"{"check_id":"MOD-011","severity":"high","confidence":"medium","project":"p","location":null,"summary":"s","detail":"d","positive_control":null}"#;
         let f: Finding = serde_json::from_str(json).expect("deserialize");
         assert_eq!(f.subject, None);
     }

@@ -1,0 +1,31 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/secret.yml"
+line = 4
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/target.yml"
+line = 4
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/runner.yml"
+line = 4
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/perms.yml"
+line = 1
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/selfhosted.yml"
+line = 4
+
+[[expect]]
+rule = "SUP-017"
+file = ".github/workflows/branches.yml"
+line = 2

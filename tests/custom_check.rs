@@ -192,7 +192,7 @@ fn an_entry_naming_a_check_you_did_not_pass_is_reported_as_unknown() {
     // .coderipper.toml names a built-in check and you pass only your own, that entry is an "unknown check".
     let dir = project_with(&[(
         ".coderipper.toml",
-        "[[allow]]\ncheck = \"reachability\"\nfile = \"src/lib.rs\"\nsymbol = \"f\"\nreason = \"kept\"\n",
+        "[[allow]]\ncheck = \"MOD-011\"\nfile = \"src/lib.rs\"\nsymbol = \"f\"\nreason = \"kept\"\n",
     )]);
     let result = run_checks_with(&boxed(TodoFile), &ctx(dir.path()), Tier::Fast, None);
     let unknown = result
@@ -200,11 +200,7 @@ fn an_entry_naming_a_check_you_did_not_pass_is_reported_as_unknown() {
         .iter()
         .find(|f| f.check_id == "allowlist")
         .expect("an unknown-check finding");
-    assert!(
-        unknown.summary.contains("reachability"),
-        "{}",
-        unknown.summary
-    );
+    assert!(unknown.summary.contains("MOD-011"), "{}", unknown.summary);
 }
 
 #[test]

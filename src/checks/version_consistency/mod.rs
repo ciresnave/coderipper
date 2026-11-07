@@ -155,7 +155,7 @@ fn not_the_workspace_root(project: &str, project_dir: &Path, workspace_root: &Pa
         location: None,
         subject: None,
         summary: format!(
-            "version-consistency compares a whole workspace; `{project}` is inside the workspace at {}, \
+            "WSP-010 compares a whole workspace; `{project}` is inside the workspace at {}, \
              so run it with --project on the workspace root",
             shown(workspace_root)
         ),

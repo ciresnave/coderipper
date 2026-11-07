@@ -1,7 +1,7 @@
 # Rule records, domain RDB (readability and dead weight). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "unused-parameters"
+id = "RDB-014"
 title = "A parameter the function never uses"
 domain = "RDB"
 statement = "A function parameter that the body never reads is dead weight in the signature, apart from the ones a trait forces on an implementation."
@@ -16,9 +16,9 @@ executes_project_code = true
 default_severity = "low"
 confidence_class = "high"
 kb_refs = ["RDB-006"]
-aliases = []
+aliases = ["unused-parameters"]
 remediation = "Remove the parameter, or prefix it with an underscore if the signature is imposed from outside."
-related = ["unused-return-values", "reachability"]
+related = ["ERR-012", "MOD-011"]
 lifecycle = "advisory"
 
 [rule.applicability]
@@ -164,7 +164,7 @@ default_severity = "low"
 confidence_class = "high"
 kb_refs = []
 remediation = "Delete the unused item; in a dynamic language, confirm it is not reached by reflection or a string lookup first."
-related = ["unused-parameters", "reachability"]
+related = ["RDB-014", "MOD-011"]
 lifecycle = "experimental"
 
 [rule.applicability]

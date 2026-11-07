@@ -528,10 +528,10 @@ mod tests {
     fn an_unregistered_check_is_flagged_whether_or_not_anything_ran() {
         let al = allowlist(ONE);
         let s = Suppression::new(&al);
-        let out = s.stale_findings(&["reachability", "unused-return-values"], "p");
+        let out = s.stale_findings(&["MOD-011", "ERR-012"], "p");
         assert_eq!(out.len(), 1);
         assert!(out[0].summary.contains("not registered"));
-        assert!(out[0].detail.contains("reachability, unused-return-values"));
+        assert!(out[0].detail.contains("MOD-011, ERR-012"));
     }
 
     #[test]
@@ -677,12 +677,12 @@ public_api = [
         let al = allowlist(PUBLIC);
         let mut s = Suppression::new(&al);
         let kept = s.apply(vec![
-            finding("reachability", "src/api/mod.rs", Some("f")),
-            finding("reachability", "src/api/deep/er.rs", Some("g")),
-            finding("reachability", "src/other.rs", Some("h")),
-            finding("reachability", "src/one.rs", Some("only_this")),
-            finding("reachability", "src/one.rs", Some("not_this")),
-            finding("unused-return-values", "src/api/mod.rs", Some("f")),
+            finding("MOD-011", "src/api/mod.rs", Some("f")),
+            finding("MOD-011", "src/api/deep/er.rs", Some("g")),
+            finding("MOD-011", "src/other.rs", Some("h")),
+            finding("MOD-011", "src/one.rs", Some("only_this")),
+            finding("MOD-011", "src/one.rs", Some("not_this")),
+            finding("ERR-012", "src/api/mod.rs", Some("f")),
         ]);
         let kept: Vec<_> = kept.iter().map(|f| f.subject.clone().unwrap()).collect();
         assert_eq!(kept, vec!["h", "not_this", "f"]);
@@ -703,7 +703,7 @@ public_api_crates = [
         let al = allowlist(PUBLIC_CRATES);
         let mut s = Suppression::new(&al);
         let in_member = |file: &str, member: &str, symbol: &str| {
-            let mut f = finding("reachability", file, Some(symbol));
+            let mut f = finding("MOD-011", file, Some(symbol));
             f.member = Some(member.into());
             f
         };
@@ -715,7 +715,7 @@ public_api_crates = [
             // another check in the declared crate is not covered
             {
                 let mut f = in_member("src/lib.rs", "ffi-sys", "d");
-                f.check_id = "unused-return-values".into();
+                f.check_id = "ERR-012".into();
                 f
             },
         ]);
@@ -731,9 +731,9 @@ public_api_crates = [
     fn outside_a_workspace_run_the_crate_is_matched_by_the_project_name() {
         let al = allowlist(PUBLIC_CRATES);
         let mut s = Suppression::new(&al);
-        let mut hit = finding("reachability", "src/lib.rs", Some("a"));
+        let mut hit = finding("MOD-011", "src/lib.rs", Some("a"));
         hit.project = "ffi-sys".into();
-        let miss = finding("reachability", "src/lib.rs", Some("b"));
+        let miss = finding("MOD-011", "src/lib.rs", Some("b"));
         let kept = s.apply(vec![hit, miss]);
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].subject.as_deref(), Some("b"));
@@ -743,9 +743,9 @@ public_api_crates = [
     fn a_crate_declaration_that_matches_nothing_warns_by_crate_name() {
         let al = allowlist(PUBLIC_CRATES);
         let mut s = Suppression::new(&al);
-        let _ = s.apply(vec![finding("reachability", "src/lib.rs", Some("a"))]);
-        s.mark_completed("reachability", 1);
-        let stale = s.stale_findings(&["reachability"], "p");
+        let _ = s.apply(vec![finding("MOD-011", "src/lib.rs", Some("a"))]);
+        s.mark_completed("MOD-011", 1);
+        let stale = s.stale_findings(&["MOD-011"], "p");
         assert_eq!(stale.len(), 1);
         assert!(
             stale[0].summary.contains("public_api_crates"),
@@ -767,9 +767,9 @@ public_api_crates = [
     fn a_public_api_entry_that_matches_nothing_warns_by_name() {
         let al = allowlist(PUBLIC);
         let mut s = Suppression::new(&al);
-        let _ = s.apply(vec![finding("reachability", "src/api/mod.rs", Some("f"))]);
-        s.mark_completed("reachability", 1);
-        let stale = s.stale_findings(&["reachability"], "p");
+        let _ = s.apply(vec![finding("MOD-011", "src/api/mod.rs", Some("f"))]);
+        s.mark_completed("MOD-011", 1);
+        let stale = s.stale_findings(&["MOD-011"], "p");
         assert_eq!(stale.len(), 1, "{stale:?}");
         assert!(
             stale[0].summary.contains("public_api"),

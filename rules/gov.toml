@@ -217,7 +217,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "lint-suppression"
+id = "GOV-010"
 title = "A lint suppression or an ignored test says why"
 domain = "GOV"
 statement = "Every allow attribute that silences a lint, and every ignored test, carries a reason; dead code in particular is deleted, used or gated rather than allowed."
@@ -232,7 +232,7 @@ executes_project_code = false
 default_severity = "low"
 confidence_class = "high"
 kb_refs = ["GOV-002"]
-aliases = []
+aliases = ["lint-suppression"]
 remediation = "Fix what the lint objects to, delete or use the dead code, or gate it with cfg(test) / cfg(feature); otherwise add reason = \"..\" to the allow, or name where and why an ignored test runs: #[ignore = \"..\"]."
 related = ["GOV-002", "TST-005"]
 lifecycle = "experimental"
@@ -243,7 +243,7 @@ languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "conflict-marker"
+id = "GOV-011"
 title = "No tracked file holds an unresolved merge conflict"
 domain = "GOV"
 statement = "No file in the repository contains merge conflict markers: a line that starts with seven less-than signs, a line of seven equals signs inside that region, or a line that starts with seven greater-than signs."
@@ -258,7 +258,7 @@ executes_project_code = false
 default_severity = "high"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["conflict-marker"]
 remediation = "Resolve the conflict: keep the intended lines and delete the marker lines. A file that quotes the markers on purpose puts them in a fenced code block."
 related = ["GOV-002"]
 lifecycle = "experimental"

@@ -218,11 +218,11 @@ pub enum Profile {
 /// have to be verified before we proceed".
 pub fn portfolio_floor(check_id: &str) -> Option<finding::Severity> {
     match check_id {
-        "SUP-004" | "version-consistency" => Some(finding::Severity::Medium),
-        "conflict-marker" => Some(finding::Severity::Low),
-        "patent-index-match" => Some(finding::Severity::High),
+        "SUP-004" | "WSP-010" => Some(finding::Severity::Medium),
+        "GOV-011" => Some(finding::Severity::Low),
+        "SUP-014" => Some(finding::Severity::High),
         // only the missing licence file is High; the manifest, header and holder findings are Medium and report only
-        "licence" => Some(finding::Severity::High),
+        "SUP-016" => Some(finding::Severity::High),
         _ => None,
     }
 }
@@ -241,7 +241,7 @@ impl Profile {
     fn extra_rules(self) -> Vec<&'static str> {
         match self {
             // the one rule every profile takes: a committed conflict marker is a broken file, whatever else is checked
-            Profile::Classic => vec!["conflict-marker"],
+            Profile::Classic => vec!["GOV-011"],
             Profile::Extended => {
                 let mut ids = module::neutral_rule_ids();
                 ids.extend(module::delegated_rule_ids());
@@ -1311,14 +1311,7 @@ mod tests {
         // catalog record (`tests/catalog.rs`).
         assert_eq!(
             &ids[..6],
-            [
-                "reachability",
-                "unused-return-values",
-                "unused-parameters",
-                "version-consistency",
-                "ci-protection-presence",
-                "dependency-freshness"
-            ]
+            ["MOD-011", "ERR-012", "RDB-014", "WSP-010", "WSP-011", "SUP-015"]
         );
         assert!(
             ids.len() > 6,
@@ -1422,15 +1415,15 @@ mod tests {
         assert_eq!(
             &judged[..6],
             [
-                ("reachability", check::Unit::Package),
-                ("unused-return-values", check::Unit::Package),
-                ("unused-parameters", check::Unit::Package),
+                ("MOD-011", check::Unit::Package),
+                ("ERR-012", check::Unit::Package),
+                ("RDB-014", check::Unit::Package),
                 // reads the whole workspace's versions: from a member it only says "run me on the root"
-                ("version-consistency", check::Unit::Repository),
+                ("WSP-010", check::Unit::Repository),
                 // reads one GitHub repository's settings: one finding per repository, not per member
-                ("ci-protection-presence", check::Unit::Repository),
+                ("WSP-011", check::Unit::Repository),
                 // one lockfile per workspace: one finding per locked package, not per member
-                ("dependency-freshness", check::Unit::Repository),
+                ("SUP-015", check::Unit::Repository),
             ]
         );
     }
@@ -1558,9 +1551,6 @@ mod tests {
         assert!(result.findings.is_empty());
         assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
         assert!(result.errors[0].contains("no check named \"no-such-check\""));
-        assert!(
-            result.errors[0].contains("reachability"),
-            "lists the real ids"
-        );
+        assert!(result.errors[0].contains("MOD-011"), "lists the real ids");
     }
 }

@@ -405,7 +405,7 @@ fn every_builtin_check_with_a_fixture_is_earned_and_the_two_without_are_claimed_
         "positive control: more than the legacy checks are claimed"
     );
     for (id, v) in &proofs {
-        if id == "ci-protection-presence" || id == "dependency-freshness" {
+        if id == "WSP-011" || id == "SUP-015" {
             continue;
         }
         assert_eq!(*v, Verdict::Proven, "{id}");
@@ -413,13 +413,13 @@ fn every_builtin_check_with_a_fixture_is_earned_and_the_two_without_are_claimed_
     // The positive control for 'proven' meaning anything: this claim has no fixture yet (its rule needs a GitHub repository,
     // a network fixture for a later step), so it is claimed but not earned.
     assert_eq!(
-        verdict("ci-protection-presence"),
+        verdict("WSP-011"),
         Some(Verdict::NoFixture),
         "{:?}",
-        verdict("ci-protection-presence")
+        verdict("WSP-011")
     );
     // Likewise: its check reads a registry, which a fixture directory cannot stand in for.
-    assert_eq!(verdict("dependency-freshness"), Some(Verdict::NoFixture));
+    assert_eq!(verdict("SUP-015"), Some(Verdict::NoFixture));
 }
 
 #[test]
@@ -433,31 +433,23 @@ fn fixtures_run_at_the_fast_tier_unless_the_network_is_allowed() {
 fn a_clean_twin_that_gains_the_defect_makes_the_real_module_fail() {
     // The control that the four proofs above are not vacuous: put the defect into the clean twin and the same run must fail.
     let fixtures = tempfile::tempdir().unwrap();
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("conformance/unused-parameters");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("conformance/RDB-014");
     for kind in ["defective", "clean"] {
         for file in ["Cargo.toml", "src/lib.rs", "expect.toml"] {
-            let to = fixtures
-                .path()
-                .join("unused-parameters")
-                .join(kind)
-                .join(file);
+            let to = fixtures.path().join("RDB-014").join(kind).join(file);
             std::fs::create_dir_all(to.parent().unwrap()).unwrap();
             std::fs::copy(source.join(kind).join(file), to).unwrap();
         }
     }
     let defect = std::fs::read_to_string(source.join("defective/src/lib.rs")).unwrap();
     std::fs::write(
-        fixtures.path().join("unused-parameters/clean/src/lib.rs"),
+        fixtures.path().join("RDB-014/clean/src/lib.rs"),
         defect,
     )
     .unwrap();
     let checks = coderipper::registered_checks();
     let module = coderipper::module::RustModule::new(&checks);
-    let result = run(
-        &module,
-        &Options::new(fixtures.path()).rule("unused-parameters"),
-    )
-    .unwrap();
+    let result = run(&module, &Options::new(fixtures.path()).rule("RDB-014")).unwrap();
     match &result.rules[0].verdict {
         Verdict::Failed(reasons) => assert!(
             reasons.iter().any(|r| r.contains("clean twin")),

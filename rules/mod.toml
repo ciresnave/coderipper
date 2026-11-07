@@ -1,7 +1,7 @@
 # Rule records, domain MOD (modules and public surface). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "reachability"
+id = "MOD-011"
 title = "Code nothing calls"
 domain = "MOD"
 statement = "Every function is reachable from somewhere that is not itself dead, including public items, which the compiler's own dead-code lint exempts."
@@ -16,9 +16,9 @@ executes_project_code = true
 default_severity = "medium"
 confidence_class = "medium"
 kb_refs = ["RDB-006", "MOD-001"]
-aliases = []
+aliases = ["reachability"]
 remediation = "Delete the item, or give it a caller; if it is public API on purpose, allowlist it with the reason."
-related = ["unused-parameters"]
+related = ["RDB-014"]
 lifecycle = "advisory"
 
 [rule.applicability]

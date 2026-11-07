@@ -40,12 +40,7 @@ use std::process::Command;
 
 /// The checks whose result is a function of the committed tree (see the module documentation).
 pub(crate) const CACHEABLE: &[&str] = &[
-    "reachability",
-    "unused-return-values",
-    "unused-parameters",
-    "OPS-011",
-    "MOD-005",
-    "MOD-004",
+    "MOD-011", "ERR-012", "RDB-014", "OPS-011", "MOD-005", "MOD-004",
 ];
 
 /// How many entries are kept before the oldest are dropped.
@@ -281,7 +276,7 @@ mod tests {
 
     fn finding(project: &str) -> Finding {
         Finding::new(
-            "reachability",
+            "MOD-011",
             Severity::Medium,
             Confidence::High,
             project,
@@ -301,7 +296,7 @@ mod tests {
         let ctx = CheckContext::new(repo.path());
         let runs = Cell::new(0);
         let go = || {
-            through("reachability", &ctx, || {
+            through("MOD-011", &ctx, || {
                 runs.set(runs.get() + 1);
                 Ok((vec![finding("x")], vec!["a note".to_string()]))
             })
@@ -337,10 +332,10 @@ mod tests {
                 .unwrap()
             })
         };
-        go("reachability", &ctx);
-        go("reachability", &ctx);
+        go("MOD-011", &ctx);
+        go("MOD-011", &ctx);
         assert_eq!(runs.get(), 1);
-        go("unused-parameters", &ctx);
+        go("RDB-014", &ctx);
         assert_eq!(runs.get(), 2, "another check is another key");
         // a commit that changes the tree
         std::fs::write(repo.path().join("a.txt"), "two\n").unwrap();
@@ -359,7 +354,7 @@ mod tests {
                 .success();
             assert!(ok);
         }
-        go("reachability", &ctx);
+        go("MOD-011", &ctx);
         assert_eq!(runs.get(), 3, "a new tree is a new key");
     }
 
@@ -369,15 +364,13 @@ mod tests {
         let cache = tempfile::tempdir().unwrap();
         let ctx = CheckContext::new(repo.path());
         let failed = cached(cache.path(), || {
-            through("reachability", &ctx, || {
-                Err(anyhow::anyhow!("the build failed"))
-            })
+            through("MOD-011", &ctx, || Err(anyhow::anyhow!("the build failed")))
         });
         assert!(failed.is_err());
         let runs = Cell::new(0);
         let ok = || {
             cached(cache.path(), || {
-                through("reachability", &ctx, || {
+                through("MOD-011", &ctx, || {
                     runs.set(runs.get() + 1);
                     Ok((Vec::new(), Vec::new()))
                 })
@@ -411,15 +404,13 @@ mod tests {
             Ok((Vec::new(), Vec::new()))
         };
         // no cache configured on this thread: the check runs every time
-        through("reachability", &ctx, count).unwrap();
-        through("reachability", &ctx, count).unwrap();
+        through("MOD-011", &ctx, count).unwrap();
+        through("MOD-011", &ctx, count).unwrap();
         assert_eq!(runs.get(), 2);
         // a check that reads the working tree or the network is not in the list
         let cache = tempfile::tempdir().unwrap();
         for _ in 0..2 {
-            cached(cache.path(), || {
-                through("version-consistency", &ctx, count).unwrap()
-            });
+            cached(cache.path(), || through("WSP-010", &ctx, count).unwrap());
         }
         assert_eq!(runs.get(), 4);
         // not a git repository: no key, so the check runs every time
@@ -427,7 +418,7 @@ mod tests {
         let plain_ctx = CheckContext::new(plain.path());
         for _ in 0..2 {
             cached(cache.path(), || {
-                through("reachability", &plain_ctx, count).unwrap()
+                through("MOD-011", &plain_ctx, count).unwrap()
             });
         }
         assert_eq!(runs.get(), 6);

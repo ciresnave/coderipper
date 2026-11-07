@@ -318,7 +318,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "patent-index-match"
+id = "SUP-014"
 title = "Dependencies checked against the patent-safety index"
 domain = "SUP"
 statement = "A declared dependency that the pinned agent-safety-bed patent index lists is reported by the entry's action: avoid, flag-for-review, separate-component and allow-with-conditions are surfaced with the entry's id and note."
@@ -333,7 +333,7 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "medium"
 kb_refs = []
-aliases = []
+aliases = ["patent-index-match"]
 remediation = "Follow the entry's action: pick the alternative its note names, keep a copyleft component behind a process boundary, or have the owner review it and waive the finding with an [[allow]] entry that records who reviewed it. An index match is due diligence, not a patent opinion or a clearance."
 related = ["SUP-004"]
 lifecycle = "experimental"
@@ -344,7 +344,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "dependency-freshness"
+id = "SUP-015"
 title = "Locked dependencies are at their newest versions"
 domain = "SUP"
 statement = "Every package in the lockfile is at the newest version the registry has: a package with a newer compatible version, or one a manifest requirement holds below a newer release, is reported unless a waiver carries the reason."
@@ -359,7 +359,7 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["dependency-freshness"]
 remediation = "Run `cargo update` for a compatible bump, raise the manifest's requirement for a newer major, or waive the package with an [[allow]] entry (file = \"Cargo.lock\", symbol = the package name) whose reason says what holds it back and who owns the wait."
 related = ["SUP-001", "SUP-002"]
 lifecycle = "experimental"
@@ -370,7 +370,7 @@ languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "licence"
+id = "SUP-016"
 title = "Licence file, matching manifest, SPDX headers, organisation as holder"
 domain = "SUP"
 statement = "A repository carries a licence file at its root, its manifest's licence field is one a licence file is named for, each source file names its licence in an SPDX-License-Identifier header, and the copyright holder may be the owner as a person (CireSnave, 2026-10-25, relayed by the PM: \"All licenses/copyrights can name me\"); it is reported as information."
@@ -385,7 +385,7 @@ executes_project_code = false
 default_severity = "medium"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["licence"]
 remediation = "Add LICENSE-MIT and LICENSE-APACHE (or one LICENSE) at the root, put `SPDX-License-Identifier: MIT OR Apache-2.0` at the top of each source file, record any third-party file's origin and licence in NOTICE or THIRD-PARTY, and name the organisation as the holder."
 related = ["SUP-004"]
 lifecycle = "experimental"
@@ -396,7 +396,7 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "ci-security"
+id = "SUP-017"
 title = "Pull-request workflows get no secrets, hosted runners where no GPU is needed"
 domain = "SUP"
 statement = "A workflow triggered by a pull request reads no repository secret, a pull_request_target job does not check out the pull request's head, a job that needs no GPU runs on a hosted runner, and a workflow sets its token permissions at the top."
@@ -411,7 +411,7 @@ executes_project_code = false
 default_severity = "high"
 confidence_class = "high"
 kb_refs = []
-aliases = []
+aliases = ["ci-security"]
 remediation = "Move secret-using steps to a push or workflow_run job, use pull_request (not pull_request_target) for code from forks, run GPU-free jobs on ubuntu-latest, windows-latest or macos-latest, and put `permissions: contents: read` at the top of each workflow."
 related = ["SUP-008"]
 lifecycle = "experimental"

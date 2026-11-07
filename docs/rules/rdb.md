@@ -88,7 +88,7 @@ on deep modules supplies the counterweight to over-splitting.
 None of these rules is run by the current release, except in part RDB-006 through the legacy checks named below. The
 notes say what is planned or why nothing can run yet.
 
-The legacy checks `unused-parameters` and `reachability` are the only existing checks that touch this domain, and they
+The legacy checks `RDB-014` and `MOD-011` are the only existing checks that touch this domain, and they
 overlap RDB-006: the first finds unused function parameters, the second finds unreferenced items, including public
 ones. Both are narrower than the rule, which also asks for no unused imports or private items.
 
@@ -99,7 +99,7 @@ ones. Both are narrower than the rule, which also asks for no unused imports or 
 | RDB-003 | Cognitive complexity stays within bounds | P | no check yet; planned: Clippy and complexipy results plus a baseline for regression gating; no TypeScript tool (licence) |
 | RDB-004 | Nesting, parameter count and flag arguments stay small | P | no check yet; planned: Clippy, ESLint and Ruff limits; nesting depth is not covered in Rust or Python |
 | RDB-005 | Duplicated knowledge across clone groups | P | no check yet; planned: jscpd clone groups; churn weighting and semantic clones need history and an LLM |
-| RDB-006 | No dead code, unused imports or unused private items | P | no check yet beyond the legacy checks `unused-parameters` and `reachability`, which cover only part of it; planned: rustc, knip, vulture |
+| RDB-006 | No dead code, unused imports or unused private items | P | no check yet beyond the legacy checks `RDB-014` and `MOD-011`, which cover only part of it; planned: rustc, knip, vulture |
 | RDB-007 | Magic literals get names | P | no check yet; planned: native literal scan for Rust, ESLint and Ruff elsewhere; advisory |
 | RDB-008 | Comment hygiene: owned TODOs, no commented-out code | N | built (first part): native; a `TODO` or `FIXME` in a source comment with no owner (`TODO(name)`, `@name`) or ticket (`#123`, `PROJ-123`, a link) on its line, Low, one finding per file; commented-out code is opt-in: `[rdb008] commented_out_code = true` in the repository's own `.coderipper.toml` reports runs of three or more code-shaped line comments (Low, Low confidence; about 63% of what the heuristic flagged on one corpus was documentation, so it is off by default) |
 | RDB-009 | Names tell the truth about behaviour | L | no check yet; needs an LLM tier |

@@ -44,7 +44,7 @@ fn a_build_script_that_cannot_find_what_it_needs_says_so_in_the_error() {
         ),
         ("src/lib.rs", "pub fn f() {}\n"),
     ]);
-    for check in ["reachability", "unused-parameters", "unused-return-values"] {
+    for check in ["MOD-011", "RDB-014", "ERR-012"] {
         let (code, _out, err) = run(&["check", check], repo.path());
         assert_eq!(code, 3, "{check}: {err}");
         assert!(
@@ -67,7 +67,7 @@ fn a_compile_error_is_named_with_its_code_and_place() {
             "fn main() {\n    let n: i32 = missing_name;\n}\n",
         ),
     ]);
-    let (code, _out, err) = run(&["check", "unused-return-values"], repo.path());
+    let (code, _out, err) = run(&["check", "ERR-012"], repo.path());
     assert_eq!(code, 3, "{err}");
     assert!(err.contains("Cause: error[E0425]"), "{err}");
     assert!(err.contains("missing_name"), "{err}");
@@ -83,18 +83,15 @@ fn a_finding_names_its_file_and_line_in_the_text_output() {
             "fn f() -> i32 { 1 }\nfn main() {\n    f();\n}\n",
         ),
     ]);
-    let (code, out, err) = run(
-        &["check", "unused-return-values", "--deny", "none"],
-        repo.path(),
-    );
+    let (code, out, err) = run(&["check", "ERR-012", "--deny", "none"], repo.path());
     assert_eq!(code, 0, "{err}");
     let line = out
         .lines()
-        .find(|l| l.contains("(unused-return-values)"))
+        .find(|l| l.contains("(ERR-012)"))
         .unwrap_or_else(|| panic!("no finding line: {out}"));
     assert!(line.contains(" at src/main.rs:1 "), "{line}");
     // a line still ends in its check id, as scripts and the workspace tests read it
-    assert!(line.ends_with("(unused-return-values)"), "{line}");
+    assert!(line.ends_with("(ERR-012)"), "{line}");
 }
 
 #[test]
@@ -104,10 +101,10 @@ fn a_waived_finding_names_its_place_too() {
         ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() {\n    f();\n}\n"),
         (
             ".coderipper.toml",
-            "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"fixture\"\n",
+            "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"fixture\"\n",
         ),
     ]);
-    let (code, out, err) = run(&["check", "unused-return-values"], repo.path());
+    let (code, out, err) = run(&["check", "ERR-012"], repo.path());
     assert_eq!(code, 0, "{out}\n{err}");
     let line = out
         .lines()
@@ -134,11 +131,11 @@ fn redact_withholds_what_a_failed_build_script_printed_and_names_the_failure() {
         ("src/lib.rs", "pub fn f() {}\n"),
     ]);
     // the control: without the flag the script's own words are what a developer sees
-    let (code, _out, err) = run(&["check", "reachability"], repo.path());
+    let (code, _out, err) = run(&["check", "MOD-011"], repo.path());
     assert_eq!(code, 3, "{err}");
     assert!(err.contains("registry.example"), "off: {err}");
 
-    let (code, out, err) = run(&["check", "reachability", "--redact"], repo.path());
+    let (code, out, err) = run(&["check", "MOD-011", "--redact"], repo.path());
     assert_eq!(code, 3, "redaction must not change the exit code: {err}");
     assert!(
         err.contains(
@@ -167,7 +164,7 @@ fn redact_removes_a_secret_a_compiler_message_quotes_and_keeps_the_error() {
     let token = fake_token();
     let lib_rs = format!("compile_error!(\"set API_KEY={token} first\");\n");
     let repo = common::git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", &lib_rs)]);
-    let (code, _out, err) = run(&["check", "unused-return-values", "--redact"], repo.path());
+    let (code, _out, err) = run(&["check", "ERR-012", "--redact"], repo.path());
     assert_eq!(code, 3, "{err}");
     assert!(err.contains("Cause:"), "{err}");
     assert!(err.contains("set API_KEY=<redacted>"), "{err}");

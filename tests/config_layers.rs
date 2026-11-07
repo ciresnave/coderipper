@@ -50,7 +50,7 @@ fn home_with(toml: &str) -> tempfile::TempDir {
 
 fn check(home: &Path, project: &Path, extra: &[&str]) -> assert_cmd::assert::Assert {
     coderipper(home)
-        .args(["check", "unused-return-values"])
+        .args(["check", "ERR-012"])
         .args(extra)
         .arg("--project")
         .arg(project)
@@ -74,7 +74,7 @@ fn no_config_reads_none_of_the_wide_files() {
     check(home.path(), repo.path(), &["--no-config"]).code(1);
     coderipper(home.path())
         .env("CODERIPPER_NO_CONFIG", "1")
-        .args(["check", "unused-return-values", "--project"])
+        .args(["check", "ERR-012", "--project"])
         .arg(repo.path())
         .assert()
         .code(1);
@@ -192,7 +192,7 @@ fn a_repository_file_may_set_the_profile_and_a_flag_wins() {
 #[test]
 fn a_home_file_may_waive_and_the_waiver_says_where_it_came_from() {
     let home = home_with(
-        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"discarded on purpose in this fixture\"\n",
+        "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"discarded on purpose in this fixture\"\n",
     );
     let repo = medium_project(&[]);
     let file = home.path().join(".coderipper.toml");
@@ -211,7 +211,7 @@ fn a_home_file_may_waive_and_the_waiver_says_where_it_came_from() {
 #[test]
 fn a_wide_waiver_that_matches_nothing_here_is_not_a_stale_entry() {
     let home = home_with(
-        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/elsewhere.rs\"\nreason = \"belongs to another repository\"\n",
+        "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/elsewhere.rs\"\nreason = \"belongs to another repository\"\n",
     );
     let repo = clean_project();
     coderipper(home.path())
@@ -228,7 +228,7 @@ fn a_waiver_in_the_repository_file_is_still_stale_when_it_matches_nothing() {
     let repo = clean_project();
     std::fs::write(
         repo.path().join(".coderipper.toml"),
-        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"no longer needed\"\n",
+        "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"no longer needed\"\n",
     )
     .unwrap();
     coderipper(home.path())
@@ -284,14 +284,14 @@ max_runtime_minutes = 30
     // the environment may lower the ceiling ...
     coderipper(home.path())
         .env("CODERIPPER_MAX_RUNTIME_MINUTES", "10")
-        .args(["check", "unused-return-values", "--project"])
+        .args(["check", "ERR-012", "--project"])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("max_runtime_minutes = 10"));
     // ... and never raise it
     coderipper(home.path())
         .env("CODERIPPER_MAX_RUNTIME_MINUTES", "120")
-        .args(["check", "unused-return-values", "--project"])
+        .args(["check", "ERR-012", "--project"])
         .arg(repo.path())
         .assert()
         .stderr(predicate::str::contains("max_runtime_minutes = 30"));
@@ -327,7 +327,7 @@ fn a_home_file_may_declare_public_api_and_says_where_it_came_from() {
     ]);
     let file = home.path().join(".coderipper.toml");
     coderipper(home.path())
-        .args(["check", "reachability", "--project"])
+        .args(["check", "MOD-011", "--project"])
         .arg(repo.path())
         .assert()
         .code(0)

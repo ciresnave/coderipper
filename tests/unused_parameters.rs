@@ -148,13 +148,13 @@ fn the_host_applies_the_allowlist_to_a_qualified_subject() {
         ("src/lib.rs", "pub struct S;\nimpl S { pub fn m(&self, p: i32) {} }\n"),
         (
             ".coderipper.toml",
-            "[[allow]]\ncheck = \"unused-parameters\"\nfile = \"src/lib.rs\"\nsymbol = \"S::m::p\"\nreason = \"kept for the trait impl to come\"\n",
+            "[[allow]]\ncheck = \"RDB-014\"\nfile = \"src/lib.rs\"\nsymbol = \"S::m::p\"\nreason = \"kept for the trait impl to come\"\n",
         ),
     ]);
     let result = coderipper::run_checks(
         &CheckContext::new(repo.path().to_path_buf()),
         Tier::Fast,
-        Some("unused-parameters"),
+        Some("RDB-014"),
     );
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert!(result.findings.is_empty(), "{:?}", result.findings);
