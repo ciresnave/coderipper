@@ -46,6 +46,8 @@ remediation = "Handle the failure, propagate it to the owner, or record in a com
 related = ["ERR-011", "unused-return-values"]
 lifecycle = "experimental"
 
+checked_today = "Rust only (the catalog also names TypeScript and Python, which are not read): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) or test and impl Drop blocks skipped. Five ways of dropping a failure are reported at Medium severity and Medium confidence, one finding per site: let _ = call(); _ = call(); call().ok(); as a statement; an Err(_) => {} arm; and if let Ok(..) = call with no else when the call is on a short named list (file-system, file, socket and Command calls, read, write and flush methods). A comment on the same line, up to the end of the statement, or alone on the line above is the stated reason this rule asks for and silences the site (the opposite of lint-suppression). A bare call(); whose Result is discarded is the legacy check unused-return-values. Not judged: other languages, whether the dropped value is a Result at all (syn has no types), a drop through a macro, a function that swallows internally."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
@@ -117,6 +119,8 @@ kb_refs = []
 remediation = "Define an enum or exception hierarchy for the library's failures and return it from public functions; let applications wrap it with context."
 related = ["ERR-005", "ERR-003"]
 lifecycle = "experimental"
+
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories and outside binary roots (main.rs, src/bin/); an item is public when its visibility is a bare pub and every inline module above it is pub (a pub use or a module in its own file is not followed); cfg(test) items, test functions and doc(hidden) items are skipped; methods are the pub methods of inherent impl blocks of types not private in the same file. Reports a pub fn returning Result whose error is String, &str, Box<dyn ..>, anyhow::Error or eyre::Report, or anyhow::Result (Medium severity, Medium confidence). Not judged: a type alias that hides the error, a library that only wraps another's typed error, TypeScript and Python."
 
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
