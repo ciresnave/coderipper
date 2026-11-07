@@ -1,0 +1,3 @@
+kind: Docs
+---
+**AIH-010, "the tests ran, and passed, before the work was called done", is a catalog rule, read as the CI-status reading** (CireSnave 2026-11-07, ruling 4: "the CI-status reading for now"). Pip's review found no rule that says an agent runs the tests before claiming it is finished. A repository cannot show what an agent did, so the rule's evidence is the forge's check status for the commit; a harness hook that watches the agent itself is out of scope until CireSnave says otherwise. The record is `network` (it reads the forge) and experimental. There is no checker yet: it joins the scheduled list, built on the forge reads `ci-protection-presence` already makes.
