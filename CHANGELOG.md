@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.4 - 2026-11-06 (proposed, Fix)
+
+**The one rule-count pin #262 left in `tests/neutral_module.rs` (`proofs.len() == 28`) reads the registry**, with a check that no rule is registered twice. It passed only while the neutral module had exactly 28 rules, so the first rule PR after #262 failed `every_registered_claim_is_earned_by_its_fixtures`. No source change.
+
 ## 0.43.3 - 2026-11-06 (proposed, Fix)
 
 **`zip` 9.4.0 to 9.4.1 in `Cargo.lock`** (a patch release of the archive reader the tool installer uses for the zip-packaged tools: gitleaks, lychee, zizmor, checkov on Windows). Found by the installed 0.39.0 portfolio sweep (`dependency-freshness`, Medium: "zip is locked at 9.4.0 and 9.4.1 is available"). No source change; the tool-install tests (`tools::` archive and download tests) pass on the new version.
