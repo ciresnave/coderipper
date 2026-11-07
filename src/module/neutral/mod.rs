@@ -723,7 +723,20 @@ mod tests {
         let hello = NeutralModule::new().describe().unwrap();
         let claimed: Vec<&str> = hello.rules.iter().map(|r| r.id.as_str()).collect();
         assert_eq!(claimed, rule_ids());
-        assert_eq!(rule_ids().len(), 29);
+        // a rule is registered exactly once (the count is not pinned: adding a rule must not touch this test)
+        let mut sorted = rule_ids();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            rule_ids().len(),
+            "a rule id is registered twice: {:?}",
+            rule_ids()
+        );
+        assert!(
+            !sorted.is_empty(),
+            "positive control: the registry is not empty"
+        );
         assert!(hello.rules.iter().all(|r| r.proof.is_some()));
         assert!(hello.problem().is_none());
     }

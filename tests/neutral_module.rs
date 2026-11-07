@@ -7,37 +7,22 @@ use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::{Module, NeutralModule};
 use std::path::{Path, PathBuf};
 
-const RULES: [&str; 29] = [
-    "SUP-001",
-    "SUP-004",
-    "SUP-011",
-    "DOC-005",
-    "DOC-009",
-    "WSP-001",
-    "lint-suppression",
-    "conflict-marker",
-    "patent-index-match",
-    "licence",
-    "ci-security",
-    "version-and-changelog",
-    "patent-sweep-record",
-    "CON-006",
-    "OPS-012",
-    "security-support-statement",
-    "RDB-008",
-    "EFX-003",
-    "SEC-004",
-    "CON-002",
-    "CON-003",
-    "CON-004",
-    "REL-003",
-    "API-004",
-    "API-009",
-    "ERR-004",
-    "SEC-005",
-    "EXT-003",
-    "ERR-001",
-];
+/// The rules the module registers: read from the registry, so adding a rule needs no edit here (its fixtures are still required: the
+/// proof test below fails for a registered rule without them).
+fn rules() -> Vec<String> {
+    let rules: Vec<String> = NeutralModule::new()
+        .describe()
+        .unwrap()
+        .rules
+        .iter()
+        .map(|r| r.id.clone())
+        .collect();
+    assert!(
+        rules.iter().any(|r| r == "SUP-001"),
+        "positive control: the registry holds a rule known to be there: {rules:?}"
+    );
+    rules
+}
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("conformance")
@@ -66,14 +51,14 @@ fn copy_dir(from: &Path, to: &Path) {
 }
 
 #[test]
-fn each_of_the_claims_is_earned_by_its_fixtures() {
+fn every_registered_claim_is_earned_by_its_fixtures() {
     let proofs = proofs();
     assert_eq!(
         proofs.len(),
-        RULES.len(),
+        rules().len(),
         "one verdict per claimed rule: {proofs:?}"
     );
-    for rule in RULES {
+    for rule in &rules() {
         let verdict = proofs.iter().find(|(r, _)| r == rule).map(|(_, v)| v);
         assert_eq!(verdict, Some(&Verdict::Proven), "{rule}: {proofs:?}");
     }
@@ -103,7 +88,7 @@ fn the_modules_proof_claims_are_exactly_the_rules_the_fixtures_prove() {
 /// halves. Here the defect is put into the clean twin, and then removed from the defective project.
 #[test]
 fn a_clean_twin_that_gains_the_defect_fails_and_a_defect_that_is_removed_fails() {
-    for rule in RULES {
+    for rule in &rules() {
         let source = fixtures().join(rule);
         // the defect in the twin: both directories hold the defective project; the twin still expects nothing
         let polluted = tempfile::tempdir().unwrap();
@@ -169,7 +154,7 @@ fn a_directory_that_is_not_a_git_repository_is_an_error_for_every_rule_never_cle
         Tier::Fast,
         coderipper::module::Limits::default(),
     );
-    assert_eq!(result.errors.len(), RULES.len(), "{:?}", result.errors);
+    assert_eq!(result.errors.len(), rules().len(), "{:?}", result.errors);
     assert!(result.findings.is_empty());
     assert!(result
         .outcomes
@@ -220,8 +205,13 @@ fn the_host_runs_the_module_and_reports_findings_under_the_catalog_ids() {
         .map(|f| f.check_id.as_str())
         .collect();
     assert_eq!(ids, vec!["WSP-001"], "{:?}", result.findings);
-    // the rules were asked for, and each reported an outcome
-    assert_eq!(result.outcomes.len(), RULES.len(), "{:?}", result.outcomes);
+    // every registered rule was asked for, and each reported an outcome
+    assert_eq!(
+        result.outcomes.len(),
+        rules().len(),
+        "{:?}",
+        result.outcomes
+    );
 }
 
 #[test]
@@ -277,7 +267,7 @@ fn a_project_below_the_repository_root_reads_its_own_files_even_with_a_byte_orde
 #[test]
 fn every_rule_the_module_claims_says_in_its_record_what_the_check_judges_today() {
     let catalog = coderipper::catalog::Catalog::builtin();
-    for rule in RULES {
+    for rule in &rules() {
         let record = catalog.get(rule).unwrap_or_else(|| panic!("{rule}"));
         let text = record
             .checked_today()
