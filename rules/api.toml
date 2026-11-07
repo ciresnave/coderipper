@@ -197,9 +197,9 @@ scopes = ["first_party"]
 
 [[rule]]
 id = "API-009"
-title = "Extension points flagged on exported enums and structs"
+title = "Extension points flagged on exported enums"
 domain = "API"
-statement = "Public enums and structs expected to gain members are marked so that adding them is not a breaking change."
+statement = "Public enums expected to gain variants are marked so that adding them is not a breaking change."
 rationale = "Without the marker, extending the type forces a major version, which discourages healthy growth."
 evidence_tiers = ["V1"]
 evidence_strength = "C"
