@@ -40,6 +40,7 @@ default_severity = "low"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Turn samples into doctests or run them with a snippet runner as part of continuous integration."
+aliases = ["API-010"]
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -133,6 +134,7 @@ default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Update the text to the real behaviour, or change the code if the documentation states the intent; cross-check names and signatures mechanically."
+aliases = ["RDB-010"]
 lifecycle = "experimental"
 
 [rule.applicability]

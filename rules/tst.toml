@@ -217,30 +217,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "TST-010"
-title = "Cross-component interfaces have two-sided contract tests"
-domain = "TST"
-statement = "Interfaces between components, including those living in different repositories, have contract tests that both the provider and the consumer run."
-rationale = "Each side can pass its own tests while the two disagree, and only a shared contract exposes the mismatch."
-evidence_tiers = ["V2"]
-evidence_strength = "C"
-contested = false
-scope = "portfolio"
-network = "local"
-unit = "repository"
-executes_project_code = true
-default_severity = "medium"
-confidence_class = "low"
-kb_refs = []
-remediation = "Publish the expected interactions or schema from the consumer and verify them in the provider's pipeline, for example with Pact."
-related = ["TST-006"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "TST-011"
 title = "Test order and parallelism do not change results"
 domain = "TST"
@@ -305,7 +281,8 @@ default_severity = "medium"
 confidence_class = "low"
 kb_refs = []
 remediation = "Compute expected values by hand or from an independent oracle, and check test strength with mutation results."
-related = ["AIH-005", "TST-003"]
+related = ["TST-003"]
+aliases = ["AIH-005"]
 lifecycle = "experimental"
 
 [rule.applicability]

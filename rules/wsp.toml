@@ -215,6 +215,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Write contract tests for the shared interface and run them in the pipelines of both the provider and the consumer."
 related = ["WSP-004"]
+aliases = ["TST-010"]
 lifecycle = "experimental"
 
 [rule.applicability]

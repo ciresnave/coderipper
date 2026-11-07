@@ -104,12 +104,38 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("security-support-statement");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
     triaged.retain(|id| *id != "TYP-003");
+    // the seven duplicate pairs merged on 2026-11-07: each second id is an alias of the first (see `merged_duplicates_are_aliases`)
+    triaged.retain(|id| !MERGED.iter().any(|(_, alias)| alias == id));
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
     // a registered check can also be a knowledge-base rule (MOD-005 is both): it is one catalog record, named twice here
     triaged.dedup();
     in_catalog.sort_unstable();
     assert_eq!(in_catalog, triaged);
+}
+
+/// `(canonical id, the id that became its alias)`, CireSnave 2026-11-07: "merge as aliases".
+const MERGED: &[(&str, &str)] = &[
+    ("DOC-006", "RDB-010"),
+    ("DOC-002", "API-010"),
+    ("MOD-006", "EVO-003"),
+    ("ERR-009", "SEC-008"),
+    ("WSP-007", "TST-010"),
+    ("TST-013", "AIH-005"),
+    ("CON-004", "REL-003"),
+];
+
+#[test]
+fn merged_duplicates_are_aliases() {
+    let catalog = Catalog::builtin();
+    for (canonical, alias) in MERGED {
+        assert_eq!(catalog.canonical_id(alias), Some(*canonical), "{alias}");
+        assert_eq!(catalog.canonical_id(canonical), Some(*canonical));
+        assert!(
+            !catalog.rules().iter().any(|r| r.id() == *alias),
+            "{alias} is still a record"
+        );
+    }
 }
 
 #[test]

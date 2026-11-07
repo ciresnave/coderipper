@@ -981,6 +981,8 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         tier,
         only_check_id,
     } = args;
+    // a rule named by an alias is the rule the alias names
+    let only_check_id = only_check_id.map(|id| crate::catalog::canonical_name(&id));
     let project = match manifest_path {
         Some(m) if m.is_file() && m.file_name().is_some_and(|n| n == "Cargo.toml") => Some(
             m.parent()
@@ -999,9 +1001,10 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let skip = skip_rule
         .iter()
         .map(|s| match s.split_once('=') {
-            Some((id, why)) if !id.trim().is_empty() && !why.trim().is_empty() => {
-                Ok((id.trim().to_string(), why.trim().to_string()))
-            }
+            Some((id, why)) if !id.trim().is_empty() && !why.trim().is_empty() => Ok((
+                crate::catalog::canonical_name(id.trim()),
+                why.trim().to_string(),
+            )),
             _ => Err(UsageError(format!(
                 "--skip-rule takes ID=WHY, and a skip says why; got \"{s}\""
             ))),
@@ -1050,7 +1053,12 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     // `blocking = [..]` in the repository's file: rules it has made blocking under `--profile portfolio`; a name that is no rule is an error
     let blocking: Vec<String> = repository
         .as_ref()
-        .map(|f| f.blocking.clone())
+        .map(|f| {
+            f.blocking
+                .iter()
+                .map(|n| crate::catalog::canonical_name(n))
+                .collect()
+        })
         .unwrap_or_default();
     if !blocking.is_empty() {
         let checks = crate::registered_checks();

@@ -7,7 +7,7 @@ the next planning pass starts from facts. Read at `origin/main` 81010a4 from the
 
 | Quantity | Count | Source |
 | :--- | ---: | :--- |
-| Catalog rules | 231 | every `[[rule]]` in the 21 files `rules/*.toml`, 231 distinct ids (232 before TYP-003 became an alias of MOD-010) |
+| Catalog rules | 224 | every `[[rule]]` in the 21 files `rules/*.toml`, 224 distinct ids (231 before RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005 and REL-003 became aliases, 2026-11-07, CireSnave: "merge as aliases") |
 | `BuiltinCheck::ALL` | 20 | rows of the `builtin_checks!` table in `src/builtin.rs` |
 | Covered by an in-process module check | 19 | `rule_ids()` of `src/module/neutral/` (the `ID` constant of each of its 19 files) |
 | Covered by a delegated tool | 9 | `RULES` of `src/module/delegate/mod.rs` (osv-scanner claims two ids, SUP-002 and SEC-006) |
@@ -97,7 +97,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | CON-004 | Bounded queues, channels and spawns | CON | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: unbounded_channel() and unbounded queues; twin of REL-003, build both in one package |
 | EXT-002 | No downcasts on abstractions | EXT | source only | `src/module/neutral/efx003.rs` | S | no | unswept, guess: low | medium/medium | Rust: downcast_ref, Any::downcast, TypeId; other languages instanceof |
 | EXT-003 | Implementations honour their contract | EXT | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: todo!(), unimplemented!() or "not supported" errors in non-test trait impls |
-| REL-003 | Bounded channels with overflow policy | REL | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | twin of CON-004: same detection, one package |
 | TYP-005 | Money and exact amounts avoid binary floats | TYP | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: f32 or f64 for fields or parameters named price, amount, money, cost, balance |
 | AIH-001 | One policy for humans, agents and CI | AIH | source only | `src/module/neutral/ci_security.rs` | M | yes | unswept, guess: low | medium/medium | repo files only: the pinned version agrees across hooks, CI and agent config |
 | API-008 | Public API exposes no third-party types | API | source only | `src/checks/architecture/public_surface.rs` | M | no | unswept, guess: medium | medium/medium | Rust: a public signature names a type from another crate; same reader as ARC-004 (lane C), take it after that |
@@ -126,7 +125,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | RDB-001 | Code matches the project formatter | RDB | source only | `src/module/delegate/semver.rs` | M | yes | unswept, guess: low | low/high | delegated formatter (rustfmt --check, prettier): a new tools.lock row; the delegated-tool framework is idea 5 |
 | RDB-002 | Identifiers follow language naming conventions | RDB | source only | `src/checks/unused_parameters/mod.rs` | M | yes | unswept, guess: low | low/high | Rust: the compiler lints non_snake_case and friends read by the rewriter route; other languages by regex |
 | RDB-006 | No dead code, unused imports or unused private items | RDB | source only | `src/checks/unused_parameters/mod.rs` | M | yes | swept in part: ideas 1, 2, 40 and hit 73 (Fujitsu, active, claims read); guess: medium | low/high | built in part by reachability and unused-parameters; remaining: unused imports, locals, private items (compiler lints) |
-| SEC-008 | No sensitive data in logs or telemetry | SEC | source only | `src/module/neutral/sec004.rs` | M | yes | unswept, guess: low | medium/low | twin of ERR-009; build both together |
 | SUP-013 | Only audited versions in sensitive tiers | SUP | source only | `src/checks/version_consistency/mod.rs` | M | yes | unswept, guess: low | medium/low | cargo-vet style audit records for dependencies in sensitive tiers; needs a tier declaration |
 | TST-009 | Risky modules have fuzz or property targets | TST | source only | `src/module/neutral/sec004.rs` | M | yes | unswept, guess: low | medium/low | proxy: modules parsing input with no proptest or fuzz target; low confidence |
 | ERR-005 | Cross-boundary errors keep context and cause | ERR | source only | `src/checks/architecture/modgraph.rs` | L | yes | unswept, guess: low | medium/low | proxy: bare ? or From pass-through across a declared boundary; needs components |
@@ -198,7 +196,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | DOC-008 | Changes users can see get changelog entries | DOC | history | `src/module/neutral/version_changelog.rs` | M | yes | unswept, guess: low | low/medium | which changes are user-visible is a path heuristic; builds on version-and-changelog |
 | DOC-004 | Significant architectural changes come with a decision record | DOC | history | `src/module/neutral/version_changelog.rs` | L | yes | unswept, guess: medium | low/medium | a diff that adds a dependency edge needs a base-vs-head graph; nearest: rows 42 to 51 (dependency rules, mostly expired) |
 | AIH-007 | AI-assisted commits are marked in their trailers | AIH | history | `src/module/neutral/version_changelog.rs` | S | yes | unswept, guess: low | info/high | commit trailers since the merge-base; the rule is conditional on an org policy flag |
-| EVO-003 | Divergent change inside a module | EVO | history | `src/checks/architecture/modgraph.rs` | M | yes | unswept, guess: high | low/low | same mechanism as MOD-006 (lane D); take it after that |
 | WSP-009 | Repositories forced to release together | WSP | history | `src/module/neutral/version_changelog.rs` | M | yes | unswept, guess: medium | low/low | repositories released together; needs tags or release dates across a --scope list |
 | EVO-002 | Hidden coupling found through co-change | EVO | history | `src/checks/architecture/modgraph.rs` | L | yes | unswept, guess: high | low/low | co-change mining; patent-dense per the package-d brief; lane D (MOD-006) goes first |
 | EXT-008 | Shotgun surgery when adding a variant | EXT | history | `src/checks/architecture/modgraph.rs` | L | yes | unswept, guess: high | low/low | mine variant-adding commits |
@@ -239,9 +236,7 @@ policy, not another repository; most are properties the tool either has or lacks
 | REL-004 | Idempotent message handlers | REL | a runtime | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | medium/low |  |
 | REL-010 | Crash-recovery tests for stateful components | REL | a runtime | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | medium/low |  |
 | TST-005 | Intermittent tests are assigned and time-boxed | TST | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: high | medium/low | flaky-test detection needs reruns and the forge |
-| TST-010 | Cross-component interfaces have two-sided contract tests | TST | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: low | medium/low |  |
 | WSP-007 | Interfaces between repositories have contract tests | WSP | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: low | medium/low |  |
-| API-010 | Doc samples build and execute | API | a runtime | `src/module/delegate/semver.rs` | L | yes | unswept, guess: low | low/medium | duplicate of DOC-002; doc-tests are compiled by the project test run |
 | DOC-002 | Documentation examples build and run | DOC | a runtime | `src/module/delegate/semver.rs` | L | yes | unswept, guess: low | low/medium | duplicate of API-010 |
 | REL-012 | SLO conformance checked at runtime | REL | a runtime | `src/checks/dependency_freshness/mod.rs` | L | yes | unswept, guess: low | low/medium | telemetry in staging or production |
 | TST-001 | Changed-code coverage meets threshold | TST | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: low | low/medium |  |
@@ -253,7 +248,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | PRF-008 | Tail latency tracked beside averages | PRF | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: low | low/low |  |
 | REL-008 | Fault-injection tests for declared failures | REL | a runtime | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | low/low |  |
 | TST-012 | Test duration budgets with size classes | TST | a runtime | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: low | low/low |  |
-| AIH-005 | Tests check the specification, not the code's own output | AIH | a model | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | medium/low | also needs tests run |
 | COR-005 | Requirements and doc claims traced to asserting tests | COR | a model | `src/module/neutral/doc009.rs` | L | yes | unswept, guess: low | medium/low |  |
 | ERR-010 | Compound state changes say whether they are all-or-nothing | ERR | a model | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | medium/low |  |
 | RDB-009 | Names tell the truth about behaviour | RDB | a model | `src/checks/architecture/passthrough.rs` | L | yes | unswept, guess: low | medium/low |  |
@@ -265,7 +259,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | AIH-008 | No abstractions or options nobody asked for | AIH | a model | `src/checks/architecture/passthrough.rs` | L | yes | unswept, guess: low | low/low |  |
 | API-012 | Unpromised behaviour not accidentally relied upon | API | a model | `src/module/delegate/semver.rs` | L | yes | unswept, guess: low | low/low |  |
 | DOC-006 | Docs and comments match current behaviour | DOC | a model | `src/module/neutral/doc009.rs` | L | yes | unswept, guess: low | low/low |  |
-| RDB-010 | Comments and docstrings match current behaviour | RDB | a model | `src/module/neutral/doc009.rs` | L | yes | unswept, guess: low | low/low | duplicate of DOC-006 |
 | RDB-012 | Additions match how the repository already works | RDB | a model | `src/module/neutral/rdb008.rs` | L | yes | unswept, guess: low | low/low |  |
 | TST-008 | Test names agree with assertions | TST | a model | `src/module/neutral/rdb008.rs` | L | yes | unswept, guess: low | low/low |  |
 | TYP-008 | Invariants are written down and checked | TYP | a model | `src/checks/architecture/invariants.rs` | L | yes | unswept, guess: low | low/low |  |

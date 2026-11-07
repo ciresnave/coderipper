@@ -93,7 +93,8 @@ default_severity = "medium"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Give each queue a capacity and state in the specification whether a full queue blocks the producer, sheds load or returns an error; cap pool sizes the same way."
-related = ["REL-003", "CON-008"]
+related = ["CON-008"]
+aliases = ["REL-003"]
 lifecycle = "experimental"
 
 checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions (tokio::test too) skipped. A call that resolves through the file's use items to std::sync::mpsc::channel, tokio's unbounded_channel, futures::channel::mpsc::unbounded, crossbeam_channel::unbounded (or crossbeam::channel), flume::unbounded or async_channel::unbounded (Medium severity, Medium confidence); a channel given a capacity (sync_channel, tokio's mpsc::channel(n), bounded(n)) is not reported. Not judged: whether a stated overflow policy exists in the specification, queues that are not channels (a Vec or VecDeque used as one), worker pools and spawn sites with no capacity, other languages."
