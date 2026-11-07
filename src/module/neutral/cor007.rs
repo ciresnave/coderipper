@@ -56,7 +56,7 @@ fn operand(e: &syn::Expr) -> Operand {
     match e {
         syn::Expr::Lit(l) => match &l.lit {
             syn::Lit::Float(f) => match f.base10_parse::<f64>() {
-                Ok(v) if v == 0.0 => Operand::Sentinel,
+                Ok(0.0) => Operand::Sentinel,
                 _ => Operand::Float(format!("the literal `{f}`")),
             },
             syn::Lit::Int(i) if matches!(i.suffix(), "f32" | "f64") => {
