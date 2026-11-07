@@ -42,7 +42,7 @@ pub(crate) struct ArchitectureConfig {
     /// `[architecture.volatile]` (ARC-003/004; not read yet).
     #[serde(default)]
     pub volatile: Option<VolatileDecl>,
-    /// `[architecture.composition]` (ARC-012; not read yet).
+    /// `[architecture.composition]` (ARC-012).
     #[serde(default)]
     pub composition: Option<CompositionDecl>,
     /// `[architecture.api_budget]` (ARC-006).
@@ -131,13 +131,13 @@ pub(crate) struct VolatileDecl {
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
-#[expect(
-    dead_code,
-    reason = "parsed so a declaration may carry every key of the accepted format; the later ARC and MOD rules read them"
-)]
 pub(crate) struct CompositionDecl {
+    /// Files (or directories, or `*` globs) where concrete adapters may be built.
     #[serde(default)]
     pub roots: Vec<String>,
+    /// Names of the traits that are the project's ports. Empty: every trait declared in a workspace crate is one.
+    #[serde(default)]
+    pub ports: Vec<String>,
 }
 
 /// A calendar date, enough to say whether a waiver has ended.

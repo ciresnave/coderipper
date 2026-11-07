@@ -16,6 +16,7 @@ mod conflict_marker;
 mod doc005;
 mod doc009;
 mod efx003;
+mod err001;
 mod ext003;
 mod licence;
 mod lint_suppression;
@@ -26,6 +27,7 @@ mod patent_index;
 mod patent_sweep;
 mod rdb008;
 mod rust_package;
+mod rust_src;
 mod sec004;
 mod sec005;
 mod sec007;
@@ -36,6 +38,7 @@ mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
+mod typ006;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -199,6 +202,14 @@ const RULES: &[Rule] = &[
         id: "SUP-005",
         judge: sup005::judge,
     },
+    Rule {
+        id: "ERR-001",
+        judge: err001::judge,
+    },
+    Rule {
+        id: "TYP-006",
+        judge: typ006::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -211,7 +222,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
-        "REL-007",
+        "REL-007", "ERR-001", "TYP-006",
     ]
 }
 
@@ -576,6 +587,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
     ("SUP-005", &["rust"]),
+    ("ERR-001", &["rust"]),
+    ("TYP-006", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -612,6 +625,8 @@ const PROVEN: &[&str] = &[
     "SUP-009",
     "OPS-009",
     "SUP-005",
+    "ERR-001",
+    "TYP-006",
 ];
 
 impl Module for NeutralModule {
