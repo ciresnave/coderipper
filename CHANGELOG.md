@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.8 - 2026-11-07 (proposed, Fix)
+
+**The `ci.yml` caller of the reusable portfolio workflow is pinned to the commit that installs coderipper 0.39.0** (`portfolio.yml@556c7c587b4c...`, from the 0.20.1 commit `84cb133`), the second step of the two-step pin after the workflow itself moved to 0.39.0 (#253), as for 0.20.1 (#235, #236). No source change.
+
 ## 0.43.7 - 2026-11-07 (proposed, Added: TYP-006 (opt-in, Rust))
 
 **TYP-006 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check TYP-006`; it is in no profile. It reads production source with `syn` and reports a `.unwrap()` or `.expect(..)` call that has no written invariant, as one Medium finding per file at high confidence naming the first site and the count. A site is justified by a comment on the same line, up to the end of the statement, or alone on the line above that begins with `INVARIANT`, `SAFETY` or `UNWRAP-OK`, or by an `expect("..")` message that states why it cannot fail. Test code is skipped; `unwrap_or`, `unwrap_or_else`, `unwrap_or_default`, `unwrap_err` and `expect_err` are not sites. **Why opt-in:** run on the committed trees of eight repositories it counts 517 unjustified calls in 125 files (coderipper 7 in 6 files, auth-framework 64 in 30, Unpopped 74 in 29, PersistAnt 75 in 20, configurant 1 in 1, httpant 33 in 8, releaseant 7 in 5, synapse 256 in 26), so it is a count to read, not a gate. These are counts only; no sample was read for false positives, and a type with its own `unwrap` method is counted. It is also the static core of ERR-003, which is not built. Not seen: TypeScript non-null assertions and other languages, the receiver's type, calls inside macros.
