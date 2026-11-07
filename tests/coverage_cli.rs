@@ -206,10 +206,38 @@ fn proven_rust_checks() -> u64 {
         .count() as u64
 }
 
-/// The language-neutral rules and the Rust-only neutral rules (lint-suppression, conflict-marker, patent-index-match, licence, OPS-012,
-/// security-support-statement, RDB-008, EFX-003, SEC-004, SEC-005, EXT-003 and the others with a fixture) that the Rust language also gets. It changes when
-/// one of those rules gains or loses a fixture, never when a built-in Rust check is added.
-const LANGUAGE_NEUTRAL_COVERED: u64 = 26;
+/// The delegated rules (claimed but not proven while their tools are not installed), from the registry.
+fn delegated_count() -> u64 {
+    coderipper::module::delegated_rule_ids().len() as u64
+}
+
+/// The proven rules of the language-neutral module that cover `language`: read from the module's claims (a claim that names languages
+/// covers only those) and the catalog (a rule counts where its record applies to the language), so adding a rule with a fixture needs no edit here.
+fn neutral_covered(language: &str) -> u64 {
+    use coderipper::module::Module;
+    let hello = coderipper::module::NeutralModule::new().describe().unwrap();
+    let catalog = coderipper::catalog::Catalog::builtin();
+    let covered = hello
+        .rules
+        .iter()
+        .filter(|r| {
+            r.proof.is_some()
+                && r.status != coderipper::module::ClaimStatus::NotApplicable
+                && r.covers_language(language)
+                && catalog.get(&r.id).is_some_and(|rule| {
+                    rule.applicability()
+                        .languages
+                        .iter()
+                        .any(|l| l.covers(language))
+                })
+        })
+        .count() as u64;
+    assert!(
+        covered > 0,
+        "positive control: the module covers {language}"
+    );
+    covered
+}
 
 #[test]
 fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape() {
@@ -243,17 +271,17 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     // the proven built-in Rust checks (the `proven` rows of the table in src/builtin.rs), plus the proven language-neutral and Rust-only neutral rules
     assert_eq!(
         rust["covered"],
-        proven_rust_checks() + LANGUAGE_NEUTRAL_COVERED
+        proven_rust_checks() + neutral_covered("rust")
     );
     // ci-protection-presence, dependency-freshness and the eleven delegated ones: SEC-002, OPS-006, SUP-002, SEC-006, DOC-010, SUP-008, API-006, SEC-009, REL-005, API-001, API-007 (no tool is installed in the empty tools directory
     // this run uses)
-    assert_eq!(rust["claimed_unproven"], 13);
+    assert_eq!(rust["claimed_unproven"], delegated_count() + 2);
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the six language-neutral rules apply to it (the eleven delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], 16);
-    assert_eq!(ts["claimed_unproven"], 11);
+    // no TypeScript module, but the language-neutral rules apply to it (the eleven delegated rules are gaps while their tools are not installed)
+    assert_eq!(ts["covered"], neutral_covered("typescript"));
+    assert_eq!(ts["claimed_unproven"], delegated_count());
     assert_eq!(
         ts["note"],
         "no module for typescript, only the language-neutral rules"
@@ -314,7 +342,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
         .find(|l| l["language"] == "python")
         .unwrap_or_else(|| panic!("{text}"));
     // the five rules that read any file kind are covered; SUP-001 reads Cargo and npm files only
-    assert_eq!(py["covered"], 15, "{py}");
+    assert_eq!(py["covered"], neutral_covered("python"), "{py}");
     let gaps: Vec<&str> = py["gaps"]
         .as_array()
         .unwrap()
@@ -329,7 +357,7 @@ fn a_language_the_lockfile_rule_does_not_read_shows_it_as_a_gap_but_typescript_d
     let rust = lines.iter().find(|l| l["language"] == "rust").unwrap();
     assert_eq!(
         rust["covered"],
-        proven_rust_checks() + LANGUAGE_NEUTRAL_COVERED,
+        proven_rust_checks() + neutral_covered("rust"),
         "{rust}"
     );
 }

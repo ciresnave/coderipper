@@ -1,0 +1,6 @@
+# The seeded defect: a deprecation with no version and no note, line 2.
+
+[[expect]]
+rule = "API-004"
+file = "src/lib.rs"
+line = 2
