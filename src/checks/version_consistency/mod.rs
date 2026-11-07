@@ -36,7 +36,7 @@ use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::package::{metadata, Metadata};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
@@ -130,11 +130,36 @@ impl Check for VersionConsistencyCheck {
             );
         }
 
+        let mut interfaces: BTreeSet<String> = BTreeSet::new();
+        for entry in allowlist.interfaces() {
+            anyhow::ensure!(
+                meta.packages.iter().any(|p| p.name == entry.package),
+                "[[interface]] names package `{}`, which is not a package of this project (members: {})",
+                entry.package,
+                meta.packages
+                    .iter()
+                    .map(|p| p.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            anyhow::ensure!(
+                !tracked.contains_key(&entry.package),
+                "package `{}` is named by both [[tracks]] and [[interface]]; it follows one rule",
+                entry.package
+            );
+            interfaces.insert(entry.package.clone());
+        }
+
         let workspace_version = workspace_package_version(&workspace_root)?;
-        Ok(evaluate(&packages, workspace_version.as_deref(), &tracked)
-            .into_iter()
-            .map(|p| p.into_finding(&project))
-            .collect())
+        Ok(evaluate_with(
+            &packages,
+            workspace_version.as_deref(),
+            &tracked,
+            &interfaces,
+        )
+        .into_iter()
+        .map(|p| p.into_finding(&project))
+        .collect())
     }
 }
 
@@ -317,12 +342,42 @@ pub(crate) enum Problem {
     },
     /// A package that tracks another project does not match that project's manifest.
     TrackMismatch { pkg: Pkg, tracked: Tracked },
+    /// The project is at a major release (`X.0.0`, or `0.Y.0` before 1.0), where every interface crate meets the project number, and
+    /// this one does not.
+    InterfaceBehindMajor { pkg: Pkg, project_version: String },
+}
+
+/// Whether a version is a major release: the first non-zero number is the last non-zero one (`2.0.0`, `0.5.0`, `0.0.3`), and it carries no pre-release tag.
+fn is_major_release(v: &str) -> bool {
+    let core = strip_build(v);
+    if core.contains('-') {
+        return false;
+    }
+    let nums: Vec<u64> = core.split('.').filter_map(|p| p.parse().ok()).collect();
+    if nums.len() != 3 {
+        return false;
+    }
+    match nums.iter().position(|n| *n != 0) {
+        Some(i) => nums[i + 1..].iter().all(|n| *n == 0),
+        None => false,
+    }
 }
 
 pub(crate) fn evaluate(
     packages: &[Pkg],
     workspace_version: Option<&str>,
     tracked: &BTreeMap<String, Tracked>,
+) -> Vec<Problem> {
+    evaluate_with(packages, workspace_version, tracked, &BTreeSet::new())
+}
+
+/// [`evaluate`] with the project's `[[interface]]` crates: each is left out of the uniform comparison and keeps its own version, until the
+/// project is at a major release, where every one of them must be at the project's number.
+pub(crate) fn evaluate_with(
+    packages: &[Pkg],
+    workspace_version: Option<&str>,
+    tracked: &BTreeMap<String, Tracked>,
+    interfaces: &BTreeSet<String>,
 ) -> Vec<Problem> {
     let mut problems = Vec::new();
 
@@ -339,7 +394,7 @@ pub(crate) fn evaluate(
 
     let uniform: Vec<&Pkg> = packages
         .iter()
-        .filter(|p| !tracked.contains_key(&p.name))
+        .filter(|p| !tracked.contains_key(&p.name) && !interfaces.contains(&p.name))
         .collect();
     let all: Vec<(String, String)> = uniform
         .iter()
@@ -350,7 +405,18 @@ pub(crate) fn evaluate(
             strip_build(v).to_string(),
             "`[workspace.package] version`".to_string(),
         ),
-        None if uniform.len() < 2 => return problems,
+        None if uniform.len() < 2 => {
+            // one package follows the project number: it is the project's version, for the interface crates to meet at a major release
+            if let Some(only) = uniform.first() {
+                interface_problems(
+                    packages,
+                    interfaces,
+                    strip_build(&only.version),
+                    &mut problems,
+                );
+            }
+            return problems;
+        }
         None => {
             let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
             for p in &uniform {
@@ -369,6 +435,7 @@ pub(crate) fn evaluate(
             (best.0, basis)
         }
     };
+    interface_problems(packages, interfaces, &expected, &mut problems);
     for pkg in uniform {
         if strip_build(&pkg.version) != expected {
             problems.push(Problem::Outlier {
@@ -380,6 +447,25 @@ pub(crate) fn evaluate(
         }
     }
     problems
+}
+
+fn interface_problems(
+    packages: &[Pkg],
+    interfaces: &BTreeSet<String>,
+    project_version: &str,
+    problems: &mut Vec<Problem>,
+) {
+    if !is_major_release(project_version) {
+        return;
+    }
+    for pkg in packages.iter().filter(|p| interfaces.contains(&p.name)) {
+        if strip_build(&pkg.version) != project_version {
+            problems.push(Problem::InterfaceBehindMajor {
+                pkg: pkg.clone(),
+                project_version: project_version.to_string(),
+            });
+        }
+    }
 }
 
 /// Build metadata (`+build.5`) is not part of a version's precedence or of "the same number".
@@ -528,6 +614,33 @@ impl Problem {
                 )),
                 member: None,
             },
+            Problem::InterfaceBehindMajor {
+                pkg,
+                project_version,
+            } => Finding {
+                check_id: CHECK_ID.into(),
+                claim: crate::finding::Claim::Presence,
+                severity: Severity::High,
+                confidence: Confidence::High,
+                project: project.to_string(),
+                location: Some(Location {
+                    file: pkg.manifest.clone(),
+                    line: None,
+                }),
+                subject: Some(pkg.name.clone()),
+                summary: format!(
+                    "`{}` is at version {} but the project is at the major release {project_version}, where every interface crate meets the project number",
+                    pkg.name, pkg.version
+                ),
+                detail: format!(
+ "`{}` is declared in an `[[interface]]` entry, so it versions by its own interface between major releases. At a major release (the project is at {project_version}) all interface crates are at one number with the project, so a consumer can tell which versions go together.",
+                    pkg.name
+                ),
+                positive_control: Some(format!(
+                    "{project_version} was recognised as a major release, so the interface crates were held to it"
+                )),
+                member: None,
+            },
         }
     }
 }
@@ -613,6 +726,16 @@ mod tests {
         let found = evaluate(&pkgs, None, &tracked);
         assert_eq!(found.len(), 1);
         assert!(matches!(&found[0], Problem::TrackMismatch { pkg, .. } if pkg.name == "emit"));
+    }
+
+    #[test]
+    fn a_major_release_is_the_first_nonzero_number_with_nothing_after_it() {
+        for v in ["1.0.0", "2.0.0", "0.5.0", "0.0.3", "0.5.0+build.2"] {
+            assert!(is_major_release(v), "{v}");
+        }
+        for v in ["1.0.1", "0.5.1", "1.2.0", "0.0.0", "1.0.0-rc.1", "x"] {
+            assert!(!is_major_release(v), "{v}");
+        }
     }
 
     #[test]
