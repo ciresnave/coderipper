@@ -1,0 +1,5 @@
+# The seeded defect: the lockfile resolves one package to four versions. The finding is at the lockfile.
+
+[[expect]]
+rule = "SUP-005"
+file = "Cargo.lock"
