@@ -39,6 +39,7 @@ mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
+mod typ005;
 mod typ006;
 #[cfg(test)]
 mod variants;
@@ -184,6 +185,10 @@ const RULES: &[Rule] = &[
         judge: ext003::judge,
     },
     Rule {
+        id: "TYP-005",
+        judge: typ005::judge,
+    },
+    Rule {
         id: "SEC-007",
         judge: sec007::judge_threat,
     },
@@ -227,7 +232,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
-        "REL-007", "ERR-001", "TYP-006", "EXT-002",
+        "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005",
     ]
 }
 
@@ -591,6 +596,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
@@ -626,6 +632,7 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "TYP-005",
     "SEC-007",
     "REL-007",
     "SUP-009",
