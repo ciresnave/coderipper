@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.16 - 2026-11-08 (proposed, Fix)
+
+**CI: the caller pins the portfolio workflow at the commit that exempts "declares no `[architecture]` table" notes (#279).** The pin was the 0.39.0 commit, so main's Portfolio job stayed red on the ARC-001..007 notes after #279 fixed the workflow. Only `ci.yml` changes; no code.
+
 ## 0.43.15 - 2026-11-08 (proposed, Fixed: the portfolio workflow no longer fails a repository for not declaring an `[architecture]` table)
 
 **The reusable portfolio workflow treated "ARC-001 not run: this repository declares no [architecture] table" as a rule that failed to run**, so every repository without a declaration (CodeRipper's own main included, red since 0.39.0 put the ARC rules in the portfolio profile) failed its sweep job with "a rule did not run". Declaring an architecture is the repository's choice and the rules say so in their own note ("a gap, not a pass"); the step now leaves those notes out of the failure test. Every other "not run" note still fails the job.
