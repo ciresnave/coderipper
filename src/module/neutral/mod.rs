@@ -39,6 +39,7 @@ mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
+mod tst003;
 mod typ005;
 mod typ006;
 #[cfg(test)]
@@ -219,6 +220,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "TYP-006",
         judge: typ006::judge,
+    },
+    Rule {
+        id: "TST-003",
+        judge: tst003::judge,
     },
     Rule {
         id: "EXT-002",
@@ -605,6 +610,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("TST-003", &["rust"]),
     ("EXT-002", &["rust"]),
 ];
 
@@ -646,6 +652,7 @@ const PROVEN: &[&str] = &[
     "SUP-005",
     "ERR-001",
     "TYP-006",
+    "TST-003",
     "EXT-002",
 ];
 
