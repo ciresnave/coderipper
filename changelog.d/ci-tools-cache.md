@@ -1,0 +1,3 @@
+kind: Fix
+---
+**CI keeps the pinned tools the delegated tests install.** `ci.yml` caches `$RUNNER_TEMP/coderipper-test-tools` (key: the OS and a hash of `src/tools/tools.lock`) and the eight `tests/delegated_*.rs` files install into it when `CODERIPPER_TEST_TOOLS_DIR` names it (a throwaway tempdir otherwise, as before). A tool is downloaded once, not once per test binary per run, so a GitHub releases outage no longer fails a run that already has the tool. The cache is not trusted: the install hashes an installed tool against the lock and fetches it again when it differs (checked by overwriting the cached gitleaks with garbage: the next run restored the original bytes).

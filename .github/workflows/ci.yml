@@ -49,7 +49,18 @@ jobs:
       - name: cargo build
         run: cargo build --locked --all-targets
 
+      # The pinned tools the delegated_* tests install (buf, checkov, gitleaks, lychee, osv, semver, squawk, zizmor), kept between
+      # runs so a GitHub releases outage does not fail a test that only needs a tool it already downloaded. The key is the lock, so a
+      # changed pin is a miss; a damaged entry is not trusted either (the install hashes the file against the lock and fetches again).
+      - name: Cache the pinned tools the delegated tests install
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/coderipper-test-tools
+          key: ${{ runner.os }}-tools-${{ hashFiles('src/tools/tools.lock') }}
+
       - name: cargo test
+        env:
+          CODERIPPER_TEST_TOOLS_DIR: ${{ runner.temp }}/coderipper-test-tools
         run: cargo test --locked --no-fail-fast
 
   # CodeRipper on itself, as every Rust repository of the portfolio is meant to run it (ROADMAP item 7). `--deny medium` fails the
