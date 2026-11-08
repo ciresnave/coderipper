@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.15 - 2026-11-08 (proposed, Fixed: the portfolio workflow no longer fails a repository for not declaring an `[architecture]` table)
+
+**The reusable portfolio workflow treated "ARC-001 not run: this repository declares no [architecture] table" as a rule that failed to run**, so every repository without a declaration (CodeRipper's own main included, red since 0.39.0 put the ARC rules in the portfolio profile) failed its sweep job with "a rule did not run". Declaring an architecture is the repository's choice and the rules say so in their own note ("a gap, not a pass"); the step now leaves those notes out of the failure test. Every other "not run" note still fails the job.
+
 ## 0.43.14 - 2026-11-07 (proposed, Breaking: a new default-on rule (TST-003))
 
 **TST-003 is built** (`src/module/neutral/tst003.rs`, the neutral module's Rust reading; default-on). It reports a `#[test]` function (any `#[test]`, `#[tokio::test]` and the like, in `tests/` files and `#[cfg(test)]` modules alike) whose body is **empty**, whose only assertions are **tautologies** (`assert!(true)`, `assert!(!false)`, `assert_eq!` of the same literal) with no other call or check, or that **calls nothing and checks nothing** (only `let` bindings and literals) (Medium severity; High confidence for an empty body or a tautology, Medium for the no-call body). A test that calls code and asserts nothing (a smoke test), a test marked `#[ignore]` or `#[should_panic]`, and a test whose body declares an item (a nested `fn`, a compile-time reachability check) are not reported. The half of the catalog statement that needs per-test coverage, a test that names a unit and never reaches it, is not built and the record says so (`checked_today`).
