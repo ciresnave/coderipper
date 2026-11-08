@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.17 - 2026-11-08 (proposed, Added: version-consistency has a per-interface mode, `[[interface]]` in `.coderipper.toml`)
+
+**A project whose crates version by their own interface can say so** (CireSnave's ruling, board 295, 2026-10-25/28: each interface crate versions by its own interface, meeting at one number at major releases). List the crates with `[[interface]]` (`package` and a required `reason`); each is left out of the one-version comparison, so interface crates may differ from each other and from the project between major releases, while the root package and the tools keep following the project number. When the project is at a major release (`X.0.0`, or `0.Y.0` before 1.0), every interface crate must be at that number, and one that is not is reported. An entry naming no package of the project, or a package that is also in `[[tracks]]`, is an error, never a pass. Without `[[interface]]` nothing changes. Built for FireLine.
+
 ## 0.43.16 - 2026-11-08 (proposed, Fix)
 
 **CI: the caller pins the portfolio workflow at the commit that exempts "declares no `[architecture]` table" notes (#279).** The pin was the 0.39.0 commit, so main's Portfolio job stayed red on the ARC-001..007 notes after #279 fixed the workflow. Only `ci.yml` changes; no code.
