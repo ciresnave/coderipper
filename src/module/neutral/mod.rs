@@ -38,8 +38,8 @@ mod sup005;
 mod sup009;
 mod sup011;
 mod support_statement;
-mod typ005;
 mod surface;
+mod typ005;
 mod typ006;
 #[cfg(test)]
 mod variants;
