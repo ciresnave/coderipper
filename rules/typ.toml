@@ -90,6 +90,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Store amounts as integers of the smallest unit or in a decimal type, and wrap them in a money type."
 related = ["TYP-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) skipped: a named struct or enum-variant field, a function or method parameter, a let binding with a type annotation, or a function return whose name has a word price, cost, balance, fee, salary, wage, payment, amount, money, revenue or charge (a plural counts) and whose type, as written, is f32 or f64 (also inside Option, Vec, a reference or a tuple). A name with a word such as rate, ratio, percent, factor, scale, weight or score is left out. One Medium finding with Low confidence per site; opt-in (check TYP-005). Not judged: a float under a name that does not say money, a type alias for a float, an inferred binding, a generic later instantiated with a float, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
