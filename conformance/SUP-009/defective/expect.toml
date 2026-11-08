@@ -1,0 +1,6 @@
+# The seeded defect: a release workflow that publishes (line 10) and makes no SBOM.
+
+[[expect]]
+rule = "SUP-009"
+file = ".github/workflows/release.yml"
+line = 10
