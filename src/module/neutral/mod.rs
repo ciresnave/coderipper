@@ -22,6 +22,7 @@ mod ext003;
 mod licence;
 mod lint_suppression;
 mod lock_order;
+mod ops009;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
@@ -30,8 +31,11 @@ mod rust_package;
 mod rust_src;
 mod sec004;
 mod sec005;
+mod sec007;
 mod sup001;
 mod sup004;
+mod sup005;
+mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
@@ -180,6 +184,26 @@ const RULES: &[Rule] = &[
         judge: ext003::judge,
     },
     Rule {
+        id: "SEC-007",
+        judge: sec007::judge_threat,
+    },
+    Rule {
+        id: "REL-007",
+        judge: sec007::judge_failure,
+    },
+    Rule {
+        id: "SUP-009",
+        judge: sup009::judge,
+    },
+    Rule {
+        id: "OPS-009",
+        judge: ops009::judge,
+    },
+    Rule {
+        id: "SUP-005",
+        judge: sup005::judge,
+    },
+    Rule {
         id: "ERR-001",
         judge: err001::judge,
     },
@@ -202,8 +226,8 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "ERR-001",
-        "TYP-006", "EXT-002",
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
+        "REL-007", "ERR-001", "TYP-006", "EXT-002",
     ]
 }
 
@@ -567,6 +591,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
     ("EXT-002", &["rust"]),
@@ -601,6 +626,11 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "SEC-007",
+    "REL-007",
+    "SUP-009",
+    "OPS-009",
+    "SUP-005",
     "ERR-001",
     "TYP-006",
     "EXT-002",

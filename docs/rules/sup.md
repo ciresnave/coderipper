@@ -70,11 +70,11 @@ governance domain. Procedural macros and build scripts both execute whatever the
 | SUP-002 | Dependencies free of known advisories | N | built: delegated to osv-scanner against the OSV database on the day of the run; needs the tool and the network |
 | SUP-003 | Dependency licences satisfy policy | N | no check yet (catalog record only; planned: cargo-deny licenses (Rust); no check yet elsewhere) |
 | SUP-004 | Dependencies only from approved sources | N | built: native; Cargo and npm dependencies that are not a published version (path outside the repository, git) and `[patch]`/`[replace]` paths, plus `include!`, `#[path]` and `CARGO_MANIFEST_DIR` joins that leave the crate. The registry allowlist is not judged |
-| SUP-005 | Limit on multiple versions of one dependency | N | no check yet (catalog record only; planned: cargo-deny bans, npm ls) |
+| SUP-005 | Limit on multiple versions of one dependency | N | check `SUP-005` (Rust, Info): a package that `Cargo.lock` resolves to more than three versions is listed with them; the limit is chosen from the corpus and is a constant |
 | SUP-006 | Declared dependencies that are never used | P | no check yet (catalog record only; planned: cargo-machete, knip, deptry; needs import resolution) |
 | SUP-007 | Justification record for each new dependency | M | no check yet (catalog record only; needs a human decision) |
 | SUP-008 | CI workflows pinned and least-privileged | N | built: delegated to zizmor (actions and images not pinned to a hash or digest, broad token permissions) on workflows and action definitions; a missing tool is a reported gap |
-| SUP-009 | Release produces and stores an SBOM | N | no check yet (catalog record only; planned: look for a generation step in release workflows) |
+| SUP-009 | Release produces and stores an SBOM | N | check `SUP-009` (Info): a GitHub Actions workflow that publishes a release and names no SBOM tool; releases made elsewhere and SBOMs made in called workflows are not seen |
 | SUP-010 | Signed artifacts with build provenance | N | no check yet (catalog record only; planned: look for signing and provenance steps (the level is a human choice)) |
 | SUP-011 | Third-party code excluded from own analysis | N | built: native; vendored directories (`vendor`, `third_party`, `node_modules`, ...) are named in the codecov, codacy, sonar-project, eslintignore or deepsource configuration; whether the name is an exclusion is not judged |
 | SUP-012 | New package names screened for squatting | N | no check yet (catalog record only; planned: registry existence, age and similarity lookups) |
