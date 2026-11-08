@@ -174,6 +174,10 @@ const RULES: &[Rule] = &[
         judge: surface::judge_api009,
     },
     Rule {
+        id: "COR-001",
+        judge: surface::judge_cor001,
+    },
+    Rule {
         id: "ERR-004",
         judge: surface::judge_err004,
     },
@@ -236,8 +240,8 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
-        "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005",
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
+        "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005",
     ]
 }
 
@@ -598,6 +602,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("REL-003", &["rust"]),
     ("API-004", &["rust"]),
     ("API-009", &["rust"]),
+    ("COR-001", &["rust"]),
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
@@ -635,6 +640,7 @@ const PROVEN: &[&str] = &[
     "REL-003",
     "API-004",
     "API-009",
+    "COR-001",
     "ERR-004",
     "SEC-005",
     "EXT-003",
