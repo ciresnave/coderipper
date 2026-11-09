@@ -20,7 +20,8 @@
 //! that never calls it sees no wide file at all, so a library run is exactly as hermetic as before.
 
 use crate::allowlist::{
-    AllowEntry, BufSettings, CliWaiver, ReachabilitySettings, SkipMemberEntry, TrackEntry,
+    AllowEntry, BufSettings, CliWaiver, InterfaceEntry, ReachabilitySettings, SkipMemberEntry,
+    TrackEntry,
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -36,7 +37,7 @@ const SYSTEM_FILE_NAME: &str = "coderipper.toml";
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
-    "[[allow]], [[tracks]], [[skip_member]], [[cli_waiver]], [buf], [reachability], [architecture] and profile";
+    "[[allow]], [[tracks]], [[interface]], [[skip_member]], [[cli_waiver]], [buf], [reachability], [architecture] and profile";
 
 /// How findings are written to stdout (`--message-format`, and the key of the same name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -99,6 +100,9 @@ pub(crate) struct ConfigFile {
     pub allow: Vec<AllowEntry>,
     #[serde(default)]
     pub tracks: Vec<TrackEntry>,
+    /// `[[interface]]`: packages that version by their own interface (see [`InterfaceEntry`]).
+    #[serde(default)]
+    pub interface: Vec<InterfaceEntry>,
     /// `[[skip_member]]`: workspace members this repository does not build (see [`SkipMemberEntry`]).
     #[serde(default)]
     pub skip_member: Vec<SkipMemberEntry>,

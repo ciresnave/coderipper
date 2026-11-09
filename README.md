@@ -148,6 +148,18 @@ manifest = "../unpopped/Cargo.toml"
 reason = "emitter for Unpopped; keeps Unpopped's version"
 ```
 
+A project whose crates each version by their own interface (CireSnave's ruling, board 295: each interface crate keeps its own
+version, and they meet at one number at major releases) lists those crates with `[[interface]]`; the reason is required. An
+interface crate is left out of the one-version comparison, so interface crates may differ from each other and from the project
+between major releases; the root package and the tools follow the project number as before. When the project is at a major release
+(`X.0.0`, or `0.Y.0` before 1.0) every interface crate must be at that number, and one that is not is a finding:
+
+```toml
+[[interface]]
+package = "fireline-cuda"
+reason = "versions by the CUDA interface it wraps"
+```
+
 A package can also be silenced with an ordinary `[[allow]]` entry (check `version-consistency`, `file` = its
 manifest relative to the workspace root, `symbol` = the package name). Rust (cargo) manifests only; it reads the
 working tree, not HEAD.
