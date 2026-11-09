@@ -1,0 +1,6 @@
+# The seeded defect: a money-named struct field held in a binary float.
+
+[[expect]]
+rule = "TYP-005"
+file = "src/lib.rs"
+line = 3
