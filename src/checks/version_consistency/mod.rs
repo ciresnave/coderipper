@@ -347,12 +347,13 @@ pub(crate) enum Problem {
     },
     /// A package that tracks another project does not match that project's manifest.
     TrackMismatch { pkg: Pkg, tracked: Tracked },
-    /// The project is at a major release (`X.0.0`, or `0.Y.0` before 1.0), where every interface crate meets the project number, and
+    /// The project is at a major release (`X.0.0`, or `0.Y.0` before 1.0; never `0.0.z`), where every interface crate meets the project number, and
     /// this one does not.
     InterfaceBehindMajor { pkg: Pkg, project_version: String },
 }
 
-/// Whether a version is a major release: the first non-zero number is the last non-zero one (`2.0.0`, `0.5.0`, `0.0.3`), and it carries no pre-release tag.
+/// Whether a version is a major release for the per-interface mode: `X.0.0` or `0.Y.0` (the first non-zero number is the last non-zero one) with no
+/// pre-release tag. `0.0.z` is not: a project at `0.0.z` has no major number, so it never asks an interface crate to take its number.
 fn is_major_release(v: &str) -> bool {
     let core = strip_build(v);
     if core.contains('-') {
@@ -360,6 +361,9 @@ fn is_major_release(v: &str) -> bool {
     }
     let nums: Vec<u64> = core.split('.').filter_map(|p| p.parse().ok()).collect();
     if nums.len() != 3 {
+        return false;
+    }
+    if nums[0] == 0 && nums[1] == 0 {
         return false;
     }
     match nums.iter().position(|n| *n != 0) {
@@ -736,10 +740,10 @@ mod tests {
 
     #[test]
     fn a_major_release_is_the_first_nonzero_number_with_nothing_after_it() {
-        for v in ["1.0.0", "2.0.0", "0.5.0", "0.0.3", "0.5.0+build.2"] {
+        for v in ["1.0.0", "2.0.0", "0.5.0", "0.5.0+build.2"] {
             assert!(is_major_release(v), "{v}");
         }
-        for v in ["1.0.1", "0.5.1", "1.2.0", "0.0.0", "1.0.0-rc.1", "x"] {
+        for v in ["1.0.1", "0.5.1", "1.2.0", "0.0.0", "0.0.3", "0.0.13", "1.0.0-rc.1", "x"] {
             assert!(!is_major_release(v), "{v}");
         }
     }
