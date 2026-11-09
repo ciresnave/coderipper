@@ -1293,6 +1293,9 @@ mod tests {
             assert!(!profile.run_rules(None).contains(&"PRF-003"));
             assert!(profile.run_rules(Some("PRF-003")).contains(&"PRF-003"));
             assert!(profile.extra_rules().contains(&"PRF-003"));
+            assert!(!profile.run_rules(None).contains(&"PRF-005"));
+            assert!(profile.run_rules(Some("PRF-005")).contains(&"PRF-005"));
+            assert!(profile.extra_rules().contains(&"PRF-005"));
             assert!(!profile.run_rules(None).contains(&"RDB-004"));
             assert!(profile.run_rules(Some("RDB-004")).contains(&"RDB-004"));
             assert!(profile.extra_rules().contains(&"RDB-004"));
