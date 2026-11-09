@@ -69,18 +69,19 @@ impl Check for PassThroughCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let (wrappers, functions) = collect(&files)?;
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let notes = vec![format!(
-            "MOD-008 read {functions} function(s) and method(s); {} pass-through wrapper(s)",
-            wrappers.len()
-        )];
-        Ok((judge(&wrappers, &project), notes))
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let (wrappers, functions) = collect(&files)?;
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let notes = vec![format!(
+                "MOD-008 read {functions} function(s) and method(s); {} pass-through wrapper(s)",
+                wrappers.len()
+            )];
+            Ok((judge(&wrappers, &project), notes))
+        })
     }
 }
 

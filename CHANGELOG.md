@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.24 - 2026-11-09 (proposed, Fixed: the source-reading module rules run on a virtual workspace root)
+
+**MOD-001, MOD-002, MOD-003, MOD-004, MOD-005, MOD-008, MOD-009 and ARC-008 now run on a virtual workspace root** (a `[workspace]` with no `[package]`, the layout of Fuel, baracuda and Unpopped), one member at a time, exactly as `--project <member directory>` would: a member's own `.coderipper.toml` applies, every finding names its member, and every note says which member it is about. Before, each failed with "is not a package directory", so a measurement of the portfolio had no data for the twelve repositories that are virtual workspaces (found by the ARC/MOD measurement of 2026-11-09). A directory that is neither a package nor the workspace root is still refused. Rules that build (reachability and the like) still want `--workspace`; that is unchanged. Fixture: `tests/virtual_workspace_rules.rs` (a virtual workspace with a seeded MOD-008 pass-through in one member and a clean twin in the other; the defect is reported in that member only).
+
 ## 0.43.23 - 2026-11-09 (proposed, Fixed: version-consistency per-interface mode no longer treats 0.0.z as a major release)
 
 **A project at `0.0.z` no longer asks its `[[interface]]` crates for its number** (found by FireLine: a root at 0.0.13 raised four High findings against interface crates that keep their own versions). `0.0.z` has no major number, so only `X.0.0` and `0.Y.0` count as major releases in the per-interface mode. Fixtures: a root at `0.0.13` with interface crates at their own versions is clean, and a root at `0.4.0` still reports an interface crate behind it. Without `[[interface]]` nothing changes.
