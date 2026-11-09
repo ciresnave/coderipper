@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.17 - 2026-11-09 (proposed, Added: RDB-004 (opt-in, Rust))
+
+**RDB-004 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check RDB-004`; it is in no profile. It reads production source with `syn` and reports, per function, at Low severity and medium confidence, up to three findings: more than 7 parameters (`self` not counted; not read in the methods of a trait impl), control flow nested 5 or more deep (`if`, `match`, `loop`, `while`, `for`; an `else if` shares its `if`'s level, a closure adds none), and a `bool` parameter the body uses directly as an `if` or `while` condition or a `match` scrutinee. The figures are the conservative end of common limits (clippy's `too_many_arguments` default for the parameters) and are signals, not verdicts; an allowlist entry for `name` or `Type::name` silences all three. Not seen: macro bodies, generated code, a `bool` behind a type alias, a flag copied into a variable first, a shadowed name, a long but flat function; TypeScript and Python are not read. Fixtures `conformance/RDB-004/{clean,defective}`; the corpus counts are in the pull request. Patent sweep addendum: one idea, no hit read as claimed.
+
+## 0.43.16 - 2026-11-08 (proposed, Fix)
+
+**CI: the caller pins the portfolio workflow at the commit that exempts "declares no `[architecture]` table" notes (#279).** The pin was the 0.39.0 commit, so main's Portfolio job stayed red on the ARC-001..007 notes after #279 fixed the workflow. Only `ci.yml` changes; no code.
+
 ## 0.43.15 - 2026-11-08 (proposed, Fixed: the portfolio workflow no longer fails a repository for not declaring an `[architecture]` table)
 
 **The reusable portfolio workflow treated "ARC-001 not run: this repository declares no [architecture] table" as a rule that failed to run**, so every repository without a declaration (CodeRipper's own main included, red since 0.39.0 put the ARC rules in the portfolio profile) failed its sweep job with "a rule did not run". Declaring an architecture is the repository's choice and the rules say so in their own note ("a gap, not a pass"); the step now leaves those notes out of the failure test. Every other "not run" note still fails the job.
