@@ -365,6 +365,7 @@ fn a_failed_download_is_its_own_error() {
         )
         .unwrap_err();
     assert_eq!(err.code(), "download_failed");
+    assert!(err.to_string().contains("re-run the job"), "{err}");
     assert!(walk(dir.path()).is_empty());
 }
 
