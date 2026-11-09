@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.23 - 2026-11-09 (proposed, Fixed: version-consistency per-interface mode no longer treats 0.0.z as a major release)
+
+**A project at `0.0.z` no longer asks its `[[interface]]` crates for its number** (found by FireLine: a root at 0.0.13 raised four High findings against interface crates that keep their own versions). `0.0.z` has no major number, so only `X.0.0` and `0.Y.0` count as major releases in the per-interface mode. Fixtures: a root at `0.0.13` with interface crates at their own versions is clean, and a root at `0.4.0` still reports an interface crate behind it. Without `[[interface]]` nothing changes.
+
 ## 0.43.22 - 2026-11-09 (proposed, Fix)
 
 **CI keeps the pinned tools the delegated tests install.** `ci.yml` caches `$RUNNER_TEMP/coderipper-test-tools` (key: the OS and a hash of `src/tools/tools.lock`) and the eight `tests/delegated_*.rs` files install into it when `CODERIPPER_TEST_TOOLS_DIR` names it (a throwaway tempdir otherwise, as before). A tool is downloaded once, not once per test binary per run, so a GitHub releases outage no longer fails a run that already has the tool. The cache is not trusted: the install hashes an installed tool against the lock and fetches it again when it differs (checked by overwriting the cached gitleaks with garbage: the next run restored the original bytes).
