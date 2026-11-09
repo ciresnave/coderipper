@@ -58,7 +58,7 @@ and on running benchmarks, tests or telemetry, so a static scan can offer only p
 | :--- | :--- | :--- | :--- |
 | PRF-001 | Hot paths have budgets enforced by benchmarks | X | no check yet (catalog record only; needs benchmarks to run and a budget in a spec) |
 | PRF-002 | Statistically detected benchmark regressions | X | no check yet (catalog record only; needs benchmark comparison tooling) |
-| PRF-003 | Algorithmic red flags in code | P | no check yet (catalog record only; pattern scan needs a parser; Clippy perf lints are the model) |
+| PRF-003 | Algorithmic red flags in code | P | built in part, **opt-in** (`coderipper check PRF-003`, in no profile): native, Rust only, `syn`, outside tests; per function, one Medium finding at low confidence for four shapes inside a loop: a linear search (`contains`, `iter().any/find/position`) of a `Vec` or slice declared outside it, `s = format!(.. s ..)`, a `SELECT` query call, and a copy of such a collection made only to be read (`.clone().len()`, a `for` over `.clone()` in a loop). Types are read from declarations only. Not read: collections whose type is not declared, a search in a called function, per-row INSERT/UPDATE/DELETE, other languages |
 | PRF-004 | Hot loops tagged for speed allocate nothing | P | no check yet (catalog record only; needs a parser and tagged paths; allocation counters confirm) |
 | PRF-005 | Caches and collections lacking growth bounds | P | no check yet (catalog record only; needs a parser; pairs with CON-004) |
 | PRF-006 | Performance exceptions documented with benchmark link | P | no check yet (catalog record only; marker presence is mechanical, linkage quality needs an LLM) |
