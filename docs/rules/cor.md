@@ -59,7 +59,7 @@ Only five checks exist today (none for this domain), so no rule below is run by 
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| COR-001 | Public API docs state errors, panics and safety | P | catalog record; no check yet. Planned: Clippy `missing_errors_doc`, `missing_panics_doc`, `missing_safety_doc` (Rust), `jsdoc/require-throws` (TypeScript), Ruff `DOC501` and `DOC201` (Python, preview) |
+| COR-001 | Public API docs state errors, panics and safety | P | built in part, opt-in (`coderipper check COR-001`): a Rust `pub fn` that returns `Result` with no `# Errors` section, a `pub unsafe fn` with no `# Safety` section, or a `pub fn` whose body names `panic!`, `unreachable!`, `unimplemented!`, `todo!` or `assert!` with no `# Panics` section (Low); other languages: Clippy `missing_errors_doc`, `missing_panics_doc`, `missing_safety_doc` (Rust), `jsdoc/require-throws` (TypeScript), Ruff `DOC501` and `DOC201` (Python, preview) |
 | COR-002 | Invariant types enforce invariants in code | P | catalog record; no check yet. Planned: native constructor-validation check in all three languages; comparing it with the documented invariant needs an LLM |
 | COR-003 | Codec pairs have round-trip property tests | P | catalog record; no check yet. Planned: native pair detection plus property-test presence for TypeScript and Python; Rust detection not designed yet |
 | COR-004 | Reference-implementation algorithms get differential tests | X | catalog record; no check yet, needs a spec tag and a test harness |

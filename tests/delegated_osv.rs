@@ -9,6 +9,9 @@
 //! set it. The fixtures depend on today's database: lodash 4.17.15 has had advisories for years, but a new advisory against the
 //! clean twin's packages would fail its test, by design (replace the package).
 
+#[path = "common/tools_root.rs"]
+mod tools_root;
+
 use assert_cmd::Command;
 use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::DelegatedModule;
@@ -22,12 +25,12 @@ fn offline() -> bool {
 }
 
 /// A tools directory holding the real osv-scanner, installed once for the whole test binary, and the path of the tool.
-fn tools() -> &'static (tempfile::TempDir, PathBuf) {
-    static DIR: OnceLock<(tempfile::TempDir, PathBuf)> = OnceLock::new();
+fn tools() -> &'static (tools_root::ToolsRoot, PathBuf) {
+    static DIR: OnceLock<(tools_root::ToolsRoot, PathBuf)> = OnceLock::new();
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     DIR.get_or_init(|| {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tools_root::ToolsRoot::new();
         let path = ToolEnv::from_environment()
             .cache_root(dir.path())
             .consent(Consent::Granted)

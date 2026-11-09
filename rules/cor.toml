@@ -20,6 +20,8 @@ remediation = "Add the missing sections to the doc comments: what errors can be 
 related = ["COR-002", "COR-006"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories and outside binary roots (main.rs, src/bin/); an item is public when its visibility is a bare pub and every inline module above it is pub (a pub use or a module in its own file is not followed); cfg(test) items, test functions and doc(hidden) items are skipped; methods are the pub methods of inherent impl blocks of types not private in the same file. Reports a pub fn that returns Result with no # Errors section, a pub unsafe fn with no # Safety section, or a pub fn whose body names panic!, unreachable!, unimplemented!, todo! or an assert! macro with no # Panics section (Low severity, Medium confidence). Not judged: unwrap and expect panics, panics reached through callees, preconditions in prose, TypeScript and Python."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
