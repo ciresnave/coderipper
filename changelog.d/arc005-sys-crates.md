@@ -1,0 +1,3 @@
+kind: Fixed: ARC-005 treats an FFI `-sys` crate as the stable end
+---
+**ARC-005 no longer reports a dependency on an FFI `-sys` crate as "depends on the less stable".** A component named `*-sys` (or `*_sys`), cargo's convention for a binding to a system library, is the stable end of a graph by design, but its few edges gave it a high instability by neighbour count, so `baracuda-ozimmu -> baracuda-ozimmu-sys` was reported (found by the ARC/MOD measurement of 2026-11-09, read as a false finding). Such edges are left out and counted in the rule's note. The same shape under another name is still reported. Test: `an_edge_to_an_ffi_sys_crate_is_left_out_and_the_same_shape_with_another_name_is_reported`.
