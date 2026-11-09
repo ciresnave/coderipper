@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.22 - 2026-11-09 (proposed, Fix)
+
+**CI keeps the pinned tools the delegated tests install.** `ci.yml` caches `$RUNNER_TEMP/coderipper-test-tools` (key: the OS and a hash of `src/tools/tools.lock`) and the eight `tests/delegated_*.rs` files install into it when `CODERIPPER_TEST_TOOLS_DIR` names it (a throwaway tempdir otherwise, as before). A tool is downloaded once, not once per test binary per run, so a GitHub releases outage no longer fails a run that already has the tool. The cache is not trusted: the install hashes an installed tool against the lock and fetches it again when it differs (checked by overwriting the cached gitleaks with garbage: the next run restored the original bytes).
+
 ## 0.43.21 - 2026-11-09 (proposed, Fix)
 
 **A pinned tool download is tried three times.** A 5xx answer, a failed connection, a timeout or an unresolvable host is retried after 5 s and then 20 s (each attempt is logged on stderr); a 4xx, a bad URL or a download that keeps failing still fails as before, with the last error and the same `download_failed` code. The retry is inside the fetch, so a file whose hash does not match the lock is never retried: `checksum_mismatch` fails at once after a single fetch. Why: GitHub releases answered 504 for buf, checkov and lychee and failed a whole CI run each time.
