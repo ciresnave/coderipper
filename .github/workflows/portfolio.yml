@@ -248,8 +248,10 @@ jobs:
           # A rule that did not run is a note, never an exit code: fail the job on any that did not, except the Rust-only rules in a
           # repository with no Rust crate (nothing to look at), the rule this step skips on purpose, and the two rules that compare
           # a branch with its base (the lint-suppression ratchet, version-and-changelog) on a run of the default branch, where there
-          # is no base to compare with (their note ends "a run on the default branch").
-          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
+          # is no base to compare with (their note ends "a run on the default branch"), and the architecture rules (ARC-001 to ARC-007) in a
+          # repository that declares no `[architecture]` table: a repository chooses to declare its architecture, and the rules say
+          # so in their own note ("a gap, not a pass"); it is not a rule that failed to run.
+          if grep '^coderipper: note:.* not run:' "$RUNNER_TEMP/sweep.stderr" | grep -v -e 'no Rust crate at this path' -e 'skipped on request' -e 'a run on the default branch' -e 'declares no \[architecture\] table'; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
           if [ "$failed" -ne 0 ] && [ "$code" -eq 0 ]; then code=1; fi
           exit "$code"
       # Log only, as above: `df` everywhere, the directory sizes on a GitHub-hosted Linux runner only and bounded by `timeout 60`.
