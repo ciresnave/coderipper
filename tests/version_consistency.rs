@@ -483,6 +483,16 @@ fn at_a_major_release_every_interface_crate_must_meet_the_project_number() {
 }
 
 #[test]
+fn a_project_at_zero_zero_z_never_asks_an_interface_crate_for_its_number() {
+    // FireLine's shape: the root is at 0.0.13, which has no major number, so the interface crates keep their own versions
+    let ws = interface_workspace("0.0.13", "0.0.2", "0.4.0");
+    assert!(run(ws.path()).unwrap().is_empty());
+    // the defective twin next to it: a project at a real major release (0.4.0) still asks, and `if-a` at 0.0.2 is reported
+    let ws = interface_workspace("0.4.0", "0.0.2", "0.4.0");
+    assert_eq!(subjects(&run(ws.path()).unwrap()), vec!["if-a"]);
+}
+
+#[test]
 fn an_interface_entry_naming_no_package_is_an_error_not_a_pass() {
     let ws = workspace(&[("core", "0.5.1"), ("tool", "0.5.1")], "");
     std::fs::write(
