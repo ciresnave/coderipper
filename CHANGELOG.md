@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.20 - 2026-11-09 (proposed, Fix)
+
+**A tool download that fails says so in one line.** `download_failed: <tool> <version> from <url>: <reason>` now ends "(the download failed, it is not a finding in your code: re-run the job)", so a lane reading a red portfolio job that hit a GitHub releases outage does not mistake it for a finding. It is still a hard failure by design; the code `download_failed` the portfolio workflow matches on is unchanged.
+
 ## 0.43.19 - 2026-11-09 (proposed, Added: version-consistency has a per-interface mode, `[[interface]]` in `.coderipper.toml`)
 
 **A project whose crates version by their own interface can say so** (CireSnave's ruling, board 295, 2026-10-25/28: each interface crate versions by its own interface, meeting at one number at major releases). List the crates with `[[interface]]` (`package` and a required `reason`); each is left out of the one-version comparison, so interface crates may differ from each other and from the project between major releases, while the root package and the tools keep following the project number. When the project is at a major release (`X.0.0`, or `0.Y.0` before 1.0), every interface crate must be at that number, and one that is not is reported. An entry naming no package of the project, or a package that is also in `[[tracks]]`, is an error, never a pass. Without `[[interface]]` nothing changes. Built for FireLine.
