@@ -75,18 +75,19 @@ impl Check for ReachThroughCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let min_hops =
-            match std::fs::read_to_string(ctx.project_root.join(crate::config::FILE_NAME)) {
-                Ok(text) => crate::config::mod009_min_hops(&text)?.unwrap_or(DEFAULT_MIN_HOPS),
-                Err(_) => DEFAULT_MIN_HOPS,
-            };
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        judge(&files, min_hops, &project)
+        crate::package::fan_out(ctx, |ctx, package| {
+            let min_hops =
+                match std::fs::read_to_string(ctx.project_root.join(crate::config::FILE_NAME)) {
+                    Ok(text) => crate::config::mod009_min_hops(&text)?.unwrap_or(DEFAULT_MIN_HOPS),
+                    Err(_) => DEFAULT_MIN_HOPS,
+                };
+            let files = read_sources(&package.dir)?;
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            judge(&files, min_hops, &project)
+        })
     }
 }
 
