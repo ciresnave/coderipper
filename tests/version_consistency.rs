@@ -496,3 +496,21 @@ fn an_interface_entry_naming_no_package_is_an_error_not_a_pass() {
         "{err}"
     );
 }
+
+#[test]
+fn an_interface_entry_without_a_reason_is_an_error() {
+    let ws = workspace(&[("core", "0.5.1"), ("tool", "0.5.1")], "");
+    std::fs::write(
+        ws.path().join(".coderipper.toml"),
+        "[[interface]]
+package = \"core\"
+reason = \"  \"
+",
+    )
+    .unwrap();
+    let err = run(ws.path()).unwrap_err().to_string();
+    assert!(
+        err.contains("core") && err.contains("needs a reason"),
+        "{err}"
+    );
+}

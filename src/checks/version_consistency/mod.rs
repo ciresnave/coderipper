@@ -143,6 +143,11 @@ impl Check for VersionConsistencyCheck {
                     .join(", ")
             );
             anyhow::ensure!(
+                !entry.reason.trim().is_empty(),
+                "[[interface]] for package `{}` needs a reason: say why it versions by its own interface",
+                entry.package
+            );
+            anyhow::ensure!(
                 !tracked.contains_key(&entry.package),
                 "package `{}` is named by both [[tracks]] and [[interface]]; it follows one rule",
                 entry.package
@@ -363,6 +368,7 @@ fn is_major_release(v: &str) -> bool {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn evaluate(
     packages: &[Pkg],
     workspace_version: Option<&str>,
