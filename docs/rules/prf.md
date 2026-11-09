@@ -60,7 +60,7 @@ and on running benchmarks, tests or telemetry, so a static scan can offer only p
 | PRF-002 | Statistically detected benchmark regressions | X | no check yet (catalog record only; needs benchmark comparison tooling) |
 | PRF-003 | Algorithmic red flags in code | P | no check yet (catalog record only; pattern scan needs a parser; Clippy perf lints are the model) |
 | PRF-004 | Hot loops tagged for speed allocate nothing | P | no check yet (catalog record only; needs a parser and tagged paths; allocation counters confirm) |
-| PRF-005 | Caches and collections lacking growth bounds | P | no check yet (catalog record only; needs a parser; pairs with CON-004) |
+| PRF-005 | Caches and collections lacking growth bounds | P | built in part, **opt-in** (`coderipper check PRF-005`, in no profile): native, Rust only, `syn`, outside tests; one Medium finding at low confidence per growable collection that is a `static` or `thread_local!` static, or a field named like a cache (or in a struct named like one), that is inserted into or pushed to and that nothing in the repository removes from, evicts, clears, reassigns, `mem::take`s or compares by `len()`. Not read: whether the collection takes external input, growth or bounds through a returned reference, macro or unfollowed alias, types that bound themselves (LRU types), other languages |
 | PRF-006 | Performance exceptions documented with benchmark link | P | no check yet (catalog record only; marker presence is mechanical, linkage quality needs an LLM) |
 | PRF-007 | Critical query plans avoid full table scans | X | no check yet (catalog record only; needs a live database) |
 | PRF-008 | Tail latency tracked beside averages | X | no check yet (catalog record only; needs runtime telemetry) |
