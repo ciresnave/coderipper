@@ -193,6 +193,8 @@ remediation = "Introduce a named constant or a small type that states the meanin
 related = ["TYP-001"]
 lifecycle = "experimental"
 
+checked_today = "Rust only (the catalog says any language; the others are not read), opt-in (runs when named, in no profile): tracked production .rs files (outside vendored, fixture and development directories, tests, benches, examples, tools, build.rs, tests.rs-style files and files over 2 MiB, which a note names), parsed with syn, items under cfg(test) and test functions skipped. One Info finding per file at low confidence, at the first site, with the counts and the first sites, for two shapes: a number (integer or float literal) that is an operand of an arithmetic, comparison or compound-assignment operator, an argument of a function or method call, or a bare value (a let initialiser, a return value, the right side of an assignment, a struct-field value, a block tail) and is not trivial (0, 1, 2, 10, 100, 1000, 1024, 255, 60, 24, powers of two up to 4096, 0.0, 1.0, 0.5, and a negated trivial value); and a string of two or more characters that appears three or more times in the file. Not read: const and static items, enum discriminants, array lengths, attributes, macro arguments (so format strings), constructor arguments. Not judged: other languages, a literal copied through a variable, strings repeated across files, whether a name would help."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
