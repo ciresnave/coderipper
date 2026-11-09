@@ -1,0 +1,11 @@
+# The seeded defects: a test with an empty body (line 8) and a test that asserts only `true` (line 10).
+
+[[expect]]
+rule = "TST-003"
+file = "src/lib.rs"
+line = 8
+
+[[expect]]
+rule = "TST-003"
+file = "src/lib.rs"
+line = 10

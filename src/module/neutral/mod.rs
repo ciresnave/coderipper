@@ -26,6 +26,9 @@ mod ops009;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
+mod prf005;
+mod rdb004;
+mod rdb007;
 mod rdb008;
 mod rust_package;
 mod rust_src;
@@ -39,6 +42,7 @@ mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
+mod tst003;
 mod tst006;
 mod typ005;
 mod typ006;
@@ -174,6 +178,10 @@ const RULES: &[Rule] = &[
         judge: surface::judge_api009,
     },
     Rule {
+        id: "COR-001",
+        judge: surface::judge_cor001,
+    },
+    Rule {
         id: "ERR-004",
         judge: surface::judge_err004,
     },
@@ -218,6 +226,22 @@ const RULES: &[Rule] = &[
         judge: typ006::judge,
     },
     Rule {
+        id: "PRF-005",
+        judge: prf005::judge,
+    },
+    Rule {
+        id: "RDB-004",
+        judge: rdb004::judge,
+    },
+    Rule {
+        id: "RDB-007",
+        judge: rdb007::judge,
+    },
+    Rule {
+        id: "TST-003",
+        judge: tst003::judge,
+    },
+    Rule {
         id: "TST-006",
         judge: tst006::judge,
     },
@@ -236,8 +260,9 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
-        "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005",
+        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
+        "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
+        "PRF-005",
         "TST-006",
     ]
 }
@@ -599,6 +624,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("REL-003", &["rust"]),
     ("API-004", &["rust"]),
     ("API-009", &["rust"]),
+    ("COR-001", &["rust"]),
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
@@ -606,6 +632,10 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("PRF-005", &["rust"]),
+    ("RDB-004", &["rust"]),
+    ("RDB-007", &["rust"]),
+    ("TST-003", &["rust"]),
     ("TST-006", &["rust"]),
     ("EXT-002", &["rust"]),
 ];
@@ -636,6 +666,7 @@ const PROVEN: &[&str] = &[
     "REL-003",
     "API-004",
     "API-009",
+    "COR-001",
     "ERR-004",
     "SEC-005",
     "EXT-003",
@@ -647,6 +678,10 @@ const PROVEN: &[&str] = &[
     "SUP-005",
     "ERR-001",
     "TYP-006",
+    "PRF-005",
+    "RDB-004",
+    "RDB-007",
+    "TST-003",
     "TST-006",
     "EXT-002",
 ];

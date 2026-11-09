@@ -58,13 +58,13 @@ consumer-driven contract tests such as Pact, Google's small/medium/large test si
 
 ## Where it is checked
 
-Only five checks exist today, none of them in this domain, so no rule below is run by the current release. Every row is a catalog record with no check yet; most need tests to be executed.
+One check exists in this domain, TST-003 (Rust, on by default); no other rule below is run by the current release. Every other row is a catalog record with no check yet; most need tests to be executed.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | TST-001 | Changed-code coverage meets threshold | X | catalog record; no check yet, needs test execution and a ratchet-style gate (cargo-llvm-cov, JaCoCo, coverage.py with diff-cover, Istanbul/c8) |
 | TST-002 | Mutation score on the diff meets threshold | X | catalog record; no check yet, needs test execution (cargo-mutants, PIT, Stryker, mutmut, Mull) |
-| TST-003 | No empty, trivial or non-calling tests | P | catalog record; no check yet, needs a parser, and per-test coverage attribution for the calling part |
+| TST-003 | No empty, trivial or non-calling tests | P | built in part, on by default: a Rust `#[test]` function with an empty body, only tautological assertions, or no call and no check (Medium); the per-test coverage half (a test that never reaches the unit it names) is not built |
 | TST-004 | Over-mocking heuristics in tests | P | catalog record; no check yet, needs a parser for AST heuristics |
 | TST-005 | Intermittent tests are assigned and time-boxed | X | catalog record; no check yet, needs CI history from a service (network) |
 | TST-006 | Tests hermetic: no network, clock or shared filesystem | X | built in part, opt-in (`coderipper check TST-006`): a Rust `#[test]` function that connects out, reads the wall clock or names a shared path (Medium severity, Low confidence); the full rule, running the suite offline with time frozen, is not built |
