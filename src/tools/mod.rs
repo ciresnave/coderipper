@@ -124,7 +124,7 @@ pub enum ToolError {
         note: &'static str,
     },
     /// The download failed.
-    #[error("download_failed: {tool} {version} from {source_url}: {reason}")]
+    #[error("download_failed: {tool} {version} from {source_url}: {reason} (the download failed, it is not a finding in your code: re-run the job)")]
     DownloadFailed {
         /// The tool.
         tool: String,
