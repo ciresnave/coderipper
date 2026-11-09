@@ -7,6 +7,9 @@
 //! These tests need the network once (the download, ~8 MB). To run the suite offline set `CODERIPPER_SKIP_NETWORK_TESTS=1`: they
 //! then print `SKIPPED` and pass, which proves nothing about gitleaks, and CI must not set it.
 
+#[path = "common/tools_root.rs"]
+mod tools_root;
+
 use assert_cmd::Command;
 use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::DelegatedModule;
@@ -21,11 +24,11 @@ fn offline() -> bool {
 
 /// A tools directory holding the real gitleaks, installed once for the whole test binary.
 fn tools_dir() -> &'static Path {
-    static DIR: OnceLock<tempfile::TempDir> = OnceLock::new();
+    static DIR: OnceLock<tools_root::ToolsRoot> = OnceLock::new();
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     DIR.get_or_init(|| {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tools_root::ToolsRoot::new();
         let path = ToolEnv::from_environment()
             .cache_root(dir.path())
             .consent(Consent::Granted)

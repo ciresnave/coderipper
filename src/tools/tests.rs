@@ -365,6 +365,7 @@ fn a_failed_download_is_its_own_error() {
         )
         .unwrap_err();
     assert_eq!(err.code(), "download_failed");
+    assert!(err.to_string().contains("re-run the job"), "{err}");
     assert!(walk(dir.path()).is_empty());
 }
 
@@ -469,4 +470,89 @@ fn the_default_fetcher_reads_file_sources_and_refuses_others() {
     assert_eq!(DefaultFetcher.fetch(&url).unwrap(), b"bytes");
     assert!(DefaultFetcher.fetch("file://relative/x").is_err());
     assert!(DefaultFetcher.fetch(&format!("{url}.missing")).is_err());
+}
+
+/// A loopback server that answers each request with the next status in `statuses` (the last one repeats) and counts them.
+#[cfg(feature = "cli")]
+fn serve_statuses(statuses: Vec<u16>) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use std::io::{Read, Write};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}/tool", listener.local_addr().unwrap());
+    let hits = std::sync::Arc::new(AtomicUsize::new(0));
+    let seen = hits.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { return };
+            let n = seen.fetch_add(1, Ordering::SeqCst);
+            let mut buf = [0u8; 2048];
+            let _ = stream.read(&mut buf);
+            let status = statuses[n.min(statuses.len() - 1)];
+            let (reason, body) = if status == 200 {
+                ("OK", "tool-bytes")
+            } else {
+                ("Error", "")
+            };
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status} {reason}
+Content-Length: {}
+Connection: close
+
+{body}",
+                body.len()
+            );
+        }
+    });
+    (url, hits)
+}
+
+#[cfg(feature = "cli")]
+#[test]
+fn a_download_that_gets_504_twice_then_200_succeeds_on_the_third_attempt() {
+    use std::sync::atomic::Ordering;
+    let (url, hits) = serve_statuses(vec![504, 504, 200]);
+    let waits = [std::time::Duration::from_millis(1); 2];
+    assert_eq!(http_get_with(&url, &waits).unwrap(), b"tool-bytes");
+    assert_eq!(hits.load(Ordering::SeqCst), 3);
+}
+
+#[cfg(feature = "cli")]
+#[test]
+fn a_download_that_keeps_failing_stops_after_three_attempts_and_still_fails() {
+    use std::sync::atomic::Ordering;
+    let (url, hits) = serve_statuses(vec![504]);
+    let waits = [std::time::Duration::from_millis(1); 2];
+    let err = http_get_with(&url, &waits).unwrap_err();
+    assert!(err.contains("504"), "{err}");
+    assert_eq!(hits.load(Ordering::SeqCst), 3);
+}
+
+#[cfg(feature = "cli")]
+#[test]
+fn a_client_error_is_not_retried() {
+    use std::sync::atomic::Ordering;
+    let (url, hits) = serve_statuses(vec![404]);
+    let waits = [std::time::Duration::from_millis(1); 2];
+    assert!(http_get_with(&url, &waits).is_err());
+    assert_eq!(hits.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn a_checksum_mismatch_fails_at_once_after_a_single_fetch() {
+    // Retrying lives inside the fetch; `ensure` hashes what the fetch returned once and never asks again.
+    let dir = tempfile::tempdir().unwrap();
+    let cache = ToolCache::new(dir.path().to_path_buf());
+    let fake = Fake::serving(SRC, b"wrong bytes");
+    let err = cache
+        .ensure(
+            &lock_for(b"binary"),
+            "fake",
+            PLATFORM,
+            Consent::Granted,
+            &fake,
+        )
+        .unwrap_err();
+    assert_eq!(err.code(), "checksum_mismatch");
+    assert_eq!(fake.calls.borrow().len(), 1);
 }

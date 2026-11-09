@@ -423,3 +423,104 @@ fn a_member_outside_the_workspace_directory_gets_a_relative_path_not_an_absolute
         "../ext/Cargo.toml"
     );
 }
+
+// ---- per-interface versioning ([[interface]], board 295) ----
+
+const INTERFACES: &str = "[[interface]]\npackage = \"if-a\"\nreason = \"versions by its own interface\"\n\n[[interface]]\npackage = \"if-b\"\nreason = \"versions by its own interface\"\n";
+
+fn interface_workspace(project: &str, if_a: &str, if_b: &str) -> tempfile::TempDir {
+    let ws = workspace(
+        &[
+            ("core", project),
+            ("tool", project),
+            ("if-a", if_a),
+            ("if-b", if_b),
+        ],
+        "",
+    );
+    std::fs::write(ws.path().join(".coderipper.toml"), INTERFACES).unwrap();
+    ws
+}
+
+#[test]
+fn interface_crates_may_differ_from_each_other_and_from_the_project_between_major_releases() {
+    // the clean twin: the project is at 0.5.1 (not a major release) and the two interface crates are at their own numbers
+    let ws = interface_workspace("0.5.1", "0.3.0", "0.7.2");
+    assert!(run(ws.path()).unwrap().is_empty());
+}
+
+#[test]
+fn a_package_that_is_not_an_interface_crate_still_has_to_follow_the_project_number() {
+    let ws = workspace(
+        &[
+            ("core", "0.5.1"),
+            ("tool", "0.5.0"),
+            ("if-a", "0.3.0"),
+            ("if-b", "0.7.2"),
+            ("extra", "0.5.1"),
+        ],
+        "",
+    );
+    std::fs::write(ws.path().join(".coderipper.toml"), INTERFACES).unwrap();
+    assert_eq!(subjects(&run(ws.path()).unwrap()), vec!["tool"]);
+}
+
+#[test]
+fn at_a_major_release_every_interface_crate_must_meet_the_project_number() {
+    // the defective twin: 0.5.0 is a major release before 1.0, and `if-a` and `if-b` are not at it
+    let ws = interface_workspace("0.5.0", "0.3.0", "0.5.0");
+    let found = run(ws.path()).unwrap();
+    assert_eq!(subjects(&found), vec!["if-a"]);
+    assert!(
+        found[0].summary.contains("major release"),
+        "{}",
+        found[0].summary
+    );
+    assert!(found[0].clone().validate().is_ok());
+    // and the same project with every interface crate at the number is clean
+    let ws = interface_workspace("0.5.0", "0.5.0", "0.5.0");
+    assert!(run(ws.path()).unwrap().is_empty());
+}
+
+#[test]
+fn a_project_at_zero_zero_z_never_asks_an_interface_crate_for_its_number() {
+    // FireLine's shape: the root is at 0.0.13, which has no major number, so the interface crates keep their own versions
+    let ws = interface_workspace("0.0.13", "0.0.2", "0.4.0");
+    assert!(run(ws.path()).unwrap().is_empty());
+    // the defective twin next to it: a project at a real major release (0.4.0) still asks, and `if-a` at 0.0.2 is reported
+    let ws = interface_workspace("0.4.0", "0.0.2", "0.4.0");
+    assert_eq!(subjects(&run(ws.path()).unwrap()), vec!["if-a"]);
+}
+
+#[test]
+fn an_interface_entry_naming_no_package_is_an_error_not_a_pass() {
+    let ws = workspace(&[("core", "0.5.1"), ("tool", "0.5.1")], "");
+    std::fs::write(
+        ws.path().join(".coderipper.toml"),
+        "[[interface]]\npackage = \"ghost\"\nreason = \"x\"\n",
+    )
+    .unwrap();
+    let err = run(ws.path()).unwrap_err().to_string();
+    assert!(
+        err.contains("ghost") && err.contains("not a package"),
+        "{err}"
+    );
+}
+
+#[test]
+fn an_interface_entry_without_a_reason_is_an_error() {
+    let ws = workspace(&[("core", "0.5.1"), ("tool", "0.5.1")], "");
+    std::fs::write(
+        ws.path().join(".coderipper.toml"),
+        "[[interface]]
+package = \"core\"
+reason = \"  \"
+",
+    )
+    .unwrap();
+    let err = run(ws.path()).unwrap_err().to_string();
+    assert!(
+        err.contains("core") && err.contains("needs a reason"),
+        "{err}"
+    );
+}
