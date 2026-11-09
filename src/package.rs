@@ -301,6 +301,50 @@ pub(crate) fn locate(dir: &Path) -> anyhow::Result<(Package, String)> {
     Ok((package, prefix))
 }
 
+/// Runs a source-reading rule over the package at `ctx.project_root`, or, when that directory is a virtual workspace root (a
+/// `[workspace]` with no `[package]`: Fuel, baracuda, Unpopped), over every member in turn, exactly as `--project <member directory>`
+/// would: each member's own `.coderipper.toml` applies, each finding names its member, and each note says which member it is about.
+/// Only for rules that read source files and build nothing; a rule that builds still wants `--workspace`.
+pub(crate) fn fan_out(
+    ctx: &crate::check::CheckContext,
+    one: impl Fn(
+        &crate::check::CheckContext,
+        &Package,
+    ) -> anyhow::Result<(Vec<crate::finding::Finding>, Vec<String>)>,
+) -> anyhow::Result<(Vec<crate::finding::Finding>, Vec<String>)> {
+    let meta = metadata(&ctx.project_root)?;
+    if let Some(package) = meta
+        .packages
+        .iter()
+        .find(|p| same_dir(&p.dir, &ctx.project_root))
+    {
+        return one(ctx, package);
+    }
+    if !same_dir(&meta.workspace_root, &ctx.project_root) {
+        // not a package and not the workspace root: the ordinary refusal
+        locate(&ctx.project_root)?;
+    }
+    let mut members = meta.packages;
+    members.sort_by(|a, b| a.dir.cmp(&b.dir));
+    let mut findings = Vec::new();
+    let mut notes = Vec::new();
+    for package in &members {
+        let member_ctx = crate::check::CheckContext {
+            project_root: package.dir.clone(),
+            portfolio_root: ctx.portfolio_root.clone(),
+            cargo_features: ctx.cargo_features.clone(),
+            packages: Vec::new(),
+        };
+        let (mut found, noted) = one(&member_ctx, package)?;
+        for finding in &mut found {
+            finding.member = Some(package.name.clone());
+        }
+        findings.extend(found);
+        notes.extend(noted.into_iter().map(|n| format!("{}: {n}", package.name)));
+    }
+    Ok((findings, notes))
+}
+
 #[cfg(test)]
 fn workspace_prefix(dir: &Path) -> anyhow::Result<String> {
     prefix_in(&metadata(dir)?.workspace_root, dir)
