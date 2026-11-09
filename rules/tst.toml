@@ -139,6 +139,7 @@ kb_refs = []
 remediation = "Inject time and randomness, use temporary directories and local fakes, and confirm by running the suite offline with the clock frozen."
 related = ["TST-011"]
 lifecycle = "experimental"
+checked_today = "Rust only, a static proxy, opt-in (coderipper check TST-006): tracked .rs files outside vendored and fixture directories; the body of every #[test] function (including #[tokio::test]) is reported, once, when it calls TcpStream::connect, UdpSocket::connect or get/post/put/delete/head/patch/request on reqwest, ureq, surf or isahc (unless the test binds a TcpListener or names a loopback address), reads the wall clock (SystemTime::now, Utc::now, Local::now, OffsetDateTime::now_utc, Timestamp::now, Zoned::now), or names a shared location (a string literal under /tmp, /var, /etc, /home, /usr, C:, ~/ or a call to env::temp_dir). #[ignore] tests and Instant::now are not reported. Not judged: reach made by a helper, a fixture or the code under test, a path built at run time, other network clients, a frozen or injected clock, TypeScript and Python, and the full rule (run the suite offline with the clock frozen)."
 
 [rule.applicability]
 languages = ["any"]

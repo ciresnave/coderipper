@@ -39,6 +39,7 @@ mod sup009;
 mod sup011;
 mod support_statement;
 mod surface;
+mod tst006;
 mod typ005;
 mod typ006;
 #[cfg(test)]
@@ -217,6 +218,10 @@ const RULES: &[Rule] = &[
         judge: typ006::judge,
     },
     Rule {
+        id: "TST-006",
+        judge: tst006::judge,
+    },
+    Rule {
         id: "EXT-002",
         judge: ext002::judge,
     },
@@ -233,6 +238,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "ERR-004", "SEC-007",
         "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005",
+        "TST-006",
     ]
 }
 
@@ -600,6 +606,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("TST-006", &["rust"]),
     ("EXT-002", &["rust"]),
 ];
 
@@ -640,6 +647,7 @@ const PROVEN: &[&str] = &[
     "SUP-005",
     "ERR-001",
     "TYP-006",
+    "TST-006",
     "EXT-002",
 ];
 
