@@ -527,7 +527,8 @@ fn config_waives(text: &str) -> Option<bool> {
     for (i, l) in lines.iter().enumerate() {
         let code = l.split('#').next().unwrap_or("").trim();
         let waives = !l.starts_with('#')
-            && (code.starts_with("disable:") && code.contains("true") || code.starts_with("ignore:"));
+            && (code.starts_with("disable:") && code.contains("true")
+                || code.starts_with("ignore:"));
         if !waives {
             continue;
         }
