@@ -203,6 +203,7 @@ default_severity = "info"
 confidence_class = "low"
 kb_refs = []
 remediation = "Review each alert against a stated objective, drop or demote those without one, and write a runbook for every alert that pages."
+checked_today = "From tracked Prometheus rule files (*.rules.yml and .yaml, alerts*.yml and .yaml, alert_rules*.yml and .yaml, outside vendored and test directories), parsed as YAML: each alert under groups[].rules[] needs a non-empty annotations.runbook_url; one Info finding per alert without one, at the line of its alert key. A file with recording rules only is not judged; a repository with no rule file that holds an alert is not applicable. Not judged: alert rules in Helm templates, Jsonnet or PrometheusRule custom resources, a runbook linked only from description or summary text, the link working, and a file that is not valid YAML (named in a note)."
 lifecycle = "experimental"
 
 [rule.applicability]
