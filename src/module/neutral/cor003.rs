@@ -113,14 +113,11 @@ impl<'ast> Visit<'ast> for Walk {
                 if is_cfg_test(&f.attrs) || has_test_attr(&f.attrs) {
                     continue;
                 }
-                self.scopes
-                    .entry(scope.clone())
-                    .or_default()
-                    .push(Func {
-                        name: f.sig.ident.to_string(),
-                        line: u32::try_from(f.sig.ident.span().start().line).unwrap_or(0),
-                        public: of_trait || is_public(&f.vis),
-                    });
+                self.scopes.entry(scope.clone()).or_default().push(Func {
+                    name: f.sig.ident.to_string(),
+                    line: u32::try_from(f.sig.ident.span().start().line).unwrap_or(0),
+                    public: of_trait || is_public(&f.vis),
+                });
             }
         }
     }
@@ -289,7 +286,11 @@ impl C {
         let f = found_in(&[("src/lib.rs", CODEC)]);
         assert_eq!(f.len(), 1, "{f:?}");
         assert_eq!(f[0].location.as_ref().unwrap().line, Some(3));
-        assert!(f[0].subject.as_deref().unwrap().ends_with("type C:encode/decode"));
+        assert!(f[0]
+            .subject
+            .as_deref()
+            .unwrap()
+            .ends_with("type C:encode/decode"));
     }
 
     #[test]
@@ -305,7 +306,10 @@ impl C {
     #[test]
     fn a_property_test_of_only_one_side_or_of_another_pair_does_not_cover() {
         let one = "use proptest::prelude::*;\nproptest! { fn e(x: Vec<u8>) { C::encode(&x); } }\n";
-        assert_eq!(found_in(&[("src/lib.rs", CODEC), ("tests/e.rs", one)]).len(), 1);
+        assert_eq!(
+            found_in(&[("src/lib.rs", CODEC), ("tests/e.rs", one)]).len(),
+            1
+        );
     }
 
     #[test]
@@ -321,7 +325,11 @@ impl C {
         let src = "pub struct S;\nimpl Ser for S { fn serialize(&self) {} }\nimpl De for S { fn deserialize() {} }\n#[cfg(test)]\nmod t { pub fn encode() {} pub fn decode() {} }\n";
         let f = found_in(&[("src/lib.rs", src)]);
         assert_eq!(f.len(), 1, "{f:?}");
-        assert!(f[0].subject.as_deref().unwrap().contains("serialize/deserialize"));
+        assert!(f[0]
+            .subject
+            .as_deref()
+            .unwrap()
+            .contains("serialize/deserialize"));
     }
 
     #[test]
