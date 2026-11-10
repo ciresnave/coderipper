@@ -1,0 +1,6 @@
+# The seeded defect: a log line that carries the password (line 3).
+
+[[expect]]
+rule = "SEC-008"
+file = "src/lib.rs"
+line = 3
