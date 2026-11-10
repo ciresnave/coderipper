@@ -1,0 +1,11 @@
+# The seeded defects: a linear scan of an outer Vec inside a loop (src/lib.rs:6), and a string rebuilt from itself with format! on every pass (src/report.rs:4).
+
+[[expect]]
+rule = "PRF-003"
+file = "src/lib.rs"
+line = 6
+
+[[expect]]
+rule = "PRF-003"
+file = "src/report.rs"
+line = 4
