@@ -11,6 +11,7 @@
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
 mod ci_security;
+mod con005;
 mod concurrency;
 mod conflict_marker;
 mod doc005;
@@ -249,6 +250,10 @@ const RULES: &[Rule] = &[
         id: "EXT-002",
         judge: ext002::judge,
     },
+    Rule {
+        id: "CON-005",
+        judge: con005::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -262,7 +267,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005",
+        "PRF-003", "PRF-005", "CON-005",
     ]
 }
 
@@ -637,6 +642,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("CON-005", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -683,6 +689,7 @@ const PROVEN: &[&str] = &[
     "RDB-007",
     "TST-003",
     "EXT-002",
+    "CON-005",
 ];
 
 impl Module for NeutralModule {
