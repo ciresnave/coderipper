@@ -44,6 +44,8 @@ remediation = "Move the varying behaviour into the abstraction itself, or model 
 related = ["EXT-003", "EXT-001"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, build.rs, tests.rs-style files), items under cfg(test) and test functions skipped. A method call downcast_ref, downcast_mut or downcast with no arguments, is::<T>(), type_id(), and TypeId::of::<T>(); a downcast to a type whose name ends in Error (or is Elapsed) is not reported, because errors are inspected that way by design. The receiver's type is not resolved, so a method of another type with the same name is reported too. Other languages are not read. Opt-in."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
