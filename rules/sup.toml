@@ -232,7 +232,7 @@ evidence_tiers = ["V0", "V5"]
 evidence_strength = "C"
 contested = false
 scope = "project"
-network = "network"
+network = "local"
 unit = "repository"
 executes_project_code = false
 default_severity = "medium"
@@ -240,6 +240,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Generate provenance attestations in the release pipeline and sign artifacts with a keyless or managed key."
 related = ["SUP-009"]
+checked_today = "From the tracked GitHub Actions workflows (.github/workflows/*.yml and .yaml), read as text with comment lines excluded: a workflow that names a publisher of SUP-009 (cargo publish, cargo release, npm publish, twine upload, gh release, pypa/gh-action-pypi-publish, softprops/action-gh-release, actions/create-release, goreleaser; a --dry-run line is not read) is a release workflow; one that also names cosign, sigstore, slsa, provenance, attest, gpg or minisign (any case) signs or attests. One Medium finding at Low confidence per release workflow without one, at its first publishing line. A repository with no release workflow is not applicable. Local check of the pipeline only: the published release is not fetched or verified. Not judged: releases made outside GitHub Actions, signing done in a reusable workflow or composite action the file calls, whether a signature covers the published artifact or verifies, and the assurance level. Opt-in (check SUP-010)."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -19,7 +19,7 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 
 const ID: &str = crate::rule_id::SUP_009;
 
-const PUBLISHERS: &[&str] = &[
+pub(super) const PUBLISHERS: &[&str] = &[
     "cargo publish",
     "cargo release",
     "npm publish",
@@ -40,12 +40,12 @@ const SBOM_WORDS: &[&str] = &[
     "sbom",
 ];
 
-fn is_workflow(path: &str) -> bool {
+pub(super) fn is_workflow(path: &str) -> bool {
     path.starts_with(".github/workflows/") && (path.ends_with(".yml") || path.ends_with(".yaml"))
 }
 
 /// The first line that names a publisher, and which one (comments excluded).
-fn publishing_step(text: &str) -> Option<(u32, &'static str)> {
+pub(super) fn publishing_step(text: &str) -> Option<(u32, &'static str)> {
     for (i, line) in text.lines().enumerate() {
         let t = line.trim_start();
         if t.starts_with('#') {

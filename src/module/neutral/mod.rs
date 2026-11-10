@@ -40,6 +40,7 @@ mod sup001;
 mod sup004;
 mod sup005;
 mod sup009;
+mod sup010;
 mod sup011;
 mod support_statement;
 mod surface;
@@ -249,6 +250,10 @@ const RULES: &[Rule] = &[
         id: "EXT-002",
         judge: ext002::judge,
     },
+    Rule {
+        id: "SUP-010",
+        judge: sup010::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -262,7 +267,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005",
+        "PRF-003", "PRF-005", "SUP-010",
     ]
 }
 
@@ -683,6 +688,7 @@ const PROVEN: &[&str] = &[
     "RDB-007",
     "TST-003",
     "EXT-002",
+    "SUP-010",
 ];
 
 impl Module for NeutralModule {
