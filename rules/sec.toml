@@ -166,6 +166,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Keep a threat model in the repository, review it whenever the diff adds endpoints or external calls, and link each threat to the control that addresses it."
 related = ["SEC-003", "SEC-010"]
+checked_today = "Presence only, from tracked file names: a file named THREAT-MODEL*, threat-model*, threat_model* or threatmodel* (any case), or a file named threat* under docs/ or doc/. A repository that tracks a project manifest (Cargo.toml, package.json, pyproject.toml, go.mod, pom.xml, build.gradle, composer.json, Gemfile, setup.py, a .csproj) and none of those gets one Info finding at the manifest, with the search as its control; a repository with no manifest is not applicable. The text of a document is never judged, so a file that exists passes whatever it says. Not judged: a threat model kept outside the repository or under another name."
 lifecycle = "experimental"
 
 [rule.applicability]

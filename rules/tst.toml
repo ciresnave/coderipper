@@ -67,6 +67,7 @@ kb_refs = []
 remediation = "Add assertions about observable behavior, or delete the test; make sure it calls the unit under test."
 related = ["TST-008", "TST-013"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored and fixture directories; every function with a #[test] attribute (including #[tokio::test]), in tests/ files and #[cfg(test)] modules alike, is reported when its body is empty, asserts only tautologies (assert!(true), assert!(!false), assert_eq! of the same literal) with no other call or check, or calls nothing and checks nothing (only bindings and literals). A test that calls code and asserts nothing (a smoke test), #[ignore] tests and #[should_panic] tests are not reported. Not judged: a test that claims to test a unit but never reaches it (needs per-test coverage), an assertion comparing a value to itself through a variable, tests made by macros or rstest/proptest blocks, TypeScript and Python."
 
 [rule.applicability]
 languages = ["any"]

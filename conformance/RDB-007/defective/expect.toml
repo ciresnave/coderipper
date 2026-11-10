@@ -1,0 +1,11 @@
+# The seeded defects: a magic number at src/lib.rs:4, and a message repeated three times (first at src/names.rs:2).
+
+[[expect]]
+rule = "RDB-007"
+file = "src/lib.rs"
+line = 4
+
+[[expect]]
+rule = "RDB-007"
+file = "src/names.rs"
+line = 2

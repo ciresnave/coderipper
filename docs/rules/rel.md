@@ -76,7 +76,7 @@ Toxiproxy for REL-008).
 | REL-004 | Idempotent message handlers | L | catalog record; no check yet (needs a human decision or a model, plus replay tests) |
 | REL-005 | Probes and resource limits in manifests | N | built: delegated to checkov, asked for four checks (`CKV_K8S_8` liveness probe, `_9` readiness probe, `_11` CPU limits, `_13` memory limits), Medium, one finding per failed check at the resource; requests (`_10`, `_12`) are not this rule's; Helm templates are not rendered; needs checkov installed |
 | REL-006 | Graceful shutdown | P | catalog record; no check yet (needs a parser; the shutdown test runs code) |
-| REL-007 | Failure model per component | N | catalog record; no check yet (presence is checkable; sign-off is a human decision) |
+| REL-007 | Failure model per component | N | check `REL-007` (opt-in, Info): a failure model file or a failure-modes heading in the architecture document is tracked; presence only, one document satisfies the per-component wording |
 | REL-008 | Fault-injection tests for declared failures | X | catalog record; no check yet (needs execution of tests; Toxiproxy-style tooling) |
 | REL-009 | Monotonic clocks for durations | P | catalog record; no check yet (needs a parser) |
 | REL-010 | Crash-recovery tests for stateful components | X | catalog record; no check yet (needs execution of a crash harness) |
