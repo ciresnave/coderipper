@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.33 - 2026-11-10 (proposed, Docs)
+
+**Triage of the 2026-11-07 rules review, and `checked_today` for the 29 implemented rules that lacked it.** `docs/RULES-REVIEW-2026-11-07.md` gives a verdict (agree, disagree, partly, with the file and line) for each claim of the review. Measured at `origin/main` c715b60: **66 of 231 rule ids have an implemented check** (52 numbered, 14 slug-named; 26 built-in, 29 neutral-module of which 8 opt-in, 11 delegated; 63 distinct detectors), not 36; ARC is 10 of 12 and MOD 10 of 11; six domains (AIH, COR, EVO, PRF, TST, TYP) have none. The records of ARC-001 to 009 and 011, MOD-001 to 006, 008 to 010, `reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`, `ci-protection-presence`, OPS-011, API-001, API-007, SEC-002 and SEC-009 now say what each checker reads and reports today and what it does not judge; where the code departs from a record's statement the review lists it. API-003's statement gains the 0.x clause (before 1.0 the second number is the major). `docs/rules/REMAINING.md` is brought to 66 built and 165 rows, with ten scheduled new rules from the review's list of missing rules. No source change.
+
 ## 0.43.32 - 2026-11-10 (proposed, Docs)
 
 **API-012 is marked not checkable** (CireSnave 2026-11-07, ruling 5: "keep"). Pip's review called it a design essay, not a checkable rule. The record stays in the catalog as guidance; `docs/rules/REMAINING.md` now says no checker will be built for it.
