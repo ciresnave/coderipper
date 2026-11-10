@@ -1,6 +1,6 @@
 [package]
 name = "coderipper"
-version = "0.43.31"
+version = "0.43.32"
 edition = "2021"
 description = "Audits projects for the integration defects compilers and linters do not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. Started with Rust; built for multi-language projects. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
