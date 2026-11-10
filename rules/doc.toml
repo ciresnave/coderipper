@@ -40,6 +40,7 @@ default_severity = "low"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Turn samples into doctests or run them with a snippet runner as part of continuous integration."
+aliases = ["API-010"]
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -124,7 +125,7 @@ statement = "Readers should be able to trust a comment, doc page or README about
 rationale = "Documentation that disagrees with code is worse than none, because readers act on it with confidence."
 evidence_tiers = ["V4"]
 evidence_strength = "C"
-contested = false
+contested = true
 scope = "project"
 network = "local"
 unit = "package"
@@ -133,6 +134,7 @@ default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Update the text to the real behaviour, or change the code if the documentation states the intent; cross-check names and signatures mechanically."
+aliases = ["RDB-010"]
 lifecycle = "experimental"
 
 [rule.applicability]

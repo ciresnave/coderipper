@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! CON-002, CON-003, CON-004 and REL-003: Rust concurrency defects read from the source alone.
+//! CON-002, CON-003 and CON-004 (REL-003 is an alias of CON-004: one finding, both names): Rust concurrency defects read from the source alone.
 //!
 //! **What this judges:** every tracked `.rs` file outside vendored, fixture and development directories (`tests/`, `benches/`,
 //! `examples/`, `build.rs`, `tests.rs`-style files) is parsed with `syn`; items under `#[cfg(test)]` and functions marked `#[test]`
@@ -16,7 +16,7 @@
 //!   `async` is not read: it is what `spawn_blocking` and `block_in_place` take), a call whose path resolves, through the file's `use`
 //!   items, to `std::thread::sleep`, a function of `std::fs`, `std::net::TcpStream::connect`, a `reqwest::blocking` item,
 //!   `std::process::Command::new(..)...output()` / `.status()`, or a `.block_on(..)` method call.
-//! * **CON-004 / REL-003, an unbounded channel.** A call that resolves to `std::sync::mpsc::channel`, `tokio::sync::mpsc::unbounded_channel`,
+//! * **CON-004 (also answered to as REL-003), an unbounded channel.** A call that resolves to `std::sync::mpsc::channel`, `tokio::sync::mpsc::unbounded_channel`,
 //!   `futures::channel::mpsc::unbounded`, `crossbeam_channel::unbounded` (also `crossbeam::channel`), `flume::unbounded` or
 //!   `async_channel::unbounded`. A channel with a capacity (`sync_channel(n)`, `mpsc::channel(n)` of tokio, `bounded(n)`) is not one.
 //!
@@ -43,7 +43,7 @@ pub(super) enum Kind {
     GuardAcrossAwait,
     /// CON-003
     Blocking,
-    /// CON-004 and REL-003
+    /// CON-004 (and its alias REL-003)
     Unbounded,
 }
 
@@ -665,17 +665,6 @@ pub(super) fn judge_con004(view: &RepoView) -> Verdict {
     )
 }
 
-pub(super) fn judge_rel003(view: &RepoView) -> Verdict {
-    judge_kind(
-        view,
-        crate::rule_id::REL_003,
-        Kind::Unbounded,
-        Severity::Medium,
-        Confidence::Medium,
-        unbounded_text,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -863,7 +852,7 @@ async fn u() { let g = M.lock().unwrap(); tokio::task::yield_now().await; let _ 
     }
 
     #[test]
-    fn findings_carry_the_rule_id_the_location_and_both_channel_rules_agree() {
+    fn findings_carry_the_rule_id_and_the_location() {
         let src = "use std::sync::mpsc;\nfn f() { let (_a, _b) = mpsc::channel::<i32>(); }\n";
         let files = [("src/lib.rs", src)];
         let get = |v: Verdict| match v {
@@ -871,12 +860,8 @@ async fn u() { let g = M.lock().unwrap(); tokio::task::yield_now().await; let _ 
             Verdict::NotApplicable(w) => panic!("{w}"),
         };
         let a = get(judge_con004(&RepoView::from_files(&files)));
-        let b = get(judge_rel003(&RepoView::from_files(&files)));
-        assert_eq!((a.len(), b.len()), (1, 1));
-        assert_eq!(
-            (a[0].check_id.as_str(), b[0].check_id.as_str()),
-            ("CON-004", "REL-003")
-        );
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].check_id.as_str(), "CON-004");
         assert_eq!(a[0].location.as_ref().unwrap().line, Some(2));
     }
 }

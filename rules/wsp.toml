@@ -199,9 +199,9 @@ scopes = ["first_party"]
 
 [[rule]]
 id = "WSP-007"
-title = "Interfaces between repositories have contract tests"
+title = "Interfaces between components have contract tests"
 domain = "WSP"
-statement = "Where one repository relies on an interface owned by another, tests pin that agreement and run on both sides."
+statement = "Where one component relies on an interface owned by another, whether in the same repository or in a different one, tests pin that agreement and run on both sides."
 rationale = "A boundary that only humans remember breaks silently when either side changes; an executable contract fails loudly and early."
 evidence_tiers = ["V2"]
 evidence_strength = "C"
@@ -215,6 +215,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Write contract tests for the shared interface and run them in the pipelines of both the provider and the consumer."
 related = ["WSP-004"]
+aliases = ["TST-010"]
 lifecycle = "experimental"
 
 [rule.applicability]

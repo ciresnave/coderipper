@@ -250,30 +250,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "RDB-010"
-title = "Comments and docstrings match current behaviour"
-domain = "RDB"
-statement = "Comments and documentation strings agree with what the code does now, including its parameters and error cases."
-rationale = "A stale comment is worse than none because it is trusted, and it silently contradicts the code."
-evidence_tiers = ["V4"]
-evidence_strength = "C"
-contested = true
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = false
-default_severity = "low"
-confidence_class = "low"
-kb_refs = []
-remediation = "Update or remove the comment. A deterministic check can at least compare documented parameter names with the real ones."
-related = ["RDB-008", "RDB-009"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "RDB-011"
 title = "Terminology follows the project glossary"
 domain = "RDB"

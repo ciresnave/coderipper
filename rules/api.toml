@@ -222,30 +222,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "API-010"
-title = "Doc samples build and execute"
-domain = "API"
-statement = "Code samples in documentation are compiled, and run where practical, as part of the test suite."
-rationale = "Examples that no longer compile mislead new users and signal that the documentation is not maintained."
-evidence_tiers = ["V2"]
-evidence_strength = "C"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = true
-default_severity = "low"
-confidence_class = "medium"
-kb_refs = []
-remediation = "Turn samples into doctests or compile-checked snippets and fix those that fail."
-related = []
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "API-011"
 title = "Command-line, config and exit-code surfaces under test"
 domain = "API"

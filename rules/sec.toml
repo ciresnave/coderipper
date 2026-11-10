@@ -174,30 +174,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "SEC-008"
-title = "No sensitive data in logs or telemetry"
-domain = "SEC"
-statement = "Personal data and secrets are kept out of log lines, error messages and telemetry."
-rationale = "Logs are copied widely and kept long, so anything written to them is exposed to far more people than the original data was."
-evidence_tiers = ["V1", "V4"]
-evidence_strength = "C"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = false
-default_severity = "medium"
-confidence_class = "low"
-kb_refs = []
-remediation = "Redact or omit sensitive fields before logging, wrap secrets in types that print as masked, and review log statements that handle user records."
-related = ["SEC-001", "SEC-002"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["typescript", "python"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "SEC-009"
 title = "Least privilege in infrastructure definitions"
 domain = "SEC"

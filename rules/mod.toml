@@ -158,11 +158,12 @@ scope = "project"
 network = "local"
 unit = "repository"
 executes_project_code = false
-default_severity = "info"
+default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Separate the parts of the module that change for different reasons, using the commit clusters as the guide."
 related = ["MOD-004", "MOD-007"]
+aliases = ["EVO-003"]
 lifecycle = "experimental"
 
 [rule.applicability]
