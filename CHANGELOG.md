@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.32 - 2026-11-10 (proposed, Docs)
+
+**API-012 is marked not checkable** (CireSnave 2026-11-07, ruling 5: "keep"). Pip's review called it a design essay, not a checkable rule. The record stays in the catalog as guidance; `docs/rules/REMAINING.md` now says no checker will be built for it.
+
 ## 0.43.31 - 2026-11-10 (proposed, Docs)
 
 **AIH-010, "the tests ran, and passed, before the work was called done", is a catalog rule, read as the CI-status reading** (CireSnave 2026-11-07, ruling 4: "the CI-status reading for now"). Pip's review found no rule that says an agent runs the tests before claiming it is finished. A repository cannot show what an agent did, so the rule's evidence is the forge's check status for the commit; a harness hook that watches the agent itself is out of scope until CireSnave says otherwise. The record is `network` (it reads the forge) and experimental. There is no checker yet: it joins the scheduled list, built on the forge reads `ci-protection-presence` already makes.
