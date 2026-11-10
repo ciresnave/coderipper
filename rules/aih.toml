@@ -191,3 +191,27 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "AIH-010"
+title = "The tests ran, and passed, before the work was called done"
+domain = "AIH"
+statement = "A change is reported complete only after the project's tests have run against it and passed; the forge's check status for the commit is the evidence."
+rationale = "An assistant that says it is finished without running the tests is reporting a belief, not a result, and the failure shows up later in somebody else's branch."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "network"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Run the test suite on the change, in CI or locally, and read the result before saying the work is done; a commit with no check status, or a failing one, is not done."
+related = ["AIH-005", "TST-013"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
