@@ -253,7 +253,7 @@ policy, not another repository; most are properties the tool either has or lacks
 | CON-009 | Cancellation safety is documented | CON | a model | `src/module/neutral/lock_order.rs` | M | yes | unswept, guess: low | low/low | whether an async fn keeps partial state needs judgment |
 | AIH-003 | New helpers do not repeat existing utilities | AIH | a model | `src/checks/cohesion/facts.rs` | L | yes | unswept, guess: medium | low/low | needs a notion of "does the same job" |
 | AIH-008 | No abstractions or options nobody asked for | AIH | a model | `src/checks/architecture/passthrough.rs` | L | yes | unswept, guess: low | low/low |  |
-| API-012 | Unpromised behaviour not accidentally relied upon | API | a model | `src/module/delegate/semver.rs` | L | yes | unswept, guess: low | low/low |  |
+| API-012 | Unpromised behaviour not accidentally relied upon | API | a model | `src/module/delegate/semver.rs` | L | yes | unswept, guess: low | low/low | **Not checkable: kept as guidance, no checker will be built** (CireSnave 2026-11-07, ruling 5: "keep"). The rule asks a project to vary incidental behaviour on purpose (the Go map-iteration technique), which is a design practice, not something a tool can read off a repository. The record stays in the catalog with its advice. |
 | DOC-006 | Docs and comments match current behaviour | DOC | a model | `src/module/neutral/doc009.rs` | L | yes | unswept, guess: low | low/low |  |
 | RDB-010 | Comments and docstrings match current behaviour | RDB | a model | `src/module/neutral/doc009.rs` | L | yes | unswept, guess: low | low/low | duplicate of DOC-006 |
 | RDB-012 | Additions match how the repository already works | RDB | a model | `src/module/neutral/rdb008.rs` | L | yes | unswept, guess: low | low/low |  |

@@ -201,9 +201,9 @@ scopes = ["first_party"]
 
 [[rule]]
 id = "API-009"
-title = "Extension points flagged on exported enums and structs"
+title = "Extension points flagged on exported enums"
 domain = "API"
-statement = "Public enums and structs expected to gain members are marked so that adding them is not a breaking change."
+statement = "Public enums expected to gain variants are marked so that adding them is not a breaking change."
 rationale = "Without the marker, extending the type forces a major version, which discourages healthy growth."
 evidence_tiers = ["V1"]
 evidence_strength = "C"
@@ -219,7 +219,7 @@ remediation = "Mark the type as non-exhaustive or sealed, or document that it is
 related = []
 lifecycle = "experimental"
 
-checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories and outside binary roots (main.rs, src/bin/); an item is public when its visibility is a bare pub and every inline module above it is pub (a pub use or a module in its own file is not followed); cfg(test) items, test functions and doc(hidden) items are skipped; methods are the pub methods of inherent impl blocks of types not private in the same file. Reports a pub enum with variants, or a pub struct whose named fields are all pub, with no #[non_exhaustive] and no doc that says the type is closed (the words exhaustive, closed, sealed, fixed set) (Low severity, Medium confidence). Not judged: whether the type is expected to grow, sealed traits, other languages."
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories and outside binary roots (main.rs, src/bin/); an item is public when its visibility is a bare pub and every inline module above it is pub (a pub use or a module in its own file is not followed); cfg(test) items, test functions and doc(hidden) items are skipped; methods are the pub methods of inherent impl blocks of types not private in the same file. Reports a pub enum with variants (enums only: a struct is not read, because #[non_exhaustive] on a data struct stops a downstream crate building it) with no #[non_exhaustive] and no doc that says the type is closed (the words exhaustive, closed, sealed, fixed set) (Low severity, Medium confidence). Not judged: whether the type is expected to grow, sealed traits, other languages."
 
 [rule.applicability]
 languages = ["any"]
