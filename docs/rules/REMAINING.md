@@ -1,5 +1,7 @@
 # The remaining rules: what has no check yet
 
+> **Updated 2026-11-07 at `origin/main` c715b60** (rewritten counts: 66 built by any route, 165 rows; the 18 rows whose check was built since the table was made at 81010a4 are removed: OPS-006, CON-002, ERR-001, REL-005, CON-004, EXT-003, REL-003, CON-003, ERR-004, SEC-005, API-004, API-009, ARC-004, ARC-005, ARC-011, MOD-006, ARC-009, MOD-009). The prose below is the original reading at 81010a4 and its counts (183, 48, 20/19/9) are history, not current.
+
 Package E of the ARC/MOD plan ([`docs/lanes/package-e.md`](../lanes/package-e.md)). Documentation only: a table of every catalog rule that no check covers, so
 the next planning pass starts from facts. Read at `origin/main` 81010a4 from the committed tree (`git ls-files`, `git show`), not from a working tree.
 
@@ -8,11 +10,11 @@ the next planning pass starts from facts. Read at `origin/main` 81010a4 from the
 | Quantity | Count | Source |
 | :--- | ---: | :--- |
 | Catalog rules | 231 | every `[[rule]]` in the 21 files `rules/*.toml`, 231 distinct ids (232 before TYP-003 became an alias of MOD-010) |
-| `BuiltinCheck::ALL` | 20 | rows of the `builtin_checks!` table in `src/builtin.rs` |
-| Covered by an in-process module check | 19 | `rule_ids()` of `src/module/neutral/` (the `ID` constant of each of its 19 files) |
-| Covered by a delegated tool | 9 | `RULES` of `src/module/delegate/mod.rs` (osv-scanner claims two ids, SUP-002 and SEC-006) |
-| Built by any route | 48 | 20 + 19 + 9; the three sets share no id (checked) |
-| **Rows in this table** | **183** | 231 - 48: catalog rules with no check of any kind |
+| `BuiltinCheck::ALL` | 26 | rows of the `builtin_checks!` table in `src/builtin.rs` |
+| Covered by an in-process module check | 29 | `rule_ids()` of `src/module/neutral/` (8 are opt-in) |
+| Covered by a delegated tool | 11 | `RULES` of `src/module/delegate/mod.rs` (osv-scanner claims two ids, SUP-002 and SEC-006) |
+| Built by any route | 66 | 26 + 29 + 11; the three sets share no id (checked) |
+| **Rows in this table** | **165** | 231 - 66: catalog rules with no check of any kind |
 
 The package-e brief says rows = catalog - `BuiltinCheck::ALL.len()` = 211. That count would list 28 rules as unbuilt that the neutral module checks and the
 delegated tools already run (RDB-008, DOC-009, SEC-004, SEC-002 and so on), so this document uses the accurate count: rows = catalog rules with no check of any
@@ -75,18 +77,14 @@ policy, not another repository; most are properties the tool either has or lacks
 
 ### A. Source only, no model (largest value first: severity, then confidence, then size)
 
-88 rows.
+76 rows.
 
 | id | title | family | input needed | closest check to copy | size | advisory-only | patent-sweep risk | severity/confidence | note |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| OPS-006 | No secrets in configuration files | OPS | source only | `src/module/delegate/gitleaks.rs` | S | no | unswept, guess: low | high/high | gitleaks (SEC-002) already scans tracked files for secrets; claiming OPS-006 there is a mapping, not new detection (not run to confirm) |
-| CON-002 | No lock held over a suspension point | CON | source only | `src/module/neutral/lock_order.rs` | M | no | unswept as a rule; adjacent: idea 19 (CON-006 guards), guess: low | high/high | Rust: a guard from lock() or borrow_mut() live across .await; clippy has await_holding_lock for the std and RefCell cases |
-| ERR-001 | Errors are not swallowed | ERR | source only | `src/checks/unused_return_values/mod.rs` | M | no | unswept, guess: low | high/high | partly covered by unused-return-values (Rust discarded Result, compiler route); remaining: empty catch, bare except/pass, `let _ =`; multi-language text patterns as in efx003.rs |
 | COR-006 | Unsafe confined, justified and run under Miri | COR | source only | `src/module/neutral/ops012.rs` | M | no | unswept, guess: low | high/medium | static half only (unsafe banned, or each block justified: twin of SEC-005); the Miri or sanitizer half is a runtime |
 | ERR-003 | No panics or unchecked indexing on input paths | ERR | source only | `src/module/neutral/sec004.rs` | L | no | unswept, guess: low | high/medium | "reachable from input" needs entry points; without them it equals TYP-006 (unwrap in production), so build TYP-006 first |
 | SEC-001 | No unsanitised taint flow to dangerous sinks | SEC | source only | `src/module/neutral/sec004.rs` | L | no | unswept, guess: high | high/medium | real taint flow needs dataflow or a delegated analyser |
 | COR-007 | No float equality; tolerances declared | COR | source only | `src/module/neutral/ops012.rs` | S | no | unswept, guess: low | medium/high | Rust: == or != with a float literal; no type inference, so recall is low |
-| REL-005 | Probes and resource limits in manifests | REL | source only | `src/module/delegate/checkov.rs` | S | no | unswept, guess: low | medium/high | Kubernetes manifests: containers without probes or limits; probably expressible as checkov checks through the SEC-009 delegate (checkov was not run to confirm the check ids) |
 | TYP-006 | No unwrap or null assertions on production paths | TYP | source only | `src/module/neutral/ops012.rs` | S | no | unswept, guess: low | medium/high | Rust: unwrap() or expect() in non-test production code, except justified ones; clippy has unwrap_used; also the static core of ERR-003 |
 | EFX-001 | Components declared pure avoid effectful APIs | EFX | source only | `src/checks/architecture/volatile.rs` | M | no | unswept; same mechanism as idea 29 (ARC-003) with a deny-list of effect APIs, guess: low | medium/high | needs components tagged pure |
 | ERR-009 | Errors and logs leak no sensitive data | ERR | source only | `src/module/neutral/sec004.rs` | M | yes | unswept, guess: low | high/low | proxy: log or format macro arguments named password, token, secret, key; high severity, low confidence; twin of SEC-008 |
@@ -94,19 +92,14 @@ policy, not another repository; most are properties the tool either has or lacks
 | SUP-003 | Dependency licences satisfy policy | SUP | source only | `src/module/delegate/osv.rs` | M | no | unswept, guess: low | medium/high | dependency licences vs policy; cargo metadata or cargo-deny as a delegated tool; the repo-own `licence` check is different |
 | WSP-003 | Internal library versions stay within the skew policy | WSP | source only | `src/checks/version_consistency/mod.rs` | M | no | unswept, guess: low | medium/high | version skew across repositories read from manifests; needs a policy number; partly the same as version-consistency |
 | SEC-003 | Authorization on every entry point | SEC | source only | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | high/low | per-framework route enumeration; high severity, low confidence, so advisory |
-| CON-004 | Bounded queues, channels and spawns | CON | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: unbounded_channel() and unbounded queues; twin of REL-003, build both in one package |
 | EXT-002 | No downcasts on abstractions | EXT | source only | `src/module/neutral/efx003.rs` | S | no | unswept, guess: low | medium/medium | Rust: downcast_ref, Any::downcast, TypeId; other languages instanceof |
-| EXT-003 | Implementations honour their contract | EXT | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: todo!(), unimplemented!() or "not supported" errors in non-test trait impls |
-| REL-003 | Bounded channels with overflow policy | REL | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | twin of CON-004: same detection, one package |
 | TYP-005 | Money and exact amounts avoid binary floats | TYP | source only | `src/module/neutral/sec004.rs` | S | no | unswept, guess: low | medium/medium | Rust: f32 or f64 for fields or parameters named price, amount, money, cost, balance |
 | AIH-001 | One policy for humans, agents and CI | AIH | source only | `src/module/neutral/ci_security.rs` | M | yes | unswept, guess: low | medium/medium | repo files only: the pinned version agrees across hooks, CI and agent config |
 | API-008 | Public API exposes no third-party types | API | source only | `src/checks/architecture/public_surface.rs` | M | no | unswept, guess: medium | medium/medium | Rust: a public signature names a type from another crate; same reader as ARC-004 (lane C), take it after that |
-| CON-003 | No thread-blocking calls in async code | CON | source only | `src/module/neutral/efx003.rs` | M | no | unswept, guess: low | medium/medium | Rust: std::thread::sleep, std::fs, blocking client calls inside an async fn |
 | CON-005 | No unsupervised detached tasks | CON | source only | `src/module/neutral/sec004.rs` | M | no | unswept, guess: low | medium/medium | Rust: spawn result dropped with no justification comment; comment lookup as in rdb008.rs |
 | CON-008 | Timeouts on externally dependent awaits | CON | source only | `src/module/neutral/sec004.rs` | M | no | unswept, guess: low | medium/medium | heuristic: .await on a network client call with no timeout wrapper; twin of REL-001 |
 | EFX-002 | Global mutable state only where allowed | EFX | source only | `src/module/neutral/efx003.rs` | M | no | unswept, guess: low | medium/medium | Rust: static mut, or a static holding Mutex or RefCell, outside an allowlist; pair with CON-011 |
 | ERR-002 | Catch-all handlers only at boundaries | ERR | source only | `src/module/neutral/efx003.rs` | M | no | unswept, guess: low | medium/medium | needs a declared list of boundary functions; Rust has little catch-all (catch_unwind) |
-| ERR-004 | Library errors are typed so callers can match them | ERR | source only | `src/checks/architecture/public_surface.rs` | M | no | unswept, guess: low | medium/medium | Rust library: pub fn returning Result<_, String>, Box<dyn Error> or anyhow::Error |
 | ERR-011 | Non-throwing parse results are checked | ERR | source only | `src/checks/unused_return_values/mod.rs` | M | no | unswept, guess: low | medium/medium | partly covered by unused-return-values; the remainder is language specific (try-parse forms) and low value in Rust |
 | RDB-003 | Cognitive complexity stays within bounds | RDB | source only | `src/checks/size_coupling/metrics.rs` | M | no | unswept, guess: medium | medium/medium | cognitive complexity from the syntax tree; metrics.rs already computes size metrics |
 | REL-001 | Outbound calls have deadlines | REL | source only | `src/module/neutral/sec004.rs` | M | no | unswept, guess: low | medium/medium | Rust: HTTP or DB clients built without a timeout; twin of CON-008 |
@@ -118,7 +111,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | COR-001 | Public API docs state errors, panics and safety | COR | source only | `src/checks/architecture/public_surface.rs` | S | yes | unswept, guess: low | low/high | Rust: pub fn returning Result lacks "# Errors", pub unsafe fn lacks "# Safety" (clippy has missing_errors_doc and missing_safety_doc) |
 | DOC-003 | Components carry a purpose and an owner in the spec | DOC | source only | `src/module/neutral/wsp001.rs` | S | yes | unswept, guess: low | low/high | needs declared components ([architecture]); each needs purpose and owner fields |
 | OPS-003 | Structured logging, no raw printing in libraries | OPS | source only | `src/module/neutral/ops012.rs` | S | yes | unswept, guess: low | low/high | Rust library source: println!, eprintln!, dbg! outside bins and tests; mirror of ops012.rs, which selects binaries |
-| SEC-005 | Unsafe and native code inventory | SEC | source only | `src/module/neutral/ops012.rs` | S | yes | unswept, guess: low | low/high | Rust: count unsafe blocks, fns and impls, flag a missing SAFETY comment; crates with none are told to forbid it |
 | COR-002 | Invariant types enforce invariants in code | COR | source only | `src/checks/architecture/invariants.rs` | M | yes | unswept, guess: low | medium/low | overlaps MOD-010 (built, idea 37) (TYP-003 is its alias) |
 | DOC-001 | Public items are documented | DOC | source only | `src/checks/architecture/public_surface.rs` | M | yes | unswept, guess: low | low/high | Rust library items are partly covered by MOD-001 (undocumented public items); this row is the other languages and the non-library case |
 | PRF-003 | Algorithmic red flags in code | PRF | source only | `src/module/neutral/sec004.rs` | M | yes | unswept, guess: low | medium/low | Rust: .clone() in loops, .contains() on a Vec inside a loop, String += in loops; low confidence |
@@ -132,8 +124,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | ERR-005 | Cross-boundary errors keep context and cause | ERR | source only | `src/checks/architecture/modgraph.rs` | L | yes | unswept, guess: low | medium/low | proxy: bare ? or From pass-through across a declared boundary; needs components |
 | REL-002 | Retries follow a safe policy | REL | source only | `src/module/neutral/sec004.rs` | L | yes | unswept, guess: low | medium/low | retry loops without backoff, jitter or a cap; hard to recognise syntactically |
 | TYP-004 | Outside data becomes domain types at the boundary | TYP | source only | `src/checks/architecture/modgraph.rs` | L | yes | unswept, guess: low | medium/low | needs entry points and domain types; medium severity, low confidence |
-| API-004 | Deprecation notices carry full lifecycle data | API | source only | `src/checks/architecture/public_surface.rs` | S | yes | unswept, guess: low | low/medium | Rust: #[deprecated] lacks since or note; the removal date is prose, judged only when a marker format is declared |
-| API-009 | Extension points flagged on exported enums and structs | API | source only | `src/checks/architecture/public_surface.rs` | S | yes | unswept, guess: low | low/medium | Rust: public enum or struct in a library without #[non_exhaustive]; noisy for closed sets, so opt-in or waivable |
 | EFX-007 | Shared-mutation spots say who owns them | EFX | source only | `src/module/neutral/sec004.rs` | S | yes | unswept, guess: low | low/medium | Rust: Cell, RefCell, Arc<Mutex> fields and statics without a doc comment |
 | RDB-004 | Nesting, parameter count and flag arguments stay small | RDB | source only | `src/checks/size_coupling/metrics.rs` | S | yes | unswept, guess: low | low/medium | nesting depth, parameter count, bool parameters; twin of TYP-007 |
 | REL-009 | Monotonic clocks for durations | REL | source only | `src/module/neutral/efx003.rs` | S | yes | unswept, guess: low | low/medium | Rust: SystemTime::now() subtraction or elapsed on a wall clock; low severity, medium confidence |
@@ -279,17 +269,11 @@ policy, not another repository; most are properties the tool either has or lacks
 
 ### Assigned to a lane (kept out of the recommendation)
 
-7 rows.
+1 rows.
 
 | id | title | family | input needed | closest check to copy | size | advisory-only | patent-sweep risk | severity/confidence | note |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| ARC-004 | Infrastructure types kept out of policy signatures | ARC | assigned: lane C | `src/checks/architecture/volatile.rs` | M | no | see docs/lanes/package-c.md; PATENT-SWEEP.md watch: re-read rows 51 and 42 first | high/medium |  |
-| ARC-005 | Depend toward stability | ARC | assigned: lane B | `src/checks/architecture/modgraph.rs` | M | no | see docs/lanes/package-b.md; same watch (rows 51, 42) | medium/medium |  |
 | ARC-012 | Construction only in composition roots | ARC | assigned: lane C | `src/checks/architecture/volatile.rs` | M | no | see docs/lanes/package-c.md | medium/medium |  |
-| ARC-011 | Signs of a distributed monolith | ARC | assigned: lane D (if feasible) | `src/checks/architecture/modgraph.rs` | L | yes | see docs/lanes/package-d.md | medium/low |  |
-| MOD-006 | Divergent change across unrelated edits | MOD | assigned: lane D | `src/checks/architecture/modgraph.rs` | M | yes | see docs/lanes/package-d.md | low/low |  |
-| ARC-009 | Architectural drift over time | ARC | assigned: lane D | `src/checks/architecture/modgraph.rs` | L | yes | see docs/lanes/package-d.md | low/low |  |
-| MOD-009 | Long reach-through chains | MOD | assigned: lane B | `src/checks/architecture/modgraph.rs` | M | yes | see docs/lanes/package-b.md | info/low |  |
 
 
 ## Recommended order for the next three packages
@@ -326,3 +310,20 @@ and WSP-006 (clones) and TST-005 (flaky tests) need a sweep first. The model and
 - **Delegated-tool overlap (OPS-006 with gitleaks, REL-005 with checkov, SUP-003 with cargo-deny)** is from the rules' text and the delegates' file names, not from running the tools.
 - **GOV-001 to GOV-009:** whether CodeRipper already has each property was checked only by `grep` for words (waiver, maturity, first_party) in `src/`, not by reading the code.
 - **Language coverage:** the notes name Rust forms because the existing checks read Rust; whether a rule is worth doing for other languages was not assessed.
+
+### E. Scheduled from the 2026-11-07 review (new rules, no catalog record yet)
+
+Proposed ids; each becomes a record, with `checked_today`, in the PR that builds it. Source: [`docs/RULES-REVIEW-2026-11-07.md`](../RULES-REVIEW-2026-11-07.md) section A. Default on, low value means scheduled, not declined (CireSnave, 2026-10-25).
+
+| proposed id | title | family | input needed | closest check to copy | size | note |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| AIH-009 | Tests are not weakened to make a change pass | AIH | the diff against the merge-base | `src/module/neutral/lint_suppression.rs` (ratchet, merge-base compare) | M | removed `#[test]`, removed or loosened assertion, new `#[ignore]` |
+| AIH-010 | Tests were run before the work is called done | AIH | the commit's CI status | `src/checks/ci_protection_presence/` | S | RULING: harness hook in scope, or CI status only |
+| SEC-011 | Authentication and authorization on Rust entry points (SEC-003/SEC-010 Rust half) | SEC | source only | `src/module/neutral/sec005.rs` | L | route inventory for axum, actix-web, rocket, warp; SEC-003 and SEC-008 gain Rust applicability |
+| CON-012 | Public async functions return `Send` futures | CON | source only | `src/module/neutral/concurrency.rs` | M | clippy `future_not_send` is nursery |
+| SUP-020 | Cargo features are additive | SUP | Cargo.toml | `src/module/neutral/sup001.rs` | S | `no-*` features, mutually exclusive pairs |
+| SEC-012 | No `Debug` on secret-holding types | SEC | source only | `src/module/neutral/sec004.rs` | S | `derive(Debug)` on a type with a secret-named field and no wrapper |
+| SUP-021 | `build.rs` and proc-macro hygiene | SUP | source only | `src/module/neutral/rust_package.rs` | S | network, writes outside `OUT_DIR`, no `rerun-if-changed` |
+| COR-011 | Arithmetic safety in numeric code | COR | Cargo.toml, source | `src/module/neutral/rust_src.rs` | M | `[lints]` arithmetic and cast lints first, narrowing `as` casts second |
+| COR-012 | `Send`/`Sync` impls are sound | COR | source only | `src/module/neutral/sec005.rs` | M | SEC-005 already reports an `unsafe impl` with no `SAFETY` comment; add field types (raw pointer, `Cell`, `Rc`) |
+| AIH-011 | Agent-authored changes get a human review | AIH | branch protection | `src/checks/ci_protection_presence/` | S | required reviews |
