@@ -194,21 +194,18 @@ fn closed_type(attrs: &[Attribute], item: &Item, out: &mut Vec<Site>) {
     if attrs.iter().any(|a| a.path().is_ident("non_exhaustive")) || says_closed(attrs) {
         return;
     }
-    match item {
-        Item::Enum(e) => {
-            let n = e.variants.iter().filter(|v| visible(&v.attrs)).count();
-            if n > 0 {
-                out.push(Site {
-                    kind: Kind::Closed,
-                    line: line_of(e.ident.span()),
-                    name: e.ident.to_string(),
-                    detail: format!("is a public enum of {n} variant(s)"),
-                });
-            }
+    // a struct is not read (CireSnave 2026-11-07, ruling 3: "enums only"): `#[non_exhaustive]` on a data struct stops a
+    // downstream crate building it, so an all-`pub` struct is usually the design, not a defect
+    if let Item::Enum(e) = item {
+        let n = e.variants.iter().filter(|v| visible(&v.attrs)).count();
+        if n > 0 {
+            out.push(Site {
+                kind: Kind::Closed,
+                line: line_of(e.ident.span()),
+                name: e.ident.to_string(),
+                detail: format!("is a public enum of {n} variant(s)"),
+            });
         }
-        // a struct is not read (CireSnave 2026-11-07, ruling 3: "enums only"): `#[non_exhaustive]` on a data struct stops a
-        // downstream crate building it, so an all-`pub` struct is usually the design, not a defect
-        _ => {}
     }
 }
 
