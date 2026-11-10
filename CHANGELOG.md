@@ -6,6 +6,21 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.30 - 2026-11-10 (proposed, Fix)
+
+**API-009 reads enums only** (CireSnave 2026-11-07, ruling 3: "yes"). It also flagged every `pub struct` whose named fields are all `pub`, but `#[non_exhaustive]` on a data struct stops a downstream crate building it with a struct expression, so that is usually the design, not a defect; the cure the rule asked for broke the callers it meant to protect. A `pub enum` with variants and no `#[non_exhaustive]` and no doc saying the set is closed is still reported. The rule stays opt-in (`coderipper check API-009`).
+
+
+EXT-001 (a catalogue record with no checker yet) now says a catch-all arm that the compiler requires over a `#[non_exhaustive]` enum is never a finding, so marking an enum to satisfy API-009 does not trade it for an EXT-001 finding.
+
+## 0.43.29 - 2026-11-10 (proposed, Fix)
+
+**The lint-suppression ratchet counts only suppressions without a reason** (CireSnave 2026-11-07, ruling 2: "only unexplained"). It counted every `allow` and `ignore` attribute "reasons or not", so one well-reasoned allow failed a branch like ten bare ones. Now a branch that adds an `allow` or `ignore` with no reason is the Medium finding it was; one that adds a suppression with a `reason = ".."` (or `#[ignore = ".."]`) is an **Info** finding (`allow-explained-count`), which does not gate. The per-attribute "has no reason" finding is unchanged.
+
+## 0.43.28 - 2026-11-10 (proposed, Fix)
+
+**SEC-002 findings are Critical, as the rule's record says.** The gitleaks mapping reported `High` while `rules/sec.toml` has `default_severity = "critical"` (CireSnave 2026-11-07: "Raise the code to Critical"). The same scan under OPS-006 stays `High`, which is OPS-006's own record severity.
+
 ## 0.43.27 - 2026-11-09 (proposed, Added: PRF-003 (opt-in, Rust))
 
 **PRF-003 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check PRF-003`; it is in no profile. It reads production source with `syn` and reports, **per function, one Medium finding at low confidence** at the first site with the sites listed, for four shapes inside a loop (a `for`, `while` or `loop`, or the closure given to an iterator adaptor such as `map` or `for_each` on an iterator): a linear search (`contains`, `iter().any`, `iter().find`, `iter().position`) of a `Vec`, `VecDeque`, slice or array declared outside the loop; `s = format!(.. s ..)` rebuilding a string declared outside it; a `query`, `query_as`, `query_row`, `prepare` or similar call with a `SELECT` string literal; and a `clone`, `to_vec` or `to_owned` of a collection or string declared outside it whose copy is only read (`.iter()`, `.len()`, `.contains()` and the like) or iterated by a `for` inside another loop; a clone that is handed on is not read, and neither are the closures of `map_err`, `ok_or_else`, `unwrap_or_else` and `or_else`. A collection's type is known only from a typed parameter, a typed or constructed `let` or a field of the same file. Not read: a collection whose type is not declared, a search inside a called function, per-row `INSERT`, `UPDATE` or `DELETE`, whether the loop or the collection is large, whether a clone is needed; TypeScript and Python are not read. A cue to read, never a verdict; the allowlist subject is `Owner::function` or the function name. Fixtures `conformance/PRF-003/{clean,defective}`; the corpus counts are in the pull request. Patent sweep addendum: one idea, no hit read as claimed.
