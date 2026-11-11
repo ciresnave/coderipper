@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.46 - 2026-11-11 (proposed, Feature: new opt-in rule)
+
+**CON-010 is built: a weak atomic ordering carries a comment (Rust, opt-in).** The tracked `.rs` files of every package are parsed with `syn`, outside tests, examples, tools, `build.rs`, vendored trees and `#[cfg(test)]` code; each use of `Ordering::Relaxed`, `Acquire`, `Release` or `AcqRel` (any path ending that way) with no comment on its line or the three lines above is an undocumented site. A package with any gets one finding, Low severity and Low confidence, listing the first eight sites and counting the rest. Only the presence of a comment is read, never its argument. It is opt-in (`coderipper check CON-010`): an ordering imported by name, held in a constant or written inside a macro's arguments is not seen, and neither is whether the ordering is in fact enough. Fixtures `conformance/CON-010/{defective,clean}`; with `Relaxed` removed from the ordering list the conformance run fails, restored it reads proven. Measured on the committed trees (`HEAD`) of two local checkouts (2026-11-10, `check CON-010 --project`; a checkout can lag `origin/main`): coderipper 2 of 2 weak ordering uses uncommented, auth-framework 42 of 59. The other six checkouts were not measured in this run. How many are defects to fix was not decided here, so the rule's precision is not claimed.
+
 ## 0.43.45 - 2026-11-11 (proposed, CI)
 
 **The portfolio workflow now installs coderipper 0.43.41** (`CODERIPPER_VERSION` was 0.39.0). 0.39.0 lacks `[[interface]]` (version-consistency per-interface mode), which blocked FireLine repinning to this workflow. 0.43.41 is the newest release on crates.io (tag v0.43.41).
