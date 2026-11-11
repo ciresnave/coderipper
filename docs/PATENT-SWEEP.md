@@ -369,6 +369,7 @@ Q35 returned no patent on point (papers on reproducible builds and one workload-
 | 115 | US20100318980A1 | Static program reduction for complexity analysis | Microsoft Corp (current: Microsoft Technology Licensing LLC) | Abandoned (Google Patents page 2026-11-09, not the official record) | 1, claim text as returned by `tools/patent-claims.py` (**one model, unverified**) | Converts original program code into refined code by expanding a multi-path loop into a code fragment of simpler loops, so that computational complexity can be estimated more precisely. | Claim 1 is a **code transformation (loop expansion) for complexity estimation**; `PRF-003` transforms nothing and estimates no complexity, it matches four syntactic shapes inside a loop. |
 | 116 | US9043775B2 | Method for identifying problematic loops in an application and devices thereof | Infosys Ltd | Expired - Fee Related (Google Patents page 2026-11-09, not the official record; anticipated expiration 2033-01-30) | 1, claim text as returned by the tool (**one model, unverified**) | Generates a loop directed acyclic graph by static **and dynamic** analysis, collects each loop's weight as a percentage of whole-program execution time and flags the loops with the higher weights. | Every step uses **loop weight measured from execution time**; `PRF-003` runs nothing, builds no loop graph and ranks no loop by time. |
 | 117 | US20140173576A1 | Loop Invariant Method Expression Hoisting | Individual (current: Advanced Micro Devices Inc) | Expired - Fee Related (Google Patents page 2026-11-09, not the official record) | 1, claim text as returned by the tool (**one model, unverified**) | A compiler method that finds an expression in a nested loop, builds a sum-of-products form, sorts terms by iterator variable, moves partial expressions to the outer loop and compiles the modified source to object code. | Claim 1 is **arithmetic expression hoisting inside a compiler** and ends in compiling to object code; `PRF-003` reports a per-pass `clone` of a collection that is only read and never rewrites or compiles the source. |
+| 118 | US20130117326A1 | External serialization and deserialization | Microsoft Technology Licensing LLC | Abandoned (Google Patents, not the official record; priority 2011-11-08) | 1, 11 and 16 (all independent) | Discovers and invokes serialization and deserialization functions, and may take a deserialization function from a roundtrip function (claims 3 and 18). | Every independent claim transforms or serializes an object graph from metadata about the objects held outside the object model, or invokes a deserialization function chosen by a type tag, at run time; the claims do not analyse source text, pair functions by their names or report a missing test. `COR-003` runs nothing and reads source. | No hit as read |
 | 90 | 42 | software component instability metric afferent efferent coupling detect dependency on less stable component static analysis (the first result in this batch was US11860764B2, row 76) |
 
 Results listed but whose claims were not read (CN104200161A, US7010782B2, US8037360B2, EP1179776A1, WO2026080403A1) are not hits and carry no verdict: they were not read. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing; the sandboxed-execution-with-filesystem-diff area is crowded (malware analysis in particular), so a claim this search did not surface may read on it. **Result: six patents read (hits 27 to 32), each outside as read on `OPS-011` for the missing element named in its row; this is not a clearance.** The 0.12 line adds no other mechanism: hits 1 to 32 and ideas 1 to 19 are unchanged. **Watch:** re-sweep if `OPS-011` or a follow-up (M15, M16) starts to judge a binary malicious, keep a stored expected-output table, or record a process or memory baseline.
@@ -1099,3 +1100,41 @@ Version line covered by this addendum: **0.43** (0.43.27). One rule is added: `P
 **Result: no hit reads on `PRF-003` as read.** **Watches:** (1) do not weight loops by measured execution time or build a loop graph (116), do not transform loops to estimate complexity (115) and do not rewrite or hoist code (117); (2) read US20060053422A1, US10585777 and US9904549 before the rule is described as new in public; (3) string concatenation in a loop is a published defect pattern (a FindBugs fix-pattern study found in Q142 names it), the catalog record names Clippy's performance lints as the model, and complexity-vulnerability scanners exist (ShadowProbe, found in Q140), so the rule claims no novelty over them; **whether a public linter flags a `contains` or a `SELECT` inside a loop was not verified here**.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, claim 1 only for the rows, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.34)
+
+Version line covered by this addendum: **0.43** (0.43.34). One rule is added, read from `src/module/neutral/cor007.rs`: `COR-007` (exact equality on floats, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 73 (`COR-007`).** Parse the Rust source files outside test code and report an `==` or `!=` with a visibly floating-point operand (a non-zero literal, a cast, a float constant) and an `assert_eq!` style macro with a float literal, leaving the comparisons with zero and infinities alone. Polyspace (`BAD_FLOAT_OP`), JetBrains Rider, CodeQL (`cs/equality-on-floats`), GCC and Clang (`-Wfloat-equal`), Clippy (`float_cmp`) and Error Prone ship the same warning and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q143 | 73 | patent static analysis detect equality comparison of floating point values in source code report warning exact comparison tolerance |
+| Q144 | 73 | detecting floating-point equality comparison operator in program source code static analyzer defect (restricted to patents.google.com) |
+
+**Positive controls:** Q143 returned the tool documentation above (Polyspace, Rider, CodeQL, Error Prone), so the engine reaches the idea itself; those are published prior art, not patents. Q144 returned a runtime floating-point error detector (US9104515B2), comparator circuits (US8799344B2, US6085212A, EP1061436A2) and two generic source-code security analyzers (CN100461132C, CN101017458A), so it reaches the neighbourhood. **A patent that reports an equality comparison of floats in source code as a defect was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** every patent named above; by its snippet, not one of them analyses source text for float comparisons (they act on executing instructions, hardware or generic security rules).
+
+**Result: no hit reads on `COR-007` as read.** **Watch:** re-read the claims of US9104515B2 before `COR-007` runs the program or re-evaluates comparisons at higher precision; the rule is a syntactic match and stays one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.35)
+
+Version line covered by this addendum: **0.43** (0.43.35). One rule is added, read from `src/module/neutral/cor003.rs`: `COR-003` (codec pairs without a round-trip property test, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 74 (`COR-003`).** Parse the Rust source files outside test code, pair a public encoder and decoder of one scope by their verb names (`encode`/`decode`, `serialize`/`deserialize`, `to_bytes`/`from_bytes` and the like), and report a pair that no property-test file of the package names on both sides. Property-based testing guidance (round trip, `decode(encode(x)) == x`) is published prior art, and so is Hypothesis's and proptest's own documentation.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q145 | 74 | patent static analysis detect encoder and decoder function pair in source code lacking round-trip property test generating test cases |
+| Q146 | 74 | automatically identifying serializer and deserializer function pair in source code and generating round-trip test (restricted to patents.google.com) |
+
+**Positive controls:** Q145 returned a CODEC hardware test patent (US5483237) and practitioner guidance for round-trip properties (the idea itself, published as prior art, not patents); Q146 returned the serializer and deserializer patent above (row 118) and hardware SERDES test patents (US7526033B2, US8094705B2), so the engine reaches the neighbourhood. **A patent that finds an encoder and decoder pair in source and reports the absence of a round-trip test was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** row 118, every independent claim, through `tools/patent-claims.py`. **Not read in full:** the hardware SERDES patents, by their titles and snippets (they test chips).
+
+**Result: no hit reads on `COR-003` as read.** **Watch:** re-read the claims of US20130117326A1 (abandoned, but a continuation may exist) before `COR-003` infers an inverse function from a declared round-trip or generates the serializer or the test.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

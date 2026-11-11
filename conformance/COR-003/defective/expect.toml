@@ -1,0 +1,6 @@
+# The seeded defect: a public encoder and decoder (line 5 is the encoder) with only an example test, no property test.
+
+[[expect]]
+rule = "COR-003"
+file = "src/lib.rs"
+line = 5

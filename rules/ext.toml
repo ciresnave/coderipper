@@ -4,7 +4,7 @@
 id = "EXT-001"
 title = "Exhaustive matching on closed variant sets"
 domain = "EXT"
-statement = "A match over a fixed family of variants lists them all. A catch-all arm outside the defining module is reported, because it would silently absorb variants added later."
+statement = "A match over a fixed family of variants lists them all. A catch-all arm outside the defining module is reported, because it would silently absorb variants added later, except where the compiler requires it: a match over an enum marked `#[non_exhaustive]` in another crate must have one, so that arm is never a finding (otherwise this rule and API-009 would contradict each other: marking the type would trade an API-009 finding for an EXT-001 one)."
 rationale = "Exhaustive matching lets the compiler point at each place needing attention once a new variant appears."
 evidence_tiers = ["V0", "V1"]
 evidence_strength = "C"

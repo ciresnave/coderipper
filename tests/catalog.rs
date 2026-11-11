@@ -100,6 +100,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("patent-sweep-record");
     // the CLI-conventions rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("OPS-012");
+    // the agent-behaviour rule from Pip's review (2026-11-07, ruling 4): the CI-status reading of "run the tests before claiming done"
+    triaged.push("AIH-010");
     // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("security-support-statement");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
