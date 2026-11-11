@@ -1,0 +1,6 @@
+# The seeded defect: an exact equality against a non-zero float literal (line 3); the zero sentinel on line 7 is not one.
+
+[[expect]]
+rule = "COR-007"
+file = "src/lib.rs"
+line = 3
