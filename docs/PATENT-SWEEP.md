@@ -1099,3 +1099,22 @@ Version line covered by this addendum: **0.43** (0.43.27). One rule is added: `P
 **Result: no hit reads on `PRF-003` as read.** **Watches:** (1) do not weight loops by measured execution time or build a loop graph (116), do not transform loops to estimate complexity (115) and do not rewrite or hoist code (117); (2) read US20060053422A1, US10585777 and US9904549 before the rule is described as new in public; (3) string concatenation in a loop is a published defect pattern (a FindBugs fix-pattern study found in Q142 names it), the catalog record names Clippy's performance lints as the model, and complexity-vulnerability scanners exist (ShadowProbe, found in Q140), so the rule claims no novelty over them; **whether a public linter flags a `contains` or a `SELECT` inside a loop was not verified here**.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, claim 1 only for the rows, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.34)
+
+Version line covered by this addendum: **0.43** (0.43.34). One rule is added, read from `src/module/neutral/cor007.rs`: `COR-007` (exact equality on floats, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 73 (`COR-007`).** Parse the Rust source files outside test code and report an `==` or `!=` with a visibly floating-point operand (a non-zero literal, a cast, a float constant) and an `assert_eq!` style macro with a float literal, leaving the comparisons with zero and infinities alone. Polyspace (`BAD_FLOAT_OP`), JetBrains Rider, CodeQL (`cs/equality-on-floats`), GCC and Clang (`-Wfloat-equal`), Clippy (`float_cmp`) and Error Prone ship the same warning and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q143 | 73 | patent static analysis detect equality comparison of floating point values in source code report warning exact comparison tolerance |
+| Q144 | 73 | detecting floating-point equality comparison operator in program source code static analyzer defect (restricted to patents.google.com) |
+
+**Positive controls:** Q143 returned the tool documentation above (Polyspace, Rider, CodeQL, Error Prone), so the engine reaches the idea itself; those are published prior art, not patents. Q144 returned a runtime floating-point error detector (US9104515B2), comparator circuits (US8799344B2, US6085212A, EP1061436A2) and two generic source-code security analyzers (CN100461132C, CN101017458A), so it reaches the neighbourhood. **A patent that reports an equality comparison of floats in source code as a defect was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** every patent named above; by its snippet, not one of them analyses source text for float comparisons (they act on executing instructions, hardware or generic security rules).
+
+**Result: no hit reads on `COR-007` as read.** **Watch:** re-read the claims of US9104515B2 before `COR-007` runs the program or re-evaluates comparisons at higher precision; the rule is a syntactic match and stays one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

@@ -13,6 +13,7 @@
 mod ci_security;
 mod concurrency;
 mod conflict_marker;
+mod cor007;
 mod doc005;
 mod doc009;
 mod efx003;
@@ -249,6 +250,10 @@ const RULES: &[Rule] = &[
         id: "EXT-002",
         judge: ext002::judge,
     },
+    Rule {
+        id: "COR-007",
+        judge: cor007::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -262,7 +267,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005",
+        "PRF-003", "PRF-005", "COR-007",
     ]
 }
 
@@ -637,6 +642,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("COR-007", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -683,6 +689,7 @@ const PROVEN: &[&str] = &[
     "RDB-007",
     "TST-003",
     "EXT-002",
+    "COR-007",
 ];
 
 impl Module for NeutralModule {
