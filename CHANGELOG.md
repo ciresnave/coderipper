@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.45 - 2026-11-11 (proposed, CI)
+
+**The portfolio workflow now installs coderipper 0.43.41** (`CODERIPPER_VERSION` was 0.39.0). 0.39.0 lacks `[[interface]]` (version-consistency per-interface mode), which blocked FireLine repinning to this workflow. 0.43.41 is the newest release on crates.io (tag v0.43.41).
+
 ## 0.43.44 - 2026-11-11 (proposed, Breaking: a new opt-in rule (TST-009))
 
 **TST-009 is built, opt-in** (`coderipper check TST-009`; `src/module/neutral/tst009.rs`, the neutral module's Rust reading, one finding per Cargo package). A package is **risky** when it has a `pub` function (free or an inherent method) named `parse*`, `decode*`, `deserialize*`, `from_str*` or `from_bytes*` that takes `&str`, `String`, `&[u8]`, `Vec<u8>` or `Bytes`, or an `impl FromStr`, or when it has at least five `unsafe` blocks and `unsafe fn`s; a risky package is reported (Medium severity, Low confidence, at its `Cargo.toml`) unless its manifest or the repository root manifest names `proptest`, `quickcheck`, `arbitrary`, `bolero`, `arbtest`, `libfuzzer-sys`, `honggfuzz` or `afl`, or a `fuzz/Cargo.toml` is tracked in the package or at the root. Not seen (`checked_today`): that a target is wired into the pipeline and run regularly, whether a target covers the risky module, input functions with other names, hand-rolled generated-input tests, and modules (the unit is the package).
