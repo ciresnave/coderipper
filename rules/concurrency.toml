@@ -267,6 +267,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Extract the shared items from the code, declare an owner for each in the architecture description, and replace any that have no good reason to be shared with passed-in values."
 related = ["CON-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; one scan finds a static mut, a static whose type names Mutex, RwLock, RefCell, Cell, UnsafeCell, ArcSwap or an Atomic type (read through OnceLock, LazyLock, Lazy, Arc and Box to what they hold, so a lazily built Regex is not a site), and the same kinds of entry inside lazy_static and thread_local. EFX-002 and CON-011 read the same sites. Not judged: a type alias that hides the lock, an allowlist or an owner inventory (none is read), statics in other macros, other languages. One finding per site with Medium confidence; Low severity; opt-in (check CON-011)."
 lifecycle = "experimental"
 
 [rule.applicability]

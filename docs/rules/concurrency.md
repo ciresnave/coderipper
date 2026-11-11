@@ -78,7 +78,7 @@ guidance are available but no finding is produced.
 | CON-008 | Timeouts on externally dependent awaits | P | built in part (Rust, `syn`, outside tests; a `TcpStream::connect(..).await` outside `timeout(..)`, Medium; the awaits of the one scan that `REL-001` also reads; opt-in (`check CON-008`); other awaits, wrappers and other languages are not read) |
 | CON-009 | Cancellation safety is documented | L | catalog record; no check yet (needs a human decision; a model can only propose candidates) |
 | CON-010 | Weak atomic orderings are justified | P | catalog record; no check yet (comment presence is mechanical, comment quality needs judgement) |
-| CON-011 | Shared state has a declared owner | A | catalog record; no check yet (needs a declared architecture) |
+| CON-011 | Shared state has a declared owner | A | built in part (the Rust reading of `EFX-002`, reported at Low: global statics holding locks, cells or atomics; no inventory is read, so each site is waived with its owner named; opt-in, `check CON-011`) |
 
 ## Further reading
 
