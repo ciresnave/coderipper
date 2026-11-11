@@ -58,13 +58,13 @@ Two rules in this domain are run by the current release (OPS-011 and OPS-012, Ru
 | :--- | :--- | :--- | :--- |
 | OPS-001 | One typed, validated configuration entry point | P | catalog record; no check yet (needs a parser) |
 | OPS-002 | Config keys are documented, defaulted and used | P | catalog record; no check yet (needs a parser) |
-| OPS-003 | Structured logging, no raw printing in libraries | P | catalog record; no check yet (needs a parser); planned: Clippy print and dbg lints, ESLint no-console |
+| OPS-003 | Structured logging, no raw printing in libraries | P | built in part (Rust, `syn`, library packages outside tests and binaries; `println!`, `print!`, `eprintln!`, `eprint!` and `dbg!` calls, Low; opt-in (`check OPS-003`); hand-written stdout writes, macro-wrapped prints and other languages are not read) |
 | OPS-004 | Trace context follows outbound calls | P | catalog record; no check yet (needs a parser and runtime tests that assert propagation) |
 | OPS-005 | Golden-signal metrics for endpoints and dependencies | P | catalog record; no check yet (needs a parser and a running service) |
 | OPS-006 | No secrets in configuration files | N | built: the gitleaks scan of SEC-002, narrowed to configuration files (YAML, TOML, INI, properties, XML, JSON other than lockfiles, dotenv, docker-compose) and reported under this id; no detection of its own; needs gitleaks installed |
 | OPS-007 | Flags need an accountable owner and a sunset date | N | catalog record; no check yet (a registry check is static, staleness needs history) |
 | OPS-008 | Liveness and readiness endpoints exist | P | catalog record; no check yet (needs a parser and probe tests) |
-| OPS-009 | Alerts are tied to objectives and have runbooks | N | catalog record; no check yet (needs a human decision and external alert definitions) |
+| OPS-009 | Alerts are tied to objectives and have runbooks | N | check `OPS-009` (Info): a Prometheus alert with no `annotations.runbook_url`; Helm templates and PrometheusRule resources are not read |
 | OPS-010 | Build and version information is exposed | N | catalog record; no check yet (needs inspection of build scripts) |
 | OPS-011 | A binary answers --version, --help and a bad flag, and does nothing else | N | built in (Rust, `cli-basics` in `src/checks/cli_basics`): builds the package's binaries from the committed tree and runs the five probes in an empty directory with an empty environment |
 | OPS-012 | A command-line tool follows the platform's conventions | P | built in (Rust, from the source with `syn`, `src/module/neutral/ops012.rs`): a fixed editor, a home-root dotfile, a hand-rolled argument loop, `-v`/`-V` swapped; and, for a feature the binary itself offers: `--yes`/`--quiet`/`--verbose` without `-y`/`-q`/`-v`, stdin read with no `-` operand, a colour crate that ignores `NO_COLOR` (or a presence-only test of it), a never-ending `loop` or listener with no Ctrl-C handling |

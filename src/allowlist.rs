@@ -23,6 +23,17 @@ pub(crate) struct TrackEntry {
     pub reason: String,
 }
 
+/// `[[interface]]`: `package` versions by its own interface, not by the project number (CireSnave, board 295: each interface crate of a
+/// project that has several, such as FireLine's, keeps its own version, and they meet at one number at a major release). The package is
+/// left out of the uniform comparison; a project at a major release (`X.0.0`, or `0.Y.0` before 1.0) needs every interface crate at that
+/// number. `reason` is required, like every exception's.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InterfaceEntry {
+    pub package: String,
+    pub reason: String,
+}
+
 /// `[[skip_member]]`: a workspace member this repository's `--workspace` run does not build, and says so every run ("not judged
 /// (declared skip)"). `name` is the cargo package name. `reason` and `owner` are required, like a waiver's. With `needs` the skip
 /// holds only while that executable is absent from `PATH`: a runner that has the tool builds and judges the member.
@@ -290,6 +301,7 @@ fn line_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<LineRange
 pub struct Allowlist {
     entries: Vec<AllowEntry>,
     tracks: Vec<TrackEntry>,
+    interfaces: Vec<InterfaceEntry>,
     skip_members: Vec<SkipMemberEntry>,
     cli_waivers: Vec<CliWaiver>,
     buf_baseline: Option<String>,
@@ -300,6 +312,7 @@ impl Allowlist {
         Self {
             entries: Vec::new(),
             tracks: Vec::new(),
+            interfaces: Vec::new(),
             skip_members: Vec::new(),
             cli_waivers: Vec::new(),
             buf_baseline: None,
@@ -323,6 +336,7 @@ impl Allowlist {
                         .chain(file.reachability.iter().flat_map(|r| r.entries(None)))
                         .collect(),
                     tracks: file.tracks,
+                    interfaces: file.interface,
                     skip_members: file.skip_member,
                     cli_waivers: file.cli_waiver,
                     buf_baseline: file.buf.and_then(|b| b.baseline),
@@ -351,6 +365,7 @@ impl Allowlist {
                     .flat_map(|r| r.entries(Some(source.clone()))),
             );
             list.tracks.extend(layer.file.tracks.iter().cloned());
+            list.interfaces.extend(layer.file.interface.iter().cloned());
             if let Some(b) = layer.file.buf.as_ref().and_then(|b| b.baseline.clone()) {
                 wide_baseline = Some(b);
             }
@@ -390,6 +405,10 @@ impl Allowlist {
     /// The repository's own `[[cli_waiver]]` entries (a wide file's are not read: what a binary's contract is belongs to the repository).
     pub(crate) fn cli_waivers(&self) -> &[CliWaiver] {
         &self.cli_waivers
+    }
+
+    pub(crate) fn interfaces(&self) -> &[InterfaceEntry] {
+        &self.interfaces
     }
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {

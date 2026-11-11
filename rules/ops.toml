@@ -63,6 +63,7 @@ default_severity = "low"
 confidence_class = "high"
 kb_refs = []
 remediation = "Replace print and debug-dump calls with the project's logger at a suitable level, and enable the linters that forbid console output."
+checked_today = "Tracked Rust files of a library package (src/lib.rs or a [lib] table) outside vendored and fixture directories, tests, benches, examples, tools, scripts and build.rs, outside a binary's source (main.rs, src/bin/) and outside cfg(test) modules and test functions, parsed with syn; one Low finding with High confidence per call of println!, print!, eprintln!, eprint! or dbg! (also when path-qualified). Not judged: a print by a macro the package or a dependency defines, a hand-written write to stdout or stderr, a print inside another macro's arguments, a library that prints by design (a waiver with the reason), other languages. Opt-in (check OPS-003)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -203,6 +204,7 @@ default_severity = "info"
 confidence_class = "low"
 kb_refs = []
 remediation = "Review each alert against a stated objective, drop or demote those without one, and write a runbook for every alert that pages."
+checked_today = "From tracked Prometheus rule files (*.rules.yml and .yaml, alerts*.yml and .yaml, alert_rules*.yml and .yaml, outside vendored and test directories), parsed as YAML: each alert under groups[].rules[] needs a non-empty annotations.runbook_url; one Info finding per alert without one, at the line of its alert key. A file with recording rules only is not judged; a repository with no rule file that holds an alert is not applicable. Not judged: alert rules in Helm templates, Jsonnet or PrometheusRule custom resources, a runbook linked only from description or summary text, the link working, and a file that is not valid YAML (named in a note)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -250,6 +252,8 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Handle the standard flags before anything else in `main` (a derive-based parser such as clap does so by default) and make an unknown flag exit 2 with a one-line error. An allowlist entry with a reason covers a binary that cannot answer (one that needs a terminal from its first line)."
 lifecycle = "experimental"
+
+checked_today = "Rust binaries only. The package is built from the committed tree in a throwaway worktree (cargo build --bins; HEAD, so uncommitted edits are not seen; a [[bin]] whose required-features are off is not built) and each binary cargo wrote is run five times, each in a fresh sandbox directory with an empty environment (PATH and the Windows system variables only; HOME, USERPROFILE, APPDATA, LOCALAPPDATA, the XDG roots and the temp directory point into the sandbox) and a 10-second timeout: --version, -V, --help, -h and an unknown flag. Expected: exit 0 with something on stdout for the first four, and the manifest version in the stdout of --version and -V; exit 2 with a message on stderr and nothing on stdout for the unknown flag; no ANSI escape sequence in any output; no panic; no file or directory created, changed or removed in the sandbox. One finding per binary naming each failed probe, subject the binary's name: Low severity, Medium when a probe timed out (retried once first), High confidence. A [[cli_waiver]] in .coderipper.toml waives named probes of one binary with a required reason (printed as a note; a stale waiver is noted), and an [[allow]] entry on the binary name also covers it. Runs in the extended and portfolio profiles, not in classic unless named, and is advisory. It is the one check that runs the built binaries, not only the build scripts. Not judged: package.json bin entries and Python console scripts, a write outside the sandbox or a network call, a daemon forked and left running, a missing-file argument, $EDITOR, config dotfiles, NO_COLOR, stdin -, -y/-q/-v, Ctrl-C, and whether the version line names the binary (only that it contains the manifest version)."
 
 [rule.applicability]
 languages = ["rust"]

@@ -18,6 +18,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Configure a timeout when the client is constructed and pass the caller's remaining deadline along each hop."
 related = ["CON-008", "REL-002"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; REL-001 reports all three kinds of one scan that finds three kinds of site: an HTTP client built without a timeout (reqwest Client::new, reqwest::get and the blocking forms, or a Client::builder or ClientBuilder::new chain ending in build with no timeout, connect_timeout or read_timeout in it; a bare Client counts when the file imports it from reqwest), an awaited TcpStream::connect (tokio, async-std, smol) outside a call of timeout or timeout_at, and a blocking std::net::TcpStream::connect (connect_timeout has a deadline). Not judged: a request sent on a client built elsewhere, a deadline applied by a wrapper or a middleware layer, FutureExt::timeout adapters (treated as a deadline), database and RPC clients, a timeout set from the environment, other languages. One Medium finding with Medium confidence per site; opt-in (check REL-001)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -165,6 +166,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Add a short failure-mode table per component, including the service's behaviour while a dependency is unavailable, and have a person review it."
 related = ["REL-008", "REL-011"]
+checked_today = "Presence only, from tracked file names and headings: a file named FAILURE-MODEL*, failure-modes* or their underscore and joined forms (any case), or a Markdown heading containing failure model or failure mode in ARCHITECTURE*.md, or in architecture*.md or design*.md under docs/. A repository that tracks a project manifest and none of those gets one Info finding at the manifest, with the search as its control; a repository with no manifest is not applicable. The text of a document is never judged and the rule's per-component wording (a failure model for each declared component) is not checked: one document for the repository satisfies it. Not judged: a failure model kept outside the repository or under another name."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -70,8 +70,8 @@ depend on judgment about intent (EXT-010) or on history (EXT-007 to EXT-009).
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| EXT-001 | Exhaustive matching on closed variant sets | P | catalog record; no check yet (triage names the Clippy restriction lint `wildcard_enum_match_arm`, typescript-eslint `switch-exhaustiveness-check`, pyright `reportMatchNotExhaustive`) |
-| EXT-002 | No downcasts on abstractions | P | catalog record; no check yet (planned native search for downcasts and type tests in client code) |
+| EXT-001 | Exhaustive matching on closed variant sets | P | built in part (Rust, `syn`, outside tests; a `match` over one enum of the package, in another file than its definition, ending in a catch-all arm that absorbs variants no other arm lists, Medium; opt-in (`check EXT-001`); a bare variant name after `use`, `Self::` patterns, other crates' enums and other languages are not read; the Clippy restriction lint `wildcard_enum_match_arm`, typescript-eslint `switch-exhaustiveness-check` and pyright `reportMatchNotExhaustive` remain the tools for those) |
+| EXT-002 | No downcasts on abstractions | P | built in part (Rust, `syn`, outside tests; `downcast_ref`, `downcast_mut`, `downcast`, `is::<T>`, `type_id` and `TypeId::of`, a downcast to an error type excepted, Medium; opt-in (`check EXT-002`); the receiver's type is not resolved; other languages not read) |
 | EXT-003 | Implementations honour their contract | P | check `EXT-003` (Rust, `syn`, Medium): a method of a non-test trait impl whose body calls `todo!` or `unimplemented!`, or is a short straight-line body holding "not supported" or "not implemented"; trait default bodies, `panic!` stubs, silent empty overrides and macro-generated impls are not seen; other languages not covered |
 | EXT-004 | Fat interfaces | P | catalog record; no check yet, needs per-client usage analysis (not worth building yet for Rust) |
 | EXT-005 | Bounded inheritance | P | catalog record; no check yet (pylint too-many-ancestors for Python; not applicable to Rust, which has no implementation inheritance) |

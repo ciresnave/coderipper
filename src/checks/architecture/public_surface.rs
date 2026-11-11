@@ -83,21 +83,22 @@ impl Check for PublicSurfaceCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let (totals, mut notes) = surface(&files, "", &BTreeSet::new())?;
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        notes.push(format!(
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let (totals, mut notes) = surface(&files, "", &BTreeSet::new())?;
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            notes.push(format!(
             "MOD-001 read a public surface of {} item(s) and {} member(s); {} documentable item(s), {} without documentation",
             totals.item_count(),
             totals.members,
             totals.documented + totals.undocumented.len(),
             totals.undocumented.len()
         ));
-        Ok((judge(&totals, &PARAMS, &project), notes))
+            Ok((judge(&totals, &PARAMS, &project), notes))
+        })
     }
 }
 
