@@ -1197,3 +1197,22 @@ Version line covered by this addendum: **0.43** (0.43.38). Two rules are added f
 **Result: no hit reads on `CON-008` or `REL-001` as read.** **Watch:** re-read the claims of US20110320617A1 before either rule observes a running connection or measures a timeout; the rules are a syntactic match and stay one.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.39)
+
+Version line covered by this addendum: **0.43** (0.43.39). Two rules are added from one scan, read from `src/module/neutral/global_state.rs`: `EFX-002` (global mutable state, Rust) and `CON-011` (shared state has a declared owner, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 78 (`EFX-002`, `CON-011`).** Parse the Rust source files outside test code and report a `static mut`, or a `static` whose declared type names a lock, cell or atomic. Neti (a Rust crate, rule S01 on `static mut`), Polyspace Code Prover (global variables shared between tasks) and CWE-567 are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q153 | 78 | patent static analysis detect global mutable state static variable shared across threads in source code, report violation |
+| Q154 | 78 | patents.google.com automatically identifying global variables or singleton mutable shared state in program source code static analysis report |
+
+**Positive controls:** Q153 returned Polyspace's documentation, CWE-567 and US 6,925,638, so the engine reaches the idea. Q154 returned US 8,510,604 (static data race detection), US 9,075,997 and US 8,656,496 (IBM, global variable security analysis) and the Neti rule, so it reaches the neighbourhood. **A patent that reports a global lock, cell or atomic by matching the declared type of a static item, found by parsing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the one close hit, US 6,925,638 B1 (IBM, "Mutability analysis in Java", Expired, Google Patents' estimate 2022-11-06), through `tools/patent-claims.py`: claim 1 detects whether a variable could change state after initialisation, by a first analysis of modifications by methods inside the component and an encapsulation analysis of modifications by methods outside it, and calls a field mutable if any corresponding variable is. The rules here match a declared type name and read no modifications, so claim 1 does not read on them as read. **Not read in full:** US 8,510,604, US 9,075,997 and US 8,656,496 (by snippet: race detection over memory reachable from globals, and taint-style tracking of selected globals; neither reports a declaration).
+
+**Result: no hit reads on `EFX-002` or `CON-011` as read.** **Watch:** re-read the claims of US 8,510,604 before either rule reports an unprotected access to such a static, or reads whether the state is ever modified.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, one patent read through its claims, the others by snippet, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
