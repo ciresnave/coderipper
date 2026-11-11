@@ -1178,3 +1178,22 @@ Version line covered by this addendum: **0.43** (0.43.37). One rule is added, re
 **Result: no hit reads on `CON-005` as read.** **Watch:** row 120 is active (Microsoft, estimated expiry 2031): re-read its claims before `CON-005` runs the program, catches a task's exception, or re-throws one when a handle is dropped.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.38)
+
+Version line covered by this addendum: **0.43** (0.43.38). Two rules are added from one scan, read from `src/module/neutral/deadline.rs`: `CON-008` (an awaited connect without a deadline, Rust) and `REL-001` (an outbound call without a deadline: an HTTP client built without a timeout, an awaited or blocking connect). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 77 (`CON-008`, `REL-001`).** Parse the Rust source files outside test code and report a client built, or a connect made, with no timeout in the code that builds or awaits it. Bandit (`B113`), Ruff (`S113`), Pylint (`W3101`, `missing-timeout`), Datadog's static analysis rule for Python and the saropa lints for Dart ship the same check and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q151 | 77 | patent static analysis detect network request or socket connect call in source code without timeout parameter, report missing timeout |
+| Q152 | 77 | automatically detecting HTTP client or remote call without timeout configured in program source code static analysis (restricted to patents.google.com) |
+
+**Positive controls:** Q151 returned the linter rules above (the idea itself, published as prior art, not patents), so the engine reaches it. Q152 returned patents on timeouts and static analysis in other settings (US20110320617A1 on detecting incomplete requests and TCP timeouts in a network appliance, EP2627057A1 on time-out control, US8589946B2 on preventing a browser timeout, US20050108562A1 on static analysis of binaries for malicious code), so it reaches the neighbourhood. **A patent that reports a network call made without a timeout, found by analysing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** every patent named above; by its snippet, not one of them analyses source text for a missing timeout (they act on traffic, timers or binaries).
+
+**Result: no hit reads on `CON-008` or `REL-001` as read.** **Watch:** re-read the claims of US20110320617A1 before either rule observes a running connection or measures a timeout; the rules are a syntactic match and stay one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
