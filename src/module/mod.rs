@@ -368,6 +368,14 @@ fn judge(result: RuleResult, findings: Vec<Finding>, in_process: bool) -> RuleOu
             .take(MAX_NOTES_PER_RULE)
             .map(clean_note)
             .collect(),
+        // a skip says why: the reason is a note ("skipped", never "not run": that wording is the one a portfolio job fails on)
+        (RuleStatus::Skipped { detail }, _) if !detail.trim().is_empty() => {
+            vec![clean_note(&format!(
+                "{} skipped (not applicable here): {}",
+                result.rule,
+                detail.trim()
+            ))]
+        }
         _ => Vec::new(),
     };
     RuleOutcome {
@@ -548,6 +556,29 @@ mod tests {
         );
         assert!(matches!(r.rules[0].status, RuleStatus::Skipped { .. }));
         assert_eq!(r.run_errors, Vec::<String>::new());
+    }
+
+    #[test]
+    fn a_skip_with_a_reason_is_a_note_that_says_skipped_and_never_not_run() {
+        let r = reconcile(
+            &request(&["a", "b"]),
+            ModuleOutput::from_events(vec![
+                Event::RuleResult(RuleResult::not_applicable("a", "nothing to compare with")),
+                ran("b", 0),
+                summary(),
+            ]),
+        );
+        assert!(matches!(r.rules[0].status, RuleStatus::Skipped { .. }));
+        let notes = &r.rules[0].notes;
+        assert_eq!(notes.len(), 1, "{notes:?}");
+        assert!(
+            notes[0].contains("a skipped (not applicable here): nothing to compare with"),
+            "{notes:?}"
+        );
+        // the portfolio job fails on the words "not run:"
+        assert!(!notes[0].contains("not run:"), "{notes:?}");
+        // control: a rule that ran has no such note
+        assert!(r.rules[1].notes.is_empty());
     }
 
     #[test]

@@ -224,6 +224,14 @@ pub trait Check: Send + Sync {
         false
     }
 
+    /// Why the check has nothing to judge in this project, though the project has declared everything it should: a rule that compares
+    /// with a release, in a repository that has never published one. Unlike [`Check::not_configured`] this is not a gap in what the
+    /// project declares, so it is a skip ("skipped (not applicable here): why", counted as skipped in the coverage), never "not run"
+    /// and never a failure of a portfolio job; it is still never clean. The default is `None`.
+    fn not_applicable(&self, _ctx: &CheckContext) -> Option<String> {
+        None
+    }
+
     /// Why the check cannot judge this project at all, or `None` when it can. An answer is reported as "not run: why" and counted as
     /// not run in the coverage, never as clean: for a rule that compares the code with something the project must declare (the
     /// `[architecture]` table), a project that declares nothing has not passed. The default is `None`.
