@@ -1,0 +1,6 @@
+# The seeded defect: a thread spawned and its handle dropped on the spot, with no reason given (line 4).
+
+[[expect]]
+rule = "CON-005"
+file = "src/lib.rs"
+line = 4

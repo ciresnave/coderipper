@@ -120,6 +120,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Keep the join handle and await it, spawn inside a task scope or set, or record in a comment why this task is allowed to run on its own."
 related = ["CON-007", "CON-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions (any attribute ending in test, tokio::test included) skipped: a call of a free spawn function (tokio::spawn, task::spawn, task::spawn_local, spawn_blocking, thread::spawn, std::thread::spawn, async_std or smol spawn, or a bare spawn the file imports from one of them) whose handle is dropped on the spot, as a statement of its own or bound to an underscore. A handle kept in a variable, returned, pushed, awaited or joined, a spawn through a method (a JoinSet, a scope) and a spawn with a justifying comment (detach, fire-and-forget, background, on purpose, deliberate, intentional, supervis, owned by) on its line or in the three lines above are not reported. One Medium finding with Medium confidence per detached spawn; opt-in (check CON-005). Not judged: a kept handle that is never joined, a spawn through a wrapper of the project, a runtime handle method, whether the task forwards its errors, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -193,6 +194,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Wrap the operation in a timeout or pass a deadline down from the caller; list the few places where waiting indefinitely is intended."
 related = ["REL-001", "CON-003"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; CON-008 reports only the second kind, the awaits, of one scan that finds three kinds of site: an HTTP client built without a timeout (reqwest Client::new, reqwest::get and the blocking forms, or a Client::builder or ClientBuilder::new chain ending in build with no timeout, connect_timeout or read_timeout in it; a bare Client counts when the file imports it from reqwest), an awaited TcpStream::connect (tokio, async-std, smol) outside a call of timeout or timeout_at, and a blocking std::net::TcpStream::connect (connect_timeout has a deadline). Not judged: a request sent on a client built elsewhere, a deadline applied by a wrapper or a middleware layer, FutureExt::timeout adapters (treated as a deadline), database and RPC clients, a timeout set from the environment, other languages. One Medium finding with Medium confidence per site; opt-in (check CON-008)."
 lifecycle = "experimental"
 
 [rule.applicability]
