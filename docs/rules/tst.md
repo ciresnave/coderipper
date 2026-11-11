@@ -67,7 +67,7 @@ One check exists in this domain, TST-003 (Rust, on by default); no other rule be
 | TST-003 | No empty, trivial or non-calling tests | P | built in part, on by default: a Rust `#[test]` function with an empty body, only tautological assertions, or no call and no check (Medium); the per-test coverage half (a test that never reaches the unit it names) is not built |
 | TST-004 | Over-mocking heuristics in tests | P | catalog record; no check yet, needs a parser for AST heuristics |
 | TST-005 | Intermittent tests are assigned and time-boxed | X | catalog record; no check yet, needs CI history from a service (network) |
-| TST-006 | Tests hermetic: no network, clock or shared filesystem | X | catalog record; no check yet, needs runs with network off and time frozen |
+| TST-006 | Tests hermetic: no network, clock or shared filesystem | X | built in part, opt-in (`coderipper check TST-006`): a Rust `#[test]` function that connects out, reads the wall clock or names a shared path (Medium severity, Low confidence); the full rule, running the suite offline with time frozen, is not built |
 | TST-007 | Bug fixes ship a regression test | H | catalog record; no check yet, needs a human decision, classifying the commit then inspecting the diff |
 | TST-008 | Test names agree with assertions | L | catalog record; no check yet, needs an LLM reading |
 | TST-009 | Risky modules have fuzz or property targets | P | catalog record; no check yet, needs module classification by tags or LLM |
