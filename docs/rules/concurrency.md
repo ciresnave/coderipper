@@ -75,7 +75,7 @@ guidance are available but no finding is produced.
 | CON-005 | No unsupervised detached tasks | P | built in part (Rust, `syn`, outside tests; a free `spawn`, `spawn_local`, `spawn_blocking` or `thread::spawn` whose handle is dropped on the spot, with no justifying comment, Medium; opt-in (`check CON-005`); a kept but never joined handle, wrappers, other languages not read) |
 | CON-006 | No lock-order cycles | X | built (Rust, from the source): two functions that take the same locks in opposite orders by direct nesting, or a lock taken while it is held, at Low confidence; a lock reached by a call, a local variable or a parameter is not seen. Not a proof of absence: schedule permutation and deadlock detectors remain the evidence for a pass |
 | CON-007 | Deterministic release of resources | P | catalog record; no check yet (needs a parser; leak counters run in tests) |
-| CON-008 | Timeouts on externally dependent awaits | P | catalog record; no check yet (needs a parser; exceptions are declared in the specification) |
+| CON-008 | Timeouts on externally dependent awaits | P | built in part (Rust, `syn`, outside tests; a `TcpStream::connect(..).await` outside `timeout(..)`, Medium; the awaits of the one scan that `REL-001` also reads; opt-in (`check CON-008`); other awaits, wrappers and other languages are not read) |
 | CON-009 | Cancellation safety is documented | L | catalog record; no check yet (needs a human decision; a model can only propose candidates) |
 | CON-010 | Weak atomic orderings are justified | P | catalog record; no check yet (comment presence is mechanical, comment quality needs judgement) |
 | CON-011 | Shared state has a declared owner | A | catalog record; no check yet (needs a declared architecture) |

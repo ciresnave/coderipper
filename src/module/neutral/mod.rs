@@ -16,6 +16,7 @@ mod concurrency;
 mod conflict_marker;
 mod cor003;
 mod cor007;
+mod deadline;
 mod doc005;
 mod doc009;
 mod efx003;
@@ -254,6 +255,14 @@ const RULES: &[Rule] = &[
         judge: ext002::judge,
     },
     Rule {
+        id: "CON-008",
+        judge: deadline::judge_con008,
+    },
+    Rule {
+        id: "REL-001",
+        judge: deadline::judge_rel001,
+    },
+    Rule {
         id: "CON-005",
         judge: con005::judge,
     },
@@ -282,7 +291,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005",
+        "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
     ]
 }
 
@@ -657,6 +666,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("CON-008", &["rust"]),
+    ("REL-001", &["rust"]),
     ("CON-005", &["rust"]),
     ("EXT-001", &["rust"]),
     ("COR-003", &["rust"]),
@@ -711,6 +722,8 @@ const PROVEN: &[&str] = &[
     "EXT-001",
     "COR-003",
     "COR-007",
+    "CON-008",
+    "REL-001",
 ];
 
 impl Module for NeutralModule {
