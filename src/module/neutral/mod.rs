@@ -43,6 +43,7 @@ mod rust_src;
 mod sec004;
 mod sec005;
 mod sec007;
+mod sensitive_output;
 mod sup001;
 mod sup004;
 mod sup005;
@@ -257,6 +258,14 @@ const RULES: &[Rule] = &[
         judge: ext002::judge,
     },
     Rule {
+        id: "ERR-009",
+        judge: sensitive_output::judge_err009,
+    },
+    Rule {
+        id: "SEC-008",
+        judge: sensitive_output::judge_sec008,
+    },
+    Rule {
         id: "OPS-003",
         judge: ops003::judge,
     },
@@ -306,7 +315,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
-        "EFX-002", "CON-011", "OPS-003",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008",
     ]
 }
 
@@ -681,6 +690,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("ERR-009", &["rust"]),
+    ("SEC-008", &["rust"]),
     ("OPS-003", &["rust"]),
     ("EFX-002", &["rust"]),
     ("CON-011", &["rust"]),
@@ -745,6 +756,8 @@ const PROVEN: &[&str] = &[
     "REL-001",
     "EFX-002",
     "CON-011",
+    "ERR-009",
+    "SEC-008",
 ];
 
 impl Module for NeutralModule {

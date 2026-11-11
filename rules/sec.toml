@@ -193,6 +193,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Redact or omit sensitive fields before logging, wrap secrets in types that print as masked, and review log statements that handle user records."
 related = ["SEC-001", "SEC-002"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; the tokens of each macro are read directly. SEC-008 reads logging macros: error!, warn!, info!, debug!, trace!, log!, event! and the tracing span macros. A name is sensitive when its last word is password, passwd, passphrase, secret, token, credential(s), cookie, authorization, bearer or apikey, or its last two words are api_key, private_key, secret_key, signing_key, access_key, session_key, auth_key, master_key or encryption_key (token_count, token_type and tokenizer are not); it counts as a variable, field, tracing named field or inline format capture, not as the receiver of len or is_empty, a call, a redacted argument or a field given a literal. Not judged: a secret behind a name that does not say so, a {:?} of a whole struct that holds one, a self-redacting type, a record or error built by a wrapper, other languages. One Medium finding with Low confidence per macro and name; opt-in (check SEC-008)."
 lifecycle = "experimental"
 
 [rule.applicability]
