@@ -73,24 +73,25 @@ impl Check for SizeCouplingCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let (measured, notes) = metrics::measure(&files)?;
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let mut findings = judge(&measured, &CORPUS, &project);
-        findings.sort_by(|a, b| {
-            let key = |f: &Finding| {
-                f.location
-                    .as_ref()
-                    .map(|l| (l.file.clone(), l.line))
-                    .unwrap_or_default()
-            };
-            key(a).cmp(&key(b)).then_with(|| a.subject.cmp(&b.subject))
-        });
-        Ok((findings, notes))
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let (measured, notes) = metrics::measure(&files)?;
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let mut findings = judge(&measured, &CORPUS, &project);
+            findings.sort_by(|a, b| {
+                let key = |f: &Finding| {
+                    f.location
+                        .as_ref()
+                        .map(|l| (l.file.clone(), l.line))
+                        .unwrap_or_default()
+                };
+                key(a).cmp(&key(b)).then_with(|| a.subject.cmp(&b.subject))
+            });
+            Ok((findings, notes))
+        })
     }
 }
 

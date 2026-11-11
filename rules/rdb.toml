@@ -21,6 +21,8 @@ remediation = "Remove the parameter, or prefix it with an underscore if the sign
 related = ["unused-return-values", "reachability"]
 lifecycle = "advisory"
 
+checked_today = "Rust only. In a throwaway worktree of the committed tree (HEAD: uncommitted edits are not seen) cargo check builds all targets with lints capped to warnings, and rustc's own unused_variables diagnostics are kept only where they land exactly on a parameter (found with syn, in src/ or the package's cargo target roots) of a free function, nested ones included, or of an inherent-impl method. A local, a closure parameter, a trait declaration, a trait default body, a trait impl method (its signature is the trait's) and anything inside a macro_rules body are not reported. One finding per parameter: Low severity, High confidence, subject the qualified function and the parameter. A name that starts with _ is never reported (that is the way to silence it) and an item-level #[allow(unused_variables)] is respected. Parameters in tests/, examples/ and benches/ are built but not reported. A sentinel parameter is injected into each target root as a control: the run is an error, never clean, when rustc does not report it (a crate-wide allow of unused or unused_variables) or the build has compiler errors; a [[bin]] whose required-features are off is named as not checked. Runs in the classic, extended and portfolio profiles at the fast tier, and is advisory (it never blocks). It builds the project, so its build scripts and procedural macros run. Not judged: other languages, a parameter deliberately ignored under a _ name, the parameters of a trait's own methods, code under a cfg that this build does not enable, and a parameter that is only passed along (it counts as used)."
+
 [rule.applicability]
 languages = ["rust"]
 scopes = ["first_party"]
@@ -119,6 +121,8 @@ remediation = "Use early exits to cut nesting, group related parameters into a t
 related = ["RDB-003", "TYP-007"]
 lifecycle = "experimental"
 
+checked_today = "Rust only (the catalog says any language; the others are not read), opt-in (runs when named, in no profile): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped. Per function, one Low finding at medium confidence for each of: more than 7 parameters, self not counted (not read in trait impls, whose signature the trait dictates); control flow nested 5 or more deep (if, match, loop, while, for; an else if shares its if's level; closures add none; read in trait impls too); a bool parameter that the body uses directly as an if or while condition or a match scrutinee (if flag, if !flag; not read in trait impls). Not judged: macro bodies, generated code, a bool behind a type alias, a flag copied into a variable first, shadowed names, long but flat functions, TypeScript and Python."
+
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
@@ -190,6 +194,8 @@ kb_refs = []
 remediation = "Introduce a named constant or a small type that states the meaning. Obvious values such as 0 or 1 in context need no name."
 related = ["TYP-001"]
 lifecycle = "experimental"
+
+checked_today = "Rust only (the catalog says any language; the others are not read), opt-in (runs when named, in no profile): tracked production .rs files (outside vendored, fixture and development directories, tests, benches, examples, tools, build.rs, tests.rs-style files and files over 2 MiB, which a note names), parsed with syn, items under cfg(test) and test functions skipped. One Info finding per file at low confidence, at the first site, with the counts and the first sites, for two shapes: a number (integer or float literal) that is an operand of an arithmetic, comparison or compound-assignment operator, an argument of a function or method call, or a bare value (a let initialiser, a return value, the right side of an assignment, a struct-field value, a block tail) and is not trivial (0, 1, 2, 10, 100, 1000, 1024, 255, 60, 24, powers of two up to 4096, 0.0, 1.0, 0.5, and a negated trivial value); and a string of two or more characters that appears three or more times in the file. Not read: const and static items, enum discriminants, array lengths, attributes, macro arguments (so format strings), constructor arguments. Not judged: other languages, a literal copied through a variable, strings repeated across files, whether a name would help."
 
 [rule.applicability]
 languages = ["any"]

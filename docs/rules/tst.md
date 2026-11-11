@@ -58,16 +58,16 @@ consumer-driven contract tests such as Pact, Google's small/medium/large test si
 
 ## Where it is checked
 
-Only five checks exist today, none of them in this domain, so no rule below is run by the current release. Every row is a catalog record with no check yet; most need tests to be executed.
+One check exists in this domain, TST-003 (Rust, on by default); no other rule below is run by the current release. Every other row is a catalog record with no check yet; most need tests to be executed.
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | TST-001 | Changed-code coverage meets threshold | X | catalog record; no check yet, needs test execution and a ratchet-style gate (cargo-llvm-cov, JaCoCo, coverage.py with diff-cover, Istanbul/c8) |
 | TST-002 | Mutation score on the diff meets threshold | X | catalog record; no check yet, needs test execution (cargo-mutants, PIT, Stryker, mutmut, Mull) |
-| TST-003 | No empty, trivial or non-calling tests | P | catalog record; no check yet, needs a parser, and per-test coverage attribution for the calling part |
-| TST-004 | Over-mocking heuristics in tests | P | catalog record; no check yet, needs a parser for AST heuristics |
+| TST-003 | No empty, trivial or non-calling tests | P | built in part, on by default: a Rust `#[test]` function with an empty body, only tautological assertions, or no call and no check (Medium); the per-test coverage half (a test that never reaches the unit it names) is not built |
+| TST-004 | Over-mocking heuristics in tests | P | built in part, opt-in (`coderipper check TST-004`): a Rust `#[test]` with at least four `expect_*` mock set-ups and four times as many as assertions, or three `.times(..)` call-count checks and no assertion (Low severity, Low confidence); mockall-style mocks only, and it cannot tell an internal collaborator from a boundary |
 | TST-005 | Intermittent tests are assigned and time-boxed | X | catalog record; no check yet, needs CI history from a service (network) |
-| TST-006 | Tests hermetic: no network, clock or shared filesystem | X | catalog record; no check yet, needs runs with network off and time frozen |
+| TST-006 | Tests hermetic: no network, clock or shared filesystem | X | built in part, opt-in (`coderipper check TST-006`): a Rust `#[test]` function that connects out, reads the wall clock or names a shared path (Medium severity, Low confidence); the full rule, running the suite offline with time frozen, is not built |
 | TST-007 | Bug fixes ship a regression test | H | catalog record; no check yet, needs a human decision, classifying the commit then inspecting the diff |
 | TST-008 | Test names agree with assertions | L | catalog record; no check yet, needs an LLM reading |
 | TST-009 | Risky modules have fuzz or property targets | P | built in part, opt-in (`coderipper check TST-009`): a Rust package with a `pub` text or bytes decoder (`parse*`, `decode*`, `deserialize*`, `from_str*`, `from_bytes*`), a `FromStr` impl, or five `unsafe` sites, and no property-test or fuzz crate or `fuzz/Cargo.toml` (Medium severity, Low confidence); the unit is the package, and a target that is not wired into the pipeline is not seen |

@@ -67,6 +67,7 @@ kb_refs = []
 remediation = "Add assertions about observable behavior, or delete the test; make sure it calls the unit under test."
 related = ["TST-008", "TST-013"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored and fixture directories; every function with a #[test] attribute (including #[tokio::test]), in tests/ files and #[cfg(test)] modules alike, is reported when its body is empty, asserts only tautologies (assert!(true), assert!(!false), assert_eq! of the same literal) with no other call or check, or calls nothing and checks nothing (only bindings and literals). A test that calls code and asserts nothing (a smoke test), #[ignore] tests and #[should_panic] tests are not reported. Not judged: a test that claims to test a unit but never reaches it (needs per-test coverage), an assertion comparing a value to itself through a variable, tests made by macros or rstest/proptest blocks, TypeScript and Python."
 
 [rule.applicability]
 languages = ["any"]
@@ -91,6 +92,7 @@ kb_refs = []
 remediation = "Prefer fakes at boundaries you own, assert on outcomes instead of interactions, and use real components for integration checks."
 related = ["TST-013"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source (syn), for mockall-style mocks: tracked .rs files outside vendored and fixture directories; every #[test] function (including #[tokio::test]) is reported when it sets up at least four expect_* calls and at least four times as many as it has assertions, or makes at least three .times(..) call-count checks and has no assertion (Low severity, Low confidence). Contested in the catalog, so it runs only when named. Not judged: whether the mocked collaborator is internal or a boundary the project does not own, mocks from other libraries or hand-written fakes, a mock built in a helper the test calls, the thresholds being configurable, TypeScript and Python."
 
 [rule.applicability]
 languages = ["any"]
@@ -139,6 +141,7 @@ kb_refs = []
 remediation = "Inject time and randomness, use temporary directories and local fakes, and confirm by running the suite offline with the clock frozen."
 related = ["TST-011"]
 lifecycle = "experimental"
+checked_today = "Rust only, a static proxy, opt-in (coderipper check TST-006): tracked .rs files outside vendored and fixture directories; the body of every #[test] function (including #[tokio::test]) is reported, once, when it calls TcpStream::connect, UdpSocket::connect or get/post/put/delete/head/patch/request on reqwest, ureq, surf or isahc (unless the test binds a TcpListener or names a loopback address), reads the wall clock (SystemTime::now, Utc::now, Local::now, OffsetDateTime::now_utc, Timestamp::now, Zoned::now), or names a shared location (a string literal under /tmp, /var, /etc, /home, /usr, C:, ~/ or a call to env::temp_dir). #[ignore] tests and Instant::now are not reported. Not judged: reach made by a helper, a fixture or the code under test, a path built at run time, other network clients, a frozen or injected clock, TypeScript and Python, and the full rule (run the suite offline with the clock frozen)."
 
 [rule.applicability]
 languages = ["any"]

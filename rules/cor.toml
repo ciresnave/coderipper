@@ -20,6 +20,8 @@ remediation = "Add the missing sections to the doc comments: what errors can be 
 related = ["COR-002", "COR-006"]
 lifecycle = "experimental"
 
+checked_today = "Rust only, from the source (syn): tracked .rs files outside vendored, fixture and development directories and outside binary roots (main.rs, src/bin/); an item is public when its visibility is a bare pub and every inline module above it is pub (a pub use or a module in its own file is not followed); cfg(test) items, test functions and doc(hidden) items are skipped; methods are the pub methods of inherent impl blocks of types not private in the same file. Reports a pub fn that returns Result with no # Errors section, a pub unsafe fn with no # Safety section, or a pub fn whose body names panic!, unreachable!, unimplemented!, todo! or an assert! macro with no # Panics section (Low severity, Medium confidence). Not judged: unwrap and expect panics, panics reached through callees, preconditions in prose, TypeScript and Python."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
@@ -66,6 +68,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Add a property test per pair using a generator library, asserting the round trip and idempotence for the supported input domain."
 related = ["TST-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a codec pair, two public functions or methods of one scope (the same impl self type, or the same module; trait impl methods count as public) whose names are a verb pair (encode and decode, serialize and deserialize, to_bytes and from_bytes, to_json and from_json, pack and unpack, compress and decompress, encrypt and decrypt, marshal and unmarshal, with the same optional suffix). A pair is covered when a .rs file of the package, tests directories included, names a property-test library (proptest, quickcheck, prop_assert, bolero, test_strategy) and holds both function names as whole words; an uncovered pair gets one Medium finding with Low confidence at the encoder. Opt-in (check COR-003). Not judged: pairs named another way, a codec split across two types, a property test that reaches the functions through a helper, whether the property asserts the round trip, idempotence of normalization, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -162,6 +165,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Compare with an explicit absolute or relative tolerance, and define the policy for NaN and infinity where they can occur."
 related = ["COR-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a == or != with a float operand that is visibly one (a non-zero float literal, a cast to f32 or f64, or an associated constant of f32, f64 or a consts module such as EPSILON, NAN or PI), and assert_eq, assert_ne, debug_assert_eq or debug_assert_ne with a non-zero float literal. A comparison with a zero literal, INFINITY, NEG_INFINITY, MAX, MIN or MIN_POSITIVE is an exact sentinel and is not reported. One Medium finding per comparison; opt-in (check COR-007). Not judged: two variables whose float type only a type checker knows, PartialEq::eq calls, whether a tolerance is declared, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

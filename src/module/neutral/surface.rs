@@ -1,31 +1,38 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! API-004, API-009 and ERR-004: three Rust rules that read the public surface of a library from the source alone.
+//! API-004, API-009, COR-001 and ERR-004: four Rust rules that read the public surface of a library from the source alone.
 //!
 //! **What this judges:** every tracked `.rs` file outside vendored, fixture and development directories and outside binary roots
 //! (`main.rs`, `src/bin/`) is parsed with `syn`. An item is public here when its own visibility is a bare `pub` and every inline
 //! module above it is `pub`; items under `#[cfg(test)]`, `#[test]` functions and `#[doc(hidden)]` items are left out; the methods
 //! read are the `pub` methods of inherent `impl` blocks (never a trait impl, whose contract lives on the trait) of a type that is
-//! not private in the same file. One walk yields three kinds of site:
+//! not private in the same file. One walk yields four kinds of site:
 //!
 //! * **API-004, a deprecation without lifecycle data.** `#[deprecated]` with no `since` or with no `note` (the note is where the
 //!   replacement and the removal target are written). `#[deprecated = "text"]` has a note and no `since`. Whether the note names a
 //!   replacement is not read: a note is the author's statement of one.
-//! * **API-009, an exported type that cannot grow.** A `pub enum` with variants, or a `pub struct` with named fields that are all
-//!   `pub`, with no `#[non_exhaustive]` and no doc comment that says the type is closed (the words `exhaustive`, `closed`,
-//!   `sealed`, `fixed set`). Adding a variant or a field to such a type is a breaking change.
+//! * **API-009, an exported enum that cannot grow (opt-in; enums only).** A `pub enum` with variants and no `#[non_exhaustive]`
+//!   and no doc comment that says the type is closed (the words `exhaustive`, `closed`, `sealed`, `fixed set`). Adding a variant
+//!   to such an enum is a breaking change. A struct is not read: `#[non_exhaustive]` on a data struct stops a downstream crate
+//!   building it with a struct expression, so a struct whose fields are all `pub` is usually the design.
+//! * **COR-001, a public function whose docs omit its contract.** A `pub fn` that returns `Result` and has no `# Errors` section, a
+//!   `pub unsafe fn` with no `# Safety` section, or a `pub fn` whose body names `panic!`, `unreachable!`, `unimplemented!`, `todo!`
+//!   or an `assert!`-family macro (not `debug_assert!`) and has no `# Panics` section. A section is a doc line that starts with `#`
+//!   and names the word.
 //! * **ERR-004, a public function that fails with an untyped error.** A `pub fn` returning `Result<_, E>` where `E` is `String`,
 //!   `&str`, `Box<dyn ..>`, `anyhow::Error` or `eyre::Report`, or `anyhow::Result<_>`.
 //!
 //! **What it cannot see (and the record says so):** whether an item is reachable from the crate root through `pub use` or a
-//! non-inline module file; items made by macros; whether a deprecation note really names a replacement; a type alias that
+//! non-inline module file; items made by macros; `unwrap()` and `expect()` panics (too many are infallible, so only explicit panic
+//! macros are read); a panic reached through a callee; whether a deprecation note really names a replacement; a type alias that
 //! hides the error type; other languages. A file `syn` cannot parse is counted in a note, never read as clean.
 
 use super::efx003::is_dev_path;
 use super::{RepoView, Verdict};
 use crate::finding::{Confidence, Finding, Location, Severity};
 use std::collections::BTreeSet;
+use syn::visit::Visit;
 use syn::{
-    Attribute, Fields, GenericArgument, ImplItem, Item, Meta, PathArguments, ReturnType, Signature,
+    Attribute, GenericArgument, ImplItem, Item, Meta, PathArguments, ReturnType, Signature,
     TraitItem, Type, Visibility,
 };
 
@@ -36,6 +43,8 @@ pub(super) enum Kind {
     Deprecation,
     /// API-009
     Closed,
+    /// COR-001
+    Contract,
     /// ERR-004
     UntypedError,
 }
@@ -120,6 +129,14 @@ fn doc_text(attrs: &[Attribute]) -> String {
     out
 }
 
+/// Whether the doc has a section: a line that starts with `#` and names `word`.
+fn has_section(doc: &str, word: &str) -> bool {
+    doc.lines().any(|l| {
+        let t = l.trim_start();
+        t.starts_with('#') && t.contains(word)
+    })
+}
+
 fn deprecation(attrs: &[Attribute], name: &str, out: &mut Vec<Site>) {
     for attr in attrs {
         if !attr.path().is_ident("deprecated") {
@@ -177,36 +194,18 @@ fn closed_type(attrs: &[Attribute], item: &Item, out: &mut Vec<Site>) {
     if attrs.iter().any(|a| a.path().is_ident("non_exhaustive")) || says_closed(attrs) {
         return;
     }
-    match item {
-        Item::Enum(e) => {
-            let n = e.variants.iter().filter(|v| visible(&v.attrs)).count();
-            if n > 0 {
-                out.push(Site {
-                    kind: Kind::Closed,
-                    line: line_of(e.ident.span()),
-                    name: e.ident.to_string(),
-                    detail: format!("is a public enum of {n} variant(s)"),
-                });
-            }
+    // a struct is not read (CireSnave 2026-11-07, ruling 3: "enums only"): `#[non_exhaustive]` on a data struct stops a
+    // downstream crate building it, so an all-`pub` struct is usually the design, not a defect
+    if let Item::Enum(e) = item {
+        let n = e.variants.iter().filter(|v| visible(&v.attrs)).count();
+        if n > 0 {
+            out.push(Site {
+                kind: Kind::Closed,
+                line: line_of(e.ident.span()),
+                name: e.ident.to_string(),
+                detail: format!("is a public enum of {n} variant(s)"),
+            });
         }
-        Item::Struct(s) => {
-            let named = match &s.fields {
-                Fields::Named(f) if f.named.iter().all(|x| is_pub(&x.vis)) => Some(f),
-                _ => None,
-            };
-            if let Some(f) = named {
-                out.push(Site {
-                    kind: Kind::Closed,
-                    line: line_of(s.ident.span()),
-                    name: s.ident.to_string(),
-                    detail: format!(
-                        "is a public struct whose {} field(s) are all public",
-                        f.named.len()
-                    ),
-                });
-            }
-        }
-        _ => {}
     }
 }
 
@@ -292,10 +291,67 @@ fn untyped_error(sig: &Signature) -> Option<String> {
     }
 }
 
-fn function(attrs: &[Attribute], sig: &Signature, out: &mut Vec<Site>) {
+fn returns_result(sig: &Signature) -> bool {
+    matches!(&sig.output, ReturnType::Type(_, ty)
+        if matches!(&**ty, Type::Path(p) if p.path.segments.last().is_some_and(|s| s.ident == "Result")))
+}
+
+/// Finds an explicit panic in a body.
+#[derive(Default)]
+struct Panics {
+    found: Option<String>,
+}
+
+impl<'ast> Visit<'ast> for Panics {
+    fn visit_macro(&mut self, m: &'ast syn::Macro) {
+        let name = m.path.segments.last().map(|s| s.ident.to_string());
+        if let (None, Some(name)) = (&self.found, name) {
+            if matches!(
+                name.as_str(),
+                "panic"
+                    | "unreachable"
+                    | "unimplemented"
+                    | "todo"
+                    | "assert"
+                    | "assert_eq"
+                    | "assert_ne"
+            ) {
+                self.found = Some(format!("{name}!"));
+            }
+        }
+        syn::visit::visit_macro(self, m);
+    }
+}
+
+fn function(attrs: &[Attribute], sig: &Signature, body: Option<&syn::Block>, out: &mut Vec<Site>) {
     let name = sig.ident.to_string();
     deprecation(attrs, &name, out);
     let line = line_of(sig.ident.span());
+    let doc = doc_text(attrs);
+    let mut missing: Vec<String> = Vec::new();
+    if returns_result(sig) && !has_section(&doc, "Errors") {
+        missing.push("`# Errors` (it returns a `Result`)".into());
+    }
+    if matches!(sig.safety, syn::Safety::Unsafe(_)) && !has_section(&doc, "Safety") {
+        missing.push("`# Safety` (it is `unsafe`)".into());
+    }
+    if let Some(b) = body {
+        let mut p = Panics::default();
+        p.visit_block(b);
+        if let Some(m) = p.found {
+            if !has_section(&doc, "Panics") {
+                missing.push(format!("`# Panics` (its body names `{m}`)"));
+            }
+        }
+    }
+    if !missing.is_empty() {
+        out.push(Site {
+            kind: Kind::Contract,
+            line,
+            name: name.clone(),
+            detail: format!("has no {} in its docs", missing.join(" and no ")),
+        });
+    }
     if let Some(e) = untyped_error(sig) {
         out.push(Site {
             kind: Kind::UntypedError,
@@ -326,7 +382,9 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
     let private: BTreeSet<String> = items.iter().filter_map(private_type).collect();
     for item in items {
         match item {
-            Item::Fn(f) if is_pub(&f.vis) && visible(&f.attrs) => function(&f.attrs, &f.sig, out),
+            Item::Fn(f) if is_pub(&f.vis) && visible(&f.attrs) => {
+                function(&f.attrs, &f.sig, Some(&f.block), out)
+            }
             Item::Struct(s) if is_pub(&s.vis) && visible(&s.attrs) => {
                 deprecation(&s.attrs, &s.ident.to_string(), out);
                 for f in s.fields.iter() {
@@ -359,7 +417,9 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
                 deprecation(&t.attrs, &t.ident.to_string(), out);
                 for ti in &t.items {
                     match ti {
-                        TraitItem::Fn(f) if visible(&f.attrs) => function(&f.attrs, &f.sig, out),
+                        TraitItem::Fn(f) if visible(&f.attrs) => {
+                            function(&f.attrs, &f.sig, f.default.as_ref(), out)
+                        }
                         TraitItem::Const(c) if visible(&c.attrs) => {
                             deprecation(&c.attrs, &c.ident.to_string(), out)
                         }
@@ -378,7 +438,7 @@ fn walk(items: &[Item], out: &mut Vec<Site>) {
                 for ii in &i.items {
                     if let ImplItem::Fn(f) = ii {
                         if is_pub(&f.vis) && visible(&f.attrs) {
-                            function(&f.attrs, &f.sig, out);
+                            function(&f.attrs, &f.sig, Some(&f.block), out);
                         }
                     }
                 }
@@ -486,6 +546,13 @@ fn closed_text(s: &Site) -> (String, String) {
     )
 }
 
+fn contract_text(s: &Site) -> (String, String) {
+    (
+        format!("`{}` {}", s.name, s.detail),
+        "A contract only the author knows cannot be honoured by callers or checked by reviewers. Add the section to the doc comment: `# Errors` lists what makes it return `Err`, `# Panics` what makes it panic, `# Safety` what a caller of an `unsafe` function must guarantee.".to_string(),
+    )
+}
+
 fn untyped_text(s: &Site) -> (String, String) {
     (
         format!("`{}` {}", s.name, s.detail),
@@ -512,6 +579,17 @@ pub(super) fn judge_api009(view: &RepoView) -> Verdict {
         Severity::Low,
         Confidence::Medium,
         closed_text,
+    )
+}
+
+pub(super) fn judge_cor001(view: &RepoView) -> Verdict {
+    judge_kind(
+        view,
+        crate::rule_id::COR_001,
+        Kind::Contract,
+        Severity::Low,
+        Confidence::Medium,
+        contract_text,
     )
 }
 
@@ -569,7 +647,35 @@ pub struct Hidden { pub a: u8, b: u8 }
 pub struct Tuple(pub u8);
 "#;
         let names: Vec<_> = run(src, Kind::Closed).into_iter().map(|s| s.name).collect();
-        assert_eq!(names, ["Open", "Bag"]);
+        // control: the enum is reported; the all-`pub` struct `Bag` is not (ruling 3: enums only)
+        assert_eq!(names, ["Open"]);
+    }
+
+    #[test]
+    fn the_contract_sections_are_required_where_the_signature_or_body_asks() {
+        let src = r#"
+pub fn bare() -> Result<(), E> { Ok(()) }
+/// Does it.
+///
+/// # Errors
+/// When it fails.
+pub fn documented() -> Result<(), E> { Ok(()) }
+pub unsafe fn raw() {}
+/// # Safety
+/// Caller holds the lock.
+pub unsafe fn raw_ok() {}
+pub fn loud(x: u8) { assert!(x > 0); }
+/// # Panics
+/// When x is zero.
+pub fn loud_ok(x: u8) { assert!(x > 0); }
+pub fn quiet(x: u8) { debug_assert!(x > 0); let _ = x.checked_add(1).unwrap(); }
+fn private() -> Result<(), E> { Ok(()) }
+"#;
+        let names: Vec<_> = run(src, Kind::Contract)
+            .into_iter()
+            .map(|s| s.name)
+            .collect();
+        assert_eq!(names, ["bare", "raw", "loud"]);
     }
 
     #[test]
@@ -602,8 +708,8 @@ impl std::str::FromStr for P {
         // a negated phrase does not say the type is closed
         assert_eq!(closed("/// Not exhaustive.\npub enum E { A }\n"), 1);
         assert_eq!(closed("/// This set is closed.\npub enum E { A }\n"), 0);
-        // an empty named struct can be built as `S {}`
-        assert_eq!(closed("pub struct S {}\n"), 1);
+        // a struct is not read, empty or not
+        assert_eq!(closed("pub struct S {}\n"), 0);
         // a hidden variant does not count
         assert_eq!(closed("pub enum E { #[doc(hidden)] A }\n"), 0);
         // test-only under all(..) is left out, any(..) is not
