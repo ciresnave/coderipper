@@ -8,8 +8,9 @@
 //! attribute that does carry a reason is counted in a note on the run, so the debt stays visible when no finding is reported.
 //!
 //! **The ratchet (GOV-001, `docs/portfolio-ci-coverage.md` build order 5):** a branch adds no suppression. The `allow` and the `ignore`
-//! attributes of the repository at `HEAD` are counted, reasons or not, and compared with the same count of the tree the branch
-//! started from (the merge-base, as `version-and-changelog` finds it). A kind whose total rose is a **Medium** finding at the first file
+//! attributes of the repository at `HEAD` are counted and compared with the same count of the tree the branch started from (the
+//! merge-base, as `version-and-changelog` finds it). Only the ones **without a reason** are the ratchet (CireSnave 2026-11-07: "only
+//! unexplained"): a kind whose unexplained total rose is a **Medium** finding at the first file
 //! whose own count rose; totals, not files, are compared, so a moved or renamed file adds nothing. No base (a shallow clone, the default
 //! branch itself) or a base file `syn` cannot parse is a note that the ratchet did not run, never a clean pass. Owner and detector per
 //! suppression are not judged: an attribute has no field for them, and a `reason` that names them is the author's to write.
@@ -131,8 +132,9 @@ impl<'ast> Visit<'ast> for Sites {
     }
 }
 
-/// The `allow` and `ignore` attributes of one file, reason or not, as `(is an allow, line)`; `None` when `syn` cannot parse it.
-fn tally(text: &str) -> Option<Vec<(bool, u32)>> {
+/// The `allow` and `ignore` attributes of one file, reason or not, as `(is an allow, line, has a reason)`; `None` when `syn` cannot
+/// parse it.
+fn tally(text: &str) -> Option<Vec<(bool, u32, bool)>> {
     let parsed = syn::parse_file(text).ok()?;
     let mut sites = Sites { out: Vec::new() };
     sites.visit_file(&parsed);
@@ -140,7 +142,7 @@ fn tally(text: &str) -> Option<Vec<(bool, u32)>> {
         sites
             .out
             .iter()
-            .map(|s| (matches!(s.kind, Kind::Allow(_)), s.line))
+            .map(|s| (matches!(s.kind, Kind::Allow(_)), s.line, s.has_reason))
             .collect(),
     )
 }
@@ -178,8 +180,15 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, Skip> {
             Some(Vec::new())
         }
     };
-    let kinds = |sites: &[(bool, u32)], allow: bool| sites.iter().filter(|s| s.0 == allow).count();
-    let mut then = [0usize; 2];
+    // the four counts: an allow or an ignore, with a reason ("explained") or without one
+    let slots: [(bool, bool); 4] = [(true, false), (false, false), (true, true), (false, true)];
+    let kinds = |sites: &[(bool, u32, bool)], (allow, explained): (bool, bool)| {
+        sites
+            .iter()
+            .filter(|s| s.0 == allow && s.2 == explained)
+            .count()
+    };
+    let mut then = [0usize; 4];
     for path in base
         .paths()
         .iter()
@@ -197,12 +206,13 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, Skip> {
                 base.how()
             )));
         };
-        then[0] += kinds(&sites, true);
-        then[1] += kinds(&sites, false);
+        for (slot, which) in slots.iter().enumerate() {
+            then[slot] += kinds(&sites, *which);
+        }
     }
-    let mut now = [0usize; 2];
+    let mut now = [0usize; 4];
     // for each kind, every file at HEAD with more of it than the base has of that file, and the line of its first surplus one
-    let mut rose: [Vec<(&str, u32)>; 2] = [Vec::new(), Vec::new()];
+    let mut rose: [Vec<(&str, u32)>; 4] = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
     for path in files {
         let Some(text) = view.read(path) else {
             return Err(Skip::Gap(format!("{path} could not be read")));
@@ -214,18 +224,30 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, Skip> {
             .read(path)
             .and_then(|t| counted(&t))
             .unwrap_or_default();
-        for (slot, allow) in [(0usize, true), (1, false)] {
-            let have = kinds(&sites, allow);
+        for (slot, which) in slots.iter().enumerate() {
+            let have = kinds(&sites, *which);
             now[slot] += have;
-            let had = kinds(&before, allow);
+            let had = kinds(&before, *which);
             if have > had {
-                let line = sites.iter().filter(|s| s.0 == allow).nth(had).map(|s| s.1);
+                let line = sites
+                    .iter()
+                    .filter(|s| (s.0, s.2) == *which)
+                    .nth(had)
+                    .map(|s| s.1);
                 rose[slot].push((path.as_str(), line.unwrap_or(1)));
             }
         }
     }
     let mut findings = Vec::new();
-    for (slot, kind) in [(0usize, "allow"), (1, "ignore")] {
+    for (slot, (kind, explained)) in [
+        ("allow", false),
+        ("ignore", false),
+        ("allow", true),
+        ("ignore", true),
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let (before, after) = (then[slot], now[slot]);
         if after <= before {
             continue;
@@ -235,17 +257,32 @@ fn ratchet(view: &RepoView, files: &[&String]) -> Result<Vec<Finding>, Skip> {
             findings.push(
                 Finding::new(
                     ID,
-                    Severity::Medium,
+                    if explained { Severity::Info } else { Severity::Medium },
                     Confidence::High,
                     view.name(),
-                    format!(
-                        "the number of `{kind}` attributes rose from {before} to {after} against {}",
-                        base.how()
-                    ),
-                    "This branch adds a lint suppression or an ignored test. Fix what the lint objects to, or run the test where it can run                      (CLAUDE.md: a test that cannot run on GitHub runs on a self-hosted runner, never `#[ignore]`); the count only goes down.",
+                    if explained {
+                        format!(
+                            "the number of `{kind}` attributes that give a reason rose from {before} to {after} against {}",
+                            base.how()
+                        )
+                    } else {
+                        format!(
+                            "the number of `{kind}` attributes without a reason rose from {before} to {after} against {}",
+                            base.how()
+                        )
+                    },
+                    if explained {
+                        "This branch adds a lint suppression or an ignored test and says why in the attribute. That is information, not a failure: only suppressions without a reason are counted against the ratchet."
+                    } else {
+                        "This branch adds a lint suppression or an ignored test without a reason. Say why in the attribute (`allow(lint, reason = \"..\")`, `#[ignore = \"..\"]`), fix what the lint objects to, or run the test where it can run (CLAUDE.md: a test that cannot run on GitHub runs on a self-hosted runner); the count of unexplained ones only goes down."
+                    },
                 )
                 .location(Location::new(*file, Some(*line)))
-                .subject(format!("{kind}-count"))
+                .subject(if explained {
+                    format!("{kind}-explained-count")
+                } else {
+                    format!("{kind}-count")
+                })
                 .positive_control(format!(
                     "{} Rust file(s) at HEAD and those of {} counted with syn; the totals are {before} before and {after} now",
                     files.len(),
@@ -500,15 +537,46 @@ fn t() {}
     const TWO_ALLOWS: &str = "#[allow(dead_code, reason = \"kept\")]\nfn f() {}\n#[allow(unused, reason = \"kept\")]\nfn g() {}\n";
 
     #[test]
-    fn a_branch_that_adds_a_suppression_with_a_reason_is_a_finding() {
+    fn a_branch_that_adds_a_suppression_with_a_reason_is_information_not_a_failure() {
         let (found, _) = ratchet(
             &[("src/lib.rs", TWO_ALLOWS)],
             Some(&[("src/lib.rs", ONE_ALLOW)]),
         );
         assert_eq!(found.len(), 1, "{found:?}");
-        assert_eq!(found[0].severity, Severity::Medium);
-        assert!(found[0].summary.contains("allow"), "{:?}", found[0]);
+        assert_eq!(found[0].severity, Severity::Info);
+        assert_eq!(found[0].subject.as_deref(), Some("allow-explained-count"));
+        assert!(found[0].summary.contains("give a reason"), "{:?}", found[0]);
         assert!(found[0].summary.contains("from 1 to 2"), "{:?}", found[0]);
+    }
+
+    #[test]
+    fn a_branch_that_adds_a_suppression_without_a_reason_is_a_medium_finding() {
+        let with_one_unexplained = "#[allow(dead_code, reason = \"kept\")]
+fn f() {}
+#[allow(unused)]
+fn g() {}
+";
+        let (found, _) = ratchet(
+            &[("src/lib.rs", with_one_unexplained)],
+            Some(&[("src/lib.rs", ONE_ALLOW)]),
+        );
+        let medium: Vec<_> = found
+            .iter()
+            .filter(|f| f.severity == Severity::Medium)
+            .collect();
+        assert_eq!(medium.len(), 1, "{found:?}");
+        assert!(
+            medium[0].summary.contains("without a reason"),
+            "{:?}",
+            medium[0]
+        );
+        assert!(medium[0].summary.contains("from 0 to 1"), "{:?}", medium[0]);
+        // control: one well-reasoned allow beside ten explained ones is no failure, which is what the ratchet used to say
+        let (found, _) = ratchet(
+            &[("src/lib.rs", TWO_ALLOWS)],
+            Some(&[("src/lib.rs", ONE_ALLOW)]),
+        );
+        assert!(found.iter().all(|f| f.severity != Severity::Medium));
         assert_eq!(
             found[0].location.as_ref().map(|l| l.file.as_str()),
             Some("src/lib.rs")

@@ -70,7 +70,7 @@ Toxiproxy for REL-008).
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| REL-001 | Outbound calls have deadlines | P | catalog record; no check yet (needs a parser; Semgrep patterns are a candidate) |
+| REL-001 | Outbound calls have deadlines | P | built in part (Rust, `syn`, outside tests; an HTTP client built without a timeout, an awaited or blocking `TcpStream::connect` with no deadline, Medium; opt-in (`check REL-001`); database and RPC clients, wrappers and other languages are not read) |
 | REL-002 | Retries follow a safe policy | P | catalog record; no check yet (needs a parser; judging idempotency needs a model) |
 | REL-003 | Bounded channels with overflow policy | P | built in part (the same Rust reading as CON-004, reported under this id: channels created with no capacity; opt-in, `check REL-003`) |
 | REL-004 | Idempotent message handlers | L | catalog record; no check yet (needs a human decision or a model, plus replay tests) |
