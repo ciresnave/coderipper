@@ -63,6 +63,7 @@ default_severity = "low"
 confidence_class = "high"
 kb_refs = []
 remediation = "Replace print and debug-dump calls with the project's logger at a suitable level, and enable the linters that forbid console output."
+checked_today = "Tracked Rust files of a library package (src/lib.rs or a [lib] table) outside vendored and fixture directories, tests, benches, examples, tools, scripts and build.rs, outside a binary's source (main.rs, src/bin/) and outside cfg(test) modules and test functions, parsed with syn; one Low finding with High confidence per call of println!, print!, eprintln!, eprint! or dbg! (also when path-qualified). Not judged: a print by a macro the package or a dependency defines, a hand-written write to stdout or stderr, a print inside another macro's arguments, a library that prints by design (a waiver with the reason), other languages. Opt-in (check OPS-003)."
 lifecycle = "experimental"
 
 [rule.applicability]
