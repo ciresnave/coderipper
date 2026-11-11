@@ -54,6 +54,7 @@ mod surface;
 mod tst003;
 mod tst004;
 mod tst006;
+mod tst009;
 mod typ005;
 mod typ006;
 #[cfg(test)]
@@ -260,6 +261,10 @@ const RULES: &[Rule] = &[
         judge: tst006::judge,
     },
     Rule {
+        id: "TST-009",
+        judge: tst009::judge,
+    },
+    Rule {
         id: "EXT-002",
         judge: ext002::judge,
     },
@@ -325,7 +330,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
-        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
     ]
 }
 
@@ -700,6 +705,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("TST-006", &["rust"]),
+    ("TST-009", &["rust"]),
     ("EXT-002", &["rust"]),
     ("ERR-009", &["rust"]),
     ("SEC-008", &["rust"]),
@@ -759,6 +765,7 @@ const PROVEN: &[&str] = &[
     "RDB-007",
     "TST-003",
     "TST-006",
+    "TST-009",
     "EXT-002",
     "OPS-003",
     "CON-005",
