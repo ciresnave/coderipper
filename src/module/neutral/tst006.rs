@@ -86,10 +86,7 @@ fn call_reach(path: &syn::Path) -> Option<Reach> {
         (Some("TcpStream"), "connect" | "connect_timeout") | (Some("UdpSocket"), "connect") => {
             Some(Reach::Network)
         }
-        (
-            Some("SystemTime" | "Utc" | "Local" | "Timestamp" | "Zoned" | "UtcDateTime"),
-            "now",
-        )
+        (Some("SystemTime" | "Utc" | "Local" | "Timestamp" | "Zoned" | "UtcDateTime"), "now")
         | (Some("OffsetDateTime"), "now_utc" | "now_local") => Some(Reach::Clock),
         (Some("env"), "temp_dir") => Some(Reach::SharedFile),
         _ if segs.len() == 1 && last == "temp_dir" => Some(Reach::SharedFile),

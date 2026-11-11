@@ -366,6 +366,12 @@ Q35 returned no patent on point (papers on reproducible builds and one workload-
 | 112 | US7765528B2 | Identifying sources of memory retention | Hewlett Packard Development Co LP (current: Valtrus Innovations Ltd) | Active (Google Patents page 2026-11-09, not the official record; anticipated expiration 2029-05-08) | 1, claim text as returned by `tools/patent-claims.py` (**one model, unverified**) | Tracks the size of a set of objects over multiple time periods in an executing application, counts growth periods, flags the set past a threshold and locates the cause of the growth. | Every step of claim 1 needs the size of a set of objects **measured in a running application over time periods**; `PRF-005` reads source only, runs nothing and measures no size. |
 | 113 | US20040078540A1 | Locating potential sources of memory leaks | Wily Technology Inc (current: CA Inc) | Expired - Lifetime (Google Patents page 2026-11-09, not the official record) | 1, claim text as returned by the tool (**one model, unverified**) | Tracks the size of a group of stored items (a Java collection in claim 2) and decides from the change in its size whether it is a potential memory leak source. | Claim 1 requires **tracking size** and deciding from the **change in size**; `PRF-005` has no size and no change, only whether a growing call and a shrinking call appear in the source. |
 | 114 | US9003233B2 | Memory leak detection | BMC Software Inc (current: BMC Helix Inc) | Active (Google Patents page 2026-11-09, not the official record; anticipated expiration 2033-05-25) | 1, claim text as returned by the tool (**one model, unverified**) | A collection-sizes tracker with an instrumentation manager that finds the classes holding static or non-static fields of collection or array type, a polling mechanism that samples each field's size periodically and an algorithm that flags suspect size behaviour. | The claim requires a **polling mechanism that periodically samples the size** of each field in a production environment; `PRF-005` finds collection fields from the syntax tree but never samples a size. |
+| 115 | US20100318980A1 | Static program reduction for complexity analysis | Microsoft Corp (current: Microsoft Technology Licensing LLC) | Abandoned (Google Patents page 2026-11-09, not the official record) | 1, claim text as returned by `tools/patent-claims.py` (**one model, unverified**) | Converts original program code into refined code by expanding a multi-path loop into a code fragment of simpler loops, so that computational complexity can be estimated more precisely. | Claim 1 is a **code transformation (loop expansion) for complexity estimation**; `PRF-003` transforms nothing and estimates no complexity, it matches four syntactic shapes inside a loop. |
+| 116 | US9043775B2 | Method for identifying problematic loops in an application and devices thereof | Infosys Ltd | Expired - Fee Related (Google Patents page 2026-11-09, not the official record; anticipated expiration 2033-01-30) | 1, claim text as returned by the tool (**one model, unverified**) | Generates a loop directed acyclic graph by static **and dynamic** analysis, collects each loop's weight as a percentage of whole-program execution time and flags the loops with the higher weights. | Every step uses **loop weight measured from execution time**; `PRF-003` runs nothing, builds no loop graph and ranks no loop by time. |
+| 117 | US20140173576A1 | Loop Invariant Method Expression Hoisting | Individual (current: Advanced Micro Devices Inc) | Expired - Fee Related (Google Patents page 2026-11-09, not the official record) | 1, claim text as returned by the tool (**one model, unverified**) | A compiler method that finds an expression in a nested loop, builds a sum-of-products form, sorts terms by iterator variable, moves partial expressions to the outer loop and compiles the modified source to object code. | Claim 1 is **arithmetic expression hoisting inside a compiler** and ends in compiling to object code; `PRF-003` reports a per-pass `clone` of a collection that is only read and never rewrites or compiles the source. |
+| 118 | US20130117326A1 | External serialization and deserialization | Microsoft Technology Licensing LLC | Abandoned (Google Patents, not the official record; priority 2011-11-08) | 1, 11 and 16 (all independent) | Discovers and invokes serialization and deserialization functions, and may take a deserialization function from a roundtrip function (claims 3 and 18). | Every independent claim transforms or serializes an object graph from metadata about the objects held outside the object model, or invokes a deserialization function chosen by a type tag, at run time; the claims do not analyse source text, pair functions by their names or report a missing test. `COR-003` runs nothing and reads source. | No hit as read |
+| 119 | US10241892B2 | Issuance of static analysis complaints | International Business Machines Corp | Expired - Fee Related (Google Patents, not the official record; estimated expiry 2037-04-06) | 1, 7 and 13 (all independent) | Static analysis of program code that issues complaints; the description names a `default` case of a switch that cannot execute as an example of a complaint. | Every independent claim generates a first complaint for a program error, generates a second complaint when the first is not met again on a later analysis, suppresses the first complaint in a stored database of complaints and keeps the error in the code; none of it concerns the arms of a `match` or a catch-all absorbing variants. `EXT-001` has no complaint database and no second complaint. | No hit as read |
+| 120 | US8359604B2 | Propagating unobserved exceptions in a parallel system | Microsoft Technology Licensing LLC | Active (Google Patents, not the official record; estimated expiry 2031-11-25) | 1 and 12 (both independent) | A task whose exception is never observed, which the description calls a fire-and-forget task. | Both independent claims construct a task object, catch an exception with it **at run time** and create a monitoring object that re-throws the exception when the task object is garbage collected unobserved; the claims do not analyse source text, look at whether a handle is kept, or report a spawn. `CON-005` runs nothing and has no monitoring object. | No hit as read |
 | 90 | 42 | software component instability metric afferent efferent coupling detect dependency on less stable component static analysis (the first result in this batch was US11860764B2, row 76) |
 
 Results listed but whose claims were not read (CN104200161A, US7010782B2, US8037360B2, EP1179776A1, WO2026080403A1) are not hits and carry no verdict: they were not read. **Limits specific to this idea:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing; the sandboxed-execution-with-filesystem-diff area is crowded (malware analysis in particular), so a claim this search did not surface may read on it. **Result: six patents read (hits 27 to 32), each outside as read on `OPS-011` for the missing element named in its row; this is not a clearance.** The 0.12 line adds no other mechanism: hits 1 to 32 and ideas 1 to 19 are unchanged. **Watch:** re-sweep if `OPS-011` or a follow-up (M15, M16) starts to judge a binary malicious, keep a stored expected-output table, or record a process or memory baseline.
@@ -1031,6 +1037,9 @@ Rule added over the previous line, read from `src/module/neutral/tst003.rs`: `TS
 | Q137 | 71 | static analysis detecting unbounded cache growth missing eviction policy in source code memory leak |
 | Q138 | 71 | detecting collection that grows without removal static code analysis insertion without deletion memory leak detection |
 | Q139 | 71 | code review tool flags global data structure unbounded size no capacity limit denial of service source code scanning |
+| Q140 | 72 | static analysis detecting nested loop linear search inside loop quadratic complexity performance anti-pattern source code |
+| Q141 | 72 | detecting database query inside loop N+1 query problem static code analysis source code |
+| Q142 | 72 | code analysis identifies loop-invariant object copy or string concatenation in loop performance defect detection |
 
 **Positive controls:** Q130 returned row 107, a patent about tests that always pass, so the engine reaches the neighbourhood; Q129 returned the same neighbourhood as academic work only (RTj, a Java framework for rotten green tests, and Teralizer, which drops assertion-free tests), with no patent for an empty or assertion-free test report. The absence of one is a statement about these two queries only.
 
@@ -1079,3 +1088,169 @@ Version line covered by this addendum: **0.43** (0.43.25). One rule is added: `P
 **Result: no hit reads on `PRF-005` as read.** **Watches:** (1) do not sample or track collection sizes at run time, and do not add a threshold on growth periods or an instrumentation step (112, 113, 114 all require them); (2) read US11048616, US8504878 and US8479162 before the rule is described as new in public; (3) static memory-leak analysers exist (a 2018 study of Java leak defects, arXiv 1810.00101, found in Q138, discusses Infer), and CWE-400 (uncontrolled resource consumption) is a public category; **whether any public tool flags a collection that is only inserted into was not verified here**, so the rule claims no novelty over them.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, claim 1 only for the rows, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
+
+### 0.43.27 (0.43 line) - 2026-11-09
+
+Version line covered by this addendum: **0.43** (0.43.27). One rule is added: `PRF-003` (algorithmic red flags in code, opt-in), read from `src/module/neutral/prf003.rs`. Swept 2026-11-09 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above (a web search restricted to `patents.google.com`, claims read with `C:\Projects\tools\patent-claims.py`), **one model, unverified**.
+
+**Idea 72 (`PRF-003`).** Read the Rust source files of a repository with a syntax parser and, per function, report four shapes found inside a loop: a linear search of a collection declared outside the loop, a string rebuilt from itself with `format!`, a database call with a `SELECT` literal, and a copy of a collection declared outside the loop that is made only to be read, using only types the source declares; reported only when the rule is asked for by id.
+
+**Queries:** Q140 to Q142 above. **Positive controls:** Q140 reached complexity-analysis and problematic-loop patents (rows 115 and 116) and Q142 reached loop-invariant hoisting patents (row 117), so those queries do reach the neighbouring subject; Q141 (the query-per-row shape) returned only security and anomaly-detection patents and papers unrelated to loops, so **its absence of a hit is the weakest of the three and is a statement about this query only**.
+
+**Read:** claim 1 of the three rows above (115, 116, 117) and of US10346287B1 (degenerate software forms: a compiled-code graph labelling getters and setters, which has no loop or cost element and is not a hit). **Not read:** US20060053422A1 (antipattern detection for a multithreaded application), US10585777 (dynamic ranking of performance issues), US9904549 (loop-invariant instruction detection in a compiler), US6772414B1, US5535391 and US5457799 (compiler hoisting), from search excerpts only, and the arXiv papers the search returned (ShadowProbe, Mira, the FindBugs fix-pattern study); **a person should read the unread patents before relying on this addendum**.
+
+**Result: no hit reads on `PRF-003` as read.** **Watches:** (1) do not weight loops by measured execution time or build a loop graph (116), do not transform loops to estimate complexity (115) and do not rewrite or hoist code (117); (2) read US20060053422A1, US10585777 and US9904549 before the rule is described as new in public; (3) string concatenation in a loop is a published defect pattern (a FindBugs fix-pattern study found in Q142 names it), the catalog record names Clippy's performance lints as the model, and complexity-vulnerability scanners exist (ShadowProbe, found in Q140), so the rule claims no novelty over them; **whether a public linter flags a `contains` or a `SELECT` inside a loop was not verified here**.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, claim 1 only for the rows, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits and ideas are unchanged by this line. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.34)
+
+Version line covered by this addendum: **0.43** (0.43.34). One rule is added, read from `src/module/neutral/cor007.rs`: `COR-007` (exact equality on floats, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 73 (`COR-007`).** Parse the Rust source files outside test code and report an `==` or `!=` with a visibly floating-point operand (a non-zero literal, a cast, a float constant) and an `assert_eq!` style macro with a float literal, leaving the comparisons with zero and infinities alone. Polyspace (`BAD_FLOAT_OP`), JetBrains Rider, CodeQL (`cs/equality-on-floats`), GCC and Clang (`-Wfloat-equal`), Clippy (`float_cmp`) and Error Prone ship the same warning and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q143 | 73 | patent static analysis detect equality comparison of floating point values in source code report warning exact comparison tolerance |
+| Q144 | 73 | detecting floating-point equality comparison operator in program source code static analyzer defect (restricted to patents.google.com) |
+
+**Positive controls:** Q143 returned the tool documentation above (Polyspace, Rider, CodeQL, Error Prone), so the engine reaches the idea itself; those are published prior art, not patents. Q144 returned a runtime floating-point error detector (US9104515B2), comparator circuits (US8799344B2, US6085212A, EP1061436A2) and two generic source-code security analyzers (CN100461132C, CN101017458A), so it reaches the neighbourhood. **A patent that reports an equality comparison of floats in source code as a defect was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** every patent named above; by its snippet, not one of them analyses source text for float comparisons (they act on executing instructions, hardware or generic security rules).
+
+**Result: no hit reads on `COR-007` as read.** **Watch:** re-read the claims of US9104515B2 before `COR-007` runs the program or re-evaluates comparisons at higher precision; the rule is a syntactic match and stays one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.35)
+
+Version line covered by this addendum: **0.43** (0.43.35). One rule is added, read from `src/module/neutral/cor003.rs`: `COR-003` (codec pairs without a round-trip property test, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 74 (`COR-003`).** Parse the Rust source files outside test code, pair a public encoder and decoder of one scope by their verb names (`encode`/`decode`, `serialize`/`deserialize`, `to_bytes`/`from_bytes` and the like), and report a pair that no property-test file of the package names on both sides. Property-based testing guidance (round trip, `decode(encode(x)) == x`) is published prior art, and so is Hypothesis's and proptest's own documentation.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q145 | 74 | patent static analysis detect encoder and decoder function pair in source code lacking round-trip property test generating test cases |
+| Q146 | 74 | automatically identifying serializer and deserializer function pair in source code and generating round-trip test (restricted to patents.google.com) |
+
+**Positive controls:** Q145 returned a CODEC hardware test patent (US5483237) and practitioner guidance for round-trip properties (the idea itself, published as prior art, not patents); Q146 returned the serializer and deserializer patent above (row 118) and hardware SERDES test patents (US7526033B2, US8094705B2), so the engine reaches the neighbourhood. **A patent that finds an encoder and decoder pair in source and reports the absence of a round-trip test was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** row 118, every independent claim, through `tools/patent-claims.py`. **Not read in full:** the hardware SERDES patents, by their titles and snippets (they test chips).
+
+**Result: no hit reads on `COR-003` as read.** **Watch:** re-read the claims of US20130117326A1 (abandoned, but a continuation may exist) before `COR-003` infers an inverse function from a declared round-trip or generates the serializer or the test.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.36)
+
+Version line covered by this addendum: **0.43** (0.43.36). One rule is added, read from `src/module/neutral/ext001.rs`: `EXT-001` (a catch-all arm over another file's enum, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 75 (`EXT-001`).** Parse the Rust source files outside test code, collect the package's enums, and report a `match` over one of them in another file that ends in a catch-all arm absorbing variants no other arm lists. PVS-Studio (V719), Error Prone (`MissingCasesInEnumSwitch`, `UnnecessaryDefaultInEnumSwitch`), GCC (`-Wswitch`, `-Wswitch-default`), SEI CERT, Sonar and Clippy (`wildcard_enum_match_arm`) ship or recommend the same check and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q147 | 75 | patent static analysis detect wildcard default case in switch or match over enumeration type, report non-exhaustive handling of enum values in source code |
+| Q148 | 75 | detecting catch-all default branch of switch statement over enumerated type that hides newly added enum members, source code analysis (restricted to patents.google.com) |
+
+**Positive controls:** Q147 returned the tool documentation and standards above (the idea itself, published as prior art, not patents), so the engine reaches it. Q148 returned US10241892B2 (row 119), switch-statement optimisation patents (US9715374B2, JP2014194759A, US9298467B2) and an enumerated-type facility (US7263687B2), so it reaches the neighbourhood. **A patent that reports a catch-all arm of a switch or match over an enumeration for absorbing members added later was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** row 119, every independent claim, through `tools/patent-claims.py`. **Not read in full:** US9715374B2, JP2014194759A, US9298467B2, US7263687B2, by their titles and snippets (they optimise or compile switches).
+
+**Result: no hit reads on `EXT-001` as read.** **Watch:** re-read the claims of US10241892B2 (expired by Google Patents' status, but the family may hold others) before `EXT-001` keeps a database of its own findings or issues a second finding when a first is no longer seen.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.37)
+
+Version line covered by this addendum: **0.43** (0.43.37). One rule is added, read from `src/module/neutral/con005.rs`: `CON-005` (a detached spawned task, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 76 (`CON-005`).** Parse the Rust source files outside test code and report a call of a free spawn function (`tokio::spawn`, `thread::spawn` and the like) whose handle is dropped on the spot, unless a comment beside it says why. Polyspace (join and detach of threads), debtmap (a check for spawned tasks whose handles are dropped, with `spawn_and_forget` as its escape) and Clippy-style lints for unused results are published prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q149 | 76 | patent static analysis detect spawned thread or asynchronous task whose handle is discarded detached task not joined source code report |
+| Q150 | 76 | detecting unjoined fire-and-forget thread or task creation without handle in program source code static analyzer (restricted to patents.google.com) |
+
+**Positive controls:** Q149 returned the tool documentation and a research paper above (the idea itself, published as prior art, not patents), so the engine reaches it; Q150 returned US8359604B2 (row 120), thread-tracking patents (US9081628B2, US7844971B2) and a deadlock-detection patent (CN102073588B), so it reaches the neighbourhood. **A patent that reports a spawn whose handle is dropped, found by analysing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** row 120, every independent claim, through `tools/patent-claims.py`. **Not read in full:** US9081628B2, US7844971B2, US20070074213A1, US20080141268A1, CN102073588B, by their titles and snippets (they trace running threads or find deadlocks).
+
+**Result: no hit reads on `CON-005` as read.** **Watch:** row 120 is active (Microsoft, estimated expiry 2031): re-read its claims before `CON-005` runs the program, catches a task's exception, or re-throws one when a handle is dropped.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.38)
+
+Version line covered by this addendum: **0.43** (0.43.38). Two rules are added from one scan, read from `src/module/neutral/deadline.rs`: `CON-008` (an awaited connect without a deadline, Rust) and `REL-001` (an outbound call without a deadline: an HTTP client built without a timeout, an awaited or blocking connect). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 77 (`CON-008`, `REL-001`).** Parse the Rust source files outside test code and report a client built, or a connect made, with no timeout in the code that builds or awaits it. Bandit (`B113`), Ruff (`S113`), Pylint (`W3101`, `missing-timeout`), Datadog's static analysis rule for Python and the saropa lints for Dart ship the same check and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q151 | 77 | patent static analysis detect network request or socket connect call in source code without timeout parameter, report missing timeout |
+| Q152 | 77 | automatically detecting HTTP client or remote call without timeout configured in program source code static analysis (restricted to patents.google.com) |
+
+**Positive controls:** Q151 returned the linter rules above (the idea itself, published as prior art, not patents), so the engine reaches it. Q152 returned patents on timeouts and static analysis in other settings (US20110320617A1 on detecting incomplete requests and TCP timeouts in a network appliance, EP2627057A1 on time-out control, US8589946B2 on preventing a browser timeout, US20050108562A1 on static analysis of binaries for malicious code), so it reaches the neighbourhood. **A patent that reports a network call made without a timeout, found by analysing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** by title and snippet only. **Not read in full:** every patent named above; by its snippet, not one of them analyses source text for a missing timeout (they act on traffic, timers or binaries).
+
+**Result: no hit reads on `CON-008` or `REL-001` as read.** **Watch:** re-read the claims of US20110320617A1 before either rule observes a running connection or measures a timeout; the rules are a syntactic match and stay one.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.39)
+
+Version line covered by this addendum: **0.43** (0.43.39). Two rules are added from one scan, read from `src/module/neutral/global_state.rs`: `EFX-002` (global mutable state, Rust) and `CON-011` (shared state has a declared owner, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 78 (`EFX-002`, `CON-011`).** Parse the Rust source files outside test code and report a `static mut`, or a `static` whose declared type names a lock, cell or atomic. Neti (a Rust crate, rule S01 on `static mut`), Polyspace Code Prover (global variables shared between tasks) and CWE-567 are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q153 | 78 | patent static analysis detect global mutable state static variable shared across threads in source code, report violation |
+| Q154 | 78 | patents.google.com automatically identifying global variables or singleton mutable shared state in program source code static analysis report |
+
+**Positive controls:** Q153 returned Polyspace's documentation, CWE-567 and US 6,925,638, so the engine reaches the idea. Q154 returned US 8,510,604 (static data race detection), US 9,075,997 and US 8,656,496 (IBM, global variable security analysis) and the Neti rule, so it reaches the neighbourhood. **A patent that reports a global lock, cell or atomic by matching the declared type of a static item, found by parsing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the one close hit, US 6,925,638 B1 (IBM, "Mutability analysis in Java", Expired, Google Patents' estimate 2022-11-06), through `tools/patent-claims.py`: claim 1 detects whether a variable could change state after initialisation, by a first analysis of modifications by methods inside the component and an encapsulation analysis of modifications by methods outside it, and calls a field mutable if any corresponding variable is. The rules here match a declared type name and read no modifications, so claim 1 does not read on them as read. **Not read in full:** US 8,510,604, US 9,075,997 and US 8,656,496 (by snippet: race detection over memory reachable from globals, and taint-style tracking of selected globals; neither reports a declaration).
+
+**Result: no hit reads on `EFX-002` or `CON-011` as read.** **Watch:** re-read the claims of US 8,510,604 before either rule reports an unprotected access to such a static, or reads whether the state is ever modified.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, one patent read through its claims, the others by snippet, and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-10, 0.43.40)
+
+Version line covered by this addendum: **0.43** (0.43.40). One rule is added, read from `src/module/neutral/ops003.rs`: `OPS-003` (a library calls `println!`, `print!`, `eprintln!`, `eprint!` or `dbg!`, Rust). Swept 2026-11-10 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 79 (`OPS-003`).** Parse the source of a library and report each call that writes straight to standard output or standard error, or dumps a value for debugging, where a logging facility should be used. Clippy (`print_stdout`, `print_stderr`, `dbg_macro`), ESLint (`no-console`), Pylint (`print-statement` style checks) and the thai-lint improper-logging linter ship the same check and are prior art.
+
+| # | Idea | Query (2026-11-10) |
+|---|---|---|
+| Q155 | 79 | patent static analysis detect console output print statement in library source code instead of logging framework, report |
+| Q156 | 79 | automatically detecting direct standard output or debug print calls in program source code and recommending logger replacement patent (restricted to patents.google.com) |
+
+**Positive controls:** Q155 returned the linter above (the idea itself, published, not a patent) and the logging-quality patents US9292281B2, US10387144B2, US11341024 and US12517805, so the engine reaches both the idea and its neighbourhood. Q156 returned US9552274B2, US9569304B2, US12517805, US5265254A and US20130232473A1, so it reaches the neighbourhood. **A patent that reports a raw print or debug-dump call in library source as a finding was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US9552274B2** (Enhancements to logging of a computer program, VMware, filed 2014-08-13; Google Patents shows it Expired - Fee Related) through `tools/patent-claims.py`, all three independent claims (1, 9, 16). Each requires ranking methods by an importance value, identifying a method that exhibits ideal logging behaviour from historical logging-code modifications, computing a logging-behaviour value per method, comparing it with that of the ideal method, and generating a recommendation from the comparison. **Not read in full:** every other patent named above, by title and snippet only.
+
+**Result: no hit reads on `OPS-003`.** The rule ranks nothing, uses no history and computes no logging-behaviour value; it matches five macro names. **Watch:** re-read US9552274B2 and US12517805 before the rule counts log statements per method or compares them across methods.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.41)
+
+Version line covered by this addendum: **0.43** (0.43.41). Two rules are added from one scan, read from `src/module/neutral/sensitive_output.rs`: `ERR-009` (a secret named in an error message, Rust) and `SEC-008` (a secret named in a log record, Rust). Swept 2026-11-11 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 80 (`ERR-009`, `SEC-008`).** Read the tokens of a logging or error-message macro in source code and report a variable, field or format capture whose name says it holds a password, token, secret, credential, cookie or key, unless it is counted, redacted or only a field of a token object. Metastatic's `SensitiveDataExposure` analyzer (Elixir), CodeQL's `rust/cleartext-logging`, Semgrep's logging rules and the SIExVulTS paper (arXiv 2508.19472, categories of sensitive variable names) ship or describe the same reading and are prior art.
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q157 | 80 | patent static analysis detect sensitive data such as password or token written to log statement or error message in source code |
+| Q158 | 80 | identifying logging statements that output sensitive variable by variable name matching in program source code, privacy leak detection in logs patent (restricted to patents.google.com) |
+
+**Positive controls:** Q157 returned the Metastatic analyzer (the idea itself, published, not a patent) and US11630919B1, US11288376, US10248532, US11921863B2 and US12393724B2, so the engine reaches the idea and its neighbourhood. Q158 returned US9552272B1, US11151285 (as the listing names it), US11550569B2 and EP2609506A1, so it reaches the neighbourhood. **A patent that reports a sensitive-named value in a log or error-message macro of source code, by name matching alone, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US11630919B1** (Management of sensitive data using static code analysis, Amazon Technologies, priority 2019-09-30; Google Patents shows it **Active**, estimated expiry 2041-10-11) through `tools/patent-claims.py`, all three independent claims (1, 4, 15). Each requires matching code blocks against scenarios (code patterns of sensitive data handling), **generating candidate vectors** from the matching blocks, **sending them to a sensitive data model**, and **receiving an inference response with a confidence score** per vector; claim 1 adds a code deployment service and a control-flow and data-flow semantic representation. The dependent claims 5, 9, 16 and 20 name sensitive variable names as a code pattern, but only inside that model-inference step. **Not read in full:** every other patent named above, by title and snippet only.
+
+**Result: no hit reads on `ERR-009` or `SEC-008` as read, but US11630919B1 is a live patent in the same neighbourhood.** The rules build no vector, call no model and return no inference or confidence score from one; they match a fixed list of name words in macro tokens, and their Low confidence is a constant. **Watch:** re-read US11630919B1 and US11921863B2 before either rule trains or calls a model, scores a site from learned data, or reads data flow; and before dependent claims 5 and 9 (sensitive variable names, tokens) are read without the model step. The PM may want a second look at claim 4 before merge because the patent is active.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

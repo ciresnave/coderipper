@@ -11,21 +11,29 @@
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
 mod ci_security;
+mod con005;
 mod concurrency;
 mod conflict_marker;
+mod cor003;
+mod cor007;
+mod deadline;
 mod doc005;
 mod doc009;
 mod efx003;
 mod err001;
+mod ext001;
 mod ext002;
 mod ext003;
+mod global_state;
 mod licence;
 mod lint_suppression;
 mod lock_order;
+mod ops003;
 mod ops009;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
+mod prf003;
 mod prf005;
 mod rdb004;
 mod rdb007;
@@ -35,6 +43,7 @@ mod rust_src;
 mod sec004;
 mod sec005;
 mod sec007;
+mod sensitive_output;
 mod sup001;
 mod sup004;
 mod sup005;
@@ -226,6 +235,10 @@ const RULES: &[Rule] = &[
         judge: typ006::judge,
     },
     Rule {
+        id: "PRF-003",
+        judge: prf003::judge,
+    },
+    Rule {
         id: "PRF-005",
         judge: prf005::judge,
     },
@@ -249,6 +262,50 @@ const RULES: &[Rule] = &[
         id: "EXT-002",
         judge: ext002::judge,
     },
+    Rule {
+        id: "ERR-009",
+        judge: sensitive_output::judge_err009,
+    },
+    Rule {
+        id: "SEC-008",
+        judge: sensitive_output::judge_sec008,
+    },
+    Rule {
+        id: "OPS-003",
+        judge: ops003::judge,
+    },
+    Rule {
+        id: "EFX-002",
+        judge: global_state::judge_efx002,
+    },
+    Rule {
+        id: "CON-011",
+        judge: global_state::judge_con011,
+    },
+    Rule {
+        id: "CON-008",
+        judge: deadline::judge_con008,
+    },
+    Rule {
+        id: "REL-001",
+        judge: deadline::judge_rel001,
+    },
+    Rule {
+        id: "CON-005",
+        judge: con005::judge,
+    },
+    Rule {
+        id: "EXT-001",
+        judge: ext001::judge,
+    },
+    Rule {
+        id: "COR-003",
+        judge: cor003::judge,
+    },
+    Rule {
+        id: "COR-007",
+        judge: cor007::judge,
+    },
 ];
 
 /// The rules this module can check, in the order it reports them.
@@ -262,8 +319,8 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-005",
-        "TST-006",
+        "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006",
     ]
 }
 
@@ -632,12 +689,24 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
     ("TYP-006", &["rust"]),
+    ("PRF-003", &["rust"]),
     ("PRF-005", &["rust"]),
     ("RDB-004", &["rust"]),
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
     ("TST-006", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("ERR-009", &["rust"]),
+    ("SEC-008", &["rust"]),
+    ("OPS-003", &["rust"]),
+    ("EFX-002", &["rust"]),
+    ("CON-011", &["rust"]),
+    ("CON-008", &["rust"]),
+    ("REL-001", &["rust"]),
+    ("CON-005", &["rust"]),
+    ("EXT-001", &["rust"]),
+    ("COR-003", &["rust"]),
+    ("COR-007", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -678,12 +747,24 @@ const PROVEN: &[&str] = &[
     "SUP-005",
     "ERR-001",
     "TYP-006",
+    "PRF-003",
     "PRF-005",
     "RDB-004",
     "RDB-007",
     "TST-003",
     "TST-006",
     "EXT-002",
+    "OPS-003",
+    "CON-005",
+    "EXT-001",
+    "COR-003",
+    "COR-007",
+    "CON-008",
+    "REL-001",
+    "EFX-002",
+    "CON-011",
+    "ERR-009",
+    "SEC-008",
 ];
 
 impl Module for NeutralModule {
