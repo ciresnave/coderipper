@@ -6,6 +6,37 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.34 - 2026-11-10 (proposed, Feature: a new opt-in rule)
+
+**COR-007 is built: no exact float equality (Rust, opt-in).** The rule reads the tracked `.rs` files outside tests with `syn` and reports a `==` or `!=` with an operand that is visibly a float: a non-zero float literal (`0.5`, `1e-9`, `2f64`), a cast to `f32` or `f64`, or an associated constant such as `f64::EPSILON`, `f64::NAN` or `std::f64::consts::PI`; and `assert_eq!`, `assert_ne!`, `debug_assert_eq!` and `debug_assert_ne!` with a non-zero float literal. A comparison with a zero literal, `INFINITY`, `NEG_INFINITY`, `MAX`, `MIN` or `MIN_POSITIVE` is a test of an exact sentinel and is not reported (Clippy's `float_cmp` lets those pass too). One finding per comparison at Medium severity and confidence, subject `<file>:<function>:<what>`. It is opt-in (`coderipper check COR-007`): it sees a float only where the source shows one, so two variables typed `f64` compared with `==` are not seen, and the rule's second half (the tolerance is stated) is not judged. Fixtures `conformance/COR-007/{defective,clean}`; with the `==` and `!=` detection switched off the conformance run fails (`the seeded defect was not reported at src/lib.rs:3`). Measured on committed trees of eight of our repositories (2026-11-06): 1 site in 1 repository, `frac == 0.5` in a rounding routine that tests an exact tie of a power-of-two fraction on purpose, so it is a deliberate comparison and not a defect. Nothing was tuned on that reading; a dyadic literal (`0.5`, `0.25`) compared on purpose is an allowlist entry with a reason.
+
+## 0.43.33 - 2026-11-10 (proposed, Docs)
+
+**Triage of the 2026-11-07 rules review, and `checked_today` for the 29 implemented rules that lacked it.** `docs/RULES-REVIEW-2026-11-07.md` gives a verdict (agree, disagree, partly, with the file and line) for each claim of the review. Measured at `origin/main` c715b60: **66 of 231 rule ids have an implemented check** (52 numbered, 14 slug-named; 26 built-in, 29 neutral-module of which 8 opt-in, 11 delegated; 63 distinct detectors), not 36; ARC is 10 of 12 and MOD 10 of 11; six domains (AIH, COR, EVO, PRF, TST, TYP) have none. The records of ARC-001 to 009 and 011, MOD-001 to 006, 008 to 010, `reachability`, `unused-return-values`, `unused-parameters`, `version-consistency`, `ci-protection-presence`, OPS-011, API-001, API-007, SEC-002 and SEC-009 now say what each checker reads and reports today and what it does not judge; where the code departs from a record's statement the review lists it. API-003's statement gains the 0.x clause (before 1.0 the second number is the major). `docs/rules/REMAINING.md` is brought to 66 built and 165 rows, with ten scheduled new rules from the review's list of missing rules. No source change.
+
+## 0.43.32 - 2026-11-10 (proposed, Docs)
+
+**API-012 is marked not checkable** (CireSnave 2026-11-07, ruling 5: "keep"). Pip's review called it a design essay, not a checkable rule. The record stays in the catalog as guidance; `docs/rules/REMAINING.md` now says no checker will be built for it.
+
+## 0.43.31 - 2026-11-10 (proposed, Docs)
+
+**AIH-010, "the tests ran, and passed, before the work was called done", is a catalog rule, read as the CI-status reading** (CireSnave 2026-11-07, ruling 4: "the CI-status reading for now"). Pip's review found no rule that says an agent runs the tests before claiming it is finished. A repository cannot show what an agent did, so the rule's evidence is the forge's check status for the commit; a harness hook that watches the agent itself is out of scope until CireSnave says otherwise. The record is `network` (it reads the forge) and experimental. There is no checker yet: it joins the scheduled list, built on the forge reads `ci-protection-presence` already makes.
+
+## 0.43.30 - 2026-11-10 (proposed, Fix)
+
+**API-009 reads enums only** (CireSnave 2026-11-07, ruling 3: "yes"). It also flagged every `pub struct` whose named fields are all `pub`, but `#[non_exhaustive]` on a data struct stops a downstream crate building it with a struct expression, so that is usually the design, not a defect; the cure the rule asked for broke the callers it meant to protect. A `pub enum` with variants and no `#[non_exhaustive]` and no doc saying the set is closed is still reported. The rule stays opt-in (`coderipper check API-009`).
+
+
+EXT-001 (a catalogue record with no checker yet) now says a catch-all arm that the compiler requires over a `#[non_exhaustive]` enum is never a finding, so marking an enum to satisfy API-009 does not trade it for an EXT-001 finding.
+
+## 0.43.29 - 2026-11-10 (proposed, Fix)
+
+**The lint-suppression ratchet counts only suppressions without a reason** (CireSnave 2026-11-07, ruling 2: "only unexplained"). It counted every `allow` and `ignore` attribute "reasons or not", so one well-reasoned allow failed a branch like ten bare ones. Now a branch that adds an `allow` or `ignore` with no reason is the Medium finding it was; one that adds a suppression with a `reason = ".."` (or `#[ignore = ".."]`) is an **Info** finding (`allow-explained-count`), which does not gate. The per-attribute "has no reason" finding is unchanged.
+
+## 0.43.28 - 2026-11-10 (proposed, Fix)
+
+**SEC-002 findings are Critical, as the rule's record says.** The gitleaks mapping reported `High` while `rules/sec.toml` has `default_severity = "critical"` (CireSnave 2026-11-07: "Raise the code to Critical"). The same scan under OPS-006 stays `High`, which is OPS-006's own record severity.
+
 ## 0.43.27 - 2026-11-09 (proposed, Added: PRF-003 (opt-in, Rust))
 
 **PRF-003 is built in part, Rust only, opt-in.** Run it by naming it, `coderipper check PRF-003`; it is in no profile. It reads production source with `syn` and reports, **per function, one Medium finding at low confidence** at the first site with the sites listed, for four shapes inside a loop (a `for`, `while` or `loop`, or the closure given to an iterator adaptor such as `map` or `for_each` on an iterator): a linear search (`contains`, `iter().any`, `iter().find`, `iter().position`) of a `Vec`, `VecDeque`, slice or array declared outside the loop; `s = format!(.. s ..)` rebuilding a string declared outside it; a `query`, `query_as`, `query_row`, `prepare` or similar call with a `SELECT` string literal; and a `clone`, `to_vec` or `to_owned` of a collection or string declared outside it whose copy is only read (`.iter()`, `.len()`, `.contains()` and the like) or iterated by a `for` inside another loop; a clone that is handed on is not read, and neither are the closures of `map_err`, `ok_or_else`, `unwrap_or_else` and `or_else`. A collection's type is known only from a typed parameter, a typed or constructed `let` or a field of the same file. Not read: a collection whose type is not declared, a search inside a called function, per-row `INSERT`, `UPDATE` or `DELETE`, whether the loop or the collection is large, whether a clone is needed; TypeScript and Python are not read. A cue to read, never a verdict; the allowlist subject is `Owner::function` or the function name. Fixtures `conformance/PRF-003/{clean,defective}`; the corpus counts are in the pull request. Patent sweep addendum: one idea, no hit read as claimed.
