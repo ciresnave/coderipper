@@ -58,7 +58,7 @@ Two rules in this domain are run by the current release (OPS-011 and OPS-012, Ru
 | :--- | :--- | :--- | :--- |
 | OPS-001 | One typed, validated configuration entry point | P | catalog record; no check yet (needs a parser) |
 | OPS-002 | Config keys are documented, defaulted and used | P | catalog record; no check yet (needs a parser) |
-| OPS-003 | Structured logging, no raw printing in libraries | P | catalog record; no check yet (needs a parser); planned: Clippy print and dbg lints, ESLint no-console |
+| OPS-003 | Structured logging, no raw printing in libraries | P | built in part (Rust, `syn`, library packages outside tests and binaries; `println!`, `print!`, `eprintln!`, `eprint!` and `dbg!` calls, Low; opt-in (`check OPS-003`); hand-written stdout writes, macro-wrapped prints and other languages are not read) |
 | OPS-004 | Trace context follows outbound calls | P | catalog record; no check yet (needs a parser and runtime tests that assert propagation) |
 | OPS-005 | Golden-signal metrics for endpoints and dependencies | P | catalog record; no check yet (needs a parser and a running service) |
 | OPS-006 | No secrets in configuration files | N | built: the gitleaks scan of SEC-002, narrowed to configuration files (YAML, TOML, INI, properties, XML, JSON other than lockfiles, dotenv, docker-compose) and reported under this id; no detection of its own; needs gitleaks installed |
