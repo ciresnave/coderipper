@@ -92,6 +92,7 @@ kb_refs = []
 remediation = "Prefer fakes at boundaries you own, assert on outcomes instead of interactions, and use real components for integration checks."
 related = ["TST-013"]
 lifecycle = "experimental"
+checked_today = "Rust only, from the source (syn), for mockall-style mocks: tracked .rs files outside vendored and fixture directories; every #[test] function (including #[tokio::test]) is reported when it sets up at least four expect_* calls and at least four times as many as it has assertions, or makes at least three .times(..) call-count checks and has no assertion (Low severity, Low confidence). Contested in the catalog, so it runs only when named. Not judged: whether the mocked collaborator is internal or a boundary the project does not own, mocks from other libraries or hand-written fakes, a mock built in a helper the test calls, the thresholds being configurable, TypeScript and Python."
 
 [rule.applicability]
 languages = ["any"]
