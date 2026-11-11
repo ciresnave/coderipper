@@ -1,0 +1,6 @@
+# The seeded defect: a catch-all arm over another file's enum (line 6 of src/area.rs) that absorbs Square and Triangle.
+
+[[expect]]
+rule = "EXT-001"
+file = "src/area.rs"
+line = 6
