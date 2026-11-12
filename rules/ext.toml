@@ -94,6 +94,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Split the interface into small role interfaces matching how clients use it."
 related = ["EXT-003"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; the package is read as a whole in two passes. The implementer half only: a trait declared in the package with six or more methods is reported once, at its declaration, when at least one impl of it in the package stubs three or more members, a stub being an empty body or a body that is only unimplemented!() or todo!(). A default method an implementer does not override is not counted (a default is the trait author's own mitigation). A trait name declared twice in the package, and a trait from another crate, are skipped (no name resolution). The per-client usage half of the rule (clients that each use disjoint subsets of the members) is deliberately not built: it needs a call graph resolved to the trait's methods through generics and dyn values, per client, and this reader has no name or type resolution, so a count of method names would match unrelated methods that share a name and miss every call made through a generic bound. One finding per trait with Low confidence; Low severity; opt-in (check EXT-004)."
 lifecycle = "experimental"
 
 [rule.applicability]
