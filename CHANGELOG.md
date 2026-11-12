@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.59 - 2026-11-12 (proposed, Added)
+
+**SEC-012 is built (Rust): no `Debug` on a type that holds a secret.** A struct is reported, once and at its declaration, at Medium severity and Medium confidence, when it has a secret field that `Debug` prints: it derives `Debug`, or a hand-written `impl Debug` for it reads the field and shows no sign of redaction. A field is a secret when its name says so (`password`, `token`, `api_key`, `private_key`, `client_secret` and similar; a bare `key` is not read) or its type is `Zeroizing`; a companion word (`token_type`, `password_hash`, `key_id`, `credential_issuer`) or a `bool`, number or `Duration` type says it is not. A field of type `Secret`, `SecretString` and the like is masked and not reported. It is on by default in `extended` and `portfolio`, where it reports and never fails a run, and `check SEC-012` runs it alone. To turn it off for a repository, waive it in `.coderipper.toml` with a reason.
+
 ## 0.43.57 - 2026-11-12 (proposed, Breaking: a new opt-in rule)
 
 **COR-006 is built in part (Rust, opt-in): the static half.** A package with an `unsafe` block, `unsafe impl` or `unsafe trait` that has no `SAFETY` comment on its line or directly above is reported at High severity and Medium confidence, once per package, listing the sites. A package with no `unsafe` passes, and so does one whose every site is justified. It reads the same inventory as `SEC-005`, so the two cannot disagree. The Miri half (running the test suite under Miri or a sanitizer) is deliberately not built: it needs a nightly toolchain and a run of the projects tests, so a pass says nothing about whether the suite was run under Miri. Run it with `check COR-006`; it is not in any profile.
