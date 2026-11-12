@@ -104,6 +104,30 @@ const COMPANIONS: &[&str] = &[
     "file",
     "env",
     "var",
+    "lifetime",
+    "secs",
+    "seconds",
+    "millis",
+    "details",
+    "definition",
+    "definitions",
+    "types",
+    "complexity",
+    "revocation",
+    "offered",
+    "allowed",
+    "require",
+    "requires",
+    "method",
+    "methods",
+    "scheme",
+    "schemes",
+    "aud",
+    "iss",
+    "jti",
+    "info",
+    "reference",
+    "exclude",
 ];
 
 /// Types whose `Debug` prints a mask, so a field of one is redacted by construction.
@@ -203,6 +227,11 @@ fn type_words(ty: &Type, out: &mut Vec<String>) {
 }
 
 fn is_plain_scalar(words: &[String]) -> bool {
+    // `Option<bool>` is as scalar as `bool`
+    let words = match words {
+        [first, rest @ ..] if first == "Option" => rest,
+        all => all,
+    };
     words.first().is_some_and(|w| {
         matches!(
             w.as_str(),
