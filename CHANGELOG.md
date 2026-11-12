@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.50 - 2026-11-11 (proposed, CI)
+
+**The portfolio workflow now installs coderipper 0.43.49** (`CODERIPPER_VERSION` was 0.43.41). 0.43.49 carries the reachability fix for `pub use` out of a private module (#304) and ARC-009 reporting a repository with no release tag as not applicable instead of "not run" (#305). It is the newest release on crates.io (tag v0.43.49).
+
 ## 0.43.49 - 2026-11-11 (proposed, Breaking: a new opt-in rule)
 
 **EFX-007 is built (Rust, opt-in).** A struct field or a `static` whose type is a cell, lock or atomic (`Cell`, `RefCell`, `Mutex`, `RwLock`, `Atomic*`, read through `Arc`, `Rc`, `Box`, `Option` and the lazy cells) is reported at Low severity and Medium confidence when it has no doc comment and no `//` comment on the line above it. Only the presence of a comment is read, not what it says. Run it with `check EFX-007`; it is not in any profile. `EFX-002` still reports every global mutable static, documented or not.
