@@ -6,6 +6,18 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.51 - 2026-11-11 (proposed, Feature: new opt-in rule)
+
+**SUP-010 is built: a release workflow signs or attests (opt-in).** A tracked GitHub Actions workflow that publishes a release (the publishers of SUP-009; a `--dry-run` line is not one) and names none of `cosign`, `sigstore`, `slsa`, `provenance`, `attest`, `gpg` or `minisign` outside comments is one Medium finding at Low confidence, at its first publishing line. A repository with no release workflow is not applicable. It is opt-in (`coderipper check SUP-010`) and a local check of the pipeline: the published release is not fetched, a signature is not verified, signing in a reusable workflow or composite action, a release made outside GitHub Actions and the assurance level are not seen. The catalog record moves from `network` to `local` to match. Fixtures `conformance/SUP-010/{defective,clean}`; with the signing words removed the clean fixture fails the conformance run, restored it reads proven.
+
+## 0.43.50 - 2026-11-11 (proposed, CI)
+
+**The portfolio workflow now installs coderipper 0.43.49** (`CODERIPPER_VERSION` was 0.43.41). 0.43.49 carries the reachability fix for `pub use` out of a private module (#304) and ARC-009 reporting a repository with no release tag as not applicable instead of "not run" (#305). It is the newest release on crates.io (tag v0.43.49).
+
+## 0.43.49 - 2026-11-11 (proposed, Breaking: a new opt-in rule)
+
+**EFX-007 is built (Rust, opt-in).** A struct field or a `static` whose type is a cell, lock or atomic (`Cell`, `RefCell`, `Mutex`, `RwLock`, `Atomic*`, read through `Arc`, `Rc`, `Box`, `Option` and the lazy cells) is reported at Low severity and Medium confidence when it has no doc comment and no `//` comment on the line above it. Only the presence of a comment is read, not what it says. Run it with `check EFX-007`; it is not in any profile. `EFX-002` still reports every global mutable static, documented or not.
+
 ## 0.43.48 - 2026-11-11 (proposed, Fix)
 
 **ARC-009 is skipped, not "not run", in a repository that has never published a release.** With no tag `v<version>` reachable from `HEAD` and no `[arc009] base`, the rule reported "not run", and the portfolio job fails on any rule that did not run, so every never-published repository (lightbulb#314, fireline#17, ..) failed on the repin to 0.43.41. A repository that has not published has nothing to drift from: it is now a skip (`not_applicable_here`) with a note that says why (`ARC-009 not applicable here: ..`), counted as skipped in the coverage, never clean, never a failed job. New `Check::not_applicable` (default none); a skip with a reason now prints that reason as a note for every module. A repository that sets `[arc009] base`, or later tags a release, is compared as before. Measured on a tagless repository: the 0.43.20 build's note matches the portfolio gate's `not run:` filter (job fails); this build's note does not.

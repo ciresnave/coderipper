@@ -1314,3 +1314,41 @@ Rule added over the previous line, read from `src/module/neutral/tst009.rs`: `TS
 **Read, every independent claim:** rows 125 to 128; each runs something (a fuzzer, an instrumented trace, a generated executable) and none checks for the *presence* of a target in source or manifest. **Result: no hit reads on `TST-009` as read.** **Not read, no verdict, not cleared:** US10380350B2 (efficient and comprehensive source code fuzzing), US12282412 (coverage-guided fuzzing via dynamic instrumentation) and US11620129 (agent-based detection of fuzzing activity), by title only. **Watches:** (1) re-read rows 125 to 128 before `TST-009` builds or runs a target, enumerates functions to fuzz and produces a harness, or reads coverage; (2) re-read the title-only patents above before it classifies modules by data flow; (3) the rule reports a package and writes no target.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits, queries and ideas are unchanged by this rule. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.49)
+
+Version line covered by this addendum: **0.43** (0.43.49). One rule is added, read from `src/module/neutral/efx007.rs`: `EFX-007` (a Rust struct field or static of a cell, lock or atomic type with no doc comment and no comment on the line above). Swept 2026-11-11 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 84 (`EFX-007`).** Parse Rust source, find each struct field or static whose declared type names an interior-mutable or lock type, and report it when neither a doc comment nor a line comment sits directly above it. Reading the type's name and the presence of a comment is the whole mechanism; no state change is traced.
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q166 | 84 | patent static analysis detect struct field interior mutability cell lock without ownership comment documentation in source code |
+| Q167 | 84 | patent.google.com automatically identify shared mutable variables source code lacking documentation comment report ownership annotation |
+
+**Positive controls:** Q166 returned Rust standard-library `Cell` documentation and an arXiv paper on interior mutability in Rust (a verifier, not a patent), so the engine reaches the neighbourhood. Q167 returned US9542166 (inferring immutability of program variables) and US6925638 (mutability analysis in Java), so it reaches the neighbourhood too. **A patent that reports a shared-mutation field or static for lacking an ownership comment was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US6925638B1** (Mutability analysis in Java, IBM, filed 2000-09-21; Google Patents shows it Expired - Fee Related) through `tools/patent-claims.py`; independent claims 1, 7, 8, 19, 38, 44, 45, 53 and 60. Each requires determining whether a variable could undergo a state modification by a method inside the component and performing encapsulation analysis for modification from outside it, then deciding mutability of variables, fields or classes from that. **Not read in full:** US9542166, Javarifier, AliasJava, the `@GuardedBy` inference paper and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `EFX-007`.** The rule traces no state modification and runs no encapsulation analysis; it matches a type name and looks for a comment. **Watch:** re-read US6925638 and US9542166 before the rule decides mutability from how a field is written rather than from its declared type.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.51)
+
+Version line covered by this addendum: **0.43** (0.43.51). One rule is added, read from `src/module/neutral/sup010.rs`: `SUP-010` (a GitHub Actions release workflow names no signing or build-provenance tool, Rust-and-any-ecosystem publishers). Swept 2026-11-11 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 85 (`SUP-010`).** Read a release pipeline's configuration as text and report a publishing step in a workflow that has no signing or provenance-attestation step. Palo Alto Cortex (appsec attest rules), Microsoft's Zero Trust DevSecOps guidance (DS_023), GitHub's artifact attestations, sigstore cosign and slsa-verifier describe the same check or the verification side of it, and are prior art (products and documentation, not patents).
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q168 | 85 | patent static analysis of CI release pipeline configuration detecting missing artifact signing or build provenance attestation step |
+| Q169 | 85 | automatically determining whether a software release workflow signs artifacts or generates provenance attestation, reporting finding patents.google.com |
+
+**Positive controls:** Q168 returned the Cortex rules that flag an unsigned build artifact in CI/CD and the Microsoft guidance that a pipeline should reject an unsigned artifact, so the engine reaches the idea itself (as products and documents). Q169 returned the GitHub attestation documentation and a project's record of attesting before publication, so it reaches the neighbourhood. **Neither query returned a patent at all, and none from patents.google.com; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search, no claim read). The absence of a patent is therefore not evidence that none reads on the rule.
+
+**Read:** no patent claim was read, because no patent was found. **Not read:** every document named above, by title and search snippet only.
+
+**Result: no hit to chart.** Not cleared: a reading of patent claims on supply-chain signing or provenance verification (the verification side, which the rule does not do) was not done. **Watch:** a search of Google Patents and Espacenet directly with the terms build provenance, attestation, artifact signing and pipeline policy, before the rule fetches a release or verifies a signature.
+
+**Limits:** two queries, one search engine, no patent database searched directly, no claims read, no citation chasing. A due-diligence read, not legal advice.
