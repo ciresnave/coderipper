@@ -1,0 +1,3 @@
+kind: Fix
+---
+**A waiver written once at a workspace root now covers the member it names.** A `--workspace` run (and a hand run of one member) read the members' own `.coderipper.toml` only, so an `[[allow]]` entry in the root's file matched no finding of any member, in whatever form it was written. Each member's run now also reads the root's `[[allow]]` entries, with `file` read relative to the workspace root as in the root's own run (`crates/a/src/lib.rs` waives the finding at `src/lib.rs` of the package in `crates/a`). The path stays exact, an inherited entry is shown as coming from the workspace root's file, and a member it does not name never reports it stale. A member's own file waives by the path from the member as before.
