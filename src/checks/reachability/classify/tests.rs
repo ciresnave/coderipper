@@ -6,6 +6,7 @@ fn facts(api: &[(&str, usize)], tests: &[&str]) -> Facts {
         api: api.iter().map(|(f, l)| ((*f).to_string(), *l)).collect(),
         exported: api.iter().map(|(f, l)| ((*f).to_string(), *l)).collect(),
         test_idents: tests.iter().map(|s| (*s).to_string()).collect(),
+        ..Facts::default()
     }
 }
 
@@ -146,5 +147,45 @@ fn f() {}
     );
     for no in ["prose_only", "after_block", "plain_comment_block"] {
         assert!(!out.contains(no), "{no}: {out:?}");
+    }
+}
+
+#[test]
+fn what_a_pub_use_reaches_out_of_a_private_module_is_library_api_and_the_rest_of_that_module_is_not(
+) {
+    // secretant's shape: `mod store;` is private, `pub use store::{..}` is the interface
+    let repo = git_repo(&[
+        (
+            "src/lib.rs",
+            "mod store;\nmod other;\npub use store::{Kept, Renamed as Shown};\npub use other::*;\n",
+        ),
+        (
+            "src/store.rs",
+            "/// Documented.\npub struct Kept;\nimpl Kept {\n    /// A method.\n    pub fn open() {}\n    pub fn bare() {}\n}\npub struct Renamed;\npub struct NotReexported;\npub fn helper() {}\n",
+        ),
+        ("src/other.rs", "pub fn via_glob() {}\n"),
+    ]);
+    let f = read_facts(repo.path(), true).unwrap();
+    let api: Vec<(&str, usize)> = f.api.iter().map(|(p, l)| (p.as_str(), *l)).collect();
+    // documented: `Kept` (2) and `Kept::open` (5); undocumented but exported: `bare` (6), `Renamed` (8), `via_glob` (1 in other.rs)
+    assert_eq!(api, [("src/store.rs", 2), ("src/store.rs", 5)], "{api:?}");
+    for site in [
+        ("src/store.rs", 6),
+        ("src/store.rs", 8),
+        ("src/other.rs", 1),
+    ] {
+        assert!(
+            f.exported.contains(&(site.0.to_string(), site.1)),
+            "{site:?}: {:?}",
+            f.exported
+        );
+    }
+    // positive controls: a `pub` item of the same module that no `pub use` names stays unlisted
+    for site in [("src/store.rs", 9), ("src/store.rs", 10)] {
+        assert!(
+            !f.exported.contains(&(site.0.to_string(), site.1)),
+            "{site:?}: {:?}",
+            f.exported
+        );
     }
 }
