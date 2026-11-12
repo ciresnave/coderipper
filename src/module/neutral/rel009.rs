@@ -7,8 +7,8 @@
 //! wall clock:
 //!
 //! * `name.elapsed()` on a wall-clock local, or `SystemTime::now().elapsed()`;
-//! * `x.duration_since(y)` where `x` is a wall-clock local or a `SystemTime::now()` call, unless `y` is `UNIX_EPOCH`;
-//! * `x.duration_since(y)` where `y` is a wall-clock local and `x` is not known.
+//! * `x.duration_since(y)` where both `x` and `y` are wall-clock locals or `SystemTime::now()` calls (two readings taken in the same
+//!   function), so the age of a stored timestamp (`now.duration_since(record.created)`) is not a site.
 //!
 //! `SystemTime::now().duration_since(UNIX_EPOCH)` is a timestamp, not a measured interval, and is never a site. A start time that is
 //! stored in a field or passed in is not followed: no type inference, so recall is low and the rule says so.
@@ -130,9 +130,7 @@ impl<'ast> Visit<'ast> for Scan {
         let hit = match method.as_str() {
             "elapsed" => m.args.is_empty() && self.is_wall(&m.receiver),
             "duration_since" => m.args.first().is_some_and(|arg| {
-                (self.is_wall(&m.receiver) && !is_epoch(arg))
-                    || (path_ident(arg).is_some_and(|n| self.wall.contains(&n))
-                        && !self.is_wall(&m.receiver))
+                self.is_wall(&m.receiver) && self.is_wall(arg) && !is_epoch(arg)
             }),
             _ => false,
         };
@@ -244,14 +242,8 @@ mod tests {
 
     #[test]
     fn duration_since_between_wall_readings_is_reported_but_the_epoch_is_not() {
-        let src = "fn f(stored: SystemTime) {\n    let a = SystemTime::now();\n    let b = SystemTime::now();\n    b.duration_since(a);\n    let ts = SystemTime::now().duration_since(UNIX_EPOCH);\n    stored.duration_since(a);\n}";
-        assert_eq!(
-            got(src),
-            vec![
-                (4, "duration_since".to_string()),
-                (6, "duration_since".to_string())
-            ]
-        );
+        let src = "fn f(stored: SystemTime, r: Rec) {\n    let a = SystemTime::now();\n    let b = SystemTime::now();\n    b.duration_since(a);\n    let ts = SystemTime::now().duration_since(UNIX_EPOCH);\n    stored.duration_since(a);\n    b.duration_since(r.created);\n}";
+        assert_eq!(got(src), vec![(4, "duration_since".to_string())]);
     }
 
     #[test]
