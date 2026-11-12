@@ -215,6 +215,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Use the language's monotonic or instant clock for intervals and keep wall-clock time for timestamps shown to people or stored."
 related = []
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; inside one function body a local is wall-clock when it is bound by let from SystemTime::now(), and a site is elapsed() on such a local or on SystemTime::now(), or duration_since() where both sides are wall-clock locals or SystemTime::now() calls (two readings taken in the same function), so the age of a stored timestamp is not a site. SystemTime::now().duration_since(UNIX_EPOCH) is a timestamp and is never a site. Not judged: a start time held in a field, a parameter or a return value (no type inference, so recall is low), chrono and time crate wall clocks, other languages. One finding per site with Medium confidence; Low severity; opt-in (check REL-009)."
 lifecycle = "experimental"
 
 [rule.applicability]
