@@ -161,6 +161,9 @@ fn names_finding(entry: &AllowEntry, f: &Finding) -> bool {
     };
     let file_matches = if entry.declared_public {
         glob_match(&normalize_entry_path(&entry.file), &location.file)
+    } else if let Some(prefix) = entry.member_prefix.as_deref() {
+        // an entry inherited from a workspace root names the file relative to that root
+        format!("{prefix}/{}", location.file) == normalize_entry_path(&entry.file)
     } else {
         location.file == normalize_entry_path(&entry.file)
     };
