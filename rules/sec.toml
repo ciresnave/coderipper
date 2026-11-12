@@ -249,3 +249,27 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "SEC-012"
+title = "No Debug on a type that holds a secret"
+domain = "SEC"
+statement = "A type that holds a secret does not print it through Debug: its Debug output is redacted by construction, by a wrapper type that masks it or by a hand-written impl."
+rationale = "Debug output reaches logs, panic messages, error reports and traces, so a derived Debug on a struct with a token or password field copies the secret into places that were never meant to hold it."
+evidence_tiers = ["V1", "V4"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Wrap the secret in a type whose Debug prints a mask (secrecy::Secret or a redacting newtype), or write Debug by hand and print a placeholder for the field."
+related = ["SEC-008", "ERR-009"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]

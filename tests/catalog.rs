@@ -104,6 +104,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("AIH-010");
     // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("security-support-statement");
+    // SEC-012, a Debug impl that prints a secret: allocated by the PM (2026-11-12) from two real leaks, not a knowledge-base id
+    triaged.push("SEC-012");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
     triaged.retain(|id| *id != "TYP-003");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
