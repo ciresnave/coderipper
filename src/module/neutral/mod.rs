@@ -10,6 +10,7 @@
 //! Files are read from `HEAD` (`git ls-tree`, `git show`), as the Rust checks analyse `HEAD`, so a dirty working tree changes
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
+mod architecture_ratchet;
 mod ci_security;
 mod con005;
 mod con010;
@@ -123,6 +124,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "lint-suppression",
         judge: lint_suppression::judge,
+    },
+    Rule {
+        id: "architecture-ratchet",
+        judge: architecture_ratchet::judge,
     },
     Rule {
         id: "conflict-marker",
@@ -777,6 +782,7 @@ const PROVEN: &[&str] = &[
     "DOC-009",
     "WSP-001",
     "lint-suppression",
+    "architecture-ratchet",
     "conflict-marker",
     "patent-index-match",
     "licence",
