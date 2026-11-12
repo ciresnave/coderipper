@@ -168,6 +168,22 @@ impl Scan {
                 params.push((pname, class, text));
             }
         }
+        // An identifier is reported only where a swap is plausible: two of them of the same primitive type, which the compiler cannot tell
+        // apart. A lone `alert_id: &str` is a name and a string; 844 of the 889 identifier-only functions in the 2026-11-12 corpus were that.
+        // Money and duration are reported alone: a raw number there has no unit and no invariant.
+        let same_type_ids = |text: &str| {
+            params
+                .iter()
+                .filter(|(_, c, t)| *c == Class::Id && t == text)
+                .count()
+                >= 2
+        };
+        let keep: Vec<(String, Class, String)> = params
+            .iter()
+            .filter(|(_, c, t)| *c != Class::Id || same_type_ids(t))
+            .cloned()
+            .collect();
+        let params = keep;
         if !params.is_empty() {
             self.out.push(Site {
                 line: line_of(sig.ident.span()),
@@ -330,13 +346,14 @@ mod tests {
 
     #[test]
     fn money_duration_and_identifier_parameters_typed_as_primitives_are_reported() {
-        let src = "pub fn charge(user_id: u64, amount: f64, timeout: u32) {}";
+        let src = "pub fn charge(user_id: u64, owner_id: u64, amount: f64, timeout: u32) {}";
         assert_eq!(
             got(src),
             vec![(
                 "charge".to_string(),
                 vec![
                     ("user_id".to_string(), Class::Id),
+                    ("owner_id".to_string(), Class::Id),
                     ("amount".to_string(), Class::Money),
                     ("timeout".to_string(), Class::Duration)
                 ]
@@ -352,22 +369,33 @@ mod tests {
 
     #[test]
     fn an_identifier_may_be_a_string_but_money_and_duration_must_be_numbers() {
-        assert_eq!(got("pub fn f(order_id: &str) {}").len(), 1);
-        assert_eq!(got("pub fn f(id: String) {}").len(), 1);
+        assert_eq!(got("pub fn f(order_id: &str, user_id: &str) {}").len(), 1);
+        assert_eq!(got("pub fn f(id: String, tenant_id: String) {}").len(), 1);
         assert!(got("pub fn f(price: String, timeout: &str) {}").is_empty());
-        assert!(got("pub fn f(id: f64) {}").is_empty());
+        assert!(got("pub fn f(id: f64, other_id: f64) {}").is_empty());
+    }
+
+    #[test]
+    fn a_lone_identifier_and_two_identifiers_of_different_types_are_not_reported() {
+        // a lone `alert_id: &str` is a name and a string; two ids of different types cannot be swapped without the compiler saying so
+        assert!(got("pub fn f(alert_id: &str) {}").is_empty());
+        assert!(got("pub fn f(user_id: u64, session_id: &str) {}").is_empty());
+        assert!(got("pub fn f(service_id: &str, file_id: u32) {}").is_empty());
+        // money and duration need no pair
+        assert_eq!(got("pub fn f(price: f64) {}").len(), 1);
+        assert_eq!(got("pub fn f(timeout: u32) {}").len(), 1);
     }
 
     #[test]
     fn only_public_functions_of_inherent_impls_and_public_traits_are_read() {
-        let src = "fn private(id: u64) {}\npub(crate) fn p2(id: u64) {}\nstruct S;\nimpl S { pub fn m(&self, id: u64) {} fn q(&self, id: u64) {} }\nimpl Trait for S { fn t(&self, id: u64) {} }\npub trait T { fn x(&self, id: u64); }\ntrait Hidden { fn y(&self, id: u64); }";
+        let src = "fn private(a_id: u64, b_id: u64) {}\npub(crate) fn p2(a_id: u64, b_id: u64) {}\nstruct S;\nimpl S { pub fn m(&self, a_id: u64, b_id: u64) {} fn q(&self, a_id: u64, b_id: u64) {} }\nimpl Trait for S { fn t(&self, a_id: u64, b_id: u64) {} }\npub trait T { fn x(&self, a_id: u64, b_id: u64); }\ntrait Hidden { fn y(&self, a_id: u64, b_id: u64); }";
         let names: Vec<String> = got(src).into_iter().map(|(f, _)| f).collect();
         assert_eq!(names, vec!["m", "x"]);
     }
 
     #[test]
     fn test_code_and_hidden_items_are_skipped() {
-        let src = "#[cfg(test)]\nmod tests { pub fn f(id: u64) {} }\n#[doc(hidden)]\npub fn g(id: u64) {}\n#[test]\npub fn h(id: u64) {}";
+        let src = "#[cfg(test)]\nmod tests { pub fn f(a_id: u64, b_id: u64) {} }\n#[doc(hidden)]\npub fn g(a_id: u64, b_id: u64) {}\n#[test]\npub fn h(a_id: u64, b_id: u64) {}";
         assert!(got(src).is_empty());
     }
 
