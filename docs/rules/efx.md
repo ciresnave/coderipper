@@ -69,7 +69,7 @@ None of these rules is run by the current release. The notes say what is planned
 | EFX-004 | Deterministic algorithms give identical results every run | X | no check yet; needs running the algorithm repeatedly and comparing hashes |
 | EFX-005 | Methods that both change state and answer queries | P | no check yet; planned: native heuristic, advisory |
 | EFX-006 | Functions claimed pure are pure | P | no check yet; planned: native call-graph check for TypeScript and Python; Rust needs effect reachability |
-| EFX-007 | Shared-mutation spots say who owns them | P | no check yet; planned: native check that cells, locks and caches carry an ownership comment |
+| EFX-007 | Shared-mutation spots say who owns them | P | built in part (Rust, `syn`, outside tests; a struct field or static of a cell, lock or atomic type with no doc comment and no `//` comment above it, Low severity, Medium confidence; opt-in (`check EFX-007`); comment presence only, the owner is not judged; `EFX-002` reports global statics whether documented or not) |
 
 ## Further reading
 

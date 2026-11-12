@@ -44,11 +44,11 @@ struct Scan {
     out: Vec<Site>,
 }
 
-fn line_of(span: proc_macro2::Span) -> u32 {
+pub(super) fn line_of(span: proc_macro2::Span) -> u32 {
     u32::try_from(span.start().line).unwrap_or(0)
 }
 
-fn is_test_attr(attr: &Attribute) -> bool {
+pub(super) fn is_test_attr(attr: &Attribute) -> bool {
     if attr
         .path()
         .segments
@@ -88,7 +88,7 @@ fn transparent(word: &str) -> bool {
 }
 
 /// The word that makes a type mutable shared state, found by walking its path segments and generic arguments.
-fn mutable_in(ty: &Type) -> Option<String> {
+pub(super) fn mutable_in(ty: &Type) -> Option<String> {
     match ty {
         Type::Path(p) => {
             for seg in &p.path.segments {
@@ -193,7 +193,7 @@ pub(super) fn sites(text: &str) -> Option<Vec<Site>> {
     Some(out)
 }
 
-fn vendored(path: &str) -> bool {
+pub(super) fn vendored(path: &str) -> bool {
     let segments: Vec<&str> = path.split('/').collect();
     segments[..segments.len() - 1]
         .iter()
