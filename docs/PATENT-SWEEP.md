@@ -1428,3 +1428,22 @@ Version line covered by this addendum: **0.43** (0.43.56). One rule is added in 
 **Result: no hit reads on `EXT-004`.** The rule compiles nothing, builds no graph, runs no module-mapping algorithm and computes no integrity; it counts methods and stub bodies in the syntax tree. **Watch:** re-read US10346287 and US12393408 before the rule groups members by use or compares interfaces across a package by a graph rather than by a count.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.57)
+
+Version line covered by this addendum: **0.43** (0.43.57). One rule is added in part, read from `src/module/neutral/cor006.rs` and the shared inventory in `src/module/neutral/sec005.rs`: `COR-006` (the static half: a Rust package with an `unsafe` block or `unsafe impl` that has no `SAFETY` comment). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 90 (`COR-006`).** Parse Rust source, find each `unsafe` block, `unsafe impl` and `unsafe trait`, and report a package for the ones with no `SAFETY` comment on the line or in the comment lines directly above. Looking for the word in a nearby comment is the whole mechanism; nothing is proved about the block, and the Miri half of the rule is not built.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q178 | 90 | patent static analysis detect unsafe code blocks without justification comment safety annotation required in Rust source code report |
+| Q179 | 90 | patent.google.com automatically identify memory-unsafe code regions in source and require documented safety justification before compilation or review, unsafe block audit tool |
+
+**Positive controls:** Q178 returned Clippy's `undocumented_unsafe_blocks` lint, the `neti` checker and the UnsafeChecker paper (tools and research, not patents), so the engine reaches the neighbourhood. Q179 returned US10423518 (MathWorks, analyzing violations of coding rules), US12461846 and US8375443, so it reaches the neighbourhood too. **A patent that reports an `unsafe` block for lacking a justification comment, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search). Clippy's lint is prior art for the practice itself, not a patent.
+
+**Read:** the claims of **US10423518B2** (Systems and methods for analyzing violations of coding rules, MathWorks, filed 2016-04-27; Google Patents shows it Active) through `tools/patent-claims.py`, all four independent claims (1, 15, 18, 20). Each requires detecting a coding-rule violation, identifying the code verification check associated with that rule through a stored association, automatically applying that check, and designating the violation as justified if the check proves the undesired behaviour cannot occur. **Not read in full:** US12461846, US8375443 and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `COR-006`.** The rule stores no rule-to-check association, applies no verification check and proves nothing about a block; it looks for a comment and reports its absence. **Watch:** re-read US10423518 before the rule treats a block as justified because an analysis proved it, rather than because a comment says so.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
