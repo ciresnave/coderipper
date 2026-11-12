@@ -1390,3 +1390,22 @@ Version line covered by this addendum: **0.43** (0.43.53). One rule is added, re
 **Result: no hit reads on `REL-009`.** The rule supplies no clock, reads no ticks and computes no time; it matches a constructor name and a later method call in source text. **Watch:** re-read US11119531 before the rule suggests or rewrites a clock source rather than only naming the defect.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.55)
+
+Version line covered by this addendum: **0.43** (0.43.55). One rule is added, read from `src/module/neutral/typ002.rs`: `TYP-002` (a Rust `match` with three or more string-literal patterns, or an `if` / `else if` chain comparing to three or more string literals). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 88 (`TYP-002`).** Parse Rust source and report a `match` or an `else if` chain that chooses between three or more fixed string literals, except inside a function that parses outside text into a typed value (`from_str`, `try_from`, `from`). Counting distinct string literals in the arms or conditions of one branching construct is the whole mechanism; no set of values is compared across files and no model is used.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q174 | 88 | patent static analysis detect switch statement or if-else chain comparing string literals instead of enumerated type in source code, recommend enum refactoring |
+| Q175 | 88 | patent.google.com stringly typed code smell detection automatically identify string constants used as enumeration values program analysis report |
+
+**Positive controls:** Q174 returned a stringly-typed linter, an ESLint `prefer-enum` rule and JetBrains and cppcheck string inspections (tools, not patents), so the engine reaches the neighbourhood. Q175 returned US12591499 (King Fahd University of Petroleum and Minerals, code smell detection with a transformer model), so it reaches the neighbourhood too. **A patent that reports a branch on three or more string literals as a stand-in for an enumeration, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US12591499B2** (System and method for code smell detection using transformer-based code representations with self-supervision by predicting reserved words, filed 2024-01-31; Google Patents shows it Active) through `tools/patent-claims.py`, all three independent claims (1, 10, 20). Each requires creating pseudo labels by a proxy task over a vector of source tokens, training a transformer model on them, applying the pre-trained model to fine-tuning models for respective downstream tasks, and outputting from each whether a code smell was detected. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `TYP-002`.** The rule trains and applies no model, makes no pseudo labels and reads no token vectors; it counts string literals in one `match` or `if` chain. **Watch:** re-read US12591499 and the open-source stringly-typed linters named above (prior art for the practice, not a patent) before the rule decides from a learned representation, or across files, which strings form an enumeration.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
