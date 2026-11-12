@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.55 - 2026-11-12 (proposed, Breaking: a new opt-in rule)
+
+**TYP-002 is built (Rust, opt-in).** A `match` with three or more distinct string-literal patterns, or an `if` / `else if` chain comparing something to three or more string literals, is reported at Low severity and Medium confidence, once at the `match` or the first `if`. The body of `from_str`, `try_from` and `from` is skipped, because turning outside text into a typed value is where a string match belongs. Whether the strings are a closed set or a lookup of data is not judged. Run it with `check TYP-002`; it is not in any profile.
+
 ## 0.43.54 - 2026-11-11 (proposed, Docs)
 
 **Design note for reviewed SEC-002 waivers** (`docs/secret-waivers-design.md`): a list in CodeRipper's own repository, one entry per exact gitleaks fingerprint, reviewer, evidence and expiry, never a waiver of a rule or a path. Design only; no behaviour change.

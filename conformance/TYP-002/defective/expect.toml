@@ -1,0 +1,11 @@
+# The seeded defects: a match on three string literals (line 2) and an if-chain on three (line 11).
+
+[[expect]]
+rule = "TYP-002"
+file = "src/lib.rs"
+line = 2
+
+[[expect]]
+rule = "TYP-002"
+file = "src/lib.rs"
+line = 11

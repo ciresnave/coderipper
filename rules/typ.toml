@@ -42,6 +42,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Define an enum or union of the legal values and switch over it exhaustively."
 related = ["TYP-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; a site is a match whose arms carry three or more distinct string-literal patterns, or an if / else if chain whose conditions compare something to three or more string literals (also through ||), reported once at the match or the first if. Not reported: the body of a function named from_str, try_from or from (turning outside text into a typed value is where a string match belongs), fewer than three literals, matches! and other macro bodies, other languages. Not judged: whether the strings are a closed set or a lookup of data, strings compared through a helper, constants as patterns. One finding per site with Medium confidence; Low severity; opt-in (check TYP-002)."
 lifecycle = "experimental"
 
 [rule.applicability]
