@@ -335,7 +335,8 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
-        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009", "CON-010",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
+        "CON-010",
     ]
 }
 
