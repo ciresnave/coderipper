@@ -1,0 +1,1 @@
+# The clean twin: every unsafe block carries a SAFETY comment, and the unsafe fn states its contract.
