@@ -1,0 +1,6 @@
+# The seeded defect: an interval measured on the wall clock (line 6).
+
+[[expect]]
+rule = "REL-009"
+file = "src/lib.rs"
+line = 6

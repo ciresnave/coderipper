@@ -1,0 +1,1 @@
+# The clean twin: the interval uses Instant, and the SystemTime reading is a timestamp since the epoch.

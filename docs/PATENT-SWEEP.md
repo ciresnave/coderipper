@@ -1371,3 +1371,22 @@ Version line covered by this addendum: **0.43** (0.43.52). One rule is added, re
 **Result: no hit reads on `CON-010`.** The rule reads no trace, builds no happens-before relation and decides nothing about safety; it matches four path names and looks for a comment. **Watch:** re-read US8392891 and EP 4231138 before the rule reasons about which accesses an ordering synchronises.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.53)
+
+Version line covered by this addendum: **0.43** (0.43.53). One rule is added, read from `src/module/neutral/rel009.rs`: `REL-009` (a Rust duration measured on the wall clock: `.elapsed()` on a local bound from `SystemTime::now()`, or `.duration_since()` between two such readings). Swept 2026-11-11 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 87 (`REL-009`).** Parse Rust source and, inside one function, report an interval taken from a binding that was set from the system wall clock, never one measured against the epoch. Matching a clock constructor's name to a later elapsed-time call on the same binding is the whole mechanism; no execution and no clock behaviour is observed.
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q172 | 87 | patent static analysis detect elapsed time measured with wall clock instead of monotonic clock in source code report defect |
+| Q173 | 87 | patent.google.com source code analysis system time subtraction non-monotonic clock interval measurement warning compiler lint |
+
+**Positive controls:** Q172 returned US11119531 (Oracle, a parallel pseudo infinite monotonic timeline clock) and the Go monotonic-time proposal, so the engine reaches the neighbourhood. Q173 returned kernel clock-consistency selftests and an ISO WG23 document on time vulnerabilities, so it reaches the neighbourhood too. **A patent that reports a wall-clock reading used to measure an interval, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US11119531B2** (Parallel pseudo infinite monotonic timeline clock, Oracle, filed 2019-12-06; Google Patents shows it Active) through `tools/patent-claims.py`, all three independent claims (1, 10, 19). Each requires obtaining a series of monotonic time ticks from a tick supplier, defining an anchor point of a time instant and a tick value, computing a current time as the anchor plus the elapsed ticks, and re-anchoring on a triggering event. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `REL-009`.** The rule supplies no clock, reads no ticks and computes no time; it matches a constructor name and a later method call in source text. **Watch:** re-read US11119531 before the rule suggests or rewrites a clock source rather than only naming the defect.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
