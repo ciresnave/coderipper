@@ -10,8 +10,8 @@
 //! package, and no `unsafe_code` lint in its `Cargo.toml` or an enclosing one) gets one Info finding saying so: forbidding costs one
 //! line and keeps it that way.
 //!
-//! **Not claimed:** COR-006's static half (unsafe banned, or each block justified) follows from this inventory, but this check does not
-//! claim COR-006. An `unsafe fn` is counted, not required to have a comment (its contract belongs in a `# Safety` doc section).
+//! **Shared with COR-006:** COR-006's static half (unsafe banned, or each block justified) reads this same inventory (`inventory`,
+//! below), so the two cannot disagree; this check does not itself claim COR-006. An `unsafe fn` is counted, not required to have a comment (its contract belongs in a `# Safety` doc section).
 //!
 //! **What it cannot see:** `unsafe` inside a macro's arguments or in macro-generated code; native code in another language (C, C++ built by
 //! `build.rs` or linked as a library); a comment that says `SAFETY` and says nothing useful; whether a block is sound. A file `syn`
@@ -153,16 +153,40 @@ fn forbids_unsafe(view: &RepoView, p: &Package) -> bool {
     }
 }
 
-fn judge_package(view: &RepoView, p: &Package) -> Option<Finding> {
+/// The `unsafe` inventory of one package, read once and shared by `SEC-005` and `COR-006` (one scan, two rules, so they cannot disagree).
+pub(super) struct Inventory {
+    /// The package directory, or the repository name for a root package.
+    pub name: String,
+    /// How many Rust source files were parsed.
+    pub files: usize,
+    /// `(path, line, has a SAFETY comment)` for each `unsafe` block.
+    pub blocks: Vec<(String, u32, bool)>,
+    /// How many `unsafe fn`s (counted, not asked for a comment).
+    pub fns: usize,
+    /// `(path, line, has a SAFETY comment)` for each `unsafe impl` and `unsafe trait`.
+    pub impl_sites: Vec<(String, u32, bool)>,
+}
+
+impl Inventory {
+    /// The blocks and `unsafe impl`/`unsafe trait` items with no `SAFETY` comment, blocks first.
+    pub fn undocumented(&self) -> Vec<&(String, u32, bool)> {
+        self.blocks
+            .iter()
+            .chain(self.impl_sites.iter())
+            .filter(|(_, _, ok)| !ok)
+            .collect()
+    }
+}
+
+pub(super) fn inventory(view: &RepoView, p: &Package) -> Inventory {
     let mut blocks: Vec<(String, u32, bool)> = Vec::new();
-    let (mut fns, mut impls) = (0usize, 0usize);
+    let mut fns = 0usize;
     let mut impl_sites: Vec<(String, u32, bool)> = Vec::new();
     for s in &p.sources {
         let mut sites = Sites::default();
         sites.visit_file(&s.file);
         let lines: Vec<&str> = s.text.lines().collect();
         fns += sites.fns.len();
-        impls += sites.impls.len();
         for l in sites.blocks {
             blocks.push((s.path.clone(), l, justified(&lines, l)));
         }
@@ -175,7 +199,24 @@ fn judge_package(view: &RepoView, p: &Package) -> Option<Finding> {
     } else {
         p.dir.clone()
     };
-    let files = p.sources.len();
+    Inventory {
+        name,
+        files: p.sources.len(),
+        blocks,
+        fns,
+        impl_sites,
+    }
+}
+
+fn judge_package(view: &RepoView, p: &Package) -> Option<Finding> {
+    let Inventory {
+        name,
+        files,
+        blocks,
+        fns,
+        impl_sites,
+    } = inventory(view, p);
+    let impls = impl_sites.len();
     let control = format!(
         "{files} Rust source file(s) of the package were parsed with the same walk that counts `unsafe`"
     );
