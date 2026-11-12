@@ -20,6 +20,7 @@ mod deadline;
 mod doc005;
 mod doc009;
 mod efx003;
+mod efx007;
 mod err001;
 mod ext001;
 mod ext002;
@@ -289,6 +290,10 @@ const RULES: &[Rule] = &[
         judge: global_state::judge_con011,
     },
     Rule {
+        id: "EFX-007",
+        judge: efx007::judge,
+    },
+    Rule {
         id: "CON-008",
         judge: deadline::judge_con008,
     },
@@ -331,6 +336,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
+        "EFX-007",
     ]
 }
 
@@ -712,6 +718,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("OPS-003", &["rust"]),
     ("EFX-002", &["rust"]),
     ("CON-011", &["rust"]),
+    ("EFX-007", &["rust"]),
     ("CON-008", &["rust"]),
     ("REL-001", &["rust"]),
     ("CON-005", &["rust"]),
@@ -776,6 +783,7 @@ const PROVEN: &[&str] = &[
     "REL-001",
     "EFX-002",
     "CON-011",
+    "EFX-007",
     "ERR-009",
     "SEC-008",
     "TST-004",

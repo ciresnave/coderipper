@@ -1314,3 +1314,22 @@ Rule added over the previous line, read from `src/module/neutral/tst009.rs`: `TS
 **Read, every independent claim:** rows 125 to 128; each runs something (a fuzzer, an instrumented trace, a generated executable) and none checks for the *presence* of a target in source or manifest. **Result: no hit reads on `TST-009` as read.** **Not read, no verdict, not cleared:** US10380350B2 (efficient and comprehensive source code fuzzing), US12282412 (coverage-guided fuzzing via dynamic instrumentation) and US11620129 (agent-based detection of fuzzing activity), by title only. **Watches:** (1) re-read rows 125 to 128 before `TST-009` builds or runs a target, enumerates functions to fuzz and produces a harness, or reads coverage; (2) re-read the title-only patents above before it classifies modules by data flow; (3) the rule reports a package and writes no target.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and the expiry dates are Google Patents' estimates, not legal advice. Earlier hits, queries and ideas are unchanged by this rule. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.49)
+
+Version line covered by this addendum: **0.43** (0.43.49). One rule is added, read from `src/module/neutral/efx007.rs`: `EFX-007` (a Rust struct field or static of a cell, lock or atomic type with no doc comment and no comment on the line above). Swept 2026-11-11 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 84 (`EFX-007`).** Parse Rust source, find each struct field or static whose declared type names an interior-mutable or lock type, and report it when neither a doc comment nor a line comment sits directly above it. Reading the type's name and the presence of a comment is the whole mechanism; no state change is traced.
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q166 | 84 | patent static analysis detect struct field interior mutability cell lock without ownership comment documentation in source code |
+| Q167 | 84 | patent.google.com automatically identify shared mutable variables source code lacking documentation comment report ownership annotation |
+
+**Positive controls:** Q166 returned Rust standard-library `Cell` documentation and an arXiv paper on interior mutability in Rust (a verifier, not a patent), so the engine reaches the neighbourhood. Q167 returned US9542166 (inferring immutability of program variables) and US6925638 (mutability analysis in Java), so it reaches the neighbourhood too. **A patent that reports a shared-mutation field or static for lacking an ownership comment was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US6925638B1** (Mutability analysis in Java, IBM, filed 2000-09-21; Google Patents shows it Expired - Fee Related) through `tools/patent-claims.py`; independent claims 1, 7, 8, 19, 38, 44, 45, 53 and 60. Each requires determining whether a variable could undergo a state modification by a method inside the component and performing encapsulation analysis for modification from outside it, then deciding mutability of variables, fields or classes from that. **Not read in full:** US9542166, Javarifier, AliasJava, the `@GuardedBy` inference paper and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `EFX-007`.** The rule traces no state modification and runs no encapsulation analysis; it matches a type name and looks for a comment. **Watch:** re-read US6925638 and US9542166 before the rule decides mutability from how a field is written rather than from its declared type.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
