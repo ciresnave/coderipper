@@ -21,6 +21,8 @@ remediation = "Delete the item, or give it a caller; if it is public API on purp
 related = ["unused-parameters"]
 lifecycle = "advisory"
 
+checked_today = "Rust packages, from the committed (HEAD) tree built in a throwaway worktree: every top-level `pub` item is narrowed to `pub(crate)` so rustc's `dead_code` lint can see it, and each item the lint reports is a finding at the item (an absence claim, Medium confidence). A package with a library builds only the library (its bins, tests, examples and benches, and workspace members that depend on it by path, count as callers by identifier). Grading: an item written `pub`, reachable through `pub` modules or a `pub use` and documented is library API (Info), reachable but undocumented is exported (Info), named only in the crate's own tests or doc examples is test-only (Info); everything else is Medium. A documented API item is treated as live when working out what else is dead, so one unused entry point does not report everything only it reaches. A `[reachability] public_api` entry declares an item API on purpose. Matching is by bare identifier, so a dead item sharing a name with something live is hidden or graded down. Not judged: items inside bin targets of a package that also has a library, a custom `[lib] path`, TypeScript and Python. It builds the package (executes build scripts and proc-macros)."
+
 [rule.applicability]
 languages = ["rust"]
 scopes = ["first_party"]
@@ -43,6 +45,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Narrow the visibility of items that are not part of the intended interface, and write docs for the ones that remain public."
 related = ["MOD-003", "MOD-010"]
+checked_today = "The committed (HEAD) Rust library package's public surface, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): public declarations reachable through pub modules and pub use leaves, plus the public inherent functions of public types, counted with the number of members (fields, variants, trait items) of the public types. One finding per package when any of those declarations or functions has no documentation (a /// comment, or a #[doc = ..] or #[doc(..)] attribute other than hidden; #[doc(hidden)] items are left out): Info (Medium confidence) for any gap, Low from 50% of at least 20 documentable items undocumented. The finding names counts and the first eight places and offers no change. The check runs in the extended and portfolio profiles, not classic. Not judged: whether an item should be public at all (the size of the surface is stated, not judged; a declared ceiling is ARC-006), unused public items (the reachability check), macro-generated items and doc comments, #[path] modules, cfg-gated items, undocumented trait items and enum variants, a binary-only package (no library API, noted), TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -67,6 +70,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Break the loop by moving the shared piece into a module both sides depend on, or by inverting one edge so it points the other way."
 related = ["ARC-002"]
+checked_today = "The module graph of the committed (HEAD) Rust package, built with syn from the tracked .rs files under src/ reached from lib.rs or main.rs through mod (test-named files and cfg(test) items skipped): a path or use in module M that resolves to an item in module T is an edge M to T. A child naming its parent through super or self is not an edge, a descendant reaching an ancestor by a crate:: path is, the crate root takes no part, and the use that builds a pub use is not an edge. One finding per strongly connected set of two or more modules, with the edges (file and line) and the edges whose removal dissolves it: Low when the set spans two or more top-level modules, Info when it is inside one (Medium confidence). The check runs in the extended and portfolio profiles, not classic. Not judged: cycles between crates or declared components (ARC-002), paths inside macro-call tokens, aliases, glob re-exports, items named only by their type, #[path] modules (so the graph is a lower bound), TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -91,6 +95,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Import from the module's entry point instead; if the needed item is missing there, add it deliberately to the public interface."
 related = ["MOD-001"]
+checked_today = "The module graph of the committed (HEAD) Rust package, built with syn from the tracked .rs files under src/ (test-named files and cfg(test) items skipped), with every pub, pub(crate) and pub(super) use taken as a re-export: a path or use written in one module that goes through a sibling module and at least one inner module of it to an item that a module on the way re-exports (by name, renamed, or by a glob of the module holding it), so the caller bypassed the entry point the owner offers. One Low finding per file (Medium confidence) with the count, the first lines and the shorter path offered. The check runs in the extended and portfolio profiles, not classic. Not judged: a deep path with no re-export in the way (nothing was bypassed), whether the item should be reachable at all, a re-export made through a macro, an alias or another crate, paths inside macro-call tokens, #[path] modules and files no mod declares; a glob re-export is taken to offer every item of the module it globs, so a private item may be wrongly counted as offered; TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -115,6 +120,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Split the type along the clusters the analysis found, after checking by eye that the groups really are unrelated."
 related = ["MOD-005", "MOD-007"]
+checked_today = "Each struct of the committed (HEAD) Rust package, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): the methods of its inherent impl blocks that take self, grouped into clusters by the self fields they use, directly or through the sibling methods they call. Accessors, setters and builder steps, derived-value methods, methods that touch no field and call no sibling, and trait-impl methods are not members; a field used by more than half of the clustered methods of a type with eight or more is set aside as a hub and named in the finding. One Info finding (Low confidence) per type that has at least two clusters of at least two methods each and at least four clustered methods in all; it names the clusters and the fields and offers a judgement, not a change. The thresholds are fixed in code (no settings table). The check runs in the extended and portfolio profiles, not classic. Not judged: enums, a type with a single field (it cannot be split by field), a field reached by destructuring or passed on through a helper (clusters can look more separate than they are), whether the groups are really separate jobs, modules as opposed to types, TypeScript and Python; recall is low by construction."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -139,6 +145,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Look at the outlier and decide whether it is cohesive; if it serves several purposes, split it, otherwise leave it and note why."
 related = ["MOD-004"]
+checked_today = "The committed (HEAD) Rust package, read with syn from tracked .rs files under src/ (test-named files such as tests.rs and *_tests.rs, and cfg(test) or test items, are not measured), compared with fixed thresholds taken from percentiles of a pooled corpus of nine of our own codebases (not of this project alone; there is no settings table): per file the code lines (not blank, not // lines), the other modules it names (fan-out) and the files naming it (fan-in); per type its fields plus inherent-impl methods. Low (Medium confidence) for a file of at least 2,234 code lines that is also coupled (fan-out of at least 7 or fan-in of at least 6); Info for a file of at least 1,035 code lines, or with fan-out of at least 14; Info for a type with at least 30 members and at least one inherent method (a pure record is skipped). The check runs in the extended and portfolio profiles, not classic. Not judged: growth over time (needs history), whether a long file is cohesive (the finding says inspect), macro-generated items, glob-import targets, #[path] modules, two structs sharing one name (noted), anything outside src/ (tests, benches, examples, build.rs), TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -163,6 +170,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Separate the parts of the module that change for different reasons, using the commit clusters as the guide."
 related = ["MOD-004", "MOD-007"]
+checked_today = "Divergent change from committed history, no network and no checkout: git log over the newest 500 non-merge commits (window), leaving out commits touching more than 25 files (bulk changes) and files touched by more than a fifth of the remaining commits. For each tracked source file at HEAD (known code extensions such as rs, py, ts, js, go, java, c, cpp, cs; registries such as lib.rs, mod.rs, main.rs, __init__.py and index.ts, and test, bench and example files, are not judged) the commits that touched it with another file are joined when they share another source file, and the file is reported when two or more such groups of at least 3 commits each result. Info (Low confidence), one finding per file naming the groups and commits; it ranks and scores nothing. Window and thresholds are set in [mod006] (window, min_commits, max_files) of the repository own .coderipper.toml. The check runs in the extended and portfolio profiles, not classic. Not judged: what the file changes were about or whether they touch different parts of it, renames (not followed); a squash-merging repository records one commit per pull request so groups are coarse; a shallow clone cuts the history (noted)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -211,6 +219,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Remove the wrapper and call the target directly, unless it genuinely adds an invariant, a translation or a policy."
 related = ["ARC-008"]
+checked_today = "The functions and methods of the committed (HEAD) Rust package, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): a free function or inherent method whose whole body is one call that forwards all its parameters (at least one besides self), in order and unchanged, such as g(a, b), self.g(a) or g(&self.x, a), possibly inside Ok(..), Some(..), ?, .await or .into() or written as return. One Info finding (Low confidence) per wrapper naming the wrapper and the callee; it says why a layer may be worth keeping and offers no change. The check runs in the extended and portfolio profiles, not classic. Not judged: a call on a field such as self.inner.go(v) (it hides the field, not reported), a constructor (Self(x), Self::Variant(x)), a function with no parameter to forward, a trait impl method, a pub function in lib.rs or main.rs (a facade), a function whose parameters are patterns, a macro body, whether the callee generics, where clauses or async-ness match (the callee is matched by name, not resolved), whether the layer is deliberate, TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -235,6 +244,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Ask the nearest object to do the job, or give it a method that hides the traversal."
 related = ["MOD-003"]
+checked_today = "The structs of the committed (HEAD) Rust package, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): a field whose type is a different struct of the package (through Arc, Rc, Box or a reference), and an inherent method taking only self that returns a different struct of the package, are hops; a method-call or field-access chain whose consecutive links each follow a hop from the type the previous link reached is as deep as its run of hops. One Info finding (Low confidence) per chain of at least min_hops (default 4, set in [mod009] min_hops of the repository own .coderipper.toml; a value below 2 is a configuration error) at the first hop, naming the chain; a note prints how many chains there are at each depth. The check runs in the extended and portfolio profiles, not classic. Not judged: builders (they return Self) and iterator pipelines (standard-library types) are not hops; a method that takes an argument, an Option or a Result ends the run; a hop reached through a trait method, a macro, a closure parameter or a type alias is not seen; matching is by name, so a configuration tree or syntax tree that exists to be traversed reads as a chain; whether a chain should be hidden behind a method; TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -260,6 +270,7 @@ kb_refs = []
 aliases = ["TYP-003"]
 remediation = "Make the fields private and offer a constructor or factory that checks the invariant."
 related = ["MOD-001"]
+checked_today = "Declared half, active when a component in the architecture declaration lists invariant_types (types found by name as structs in the src/ of that component crates in the committed HEAD tree, read with syn, test items skipped): Low (Medium confidence) when the type has a pub field; Info (Low confidence) when it derives Default, or Deserialize without #[serde(try_from)] or #[serde(from)], while it has a validating-looking constructor (new, try_new, parse or from_* taking at least one argument, returning Result or Option and rejecting with Err, None, bail! or ensure!); Info (High confidence, an absence claim) when a declared name is a struct in none of the component crates (stale declaration). Inferred half, opt-in only when the repository own .coderipper.toml sets [mod010] inferred = true: Info (Low confidence) for a pub struct, declared or not, with a validating-looking constructor and a pub field. Runs in the extended and portfolio profiles, not classic; with no declaration and the opt-in off it reports nothing. Not judged: a type nobody declared (unless opted in), enums, pub(crate) fields (not public), a derive made by a macro, a manual impl of Default or Deserialize, a builder, an unsafe constructor, a constructor whose only failures come from ? on other calls; matching is by name so two same-named types share facts; TypeScript and Python."
 lifecycle = "experimental"
 
 [rule.applicability]

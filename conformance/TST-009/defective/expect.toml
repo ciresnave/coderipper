@@ -1,0 +1,6 @@
+# The seeded defect: a package that decodes text (`parse_header`) and has no property or fuzz target, at its Cargo.toml.
+
+[[expect]]
+rule = "TST-009"
+file = "Cargo.toml"
+line = 1
