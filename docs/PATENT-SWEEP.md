@@ -1352,3 +1352,22 @@ Version line covered by this addendum: **0.43** (0.43.51). One rule is added, re
 **Result: no hit to chart.** Not cleared: a reading of patent claims on supply-chain signing or provenance verification (the verification side, which the rule does not do) was not done. **Watch:** a search of Google Patents and Espacenet directly with the terms build provenance, attestation, artifact signing and pipeline policy, before the rule fetches a release or verifies a signature.
 
 **Limits:** two queries, one search engine, no patent database searched directly, no claims read, no citation chasing. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.52)
+
+Version line covered by this addendum: **0.43** (0.43.52). One rule is added, read from `src/module/neutral/con010.rs`: `CON-010` (a Rust atomic operation uses an ordering weaker than `SeqCst` with no comment beside it). Swept 2026-11-11 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 86 (`CON-010`).** Parse Rust source and report each use of `Ordering::Relaxed`, `Acquire`, `Release` or `AcqRel` that has no comment on its line or the three lines above. Reading a comment's presence next to a weak ordering is the whole mechanism; clippy has no such lint and the Rust atomics documentation recommends `SeqCst` unless an argument is written down, which is prior art for the practice, not a patent.
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q170 | 86 | patent static analysis detect atomic memory ordering weaker than sequentially consistent without justification comment in source code |
+| Q171 | 86 | patent.google.com automatically checking relaxed memory order atomic operations source code documentation annotation requirement report |
+
+**Positive controls:** Q170 returned EP 4231138 (fixing weak memory ordering problems during compilation) and academic work on relaxed-memory static analysis, so the engine reaches the neighbourhood. Q171 returned US8392891 (Microsoft, relaxed memory model vulnerabilities), so it reaches the neighbourhood too. **A patent that reports a weak atomic ordering lacking a justification comment as a finding was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US8392891B2** (Technique for finding relaxed memory model vulnerabilities, Microsoft, filed 2008-06-26; Google Patents shows it Expired - Fee Related) through `tools/patent-claims.py`, all three independent claims (1, 13, 17). Each requires receiving a memory trace of an execution (from a stateless model checker in claims 13 and 17), computing issue and coherence indices and a happens-before relation, and outputting whether the accesses are relaxed-memory-model safe. **Not read in full:** EP 4231138 and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `CON-010`.** The rule reads no trace, builds no happens-before relation and decides nothing about safety; it matches four path names and looks for a comment. **Watch:** re-read US8392891 and EP 4231138 before the rule reasons about which accesses an ordering synchronises.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
