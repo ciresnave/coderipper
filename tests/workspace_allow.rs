@@ -110,6 +110,17 @@ fn a_member_path_written_without_the_member_directory_waives_nothing_at_the_root
 }
 
 #[test]
+fn a_root_entry_naming_no_check_is_reported_once_not_once_per_member() {
+    let root = "[[allow]]\ncheck = \"no-such-check\"\nfile = \"crates/a/src/lib.rs\"\nreason = \"a typo\"\n";
+    let f = run(root, "", "");
+    let unknown = f
+        .iter()
+        .filter(|x| x.check_id == "allowlist" && x.summary.contains("no-such-check"))
+        .count();
+    assert_eq!(unknown, 1, "{f:#?}");
+}
+
+#[test]
 fn a_member_file_still_waives_by_the_path_from_the_member() {
     let f = run("", &allow("src/lib.rs"), "");
     assert_eq!(members_of(&f, "MOD-001"), ["pkg-b"], "{f:#?}");

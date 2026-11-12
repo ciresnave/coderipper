@@ -123,6 +123,11 @@ impl<'a> Suppression<'a> {
             if *matched {
                 continue;
             }
+            if entry.member_prefix.is_some() {
+                // inherited from the workspace root: the root's own run reports a typo or a stale entry once, a member's run says nothing
+                // about an entry that may name a sibling
+                continue;
+            }
             if !registered.contains(&entry.check.as_str()) {
                 out.push(unknown_check(entry, registered, project));
             } else if entry.source.is_some() {
