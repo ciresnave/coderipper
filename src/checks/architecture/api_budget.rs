@@ -40,6 +40,7 @@ use crate::check::{Check, CheckContext, Network, Scope, Unit};
 use crate::checks::rust_sources::{read_sources, SourceFile};
 use crate::checks::size_coupling::is_cfg_test;
 use crate::finding::{Claim, Confidence, Finding, Location, Severity};
+use quote::ToTokens;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The check's id, as `coderipper check` and allowlist entries name it.
@@ -165,7 +166,7 @@ impl Check for ApiBudgetCheck {
                 component: c.name.clone(),
                 budget: *budget,
                 manifest,
-                totals,
+                totals: Box::new(totals),
             });
         }
         Ok(judge(tallies, &project, notes))
@@ -194,6 +195,16 @@ pub(crate) struct Totals {
     pub public_sites: std::collections::BTreeSet<(String, usize)>,
     /// The names of the public types (structs, enums, unions, traits, aliases) declared through `pub` modules or re-exported.
     pub public_names: std::collections::BTreeSet<String>,
+    /// `(file, line)` of each declaration, and each public inherent function of it, that a `pub use` reaches out of a module that is
+    /// not `pub` (`mod store; pub use store::FileStore;`): public for whoever depends on the library, though no `pub` module leads to
+    /// it. Kept apart from `public_sites`, which the budget counts, so a budget does not change; the reachability class reads both.
+    pub reexport_sites: std::collections::BTreeSet<(String, usize)>,
+    /// The documented ones among `reexport_sites`.
+    pub reexport_documented_sites: std::collections::BTreeSet<(String, usize)>,
+    /// Every identifier written in the body of a documented public inherent function of a public type (reached through `pub` modules or
+    /// a `pub use`): what the interface calls. `rustc` does not report the methods of a type nothing constructs, only what they call,
+    /// so those methods are never candidates and their callees would look called by nothing.
+    pub api_method_idents: std::collections::BTreeSet<String>,
 }
 
 /// A public item with no documentation.
@@ -223,6 +234,10 @@ impl Totals {
         self.documented_sites.extend(o.documented_sites);
         self.public_sites.extend(o.public_sites);
         self.public_names.extend(o.public_names);
+        self.reexport_sites.extend(o.reexport_sites);
+        self.reexport_documented_sites
+            .extend(o.reexport_documented_sites);
+        self.api_method_idents.extend(o.api_method_idents);
     }
 }
 
@@ -255,15 +270,47 @@ struct Collect {
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
     methods: BTreeMap<String, Vec<MethodFact>>,
+    /// `pub` declarations inside a module that is not reachable through `pub` modules: public only if a `pub use` names them.
+    hidden: Vec<Hidden>,
+}
+
+/// A `pub` declaration in a module that no `pub` module leads to.
+struct Hidden {
+    /// The innermost module it is written in (`store` for `src/store.rs`).
+    module: String,
+    name: String,
+    file: String,
+    line: usize,
+    documented: bool,
 }
 
 /// A public inherent function of a type.
 struct MethodFact {
+    /// Every identifier in its body.
+    idents: BTreeSet<String>,
     name: String,
     documented: bool,
     hidden: bool,
     file: String,
     line: usize,
+}
+
+/// Every identifier in `ts`, groups included.
+fn token_idents(ts: proc_macro2::TokenStream) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut stack = vec![ts];
+    while let Some(ts) = stack.pop() {
+        for tt in ts {
+            match tt {
+                proc_macro2::TokenTree::Ident(i) => {
+                    out.insert(i.to_string().trim_start_matches("r#").to_string());
+                }
+                proc_macro2::TokenTree::Group(g) => stack.push(g.stream()),
+                _ => {}
+            }
+        }
+    }
+    out
 }
 
 fn is_hidden(attrs: &[syn::Attribute]) -> bool {
@@ -353,6 +400,7 @@ pub(crate) fn surface(
             if m.documented {
                 totals.documented += 1;
                 totals.documented_sites.insert((m.file.clone(), m.line));
+                totals.api_method_idents.extend(m.idents.iter().cloned());
             } else {
                 totals.undocumented.push(Undoc {
                     name: format!("{n}::{}", m.name),
@@ -360,6 +408,39 @@ pub(crate) fn surface(
                     file: m.file.clone(),
                     line: m.line,
                 });
+            }
+        }
+    }
+    // A `pub use` out of a module that is not `pub` makes what it names public: the declaration, and the public inherent functions of a
+    // type. Matched by the module the item is written in and its name (a glob names every `pub` item of the module).
+    for l in &col.leaves {
+        let segs: Vec<&str> = l.path.split("::").filter(|s| !s.is_empty()).collect();
+        if segs.len() < 2 {
+            continue;
+        }
+        let module = segs[segs.len() - 2];
+        let leaf = segs[segs.len() - 1];
+        for h in &col.hidden {
+            if h.module != module || (!l.glob && h.name != leaf) {
+                continue;
+            }
+            totals.reexport_sites.insert((h.file.clone(), h.line));
+            if h.documented {
+                totals
+                    .reexport_documented_sites
+                    .insert((h.file.clone(), h.line));
+            }
+            for m in col.methods.get(&h.name).into_iter().flatten() {
+                if m.hidden {
+                    continue;
+                }
+                totals.reexport_sites.insert((m.file.clone(), m.line));
+                if m.documented {
+                    totals
+                        .reexport_documented_sites
+                        .insert((m.file.clone(), m.line));
+                    totals.api_method_idents.extend(m.idents.iter().cloned());
+                }
             }
         }
     }
@@ -444,6 +525,27 @@ impl Walker<'_> {
         }
     }
 
+    /// Records a `pub` declaration in a module that is not reachable through `pub` modules (a `#[doc(hidden)]` one is not recorded).
+    fn hide(
+        &mut self,
+        attrs: &[syn::Attribute],
+        name: &str,
+        child_dir: &str,
+        line: usize,
+        file: &str,
+    ) {
+        if is_hidden(attrs) {
+            return;
+        }
+        self.col.hidden.push(Hidden {
+            module: child_dir.rsplit('/').next().unwrap_or_default().to_string(),
+            name: name.to_string(),
+            file: file.to_string(),
+            line,
+            documented: is_documented(attrs),
+        });
+    }
+
     /// Parses `file` and walks its items. `child_dir` is where this file's `mod x;` children live.
     fn walk_file(
         &mut self,
@@ -482,6 +584,16 @@ impl Walker<'_> {
             match item {
                 syn::Item::Fn(f) => {
                     self.col.local.insert(f.sig.ident.to_string());
+                    if !reachable && is_pub(&f.vis) {
+                        let n = f.sig.ident.to_string();
+                        self.hide(
+                            &f.attrs,
+                            &n,
+                            child_dir,
+                            f.sig.ident.span().start().line,
+                            shown,
+                        );
+                    }
                     if reachable && is_pub(&f.vis) {
                         self.col.decls.push((f.sig.ident.to_string(), "fn"));
                         let n = f.sig.ident.to_string();
@@ -493,6 +605,9 @@ impl Walker<'_> {
                     self.col.local.insert(n.clone());
                     let fields = s.fields.iter().filter(|f| is_pub(&f.vis)).count();
                     *self.col.types.entry(n.clone()).or_default() += fields;
+                    if !reachable && is_pub(&s.vis) {
+                        self.hide(&s.attrs, &n, child_dir, s.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&s.vis) {
                         self.col.decls.push((n.clone(), "struct"));
                         self.doc(&s.attrs, &n, "struct", s.ident.span().start().line, shown);
@@ -504,6 +619,9 @@ impl Walker<'_> {
                     self.col.local.insert(n.clone());
                     let fields = s.fields.named.iter().filter(|f| is_pub(&f.vis)).count();
                     *self.col.types.entry(n.clone()).or_default() += fields;
+                    if !reachable && is_pub(&s.vis) {
+                        self.hide(&s.attrs, &n, child_dir, s.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&s.vis) {
                         self.col.decls.push((n.clone(), "union"));
                         self.doc(&s.attrs, &n, "union", s.ident.span().start().line, shown);
@@ -514,6 +632,9 @@ impl Walker<'_> {
                     let n = e.ident.to_string();
                     self.col.local.insert(n.clone());
                     *self.col.types.entry(n.clone()).or_default() += e.variants.len();
+                    if !reachable && is_pub(&e.vis) {
+                        self.hide(&e.attrs, &n, child_dir, e.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&e.vis) {
                         self.col.decls.push((n.clone(), "enum"));
                         self.doc(&e.attrs, &n, "enum", e.ident.span().start().line, shown);
@@ -524,6 +645,9 @@ impl Walker<'_> {
                     let n = t.ident.to_string();
                     self.col.local.insert(n.clone());
                     *self.col.types.entry(n.clone()).or_default() += t.items.len();
+                    if !reachable && is_pub(&t.vis) {
+                        self.hide(&t.attrs, &n, child_dir, t.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&t.vis) {
                         self.col.decls.push((n.clone(), "trait"));
                         self.doc(&t.attrs, &n, "trait", t.ident.span().start().line, shown);
@@ -532,6 +656,10 @@ impl Walker<'_> {
                 }
                 syn::Item::Type(t) => {
                     self.col.local.insert(t.ident.to_string());
+                    if !reachable && is_pub(&t.vis) {
+                        let n = t.ident.to_string();
+                        self.hide(&t.attrs, &n, child_dir, t.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&t.vis) {
                         self.col.decls.push((t.ident.to_string(), "type alias"));
                         let n = t.ident.to_string();
@@ -547,6 +675,10 @@ impl Walker<'_> {
                 }
                 syn::Item::Const(c) => {
                     self.col.local.insert(c.ident.to_string());
+                    if !reachable && is_pub(&c.vis) {
+                        let n = c.ident.to_string();
+                        self.hide(&c.attrs, &n, child_dir, c.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&c.vis) {
                         self.col.decls.push((c.ident.to_string(), "const"));
                         let n = c.ident.to_string();
@@ -555,6 +687,10 @@ impl Walker<'_> {
                 }
                 syn::Item::Static(c) => {
                     self.col.local.insert(c.ident.to_string());
+                    if !reachable && is_pub(&c.vis) {
+                        let n = c.ident.to_string();
+                        self.hide(&c.attrs, &n, child_dir, c.ident.span().start().line, shown);
+                    }
                     if reachable && is_pub(&c.vis) {
                         self.col.decls.push((c.ident.to_string(), "static"));
                         let n = c.ident.to_string();
@@ -602,6 +738,7 @@ impl Walker<'_> {
                                                 .entry(last.ident.to_string())
                                                 .or_default()
                                                 .push(MethodFact {
+                                                    idents: token_idents(f.block.to_token_stream()),
                                                     name: f.sig.ident.to_string(),
                                                     documented: is_documented(&f.attrs),
                                                     hidden: is_hidden(&f.attrs),
@@ -741,7 +878,7 @@ pub(crate) enum Tally {
         component: String,
         budget: u32,
         manifest: Option<String>,
-        totals: Totals,
+        totals: Box<Totals>,
     },
     Stale(String),
 }
