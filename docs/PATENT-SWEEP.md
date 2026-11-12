@@ -1333,3 +1333,22 @@ Version line covered by this addendum: **0.43** (0.43.49). One rule is added, re
 **Result: no hit reads on `EFX-007`.** The rule traces no state modification and runs no encapsulation analysis; it matches a type name and looks for a comment. **Watch:** re-read US6925638 and US9542166 before the rule decides mutability from how a field is written rather than from its declared type.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-11, 0.43.51)
+
+Version line covered by this addendum: **0.43** (0.43.51). One rule is added, read from `src/module/neutral/sup010.rs`: `SUP-010` (a GitHub Actions release workflow names no signing or build-provenance tool, Rust-and-any-ecosystem publishers). Swept 2026-11-11 by the coderipper-d lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 85 (`SUP-010`).** Read a release pipeline's configuration as text and report a publishing step in a workflow that has no signing or provenance-attestation step. Palo Alto Cortex (appsec attest rules), Microsoft's Zero Trust DevSecOps guidance (DS_023), GitHub's artifact attestations, sigstore cosign and slsa-verifier describe the same check or the verification side of it, and are prior art (products and documentation, not patents).
+
+| # | Idea | Query (2026-11-11) |
+|---|---|---|
+| Q168 | 85 | patent static analysis of CI release pipeline configuration detecting missing artifact signing or build provenance attestation step |
+| Q169 | 85 | automatically determining whether a software release workflow signs artifacts or generates provenance attestation, reporting finding patents.google.com |
+
+**Positive controls:** Q168 returned the Cortex rules that flag an unsigned build artifact in CI/CD and the Microsoft guidance that a pipeline should reject an unsigned artifact, so the engine reaches the idea itself (as products and documents). Q169 returned the GitHub attestation documentation and a project's record of attesting before publication, so it reaches the neighbourhood. **Neither query returned a patent at all, and none from patents.google.com; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search, no claim read). The absence of a patent is therefore not evidence that none reads on the rule.
+
+**Read:** no patent claim was read, because no patent was found. **Not read:** every document named above, by title and search snippet only.
+
+**Result: no hit to chart.** Not cleared: a reading of patent claims on supply-chain signing or provenance verification (the verification side, which the rule does not do) was not done. **Watch:** a search of Google Patents and Espacenet directly with the terms build provenance, attestation, artifact signing and pipeline policy, before the rule fetches a release or verifies a signature.
+
+**Limits:** two queries, one search engine, no patent database searched directly, no claims read, no citation chasing. A due-diligence read, not legal advice.

@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.51 - 2026-11-11 (proposed, Feature: new opt-in rule)
+
+**SUP-010 is built: a release workflow signs or attests (opt-in).** A tracked GitHub Actions workflow that publishes a release (the publishers of SUP-009; a `--dry-run` line is not one) and names none of `cosign`, `sigstore`, `slsa`, `provenance`, `attest`, `gpg` or `minisign` outside comments is one Medium finding at Low confidence, at its first publishing line. A repository with no release workflow is not applicable. It is opt-in (`coderipper check SUP-010`) and a local check of the pipeline: the published release is not fetched, a signature is not verified, signing in a reusable workflow or composite action, a release made outside GitHub Actions and the assurance level are not seen. The catalog record moves from `network` to `local` to match. Fixtures `conformance/SUP-010/{defective,clean}`; with the signing words removed the clean fixture fails the conformance run, restored it reads proven.
+
 ## 0.43.50 - 2026-11-11 (proposed, CI)
 
 **The portfolio workflow now installs coderipper 0.43.49** (`CODERIPPER_VERSION` was 0.43.41). 0.43.49 carries the reachability fix for `pub use` out of a private module (#304) and ARC-009 reporting a repository with no release tag as not applicable instead of "not run" (#305). It is the newest release on crates.io (tag v0.43.49).
