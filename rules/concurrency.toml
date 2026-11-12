@@ -243,6 +243,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Use the strongest ordering unless profiling shows a need, and write the reasoning next to each weaker one; model-check the algorithm where the stakes are high."
 related = ["CON-001"]
+checked_today = "Tracked Rust files of every package outside vendored and fixture directories, tests, benches, examples, tools, scripts and build.rs, parsed with syn, items under cfg(test) and test functions skipped. A site is a path ending in Ordering::Relaxed, Ordering::Acquire, Ordering::Release or Ordering::AcqRel; it is justified when a comment is on its line or on any of the three lines above. One Low finding with Low confidence per package, listing the first undocumented sites; opt-in (check CON-010). Not judged: an ordering imported by name, held in a constant or inside a macro's arguments, whether the comment argues the ordering, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -12,6 +12,7 @@
 
 mod ci_security;
 mod con005;
+mod con010;
 mod concurrency;
 mod conflict_marker;
 mod cor003;
@@ -207,6 +208,10 @@ const RULES: &[Rule] = &[
         judge: ext003::judge,
     },
     Rule {
+        id: "CON-010",
+        judge: con010::judge,
+    },
+    Rule {
         id: "TYP-005",
         judge: typ005::judge,
     },
@@ -341,7 +346,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
-        "SUP-010", "EFX-007",
+        "SUP-010", "EFX-007", "CON-010",
     ]
 }
 
@@ -706,6 +711,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
@@ -763,6 +769,7 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "CON-010",
     "TYP-005",
     "SEC-007",
     "REL-007",
