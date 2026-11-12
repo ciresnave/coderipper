@@ -1,0 +1,11 @@
+# The seeded defects: a derived Debug over a password field (line 2) and a hand-written Debug that prints a token (line 7).
+
+[[expect]]
+rule = "SEC-012"
+file = "src/lib.rs"
+line = 2
+
+[[expect]]
+rule = "SEC-012"
+file = "src/lib.rs"
+line = 7

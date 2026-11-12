@@ -1447,3 +1447,23 @@ Version line covered by this addendum: **0.43** (0.43.57). One rule is added in 
 **Result: no hit reads on `COR-006`.** The rule stores no rule-to-check association, applies no verification check and proves nothing about a block; it looks for a comment and reports its absence. **Watch:** re-read US10423518 before the rule treats a block as justified because an analysis proved it, rather than because a comment says so.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.59)
+
+Version line covered by this addendum: **0.43** (0.43.59). One rule is added, read from `src/module/neutral/sec012.rs`: `SEC-012` (a Rust struct with a secret field that its `Debug`, derived or hand-written, prints). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 91 (`SEC-012`).** Parse Rust source, find each struct field whose name says it holds a secret (`password`, `token`, `private_key` and similar) or whose type is a zeroizing wrapper, and report the struct when its `derive(Debug)`, or a hand-written `impl Debug` that reads the field with no redaction, would print it. Matching a field name and a derive attribute is the whole mechanism; no data flow is traced and nothing is run.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q180 | 91 | patent static analysis detect sensitive data fields password token printed by debug or toString method generated logging leak source code scanner |
+| Q181 | 91 | patent.google.com automatically detect classes holding secret credentials whose string representation is not masked, flag derive Debug or toString exposing secret field names password token |
+| Q182 | 91 | patent "sensitive data" automatically masking log output source code analysis identifies fields containing credentials annotates or rewrites print methods to redact |
+
+**Positive controls:** Q180 returned Piiano's static analysis for sensitive data in logs, Gearset's rule for sensitive fields reaching `System.debug` and CWE-532 material (tools and references, not patents), so the engine reaches the neighbourhood. Q181 returned a Rust crate whose hand-written `Debug` prints placeholders for a password and token, Java's `MaskedString` and Jenkins' `Secret`, so it reaches the neighbourhood too. Q182 returned US20170104756A1 and an IBM paper on log redaction by source code analysis. **A patent that reports a type for printing a secret field through its default or hand-written debug representation, from source code, was not found; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search). Two queries returned no patent at all, hence the third.
+
+**Read:** the claims of **US20170104756A1** (Detection, protection and transparent encryption, tokenization, masking, redaction or blocking of sensitive data and transactions in web and enterprise applications, Secupi Security Solutions, filed 2016-10-13; Google Patents shows it Abandoned) through `tools/patent-claims.py`; claim 1 is the independent claim in its output. It requires determining a policy for permitted data transactions from a data lineage between a user application, an application server and a data source, injecting code into the running program according to that policy, and scoring and blocking requests and responses at run time. **Not read in full:** the IBM paper (a paper, not a patent), the tools named above and every other result, by title and snippet only.
+
+**Result: no hit reads on `SEC-012`.** The rule injects no code, derives no data lineage, scores no transaction and blocks nothing at run time; it reads struct declarations and derive attributes in source. **Watch:** re-read US20170104756A1 and the IBM paper before the rule traces how a value reaches a log statement, or rewrites a `Debug` impl rather than only naming it.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

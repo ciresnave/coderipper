@@ -48,6 +48,7 @@ mod rust_src;
 mod sec004;
 mod sec005;
 mod sec007;
+mod sec012;
 mod sensitive_output;
 mod sup001;
 mod sup004;
@@ -314,6 +315,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "COR-006",
         judge: cor006::judge,
+    },
+    Rule {
+        id: "SEC-012",
+        judge: sec012::judge,
     },
     Rule {
         id: "EXT-004",
@@ -753,6 +758,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("REL-009", &["rust"]),
     ("TYP-002", &["rust"]),
     ("COR-006", &["rust"]),
+    ("SEC-012", &["rust"]),
     ("EXT-004", &["rust"]),
     ("CON-008", &["rust"]),
     ("REL-001", &["rust"]),
@@ -823,6 +829,7 @@ const PROVEN: &[&str] = &[
     "REL-009",
     "TYP-002",
     "COR-006",
+    "SEC-012",
     "EXT-004",
     "ERR-009",
     "SEC-008",
