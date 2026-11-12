@@ -10,6 +10,11 @@
 //!   file: a heading line, or a line (a list item included: `- 0.8.12 -- text`) that begins with the version, naming it as a whole token (`0.8.1` is not an entry for `0.8.12`,
 //!   and `1.0.0-rc.1` is not one for `1.0.0`). No changelog file at all is the same finding.
 //!
+//! **The fragment scheme:** a repository whose pull requests add one `changelog.d/<topic>.md` fragment and leave the version to the
+//! gate (which stamps the number and the heading at merge) satisfies the version part: a branch that adds exactly one such fragment
+//! (a `changelog.d/*.md` file other than `README.md` that the base did not have) and did not edit the version is not reported as
+//! "still has version". No fragment and no bump still is; so are two or more fragments, which say more than one change.
+//!
 //! **The base** is the merge-base of `HEAD` with `origin/HEAD`, else `origin/main`, else `origin/master`. The rule does not apply
 //! (a coverage gap, never "clean") when none of them exists, when the history needed for the merge-base is not there (a shallow
 //! clone: fetch with `fetch-depth: 0`), or when `HEAD` is the base (a run on the default branch compares nothing).
@@ -99,6 +104,22 @@ fn entry_line(text: &str, version: &str) -> Option<u32> {
         .map(|i| i as u32 + 1)
 }
 
+/// The `changelog.d` fragments the branch added: tracked now, not tracked in the base, `changelog.d/<name>.md`, not the README.
+fn added_fragments(view: &RepoView, base: &super::BaseTree) -> Vec<String> {
+    let before = base.paths();
+    view.paths()
+        .iter()
+        .filter(|p| {
+            p.strip_prefix("changelog.d/").is_some_and(|name| {
+                !name.contains('/')
+                    && name.ends_with(".md")
+                    && !name.eq_ignore_ascii_case("README.md")
+            }) && !before.contains(p)
+        })
+        .cloned()
+        .collect()
+}
+
 /// The root changelog file: the first tracked root file named `CHANGELOG*` or `CHANGES*`, in any case.
 fn changelog(view: &RepoView) -> Option<String> {
     view.paths()
@@ -121,6 +142,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     let mut judged = 0usize;
     let log = changelog(view);
     let log_text = log.as_deref().and_then(|p| view.read(p));
+    let fragments = added_fragments(view, &base);
     for path in MANIFESTS {
         let Some(text) = view.read(path) else {
             continue;
@@ -132,6 +154,14 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let line = version_line(path, &text, &now);
         let then = base.read(path).and_then(|t| version_in(path, &t));
         if then.as_deref() == Some(now.as_str()) {
+            if let [fragment] = fragments.as_slice() {
+                // the fragment scheme: the gate stamps the number and the heading at merge
+                notes.push(format!(
+                    "{path} keeps the version of {}; the fragment {fragment} stands for the bump the gate stamps at merge",
+                    base.how()
+                ));
+                continue;
+            }
             findings.push(
                 Finding::new(
                     ID,
@@ -238,6 +268,42 @@ mod tests {
         assert_eq!(v.len(), 1, "{v:?}");
         assert_eq!(v[0].location.as_ref().and_then(|l| l.line), Some(3));
         assert!(v[0].summary.contains("still has version 0.1.0"));
+    }
+
+    #[test]
+    fn one_added_changelog_fragment_and_no_bump_satisfies_the_rule_and_no_fragment_does_not() {
+        let base: &[(&str, &str)] = &[("Cargo.toml", CARGO_OLD), ("changelog.d/README.md", "x")];
+        let frag = ("changelog.d/topic.md", "kind: Fix\n---\nbody\n");
+        // one fragment, version unchanged: clean
+        let ok = findings(run(
+            &[
+                ("Cargo.toml", CARGO_OLD),
+                ("changelog.d/README.md", "x"),
+                frag,
+            ],
+            Some(base),
+        ));
+        assert!(ok.is_empty(), "{ok:?}");
+        // positive control: no fragment, no bump still fires
+        let none = findings(run(
+            &[("Cargo.toml", CARGO_OLD), ("changelog.d/README.md", "x")],
+            Some(base),
+        ));
+        assert_eq!(none.len(), 1, "{none:?}");
+        // the README is not a fragment, and a fragment the base already had is not this branch's
+        let had = [("Cargo.toml", CARGO_OLD), ("changelog.d/old.md", "x")];
+        let old = findings(run(&had, Some(&had)));
+        assert_eq!(old.len(), 1, "{old:?}");
+        // two fragments are not "one change"
+        let two = findings(run(
+            &[
+                ("Cargo.toml", CARGO_OLD),
+                ("changelog.d/a.md", "x"),
+                ("changelog.d/b.md", "y"),
+            ],
+            Some(&[("Cargo.toml", CARGO_OLD)]),
+        ));
+        assert_eq!(two.len(), 1, "{two:?}");
     }
 
     #[test]
