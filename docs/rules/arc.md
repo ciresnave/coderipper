@@ -95,6 +95,33 @@ unjustified indirection (ARC-008) rather than reward ceremony.
 Classes: P parser-level facts, A needs a declared architecture, H needs history, L needs a
 language model.
 
+## Saying "none": an input a small repository genuinely does not have
+
+Four of the A-class rules need an optional section of the declaration, and a repository that has none of that input would otherwise read
+**not run** for them: `ARC-003` needs volatile detail (`[architecture.volatile]` names or namespaces, or `feature_cfg_in_policy`),
+`ARC-006` an API budget (`[architecture.api_budget]`), `ARC-007` owned data (`owns_data` on a component), and `ARC-012` a composition
+root (`[architecture.composition] roots`, or a component with `role = "composition"`). A small library may have none of these, and
+"not run" is a gap, so the portfolio workflow fails the job on it (it excuses only a repository that declares no `[architecture]` table at
+all). A repository can now **say so**:
+
+```toml
+[architecture]
+none = ["volatile", "api_budget", "owns_data", "composition"]   # any subset: the inputs this repository has none of
+```
+
+Each rule whose input is listed **runs and reports 0 sites by declaration**, with the note
+`ARC-006: the declaration says this repository has no API budget to compare (none = ["api_budget"]), so there is nothing to compare: 0 sites by declaration`.
+That is a fact the repository stated and a reviewer can see in the diff, not a pass by silence and not a gap. The rules, in short:
+
+- A value other than `volatile`, `api_budget`, `owns_data` and `composition` is a configuration error; so is listing a value twice.
+- **Listing an input that the declaration also gives is a configuration error** (`none = ["api_budget"]` beside an `[architecture.api_budget]`
+  table): say one or the other, so a stale `none` cannot hide a rule that has something to judge.
+- A statement about one input excuses only that input's rule: `none = ["volatile"]` does not make `ARC-006` run.
+- A repository with **no** `[architecture]` table is still "not run" for every A-class rule, as before; `none` is a statement inside a
+  declaration, not a way to opt out of having one.
+- The statement is the repository's: it is read from the committed `.coderipper.toml` like the rest of the declaration, and it goes in
+  the same pull request as the change that makes it true (adding a budget later means deleting the `none` line).
+
 ## Further reading
 
 - John Lakos, *Large-Scale C++ Software Design*
