@@ -1409,3 +1409,22 @@ Version line covered by this addendum: **0.43** (0.43.55). One rule is added, re
 **Result: no hit reads on `TYP-002`.** The rule trains and applies no model, makes no pseudo labels and reads no token vectors; it counts string literals in one `match` or `if` chain. **Watch:** re-read US12591499 and the open-source stringly-typed linters named above (prior art for the practice, not a patent) before the rule decides from a learned representation, or across files, which strings form an enumeration.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.56)
+
+Version line covered by this addendum: **0.43** (0.43.56). One rule is added in part, read from `src/module/neutral/ext004.rs`: `EXT-004` (the implementer half only: a Rust trait of six or more methods with an `impl` in the package that stubs three or more of them). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 89 (`EXT-004`).** Parse Rust source, count the methods a trait declares, count for each `impl` of it the methods whose body is empty or only `unimplemented!()` or `todo!()`, and report the trait when a large one has an implementer that stubs several members. Counting declared methods and stub bodies is the whole mechanism; the per-client usage half of the rule (clients using disjoint subsets of the members) is deliberately not built, so no usage graph is made.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q176 | 89 | patent static analysis detect interface segregation violation class implementing interface with empty or not-implemented methods in source code |
+| Q177 | 89 | patent.google.com automatically detect fat interface large interface unused methods stub implementations source code analysis refactoring recommendation split interface |
+
+**Positive controls:** Q176 returned US10346287B1 (US Navy, degenerate software forms in object-oriented code), a research paper on interface usage cohesion and JetBrains' empty-method inspection, so the engine reaches the neighbourhood. Q177 returned US12393408 (identification and removal of redundant interfaces), US20080288932A1 (refactoring opportunities in an object-oriented program) and an ICSME 2015 paper on fat interfaces, so it reaches the neighbourhood too. **A patent that reports an interface for being large and stubbed by its implementers, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** the claims of **US10346287B1** (Detection of degenerate software forms in object oriented code, United States Department of the Navy, filed 2018-06-06; Google Patents shows it Active) through `tools/patent-claims.py`; claim 1 is the one independent claim in its output. It requires compiling the source files, generating a graph of nodes (fields, functions, enumerations, members) and edges, labelling getter, setter and decorator functions and lone nodes, mapping modules with a Q algorithm, and segregating high-integrity classes and modules by thresholds. **Not read in full:** US12393408, US20080288932A1 and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `EXT-004`.** The rule compiles nothing, builds no graph, runs no module-mapping algorithm and computes no integrity; it counts methods and stub bodies in the syntax tree. **Watch:** re-read US10346287 and US12393408 before the rule groups members by use or compares interfaces across a package by a graph rather than by a count.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

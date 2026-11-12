@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.56 - 2026-11-12 (proposed, Breaking: a new opt-in rule)
+
+**EXT-004 is built in part (Rust, opt-in): the implementer half.** A trait of six or more methods is reported, once and at its declaration, at Low severity and Low confidence, when an `impl` of it in the package leaves three or more members as stubs (an empty body, `unimplemented!()` or `todo!()`). A default method an implementer does not override is not counted. The other half of the rule, clients that each use disjoint subsets of the members, is deliberately not built: it needs a call graph resolved through generics and `dyn` values, which this reader (syntax only, no name or type resolution) cannot do honestly. Run it with `check EXT-004`; it is not in any profile.
+
 ## 0.43.55 - 2026-11-12 (proposed, Breaking: a new opt-in rule)
 
 **TYP-002 is built (Rust, opt-in).** A `match` with three or more distinct string-literal patterns, or an `if` / `else if` chain comparing something to three or more string literals, is reported at Low severity and Medium confidence, once at the `match` or the first `if`. The body of `from_str`, `try_from` and `from` is skipped, because turning outside text into a typed value is where a string match belongs. Whether the strings are a closed set or a lookup of data is not judged. Run it with `check TYP-002`; it is not in any profile.
