@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.54 - 2026-11-11 (proposed, Docs)
+
+**Design note for reviewed SEC-002 waivers** (`docs/secret-waivers-design.md`): a list in CodeRipper's own repository, one entry per exact gitleaks fingerprint, reviewer, evidence and expiry, never a waiver of a rule or a path. Design only; no behaviour change.
+
 ## 0.43.53 - 2026-11-11 (proposed, Breaking: a new opt-in rule)
 
 **REL-009 is built (Rust, opt-in).** A duration measured on the wall clock is reported at Low severity and Medium confidence: `.elapsed()` on a local bound from `SystemTime::now()`, or `.duration_since()` between two such readings, in the same function. `SystemTime::now().duration_since(UNIX_EPOCH)` is a timestamp and is never reported. A start time held in a field or passed in is not followed, and `chrono` or `time` clocks are not read. Run it with `check REL-009`; it is not in any profile.
