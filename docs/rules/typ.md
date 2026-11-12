@@ -69,7 +69,7 @@ None of these rules is run by the current release. The notes say what is planned
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | TYP-001 | Public APIs wrap domain values in dedicated types | P | no check yet; planned: native name heuristics; semantic judgement needs an LLM |
-| TYP-002 | Strings standing in for enums | P | no check yet; planned: native syntax-tree check |
+| TYP-002 | Strings standing in for enums | P | built in part (Rust, `syn`, outside tests; a `match` with three or more string-literal patterns, or an `if` / `else if` chain comparing to three or more string literals, Low severity, Medium confidence; opt-in (`check TYP-002`); the body of `from_str`, `try_from` and `from` is skipped, whether the strings are a closed set is not judged) |
 | TYP-003 | (alias of MOD-010) | A | the same rule as `MOD-010`, which answers to the name `TYP-003`: one detection (a declared invariant type has private fields and is built through a validating constructor); see `docs/rules/mod.md` |
 | TYP-004 | Outside data becomes domain types at the boundary | P | no check yet; planned: native flow check for TypeScript and Python; Rust needs data-flow analysis |
 | TYP-005 | Money and exact amounts avoid binary floats | P | built in part (Rust, `syn`, outside tests; a field, parameter, annotated `let` or return named price, cost, balance, fee, salary, wage, payment, amount, money, revenue or charge and typed `f32` or `f64`, a ratio-like name excepted, Medium/Low; opt-in (`check TYP-005`); guessed from names, not from module tags; other languages not read) |
