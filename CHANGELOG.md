@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.60 - 2026-11-12 (proposed, Docs)
+
+Proposal for CireSnave's review, docs only: four optional additions to the `[architecture]` declaration so the rules that cannot run today can read what they need (`pure` and an effect list for EFX-001, `purpose` and `owner` for DOC-003, `[[architecture.isolation]]` for REL-011, a `// coderipper: hot` marker for PRF-004), with eight choices and a recommendation for each. Nothing is built.
+
 ## 0.43.59 - 2026-11-12 (proposed, Added)
 
 **SEC-012 is built (Rust): no `Debug` on a type that holds a secret.** A struct is reported, once and at its declaration, at Medium severity and Medium confidence, when it has a secret field that `Debug` prints: it derives `Debug`, or a hand-written `impl Debug` for it reads the field and shows no sign of redaction. A field is a secret when its name says so (`password`, `token`, `api_key`, `private_key`, `client_secret` and similar; a bare `key` is not read) or its type is `Zeroizing`; a companion word (`token_type`, `password_hash`, `key_id`, `credential_issuer`) or a `bool`, number or `Duration` type says it is not. A field of type `Secret`, `SecretString` and the like is masked and not reported. It is on by default in `extended` and `portfolio`, where it reports and never fails a run, and `check SEC-012` runs it alone. To turn it off for a repository, waive it in `.coderipper.toml` with a reason.
