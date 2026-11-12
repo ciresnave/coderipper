@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.47 - 2026-11-11 (proposed, Fix)
+
+**reachability no longer reports a library's own interface as dead when it sits in a private module** (secretant#4: 43 Medium findings on a lib-only crate with `mod store;` and `pub use store::{FileStore, Store, ..}`). Three causes, all false positives and all fixed: (1) an item reached by a `pub use` out of a module that is not `pub` was not counted as public, so `FileStore`, `Store` and `EntryInfo` classified as plain Medium; the declaration and its public inherent functions now count (kept apart from the ARC-006 budget, whose numbers do not change); (2) `rustc` does not report the methods of a type nothing constructs, only what they call, so the helpers a documented public method calls (`format_recovery`, `protect`) looked called by nothing; the identifiers in the bodies of documented public methods now seed the rescue; (3) `#[serde(with = "codec")]` names a module whose `serialize` and `deserialize` the derive calls, and nothing writes either name; both now count as named. Measured on secretant#4 head 5003716: 43 findings before (0.43.20 build), 0 after. Not handled: a `pub use` that goes through a second private module (`mod a { pub use b::X }`, then `pub use a::X`).
+
 ## 0.43.45 - 2026-11-11 (proposed, CI)
 
 **The portfolio workflow now installs coderipper 0.43.41** (`CODERIPPER_VERSION` was 0.39.0). 0.39.0 lacks `[[interface]]` (version-consistency per-interface mode), which blocked FireLine repinning to this workflow. 0.43.41 is the newest release on crates.io (tag v0.43.41).

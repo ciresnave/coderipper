@@ -127,7 +127,7 @@ fn counted(name: &str, budget: u32, items: usize, members: usize) -> Tally {
         component: name.into(),
         budget,
         manifest: Some(format!("{name}/Cargo.toml")),
-        totals,
+        totals: Box::new(totals),
     }
 }
 
@@ -162,7 +162,7 @@ fn third_party_re_exports_are_an_info_finding_with_their_own_subject() {
             component: "domain".into(),
             budget: 100,
             manifest: None,
-            totals,
+            totals: Box::new(totals),
         }],
         "p",
         vec![],
