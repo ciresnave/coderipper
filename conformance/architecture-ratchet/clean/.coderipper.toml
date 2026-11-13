@@ -1,0 +1,12 @@
+[architecture]
+ratchet = true
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+
+[[architecture.waiver]]
+edge = ["core", "storage"]
+reason = "replaces the backend exception, which is paid back"
+owner = "core lane"
+until = "2027-03-01"
