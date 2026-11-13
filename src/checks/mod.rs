@@ -32,6 +32,7 @@ pub use architecture::{
     PublicSurfaceCheck,
     ReachThroughCheck,
     StabilityCheck,
+    TransportErrorCheck,
     VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;
