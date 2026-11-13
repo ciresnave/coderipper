@@ -1525,3 +1525,22 @@ Version line covered by this addendum: **0.43** (0.43.70). One rule is added, re
 **Result: no hit reads on `TYP-001`.** The rule does not mark a type as requiring anything, reads no initialization and compares no initializer with a type; it matches a parameter name against word lists and a declared type against a list of primitives. **Watch:** re-read US8689195B2 before the rule reads an attribute or a declared list that says which types must be used for a concept.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.71)
+
+Version line covered by this addendum: **0.43** (0.43.71). One rule is added, read from `src/module/neutral/ops010.rs`: `OPS-010` (a Rust binary package that has no way to report its version or build). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 95 (`OPS-010`).** Find the binary packages of a repository (a `main.rs` or a `src/bin` file) and read their sources, manifest and build script for any of a fixed list of version markers (`CARGO_PKG_VERSION`, a clap `version`, a literal `--version`, a build-information crate, a build script that sets build variables); report a binary package that names none. A text and attribute match over a fixed list is the whole mechanism; nothing is executed and no binary is read.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q190 | 95 | patent method static analysis source code determine whether executable program exposes version information build identifier command line version flag |
+| Q191 | 95 | patent.google.com automatically detect software package lacking embedded version or revision identifier build script source repository analysis warning |
+
+**Positive controls:** Q190 returned US6931626 (versioning statically bound files), US11288375 (static analysis security assessment that uses build versioning data) and US9032376, so the engine reaches the neighbourhood. Q191 returned the "Software verification system and methods" family (US10489137, US9891903, US9405524) and US20060161892A1 (package identity during a system build). **A patent that reports a binary package for exposing no version, from its source and manifest, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own).
+
+**Read:** the claims of **US6931626B2** (Hewlett Packard, filed 2001-01-17; Google Patents shows it Expired); its independent claims are claim 1 and claim 14. Each requires creating a source file holding a function whose name carries version information of a library, compiling it into an object file, building it into the library, and building an executable so that the version information is carried through the presence of that function. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `OPS-010`.** The rule creates, compiles and links nothing; it checks whether version markers already appear in the text. The claims of US6931626B2 are about embedding the information, which the rule's advice does not reproduce as claimed (it points to `CARGO_PKG_VERSION`, clap and build crates). The patent is also expired. **Watch:** none.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
