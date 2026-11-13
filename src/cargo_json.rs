@@ -460,6 +460,18 @@ pub(crate) fn build_lib_only(
 
 /// `cache_source` is the SOURCE repository the throwaway checkout at `root` was made from: the build cache is
 /// keyed by it. `None` means "no cache, build in the checkout's own `target/`", which is what the unit tests want.
+/// Build into `dir`, ALL of it: `CARGO_TARGET_DIR` is where the final artifacts go and `CARGO_BUILD_BUILD_DIR` is where Cargo (1.91 and later)
+/// puts the intermediate ones (the hashed `.rlib` and `.rmeta`, the build-script output). Unset, the build dir follows the target dir, so
+/// the cache slot holds everything a build wrote; but a user or a repository that configures `build.build-dir` (a short path for
+/// Windows, a per-workspace one with `{workspace-path-hash}`) sends the intermediates elsewhere, and the slot then silently stops being
+/// shared: the units a second checkout needs are not in it. An environment variable outranks every config file, so pinning it here keeps
+/// the slot whole on any machine; an older Cargo ignores it.
+fn pin_target_dir(cargo: &mut Command, dir: &Path) {
+    cargo
+        .env("CARGO_TARGET_DIR", dir)
+        .env("CARGO_BUILD_BUILD_DIR", dir);
+}
+
 fn build_with(
     subcommand: &str,
     root: &Path,
@@ -511,12 +523,12 @@ fn build_with(
     #[cfg(test)]
     let mut cache_note = None;
     if let Some(session) = &session {
-        cargo.env("CARGO_TARGET_DIR", &session.target);
+        pin_target_dir(&mut cargo, &session.target);
         cache_dir = session.cache_dir.clone();
     }
     match &choice {
         crate::build_cache::CacheChoice::Shared(dir) => {
-            cargo.env("CARGO_TARGET_DIR", dir.path.join("target"));
+            pin_target_dir(&mut cargo, &dir.path.join("target"));
             cache_dir = Some(dir.path.clone());
         }
         crate::build_cache::CacheChoice::Throwaway { why: Some(why) } => {
