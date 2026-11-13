@@ -328,6 +328,8 @@ fn scan(program: &Path, request: &Request) -> Scan {
         &[EXIT_BREAKING, EXIT_ERROR],
         &[
             ("CARGO_TARGET_DIR", target_dir.as_str()),
+            // the build dir with it, or a configured `build.build-dir` sends the intermediates out of the scratch directory
+            ("CARGO_BUILD_BUILD_DIR", target_dir.as_str()),
             ("CARGO_TERM_COLOR", "never"),
         ],
     ) {
