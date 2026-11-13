@@ -67,6 +67,7 @@ mod tst009;
 mod typ002;
 mod typ005;
 mod typ006;
+mod typ007;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -221,6 +222,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "EXT-003",
         judge: ext003::judge,
+    },
+    Rule {
+        id: "TYP-007",
+        judge: typ007::judge,
     },
     Rule {
         id: "CON-010",
@@ -746,6 +751,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("TYP-007", &["rust"]),
     ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
@@ -812,6 +818,7 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "TYP-007",
     "CON-010",
     "TYP-005",
     "SEC-007",

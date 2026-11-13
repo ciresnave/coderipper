@@ -1,0 +1,6 @@
+# The seeded defect: `open(path, true, false)` does not say which flag is which (reported at the function name, line 1).
+
+[[expect]]
+rule = "TYP-007"
+file = "src/lib.rs"
+line = 1
