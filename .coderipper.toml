@@ -69,3 +69,9 @@ check = "TYP-007"
 file = "src/module/protocol.rs"
 symbol = "Capabilities::new"
 reason = "`Capabilities::new` takes the four capability switches of a module (`executes_project_code`, `needs_network`, `needs_checkout`, `emits_progress`) as plain `bool`s; it is called once per module from a const table and a builder or a flags type would name them. Owner: coderipper lane. Remove this entry when the constructor takes a flags type."
+
+[[allow]]
+check = "TYP-007"
+file = "src/module/neutral/typ001.rs"
+symbol = "reportable"
+reason = "`reportable(class, number, text, name)` is a private helper of TYP-001, called once, whose two `bool`s are the kind of primitive the parameter has (a number, a string) and are named at the single call site; an enum would add a type for one call. Owner: coderipper lane. Remove this entry when the helper takes the primitive's kind as a value."
