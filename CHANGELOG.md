@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.63 - 2026-11-12 (proposed, Added)
+
+**`architecture-ratchet` is built: the declaration's `ratchet = true` is now enforced.** A repository whose `.coderipper.toml` has an `[architecture]` table with `ratchet = true` is judged on the number of `[[architecture.waiver]]` entries: more than at the merge-base of `HEAD` with the default branch is one Medium finding at the first surplus waiver, advisory (the portfolio profile reports it and never fails on it). A waiver that replaces another keeps the count. The key was parsed but read by nothing; the ratchet is opt-in, so a repository without `ratchet = true` (every repository today) is "not applicable". No base found, or a `.coderipper.toml` that cannot be parsed, is "ratchet not run", never clean; a run on the default branch, and a base that had no `[architecture]` table, are "not applicable". `lint-suppression` ratchets attributes; this ratchets architecture waivers (choice 6 of the accepted declaration proposal, ruling 365).
+
 ## 0.43.60 - 2026-11-12 (proposed, Docs)
 
 Proposal for CireSnave's review, docs only: four optional additions to the `[architecture]` declaration so the rules that cannot run today can read what they need (`pure` and an effect list for EFX-001, `purpose` and `owner` for DOC-003, `[[architecture.isolation]]` for REL-011, a `// coderipper: hot` marker for PRF-004), with eight choices and a recommendation for each. Nothing is built.
