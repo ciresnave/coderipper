@@ -164,6 +164,14 @@ A package can also be silenced with an ordinary `[[allow]]` entry (check `versio
 manifest relative to the workspace root, `symbol` = the package name). Rust (cargo) manifests only; it reads the
 working tree, not HEAD.
 
+**A waiver written once at the workspace root covers the member it names.** In a `--workspace` run (and in a hand run of one member, so a 
+local run agrees with CI) each member also reads the `[[allow]]` entries of its workspace root's `.coderipper.toml`, with `file` read 
+**relative to the workspace root**, as in the root's own run: `file = "crates/a/src/lib.rs"` waives the finding at `src/lib.rs` of the 
+package in `crates/a`, and no other. The path is exact (as for every `[[allow]]` entry), so a root entry written `src/lib.rs` names the 
+root package's file, not a member's. A member's own `.coderipper.toml` still waives by the path from the member. An inherited entry 
+is shown with the waived finding as coming from the workspace root's file, and is never reported stale by a member it does not name 
+(it may name a sibling). Entries of the root's file are not copied into a member's file, so a 77-crate workspace keeps one list.
+
 ## Members that cannot be built where the run is
 
 `--workspace` builds every member, and a member whose build fails is "not judged" and fails the run. A member that can never build on the runner (it links an SDK the runner lacks) is declared in the repository's own `.coderipper.toml`, and then is not built:
