@@ -267,3 +267,29 @@ checked_today = "Every tracked text file outside fixtures, vendored directories 
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "architecture-ratchet"
+title = "The number of architecture waivers only falls"
+domain = "GOV"
+statement = "Once a repository's architecture declaration says ratchet = true, the number of waivers in it may only fall: a branch adds none beyond the count at the commit it started from."
+rationale = "A waiver is a deliberate exception to the declared architecture. Without a ratchet the exceptions accumulate and the declaration stops describing the code; with one, every exception is meant to be paid back, and the count can only move in one direction."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "high"
+kb_refs = ["GOV-001"]
+aliases = []
+remediation = "Fix the violation instead of waiving it, or remove another waiver in the same change; set ratchet = false in the declaration only with the reason said in the review."
+related = ["GOV-001", "ARC-001"]
+lifecycle = "experimental"
+checked_today = "A repository whose .coderipper.toml at HEAD has an [architecture] table with ratchet = true: the [[architecture.waiver]] entries of that declaration at HEAD and at the merge-base of HEAD with the default branch, both read with the declaration's own parser. More waivers at HEAD than at the base is a Medium finding, High confidence, at the first waiver beyond the base's count; a waiver that replaces another keeps the count and is not reported. A repository with no declaration, or with ratchet absent or false, is not applicable (the ratchet is opt-in); a base with no [architecture] table (the branch introduces the declaration) and a run on the default branch are not applicable; no base found, or a .coderipper.toml that cannot be parsed at HEAD or at the base, is a note, ratchet not run, never a pass. Advisory: the portfolio profile reports it and never fails on it. Not judged: [[architecture.allow]] edges, a declaration moved to another file, waivers of other tools (lint-suppression ratchets those)."
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]

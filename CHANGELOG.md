@@ -6,6 +6,22 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.69 - 2026-11-13 (proposed, Fix)
+
+**`version-and-changelog` understands the changelog.d fragment scheme.** A branch that adds exactly one `changelog.d/<topic>.md` fragment (not the README, not one the base already had) and leaves the version alone is no longer reported as "still has version X, the version of the merge-base": the gate stamps the number at merge, and the run says so in a note. No fragment and no bump still fires, and so do two or more fragments.
+
+## 0.43.68 - 2026-11-12 (proposed, Added)
+
+**`test-artifact-path` is built (Rust): a test asks Cargo where a built artifact is.** In test code (a file under `tests/`, `examples/` or `benches/`, a `tests.rs` file, an item under `#[cfg(test)]`, a `#[test]` function), a path derived from `std::env::current_exe()` by going up (`parent()`, `ancestors()`, `pop()`, `with_file_name`) or by joining `"examples"`, `"deps"`, `"target"`, `"debug"` or `"release"` is reported once per function, at Low severity and Medium confidence, advisory. It hard-codes where Cargo puts build products and breaks when Cargo changes its layout (Cargo 1.100 turned 29 of one repository's tests red). Cargo sets the variables a test needs: `CARGO_BIN_EXE_<name>`, `CARGO_MANIFEST_DIR`, `CARGO_TARGET_TMPDIR`, `OUT_DIR`. Not reported: running the test binary itself, printing its path, non-test code, and a function that also reads one of those variables. On by default in `extended` and `portfolio`, where it reports and never fails a run.
+
+## 0.43.63 - 2026-11-12 (proposed, Added)
+
+**`architecture-ratchet` is built: the declaration's `ratchet = true` is now enforced.** A repository whose `.coderipper.toml` has an `[architecture]` table with `ratchet = true` is judged on the number of `[[architecture.waiver]]` entries: more than at the merge-base of `HEAD` with the default branch is one Medium finding at the first surplus waiver, advisory (the portfolio profile reports it and never fails on it). A waiver that replaces another keeps the count. The key was parsed but read by nothing; the ratchet is opt-in, so a repository without `ratchet = true` (every repository today) is "not applicable". No base found, or a `.coderipper.toml` that cannot be parsed, is "ratchet not run", never clean; a run on the default branch, and a base that had no `[architecture]` table, are "not applicable". `lint-suppression` ratchets attributes; this ratchets architecture waivers (choice 6 of the accepted declaration proposal, ruling 365).
+
+## 0.43.60 - 2026-11-12 (proposed, Docs)
+
+Proposal for CireSnave's review, docs only: four optional additions to the `[architecture]` declaration so the rules that cannot run today can read what they need (`pure` and an effect list for EFX-001, `purpose` and `owner` for DOC-003, `[[architecture.isolation]]` for REL-011, a `// coderipper: hot` marker for PRF-004), with eight choices and a recommendation for each. Nothing is built.
+
 ## 0.43.59 - 2026-11-12 (proposed, Added)
 
 **SEC-012 is built (Rust): no `Debug` on a type that holds a secret.** A struct is reported, once and at its declaration, at Medium severity and Medium confidence, when it has a secret field that `Debug` prints: it derives `Debug`, or a hand-written `impl Debug` for it reads the field and shows no sign of redaction. A field is a secret when its name says so (`password`, `token`, `api_key`, `private_key`, `client_secret` and similar; a bare `key` is not read) or its type is `Zeroizing`; a companion word (`token_type`, `password_hash`, `key_id`, `credential_issuer`) or a `bool`, number or `Duration` type says it is not. A field of type `Secret`, `SecretString` and the like is masked and not reported. It is on by default in `extended` and `portfolio`, where it reports and never fails a run, and `check SEC-012` runs it alone. To turn it off for a repository, waive it in `.coderipper.toml` with a reason.
