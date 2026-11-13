@@ -1,0 +1,6 @@
+# The seeded defect: a binary package that has no way to report its version or build (reported at line 1 of its first binary source).
+
+[[expect]]
+rule = "OPS-010"
+file = "src/main.rs"
+line = 1
