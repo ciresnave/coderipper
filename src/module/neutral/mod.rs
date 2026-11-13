@@ -29,6 +29,7 @@ mod ext001;
 mod ext002;
 mod ext003;
 mod ext004;
+mod ext007;
 mod global_state;
 mod licence;
 mod lint_suppression;
@@ -221,6 +222,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "EXT-003",
         judge: ext003::judge,
+    },
+    Rule {
+        id: "EXT-007",
+        judge: ext007::judge,
     },
     Rule {
         id: "CON-010",
@@ -746,6 +751,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("EXT-007", &["rust"]),
     ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
@@ -812,6 +818,7 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "EXT-007",
     "CON-010",
     "TYP-005",
     "SEC-007",
