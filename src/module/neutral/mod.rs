@@ -59,6 +59,7 @@ mod sup010;
 mod sup011;
 mod support_statement;
 mod surface;
+mod test_artifact_path;
 mod tst003;
 mod tst004;
 mod tst006;
@@ -124,6 +125,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "lint-suppression",
         judge: lint_suppression::judge,
+    },
+    Rule {
+        id: "test-artifact-path",
+        judge: test_artifact_path::judge,
     },
     Rule {
         id: "architecture-ratchet",
@@ -762,6 +767,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EFX-007", &["rust"]),
     ("REL-009", &["rust"]),
     ("TYP-002", &["rust"]),
+    ("test-artifact-path", &["rust"]),
     ("COR-006", &["rust"]),
     ("SEC-012", &["rust"]),
     ("EXT-004", &["rust"]),
@@ -782,6 +788,7 @@ const PROVEN: &[&str] = &[
     "DOC-009",
     "WSP-001",
     "lint-suppression",
+    "test-artifact-path",
     "architecture-ratchet",
     "conflict-marker",
     "patent-index-match",
