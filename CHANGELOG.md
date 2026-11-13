@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.69 - 2026-11-13 (proposed, Fix)
+
+**`version-and-changelog` understands the changelog.d fragment scheme.** A branch that adds exactly one `changelog.d/<topic>.md` fragment (not the README, not one the base already had) and leaves the version alone is no longer reported as "still has version X, the version of the merge-base": the gate stamps the number at merge, and the run says so in a note. No fragment and no bump still fires, and so do two or more fragments.
+
 ## 0.43.68 - 2026-11-12 (proposed, Added)
 
 **`test-artifact-path` is built (Rust): a test asks Cargo where a built artifact is.** In test code (a file under `tests/`, `examples/` or `benches/`, a `tests.rs` file, an item under `#[cfg(test)]`, a `#[test]` function), a path derived from `std::env::current_exe()` by going up (`parent()`, `ancestors()`, `pop()`, `with_file_name`) or by joining `"examples"`, `"deps"`, `"target"`, `"debug"` or `"release"` is reported once per function, at Low severity and Medium confidence, advisory. It hard-codes where Cargo puts build products and breaks when Cargo changes its layout (Cargo 1.100 turned 29 of one repository's tests red). Cargo sets the variables a test needs: `CARGO_BIN_EXE_<name>`, `CARGO_MANIFEST_DIR`, `CARGO_TARGET_TMPDIR`, `OUT_DIR`. Not reported: running the test binary itself, printing its path, non-test code, and a function that also reads one of those variables. On by default in `extended` and `portfolio`, where it reports and never fails a run.
