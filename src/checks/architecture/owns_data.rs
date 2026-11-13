@@ -86,6 +86,10 @@ impl Check for DataOwnershipCheck {
         Network::LocalOnly
     }
 
+    fn not_applicable(&self, ctx: &CheckContext) -> Option<String> {
+        architecture::declared_not_applicable(&ctx.project_root, CHECK_ID)
+    }
+
     fn not_configured(&self, ctx: &CheckContext) -> Option<String> {
         match architecture::load(&ctx.project_root) {
             Ok(Some((a, _))) => missing_declaration(Some(&a)),

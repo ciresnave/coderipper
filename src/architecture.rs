@@ -51,6 +51,37 @@ pub(crate) struct ArchitectureConfig {
     /// Once set, the number of waivers may only fall (not read yet).
     #[serde(default)]
     pub ratchet: Option<bool>,
+    /// `not_applicable = [{ rule = "ARC-006", reason = "..." }]`: a rule that cannot apply to this project (a library with no adapters has
+    /// no composition root to declare), said once, with the reason, instead of contriving a declaration.
+    #[serde(default)]
+    pub not_applicable: Vec<NotApplicableDecl>,
+}
+
+/// The rules whose declaration a project may not have anything to put in.
+pub(crate) const NOT_APPLICABLE_RULES: [&str; 3] = ["ARC-006", "ARC-007", "ARC-012"];
+
+/// One entry of `[architecture] not_applicable`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct NotApplicableDecl {
+    pub rule: String,
+    /// Required: a rule is set aside for a reason, not silently.
+    pub reason: String,
+}
+
+/// Why `rule` is declared not applicable in the repository at `root`: the declared reason, worded as the rule's note. `None` when the
+/// repository declares no such thing (the rule then says what is missing, "not run"), or the entry is not well formed (the declaration
+/// is rejected by [`ArchitectureConfig::validate`], so a malformed entry never silences a rule).
+pub(crate) fn declared_not_applicable(root: &Path, rule: &str) -> Option<String> {
+    let (a, _) = load(root).ok()??;
+    let d = a
+        .not_applicable
+        .iter()
+        .find(|d| d.rule == rule && !d.reason.trim().is_empty())?;
+    Some(format!(
+        "[architecture] not_applicable declares {rule} not applicable to this project: {} (a declared exemption, never a clean pass)",
+        d.reason.trim()
+    ))
 }
 
 /// One `[[architecture.component]]`.
@@ -212,6 +243,22 @@ impl ArchitectureConfig {
                     .into(),
             ));
         }
+        let mut set_aside: BTreeSet<&str> = BTreeSet::new();
+        for d in &self.not_applicable {
+            if !NOT_APPLICABLE_RULES.contains(&d.rule.as_str()) {
+                return Err(bad(format!(
+                    "not_applicable names `{}`; only {} may be declared not applicable",
+                    d.rule,
+                    NOT_APPLICABLE_RULES.join(", ")
+                )));
+            }
+            if d.reason.trim().is_empty() {
+                return Err(bad(format!("not_applicable for {} needs a reason", d.rule)));
+            }
+            if !set_aside.insert(d.rule.as_str()) {
+                return Err(bad(format!("declares {} not applicable twice", d.rule)));
+            }
+        }
         let mut declared: BTreeSet<&str> = BTreeSet::new();
         for c in &self.component {
             if !declared.insert(c.name.as_str()) {
@@ -302,6 +349,37 @@ mod tests {
 
     fn members(names: &[&str]) -> BTreeSet<String> {
         names.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    #[test]
+    fn not_applicable_needs_a_known_rule_a_reason_and_no_repeat() {
+        let check = |entries: &str| {
+            parse(&format!("[architecture]\nnot_applicable = [{entries}]\n"))
+                .validate(&members(&[]), Path::new("c"))
+        };
+        assert!(check(r#"{ rule = "ARC-006", reason = "no adapters" }"#).is_ok());
+        let e = check(r#"{ rule = "ARC-001", reason = "x" }"#).unwrap_err();
+        assert!(e.to_string().contains("only ARC-006"), "{e}");
+        let e = check(r#"{ rule = "ARC-007", reason = "  " }"#).unwrap_err();
+        assert!(e.to_string().contains("needs a reason"), "{e}");
+        let e = check(r#"{ rule = "ARC-012", reason = "a" }, { rule = "ARC-012", reason = "b" }"#)
+            .unwrap_err();
+        assert!(e.to_string().contains("twice"), "{e}");
+    }
+
+    #[test]
+    fn a_declared_exemption_is_read_for_its_rule_only() {
+        let dir = tempfile::tempdir().unwrap();
+        // positive control: nothing declared, nothing found
+        assert!(declared_not_applicable(dir.path(), "ARC-006").is_none());
+        std::fs::write(
+            dir.path().join(".coderipper.toml"),
+            "[architecture]\nnot_applicable = [{ rule = \"ARC-006\", reason = \"a library with no adapters\" }]\n",
+        )
+        .unwrap();
+        let why = declared_not_applicable(dir.path(), "ARC-006").expect("declared");
+        assert!(why.contains("a library with no adapters"), "{why}");
+        assert!(declared_not_applicable(dir.path(), "ARC-007").is_none());
     }
 
     #[test]

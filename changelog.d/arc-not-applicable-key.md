@@ -1,0 +1,3 @@
+kind: Added
+---
+**`[architecture] not_applicable`: a library says a rule does not apply to it.** `not_applicable = [{ rule = "ARC-006", reason = "a library with no adapters" }]` sets ARC-006, ARC-007 or ARC-012 aside with a required reason, so a declared-`[architecture]` library with no adapters, owned data or composition root need not contrive a declaration to keep the rule from reading "not run". The coverage reports it as not applicable (skipped, with the reason), never as a clean pass; a rule not listed still says what is missing and is "not run". Another rule id, an empty reason or a repeated rule is an error that names the file.

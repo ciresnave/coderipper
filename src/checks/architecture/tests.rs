@@ -327,3 +327,31 @@ fn a_module_group_that_matches_no_file_is_reported_stale_with_a_control() {
         f[0].positive_control
     );
 }
+
+#[test]
+fn a_declared_exemption_makes_the_three_rules_not_applicable_and_not_the_others() {
+    use super::{ApiBudgetCheck, CompositionRootsCheck, DataOwnershipCheck};
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = CheckContext::new(dir.path());
+    // control: nothing declared, so no rule is set aside
+    assert!(ApiBudgetCheck::new().not_applicable(&ctx).is_none());
+    std::fs::write(
+        dir.path().join(".coderipper.toml"),
+        "[architecture]\nnot_applicable = [{ rule = \"ARC-006\", reason = \"no adapters\" }, { rule = \"ARC-007\", reason = \"no data\" }, { rule = \"ARC-012\", reason = \"no wiring\" }]\n",
+    )
+    .unwrap();
+    assert!(ApiBudgetCheck::new()
+        .not_applicable(&ctx)
+        .unwrap()
+        .contains("no adapters"));
+    assert!(DataOwnershipCheck::new()
+        .not_applicable(&ctx)
+        .unwrap()
+        .contains("no data"));
+    assert!(CompositionRootsCheck::new()
+        .not_applicable(&ctx)
+        .unwrap()
+        .contains("no wiring"));
+    // another rule of the family is untouched
+    assert!(ComponentGraphCheck::new().not_applicable(&ctx).is_none());
+}
