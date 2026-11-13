@@ -10,9 +10,9 @@
 //! 3. exactly **one** `impl Trait for Type` names it in the package, outside `#[cfg(test)]`, and **none** in test code (a second
 //!    implementer in a `#[cfg(test)]` module is the fake or mock the seam exists for) and the trait is not `#[automock]`ed;
 //! 4. that one implementation is for a concrete type, not a blanket `impl<T: ..> Trait for T`;
-//! 4b. the implementation is for a type the package defines (a trait implemented for a primitive or another crate's type is an
+//! 5. the implementation is for a type the package defines (a trait implemented for a primitive or another crate's type is an
 //!    extension trait, the way to add a method, not a seam);
-//! 5. its name is unique among the package's traits, and no `macro_rules!` body of the package names it (a macro may generate the other
+//! 6. its name is unique among the package's traits, and no `macro_rules!` body of the package names it (a macro may generate the other
 //!    implementations).
 //!
 //! One Low-severity, Low-confidence finding per trait, at the trait.
