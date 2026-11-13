@@ -1505,3 +1505,42 @@ Version line covered by this addendum: **0.43** (0.43.68). One rule is added, re
 **Result: no hit reads on `test-artifact-path`.** The rule intercepts no process start, hashes no object file and associates no executable with its sources; it reads a function body and looks for a call, a walking method and a directory literal. **Watch:** re-read US10048960 before the rule resolves which executable a path names rather than naming the walk.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.70)
+
+Version line covered by this addendum: **0.43** (0.43.70). One rule is added, read from `src/module/neutral/typ001.rs`: `TYP-001` (a public Rust function that takes a domain value, named for money, a duration or an identifier, as a bare primitive). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 94 (`TYP-001`).** Parse Rust source and, for each public function, read its parameter names as `snake_case` segments; report a parameter whose name says money, a duration or an identifier and whose declared type is a bare number or string, unless the name already states its unit. Matching a name against three word lists and a type against a list of primitives is the whole mechanism; no type is inferred and no call is followed.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q187 | 94 | patent static analysis detect function parameters named id price amount duration declared with primitive integer or float type suggest newtype domain type primitive obsession source code |
+| Q188 | 94 | patent.google.com automatically detect primitive obsession code smell method parameters semantic type unit of measure mismatch swapped arguments identifier raw integer program analysis |
+| Q189 | 94 | patent method detecting variable or parameter in source code whose name indicates a unit of measurement or domain concept but whose data type is a primitive number, generating warning to use a dedicated type |
+
+**Positive controls:** Q187 returned the Primitive Enthusiasm paper (a metric for primitive obsession in Java), articles on the smell and a Rust post on raw primitives, so the engine reaches the neighbourhood. Q188 returned further primitive-obsession research and tool articles. Q189 returned SA4U (unit type error detection, a paper that also infers units from variable names), US8689195B2 and US9201765B2, so it reaches the neighbourhood too. **A patent that reports a parameter for being named as a domain value and typed as a bare primitive, from source code, was not found; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search). Two queries returned no patent at all, hence the third. Name-based unit and type inference is prior art for the practice itself (SA4U), not a patent.
+
+**Read:** the claims of **US8689195B2** (Identifying structured data types as requiring designated initializers, IBM, filed 2008-06-03; Google Patents shows it Active) through `tools/patent-claims.py`; its independent claims are claim 1 (a machine-implemented method), claim 6 (a system), claim 11 (a computer program product) and claim 16 (a method). Each requires determining that a structured data type requires a designated initializer, from a syntax in its definition or from an information resource, parsing a variable's initialization, and performing a diagnostic when the initializer is inconsistent with the type. **Not read in full:** US9201765B2 and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `TYP-001`.** The rule does not mark a type as requiring anything, reads no initialization and compares no initializer with a type; it matches a parameter name against word lists and a declared type against a list of primitives. **Watch:** re-read US8689195B2 before the rule reads an attribute or a declared list that says which types must be used for a concept.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.71)
+
+Version line covered by this addendum: **0.43** (0.43.71). One rule is added, read from `src/module/neutral/ops010.rs`: `OPS-010` (a Rust binary package that has no way to report its version or build). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 95 (`OPS-010`).** Find the binary packages of a repository (a `main.rs` or a `src/bin` file) and read their sources, manifest and build script for any of a fixed list of version markers (`CARGO_PKG_VERSION`, a clap `version`, a literal `--version`, a build-information crate, a build script that sets build variables); report a binary package that names none. A text and attribute match over a fixed list is the whole mechanism; nothing is executed and no binary is read.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q190 | 95 | patent method static analysis source code determine whether executable program exposes version information build identifier command line version flag |
+| Q191 | 95 | patent.google.com automatically detect software package lacking embedded version or revision identifier build script source repository analysis warning |
+
+**Positive controls:** Q190 returned US6931626 (versioning statically bound files), US11288375 (static analysis security assessment that uses build versioning data) and US9032376, so the engine reaches the neighbourhood. Q191 returned the "Software verification system and methods" family (US10489137, US9891903, US9405524) and US20060161892A1 (package identity during a system build). **A patent that reports a binary package for exposing no version, from its source and manifest, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own).
+
+**Read:** the claims of **US6931626B2** (Hewlett Packard, filed 2001-01-17; Google Patents shows it Expired); its independent claims are claim 1 and claim 14. Each requires creating a source file holding a function whose name carries version information of a library, compiling it into an object file, building it into the library, and building an executable so that the version information is carried through the presence of that function. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `OPS-010`.** The rule creates, compiles and links nothing; it checks whether version markers already appear in the text. The claims of US6931626B2 are about embedding the information, which the rule's advice does not reproduce as claimed (it points to `CARGO_PKG_VERSION`, clap and build crates). The patent is also expired. **Watch:** none.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.

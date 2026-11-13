@@ -141,6 +141,53 @@ fn a_build_after_another_run_wrote_the_same_unit_is_never_served_that_runs_artif
     });
 }
 
+/// A repository whose own `.cargo/config.toml` sends the build intermediates elsewhere (a user's `build.build-dir` in `~/.cargo` does
+/// the same, and a repository file reaches the test without touching the process environment).
+fn repo_with_a_configured_build_dir(elsewhere: &Path) -> tempfile::TempDir {
+    let repo = fixture();
+    std::fs::create_dir_all(repo.path().join(".cargo")).unwrap();
+    let dir = elsewhere.to_string_lossy().replace('\\', "/");
+    std::fs::write(
+        repo.path().join(".cargo/config.toml"),
+        format!("[build]\nbuild-dir = \"{dir}/{{workspace-path-hash}}\"\n"),
+    )
+    .unwrap();
+    git(repo.path(), &["add", "-A"]);
+    git(
+        repo.path(),
+        &["commit", "-q", "-m", "configure build.build-dir"],
+    );
+    repo
+}
+
+#[test]
+fn a_configured_build_dir_does_not_take_the_build_out_of_the_cache_slot() {
+    let elsewhere = tempfile::tempdir().unwrap();
+    let repo = repo_with_a_configured_build_dir(elsewhere.path());
+    let cache = tempfile::tempdir().unwrap();
+    let x = checkout(repo.path(), "rewritten_by_x");
+    with_config(config(cache.path()), || {
+        let out = build_lib_only(
+            &x.root,
+            Some(x.source_repo()),
+            CAP_LINTS,
+            &Default::default(),
+        )
+        .unwrap();
+        assert!(out.success);
+        assert!(
+            artifact_has(cache.path(), "rewritten_by_x"),
+            "the build left its intermediates outside the cache slot"
+        );
+        let mut stray = Vec::new();
+        rlibs(elsewhere.path(), &mut stray);
+        assert!(
+            stray.is_empty(),
+            "intermediates went to the configured build-dir: {stray:?}"
+        );
+    });
+}
+
 #[test]
 fn the_same_slot_is_not_shared_across_checks_unsafely() {
     // The cross-CHECK case: reachability builds `--lib`, `unused-parameters` builds `--all-targets`, with the same
