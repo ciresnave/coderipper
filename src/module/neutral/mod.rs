@@ -54,6 +54,7 @@ mod sensitive_output;
 mod sup001;
 mod sup004;
 mod sup005;
+mod sup006;
 mod sup009;
 mod sup010;
 mod sup011;
@@ -221,6 +222,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "EXT-003",
         judge: ext003::judge,
+    },
+    Rule {
+        id: "SUP-006",
+        judge: sup006::judge,
     },
     Rule {
         id: "CON-010",
@@ -746,6 +751,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("SUP-006", &["rust"]),
     ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
@@ -812,6 +818,7 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "SUP-006",
     "CON-010",
     "TYP-005",
     "SEC-007",
