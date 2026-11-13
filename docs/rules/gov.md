@@ -49,7 +49,7 @@ Track, per dimension rather than as one number: new findings versus baselined fi
 
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
-| GOV-001 | Baseline findings and ratchet downward | T | no check yet: feature of CodeRipper, not a check (deferred). Fingerprinting across edits is the hard part |
+| GOV-001 | Baseline findings and ratchet downward | T | no check yet for a general baseline: feature of CodeRipper, not a check (deferred; fingerprinting across edits is the hard part). Two ratchets of counts exist: `lint-suppression` (attributes without a reason) and `architecture-ratchet` (the number of `[[architecture.waiver]]` entries may only fall once `[architecture] ratchet = true`) |
 | GOV-002 | Waivers with owner and expiry | T | no check yet: feature of CodeRipper, not a check (deferred). The waiver content is a human decision |
 | GOV-003 | Rule maturity stages driven by precision | T | no check yet: feature of CodeRipper, not a check (deferred) |
 | GOV-004 | Policy versioned, reviewed and tested | T | no check yet: feature of CodeRipper, not a check (deferred). Testing rules means running them on fixtures |
