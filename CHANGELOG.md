@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.62 - 2026-11-13 (proposed, Added)
+
+**ERR-006 is built (Rust): domain errors free of transport details.** For each policy component of an `[architecture]` declaration, a public error type (a struct or enum whose name ends in `Error`) whose fields or variants name a transport or driver type is reported once per `Type::Variant` or `Type.field`, at Low severity and Low confidence: a namespace `ARC-004` counts as infrastructure, or one this rule always counts (`http`, `hyper`, `axum`, `actix_web`, `reqwest`, `sqlx`, `diesel`, `redis` and similar), so `Db(sqlx::Error)` or `Http(http::StatusCode)` is found even when the declaration names no volatile detail. A repository with no `[architecture]` table or no policy component gets "not run", never clean. It is on by default in `extended` and `portfolio`, where it reports and never fails a run.
+
 ## 0.43.61 - 2026-11-13 (proposed, Fix)
 
 **A waiver written once at a workspace root now covers the member it names.** A `--workspace` run (and a hand run of one member) read the members' own `.coderipper.toml` only, so an `[[allow]]` entry in the root's file matched no finding of any member, in whatever form it was written. Each member's run now also reads the root's `[[allow]]` entries, with `file` read relative to the workspace root as in the root's own run (`crates/a/src/lib.rs` waives the finding at `src/lib.rs` of the package in `crates/a`). The path stays exact, an inherited entry is shown as coming from the workspace root's file, and a member it does not name never reports it stale. A member's own file waives by the path from the member as before.
