@@ -12,6 +12,7 @@
 //! - a build-information crate or a build script that sets build variables: `vergen`, `built`, `shadow-rs`, `git-version`, `git_version`,
 //!   `cargo:rustc-env=`.
 //!
+//! A package under a `fixtures`, `bench(es)`, `benchmarks`, `measure`, `xtask` or `testdata` directory, or named `*-bench`, is not read (nobody ships its binary).
 //! A binary package with none of them is reported once, at its first binary source: Info severity, Medium confidence.
 //!
 //! **What it cannot see:** a version printed by a different package of the workspace that the binary calls into (the library crate's
@@ -44,6 +45,24 @@ const MARKERS: &[&str] = &[
     "cargo:rustc-env=",
     "cargo::rustc-env=",
 ];
+
+/// Whether a package directory is a fixture, benchmark or measurement helper, whose binary nobody ships.
+fn internal(dir: &str) -> bool {
+    dir.split('/').any(|seg| {
+        matches!(
+            seg,
+            "fixtures"
+                | "fixture"
+                | "testdata"
+                | "measure"
+                | "xtask"
+                | "bench"
+                | "benches"
+                | "benchmarks"
+        ) || seg.ends_with("-bench")
+            || seg.ends_with("_bench")
+    })
+}
 
 fn is_binary_source(path: &str) -> bool {
     path == "src/main.rs"
@@ -85,6 +104,9 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let Some(first) = p.sources.iter().find(|s| is_binary_source(&s.path)) else {
             continue;
         };
+        if internal(&p.dir) {
+            continue;
+        }
         binaries += 1;
         let mut texts: Vec<String> = p.sources.iter().map(|s| s.text.clone()).collect();
         for extra in ["Cargo.toml", "build.rs"] {
@@ -199,6 +221,26 @@ mod tests {
             ),
         ])
         .is_empty());
+    }
+
+    #[test]
+    fn a_fixture_or_benchmark_binary_is_not_reported() {
+        for dir in ["fixtures/guest", "crates/x-bench", "measure/classify"] {
+            let manifest = format!("{dir}/Cargo.toml");
+            let main = format!("{dir}/src/main.rs");
+            let v = judge(&RepoView::from_files(&[
+                ("Cargo.toml", MANIFEST),
+                ("src/lib.rs", "pub fn f() {}"),
+                (manifest.as_str(), MANIFEST),
+                (main.as_str(), "fn main() {}"),
+            ]));
+            // the only binary is internal, so nothing is reported
+            assert!(
+                matches!(&v, Verdict::NotApplicable(_))
+                    || matches!(&v, Verdict::Findings(f) if f.is_empty()),
+                "{dir}"
+            );
+        }
     }
 
     #[test]
