@@ -95,6 +95,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Flatten the control flow by exiting early on the failure cases, and pull out pieces that deserve a name. Generated code, parsers and state-machine implementations may be exempted with a recorded reason."
 related = ["RDB-004", "RDB-013"]
+checked_today = "Rust, from the source with syn (opt-in): SonarSource's Cognitive Complexity (G. Ann Campbell, 2017) of every function with a body (free, method, trait default method, nested function), outside vendored directories, tests, examples, benches, build.rs, cfg(test) items, #[test] functions and files that say they are generated. +1 plus the nesting level for an if, if let, match, for, while and loop; +1 for each else and else if; +1 for each sequence of like logical operators (a && b || c is two); +1 for a labelled break or continue; +1 for a direct recursive call; nesting rises by one inside an if, else, match arm, loop body and closure body. One finding per function over 15 (Low severity) and over 30 (Medium), at the function name, Medium confidence. Not judged: the record's second half (a function being edited should not become more complex: needs a baseline at the merge base), the ? operator and let-else (not counted, as in the measure), macro bodies (syn does not read their tokens), generated code that does not say so, other languages. Parsers and state machines score high by nature: allow them with a reason."
 lifecycle = "experimental"
 
 [rule.applicability]
