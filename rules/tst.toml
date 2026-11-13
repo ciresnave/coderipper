@@ -315,3 +315,29 @@ lifecycle = "experimental"
 [rule.applicability]
 languages = ["any"]
 scopes = ["first_party"]
+
+[[rule]]
+id = "test-artifact-path"
+title = "A test asks Cargo where a built artifact is"
+domain = "TST"
+statement = "A test finds a binary, a scratch directory or a build output through the variables Cargo sets (CARGO_BIN_EXE_<name>, CARGO_MANIFEST_DIR, CARGO_TARGET_TMPDIR, OUT_DIR), not by walking up from the test executable's own path."
+rationale = "Where Cargo puts build products is Cargo's to change. A test that goes up from current_exe() and joins a directory it assumes (examples, deps, target, debug, release) hard-codes today's layout and breaks the day the layout moves: Cargo 1.100's build-layout change turned 29 of one repository's tests red."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+aliases = []
+remediation = "Use env!(\"CARGO_BIN_EXE_<name>\") for a binary of the same package, CARGO_MANIFEST_DIR and CARGO_TARGET_TMPDIR for the package and a scratch directory, OUT_DIR for a build script's output; make an example's helper a [[bin]] target, or build it through cargo and read its path from cargo's JSON output."
+related = ["TST-005"]
+lifecycle = "experimental"
+checked_today = "Rust, from the source with syn: tracked .rs files outside vendored directories, in test code only (a file under tests, examples or benches, a tests.rs file, an item under cfg(test), a test function). In one function, a local is derived when it is bound from an expression that contains a call to current_exe; a site is parent, ancestors, pop or with_file_name, or join of a literal naming examples, deps, target, debug or release, called on current_exe() or on a derived local through any chain of unwrap, expect, ? and the like, or Path::parent or Path::ancestors applied to one. One finding per function at its first such site, Low severity, Medium confidence. Not reported: running the test binary itself (Command::new(current_exe())) or printing its path, non-test code, and a function that also reads CARGO_BIN_EXE_, CARGO_MANIFEST_DIR, CARGO_TARGET_TMPDIR or OUT_DIR. Not seen: a helper in another file that does the walk, current_exe kept in a static or a field, macro-generated code. Default on in extended and portfolio, advisory."
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
