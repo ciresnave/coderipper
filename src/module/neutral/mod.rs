@@ -35,6 +35,7 @@ mod lint_suppression;
 mod lock_order;
 mod ops003;
 mod ops009;
+mod ops010;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
@@ -165,6 +166,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "OPS-012",
         judge: ops012::judge,
+    },
+    Rule {
+        id: "OPS-010",
+        judge: ops010::judge,
     },
     Rule {
         id: "security-support-statement",
@@ -736,6 +741,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("patent-index-match", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
+    ("OPS-010", &["rust"]),
     ("CON-002", &["rust"]),
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
@@ -798,6 +804,7 @@ const PROVEN: &[&str] = &[
     "patent-sweep-record",
     "CON-006",
     "OPS-012",
+    "OPS-010",
     "security-support-statement",
     "RDB-008",
     "EFX-003",
