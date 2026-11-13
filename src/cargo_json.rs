@@ -406,6 +406,16 @@ impl RawSpan {
 /// fail the build, and stop cargo compiling the crates that depend on the failed one.
 pub(crate) const CAP_LINTS: &str = "--cap-lints=warn";
 
+/// Points cargo's target directory at `dir` **and** its build directory too. Cargo 1.100 can keep a build's intermediate files in a
+/// separate `build.build-dir` (a user's own cargo config may set one, and then the files of every project land there); the build
+/// cache's slot, its lock and its checks of what an artifact contains all assume that a build writes inside the slot, so the two
+/// directories are made one.
+fn set_target_dir(cargo: &mut Command, dir: &Path) {
+    cargo
+        .env("CARGO_TARGET_DIR", dir)
+        .env("CARGO_BUILD_BUILD_DIR", dir);
+}
+
 /// `existing` (the caller's own `RUSTFLAGS`) followed by `extra`.
 pub(crate) fn compose_rustflags(existing: &str, extra: &str) -> String {
     format!("{existing} {extra}").trim().to_string()
@@ -511,12 +521,12 @@ fn build_with(
     #[cfg(test)]
     let mut cache_note = None;
     if let Some(session) = &session {
-        cargo.env("CARGO_TARGET_DIR", &session.target);
+        set_target_dir(&mut cargo, &session.target);
         cache_dir = session.cache_dir.clone();
     }
     match &choice {
         crate::build_cache::CacheChoice::Shared(dir) => {
-            cargo.env("CARGO_TARGET_DIR", dir.path.join("target"));
+            set_target_dir(&mut cargo, &dir.path.join("target"));
             cache_dir = Some(dir.path.clone());
         }
         crate::build_cache::CacheChoice::Throwaway { why: Some(why) } => {

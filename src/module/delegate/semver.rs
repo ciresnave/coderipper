@@ -328,6 +328,9 @@ fn scan(program: &Path, request: &Request) -> Scan {
         &[EXIT_BREAKING, EXIT_ERROR],
         &[
             ("CARGO_TARGET_DIR", target_dir.as_str()),
+            // Cargo 1.100 can keep intermediate files in a separate `build.build-dir` (a user's own config may set one): keep them
+            // in the scratch directory too, or they would outlive it
+            ("CARGO_BUILD_BUILD_DIR", target_dir.as_str()),
             ("CARGO_TERM_COLOR", "never"),
         ],
     ) {
