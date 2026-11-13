@@ -193,6 +193,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Wrap the type in your own, or record the exposure as a deliberate, declared exception."
 related = []
+checked_today = "Rust, from the source and the manifest (opt-in): a package with a src/lib.rs. Its third-party dependencies are the keys of [dependencies] and [target.*.dependencies] (hyphen read as underscore), minus path dependencies (also through workspace = true) and minus the packages of the same repository. A pub item (a free function, a method of an inherent impl, a method of a pub trait, a pub field of a pub struct, a field of a pub enum variant, a pub type alias, const or static; not pub(crate), not the methods of impl Trait for Type, not pub use re-exports, not cfg(test) code) that names a type whose path starts with a dependency name, or with a name a use of the same file imports from it (and the file defines no such name), is reported: one Low-severity, Medium-confidence finding per package and dependency, at the first site, with the number of sites. Not judged: a pub item that is unreachable from the crate root, a glob import, macro arguments, a dependency under another name than its key, whether the exposure is deliberate (an allowlist entry with a reason is the declared exception), other languages. Prior art for the practice: cargo-check-external-types and rustc's exported_private_dependencies lint."
 lifecycle = "experimental"
 
 [rule.applicability]
