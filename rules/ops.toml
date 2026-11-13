@@ -227,6 +227,7 @@ executes_project_code = false
 default_severity = "info"
 confidence_class = "medium"
 kb_refs = []
+checked_today = "Rust, from the source and the manifest: a package is a binary package when it has a main.rs or a file under src/bin (outside vendored directories, tests, examples and benches). It exposes its version when its sources, Cargo.toml or build.rs name CARGO_PKG_VERSION, crate_version!, a clap version (#[command(.. version ..)], #[clap(.. version ..)], .version( or command!( ), a literal --version or -V, a build-information crate (vergen, built, shadow-rs, git-version) or a build script that sets build variables (cargo:rustc-env=). A binary package with none of them is reported once, at its first binary source (Info severity, Medium confidence). Not judged: a version printed by another package of the workspace that the binary calls, a version exposed through a macro the rule does not know, whether the version carries a source revision (a bare CARGO_PKG_VERSION ties a report to a release, not a commit), other languages."
 remediation = "Embed the version and revision at build time and expose them through a flag, endpoint or log line at startup."
 lifecycle = "experimental"
 

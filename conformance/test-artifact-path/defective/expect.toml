@@ -1,0 +1,6 @@
+# The seeded defect: a test finds a sibling artifact by walking up from current_exe() (line 5, the first parent()).
+
+[[expect]]
+rule = "test-artifact-path"
+file = "tests/e2e.rs"
+line = 5
