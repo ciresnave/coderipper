@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.73 - 2026-11-13 (proposed, Fix)
+
+**`patent-sweep-record` reads a root `PATENT-SWEEP.md` when `docs/PATENT-SWEEP.md` is not tracked** (redactant#16): a repository that keeps its documents at the top is judged on that file (same version-line, heading and unread-hit checks; the finding names the file read). `docs/` wins when both exist; neither is still the finding that asks for `docs/PATENT-SWEEP.md`.
+
 ## 0.43.71 - 2026-11-13 (proposed, Fix)
 
 **A configured `build.build-dir` no longer takes a build out of the shared cache slot.** CodeRipper sets `CARGO_TARGET_DIR` for the builds its checks run, so a dependency is compiled once and the slot holds everything a build wrote. Cargo 1.91 and later split the build products in two: the final artifacts go to the target dir, the intermediates (the hashed `.rlib` and `.rmeta`, build-script output) go to the build dir, which follows the target dir unless `build.build-dir` is configured. A user or a repository that sets one (a short path on Windows, or one with `{workspace-path-hash}`) sent the intermediates elsewhere, and the slot silently stopped being shared: a second checkout could not find the units it needed. CodeRipper now sets `CARGO_BUILD_BUILD_DIR` to the same directory wherever it sets `CARGO_TARGET_DIR` (the build cache slot, a session's target, and the scratch directory of the delegated semver check); an environment variable outranks every config file, and an older Cargo ignores it. A throwaway build with no cache still follows the user's configuration.
