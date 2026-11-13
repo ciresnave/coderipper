@@ -1,0 +1,6 @@
+# The seeded defect: the ratchet is on and the branch added a second waiver (the second [[architecture.waiver]] header, line 14).
+
+[[expect]]
+rule = "architecture-ratchet"
+file = ".coderipper.toml"
+line = 14

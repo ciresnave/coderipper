@@ -10,6 +10,7 @@
 //! Files are read from `HEAD` (`git ls-tree`, `git show`), as the Rust checks analyse `HEAD`, so a dirty working tree changes
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
+mod architecture_ratchet;
 mod ci_security;
 mod con005;
 mod con010;
@@ -34,6 +35,7 @@ mod lint_suppression;
 mod lock_order;
 mod ops003;
 mod ops009;
+mod ops010;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
@@ -58,6 +60,7 @@ mod sup010;
 mod sup011;
 mod support_statement;
 mod surface;
+mod test_artifact_path;
 mod tst003;
 mod tst004;
 mod tst006;
@@ -125,6 +128,14 @@ const RULES: &[Rule] = &[
         judge: lint_suppression::judge,
     },
     Rule {
+        id: "test-artifact-path",
+        judge: test_artifact_path::judge,
+    },
+    Rule {
+        id: "architecture-ratchet",
+        judge: architecture_ratchet::judge,
+    },
+    Rule {
         id: "conflict-marker",
         judge: conflict_marker::judge,
     },
@@ -155,6 +166,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "OPS-012",
         judge: ops012::judge,
+    },
+    Rule {
+        id: "OPS-010",
+        judge: ops010::judge,
     },
     Rule {
         id: "security-support-statement",
@@ -726,6 +741,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("patent-index-match", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
+    ("OPS-010", &["rust"]),
     ("CON-002", &["rust"]),
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
@@ -757,6 +773,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EFX-007", &["rust"]),
     ("REL-009", &["rust"]),
     ("TYP-002", &["rust"]),
+    ("test-artifact-path", &["rust"]),
     ("COR-006", &["rust"]),
     ("SEC-012", &["rust"]),
     ("EXT-004", &["rust"]),
@@ -777,6 +794,8 @@ const PROVEN: &[&str] = &[
     "DOC-009",
     "WSP-001",
     "lint-suppression",
+    "test-artifact-path",
+    "architecture-ratchet",
     "conflict-marker",
     "patent-index-match",
     "licence",
@@ -785,6 +804,7 @@ const PROVEN: &[&str] = &[
     "patent-sweep-record",
     "CON-006",
     "OPS-012",
+    "OPS-010",
     "security-support-statement",
     "RDB-008",
     "EFX-003",
