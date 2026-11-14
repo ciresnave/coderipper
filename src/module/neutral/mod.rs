@@ -63,6 +63,7 @@ mod sup006;
 mod sup009;
 mod sup010;
 mod sup011;
+mod sup021;
 mod support_statement;
 mod surface;
 mod test_artifact_path;
@@ -247,6 +248,10 @@ const RULES: &[Rule] = &[
         judge: rdb003::judge,
     },
     Rule {
+        id: "SUP-021",
+        judge: sup021::judge,
+    },
+    Rule {
         id: "API-008",
         judge: api008::judge,
     },
@@ -422,7 +427,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
         "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
-        "CON-012", "RDB-003",
+        "CON-012", "RDB-003", "SUP-021",
     ]
 }
 
@@ -791,6 +796,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("TYP-007", &["rust"]),
     ("SUP-006", &["rust"]),
     ("RDB-003", &["rust"]),
+    ("SUP-021", &["rust"]),
     ("API-008", &["rust"]),
     ("EXT-007", &["rust"]),
     ("CON-010", &["rust"]),
@@ -865,6 +871,7 @@ const PROVEN: &[&str] = &[
     "TYP-007",
     "SUP-006",
     "RDB-003",
+    "SUP-021",
     "API-008",
     "EXT-007",
     "CON-010",

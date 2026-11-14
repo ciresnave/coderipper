@@ -322,6 +322,31 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
+id = "SUP-021"
+title = "Build scripts stay within what a build may do"
+domain = "SUP"
+statement = "A build script does not reach the network, writes only under the directory Cargo gives it, says when it needs to rerun, and avoids unsafe code, because it runs unreviewed on every builder's machine before their code compiles."
+rationale = "A build script is code a dependency's author runs on the builder's machine with the builder's rights; a download makes the build irreproducible, a write outside OUT_DIR changes the source tree, a missing rerun directive makes Cargo rerun it on every change, and unsafe code there is unreviewed."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+checked_today = "Rust, from the source with syn (opt-in): every build.rs beside a tracked Cargo.toml, outside vendored directories. Up to four findings per script, each once at its first site: a path naming a socket or HTTP client (TcpStream, TcpListener, UdpSocket, std::net, reqwest, ureq, curl, hyper, isahc, attohttpc, minreq, surf); a file-system write (fs::write, fs::copy, fs::rename, fs::create_dir, fs::create_dir_all, fs::remove_file, fs::remove_dir_all, File::create) in a script whose text never names OUT_DIR; the text has no rerun word at all (cargo:rerun-if-changed, cargo:rerun-if-env-changed or a helper such as emit_rerun_hints) and calls none of prost_build, tonic_build, cc:: or pkg_config, which print the directives for their inputs; an unsafe block, function or impl. Not seen: a write whose path escapes OUT_DIR in a script that names it elsewhere, a network call through an unlisted crate or a child process, a script named by [package] build other than build.rs, proc-macro crates (not built), a rerun directive printed by a helper whose name does not say rerun. A script syn cannot parse is named in a note."
+remediation = "Fetch and pin inputs outside the build, write generated files under OUT_DIR, print a rerun-if-changed or rerun-if-env-changed line for each input, and avoid unsafe code in the script."
+related = ["SUP-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
+scopes = ["first_party"]
+
+[[rule]]
 id = "patent-index-match"
 title = "Dependencies checked against the patent-safety index"
 domain = "SUP"
