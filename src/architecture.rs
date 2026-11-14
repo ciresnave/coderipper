@@ -48,6 +48,10 @@ pub(crate) struct ArchitectureConfig {
     /// `[architecture.api_budget]` (ARC-006).
     #[serde(default)]
     pub api_budget: BTreeMap<String, u32>,
+    /// `[architecture.effects]`: what counts as an effect for a component tagged `pure = true` (EFX-001). Optional: absent, the rule's
+    /// built-in list is used.
+    #[serde(default)]
+    pub effects: Option<EffectsDecl>,
     /// Once set, the number of waivers may only fall (not read yet).
     #[serde(default)]
     pub ratchet: Option<bool>,
@@ -70,6 +74,8 @@ pub(crate) enum NoneInput {
     OwnsData,
     /// `[architecture.composition]` roots, or a component with `role = "composition"` (ARC-012).
     Composition,
+    /// A component tagged `pure = true` (EFX-001).
+    Pure,
 }
 
 impl NoneInput {
@@ -80,6 +86,7 @@ impl NoneInput {
             Self::ApiBudget => "api_budget",
             Self::OwnsData => "owns_data",
             Self::Composition => "composition",
+            Self::Pure => "pure",
         }
     }
 
@@ -90,6 +97,7 @@ impl NoneInput {
             Self::ApiBudget => "API budget to compare",
             Self::OwnsData => "owned data to look for",
             Self::Composition => "composition root to compare",
+            Self::Pure => "component declared pure to judge",
         }
     }
 }
@@ -117,6 +125,7 @@ impl ArchitectureConfig {
                         .iter()
                         .any(|c| c.role == Some(Role::Composition))
             }
+            NoneInput::Pure => self.component.iter().any(|c| c.pure == Some(true)),
         }
     }
 }
@@ -146,6 +155,22 @@ pub(crate) struct ComponentDecl {
     pub owns_data: Vec<String>,
     #[serde(default)]
     pub invariant_types: Vec<String>,
+    /// `pure = true`: this component performs no effects (file, network, environment, process, clock, randomness, threads); EFX-001
+    /// judges it. Absent means "not judged", not "impure"; `false` is the same as absent but states it was considered.
+    #[serde(default)]
+    pub pure: Option<bool>,
+}
+
+/// `[architecture.effects]`: the project's changes to the built-in effect list that EFX-001 applies to a pure component.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct EffectsDecl {
+    /// More effect namespaces or names (a path prefix such as `metrics::`, or one name such as `Instant`).
+    #[serde(default)]
+    pub add: Vec<String>,
+    /// Entries of the built-in list this project does not count as an effect (say why in a comment next to it).
+    #[serde(default)]
+    pub remove: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -307,6 +332,40 @@ impl ArchitectureConfig {
                 return Err(bad(format!("declares the component `{}` twice", c.name)));
             }
         }
+        for c in &self.component {
+            if c.pure == Some(true)
+                && matches!(
+                    c.role,
+                    Some(Role::Adapter | Role::Infrastructure | Role::Composition)
+                )
+            {
+                return Err(bad(format!(
+                    "the component `{}` is `pure = true` and also has an effectful role: an adapter, infrastructure or composition component is where effects live",
+                    c.name
+                )));
+            }
+        }
+        if let Some(e) = &self.effects {
+            if !self.component.iter().any(|c| c.pure == Some(true)) {
+                return Err(bad(
+                    "has an `[architecture.effects]` table and no component with `pure = true`: it would change nothing".into(),
+                ));
+            }
+            let mut seen: BTreeSet<&str> = BTreeSet::new();
+            for (list, entries) in [("add", &e.add), ("remove", &e.remove)] {
+                for entry in entries {
+                    if entry.trim().is_empty() {
+                        return Err(bad(format!("`effects.{list}` has a blank entry")));
+                    }
+                    if !seen.insert(entry.trim()) {
+                        return Err(bad(format!(
+                            "`effects` names `{}` more than once (in `add` and `remove`, or twice in one)",
+                            entry.trim()
+                        )));
+                    }
+                }
+            }
+        }
         let known = |name: &str| declared.contains(name) || members.contains(name);
         let mut layer_names = BTreeSet::new();
         let mut placed: BTreeSet<&str> = BTreeSet::new();
@@ -441,6 +500,80 @@ mod tests {
         assert!(parse_err(vol).contains("also declares it"));
         let comp = "[architecture]\nnone = [\"composition\"]\n[architecture.composition]\nroots = [\"src/main.rs\"]\n";
         assert!(parse_err(comp).contains("also declares it"));
+    }
+
+    const PURE: &str = "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = true\n";
+
+    #[test]
+    fn a_component_can_be_tagged_pure_and_the_effect_list_changed() {
+        let a = parse(&format!(
+            "{PURE}[architecture.effects]\nadd = [\"metrics::\"]\nremove = [\"std::time::Instant\"]\n"
+        ));
+        a.validate(&members(&[]), Path::new(".coderipper.toml"))
+            .unwrap();
+        assert_eq!(a.component[0].pure, Some(true));
+        let e = a.effects.as_ref().unwrap();
+        assert_eq!(
+            (e.add.as_slice(), e.remove.as_slice()),
+            (
+                &["metrics::".to_string()][..],
+                &["std::time::Instant".to_string()][..]
+            )
+        );
+        let plain = parse(
+            "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\n",
+        );
+        assert_eq!(plain.component[0].pure, None);
+        assert!(plain.effects.is_none());
+    }
+
+    #[test]
+    fn a_malformed_purity_key_is_an_error() {
+        let not_bool = "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = \"yes\"\n";
+        assert!(
+            parse_err(not_bool).contains("pure"),
+            "{}",
+            parse_err(not_bool)
+        );
+        let bad_effects = format!("{PURE}[architecture.effects]\nbogus = [\"x\"]\n");
+        assert!(parse_err(&bad_effects).contains("bogus"));
+        let not_list = format!("{PURE}[architecture.effects]\nadd = \"metrics::\"\n");
+        assert!(parse_err(&not_list).contains("add") || parse_err(&not_list).contains("sequence"));
+    }
+
+    #[test]
+    fn purity_beside_a_contradiction_is_a_config_error() {
+        let none = "[architecture]\nnone = [\"pure\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = true\n";
+        assert!(
+            parse_err(none).contains("also declares it"),
+            "{}",
+            parse_err(none)
+        );
+        let fine = "[architecture]\nnone = [\"pure\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = false\n";
+        let a = parse(fine);
+        a.validate(&members(&[]), Path::new("c")).unwrap();
+        assert!(a.declares_none(NoneInput::Pure));
+        let role = "[architecture]\n[[architecture.component]]\nname = \"db\"\npaths = [\"db\"]\nrole = \"adapter\"\npure = true\n";
+        assert!(
+            parse_err(role).contains("effectful role"),
+            "{}",
+            parse_err(role)
+        );
+        let orphan = "[architecture]\n[architecture.effects]\nadd = [\"metrics::\"]\n";
+        assert!(
+            parse_err(orphan).contains("would change nothing"),
+            "{}",
+            parse_err(orphan)
+        );
+        let blank = format!("{PURE}[architecture.effects]\nadd = [\" \"]\n");
+        assert!(parse_err(&blank).contains("blank"), "{}", parse_err(&blank));
+        let both =
+            format!("{PURE}[architecture.effects]\nadd = [\"rand::\"]\nremove = [\"rand::\"]\n");
+        assert!(
+            parse_err(&both).contains("more than once"),
+            "{}",
+            parse_err(&both)
+        );
     }
 
     #[test]
