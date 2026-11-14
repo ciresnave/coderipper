@@ -1,0 +1,6 @@
+# The seeded defect: `regex` is declared (line 8) and no source file names it.
+
+[[expect]]
+rule = "SUP-006"
+file = "Cargo.toml"
+line = 8
