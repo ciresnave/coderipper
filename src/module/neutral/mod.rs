@@ -66,6 +66,7 @@ mod tst003;
 mod tst004;
 mod tst006;
 mod tst009;
+mod typ001;
 mod typ002;
 mod typ005;
 mod typ006;
@@ -327,6 +328,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "REL-009",
         judge: rel009::judge,
+    },
+    Rule {
+        id: "TYP-001",
+        judge: typ001::judge,
     },
     Rule {
         id: "TYP-002",
@@ -778,6 +783,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("CON-011", &["rust"]),
     ("EFX-007", &["rust"]),
     ("REL-009", &["rust"]),
+    ("TYP-001", &["rust"]),
     ("TYP-002", &["rust"]),
     ("test-artifact-path", &["rust"]),
     ("COR-006", &["rust"]),
@@ -854,6 +860,7 @@ const PROVEN: &[&str] = &[
     "CON-011",
     "EFX-007",
     "REL-009",
+    "TYP-001",
     "TYP-002",
     "COR-006",
     "SEC-012",

@@ -62,6 +62,9 @@ fn missing_declaration(a: Option<&ArchitectureConfig>) -> Option<String> {
     let Some(a) = a else {
         return Some("this repository declares no [architecture] table in .coderipper.toml, so ARC-006 has no API budget to compare; a missing declaration is a gap, not a pass (docs/rules/arc.md)".into());
     };
+    if a.declares_none(crate::architecture::NoneInput::ApiBudget) {
+        return None;
+    }
     if a.api_budget.is_empty() {
         return Some("the [architecture] table has no [architecture.api_budget] entries (a component name and the most public items it may offer), so there is no budget to judge (docs/rules/arc.md)".into());
     }
@@ -109,6 +112,15 @@ impl Check for ApiBudgetCheck {
         let graph = read_graph(&ctx.project_root)?;
         let names = graph.members.iter().map(|m| m.name.clone()).collect();
         arch.validate(&names, &file)?;
+        if arch.declares_none(crate::architecture::NoneInput::ApiBudget) {
+            return Ok((
+                Vec::new(),
+                vec![crate::architecture::none_note(
+                    CHECK_ID,
+                    crate::architecture::NoneInput::ApiBudget,
+                )],
+            ));
+        }
         let project = ctx.project_root.file_name().map_or_else(
             || "repository".to_string(),
             |n| n.to_string_lossy().into_owned(),
