@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.86 - 2026-11-14 (proposed, Docs)
+
+**The route-authentication design note is now SEC-014** (`docs/rules/design-sec-014.md`, renamed from `design-sec-011.md`), with the PM's rulings recorded: id SEC-014 (the zeroize rule keeps SEC-011; slug migration is coderipper#281), the inventory Info finding is default-on, and "route with no recognised authentication" is Low/Low and opt-in until a denominator read. The `REMAINING.md` row follows the new id. Nothing is built.
+
 ## 0.43.85 - 2026-11-14 (proposed, Docs)
 
 **Language options note for CireSnave** (`docs/language-options-2026-11-12.md`; PM task 2026-11-12): how TypeScript, JavaScript, C, C++, CUDA and Slang would be parsed (tree-sitter grammars and `oxc_parser`, all MIT or Apache-2.0, crates.io versions), what rules need from each, first rules, and lane-day estimates marked unmeasured. Includes a small measured experiment: which grammar parses which language's sample. Docs only.
