@@ -6,6 +6,22 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.75 - 2026-11-13 (proposed, Added)
+
+**EXT-007 is built in part: a crate-private Rust trait with exactly one implementation** (`syn`; the first of the record's three halves). A trait that is not `pub`, has at least one item, and has exactly one `impl .. for ..` in the package outside `#[cfg(test)]`, for a type the package defines, with no implementation in test code (a test double is the second variant the seam is for) and no `#[automock]`, is reported once at its name: a seam nothing varies. Not reported: an extension trait (the one impl is for a primitive or another crate's type), a blanket impl, a marker trait, a trait named in a `macro_rules!`, a `pub` trait. Low severity, Low confidence, advisory. Not built: unused type parameters, parameters that always receive the same argument, and the history half. Evidence: 55 Rust repos under `C:\Projects` (local checkouts, 2026-11-12): 5 traits at first, of which 2 were extension traits (`ToF32Ext` on `f64`, `TensorResultExt` on another crate's `Tensor`, excluded now); the 3 left (`MaxUnknown` in agentlife, `CpuF16` and `CpuBF16` in fuel) are one-impl private traits, so 3 of 3 are what the rule says (whether each is a mistake is the owner's call). The exclusion was fitted to those two.
+
+## 0.43.74 - 2026-11-13 (proposed, Added)
+
+**`[architecture] none = [..]`: a repository can state it has none of an optional input.** `ARC-003` (volatile detail), `ARC-006` (an API budget), `ARC-007` (owned data) and `ARC-012` (a composition root) each need a section of the declaration that a small library may genuinely not have, and read "not run" without it, which the portfolio workflow fails the job on. `none = ["volatile", "api_budget", "owns_data", "composition"]` (any subset) in `[architecture]` makes each listed rule run and report 0 sites by declaration, with a note that says it is a statement the repository made. An unknown value, a value listed twice, and an input that is both listed and declared are configuration errors; a statement about one input excuses only that input's rule; a repository with no `[architecture]` table is still "not run". Documented in `docs/rules/arc.md`.
+
+## 0.43.62 - 2026-11-13 (proposed, Added)
+
+**ERR-006 is built (Rust): domain errors free of transport details.** For each policy component of an `[architecture]` declaration, a public error type (a struct or enum whose name ends in `Error`) whose fields or variants name a transport or driver type is reported once per `Type::Variant` or `Type.field`, at Low severity and Low confidence: a namespace `ARC-004` counts as infrastructure, or one this rule always counts (`http`, `hyper`, `axum`, `actix_web`, `reqwest`, `sqlx`, `diesel`, `redis` and similar), so `Db(sqlx::Error)` or `Http(http::StatusCode)` is found even when the declaration names no volatile detail. A repository with no `[architecture]` table or no policy component gets "not run", never clean. It is on by default in `extended` and `portfolio`, where it reports and never fails a run.
+
+## 0.43.61 - 2026-11-13 (proposed, Fix)
+
+**A waiver written once at a workspace root now covers the member it names.** A `--workspace` run (and a hand run of one member) read the members' own `.coderipper.toml` only, so an `[[allow]]` entry in the root's file matched no finding of any member, in whatever form it was written. Each member's run now also reads the root's `[[allow]]` entries, with `file` read relative to the workspace root as in the root's own run (`crates/a/src/lib.rs` waives the finding at `src/lib.rs` of the package in `crates/a`). The path stays exact, an inherited entry is shown as coming from the workspace root's file, and a member it does not name never reports it stale. A member's own file waives by the path from the member as before.
+
 ## 0.43.73 - 2026-11-13 (proposed, Fix)
 
 **`patent-sweep-record` reads a root `PATENT-SWEEP.md` when `docs/PATENT-SWEEP.md` is not tracked** (redactant#16): a repository that keeps its documents at the top is judged on that file (same version-line, heading and unread-hit checks; the finding names the file read). `docs/` wins when both exist; neither is still the finding that asks for `docs/PATENT-SWEEP.md`.
