@@ -50,3 +50,28 @@ reason = "a real cycle, one concept in two files: `session` creates a throwaway 
 check = "MOD-005"
 file = "src/checks/architecture/mod.rs"
 reason = "the registry of the architecture-family checks (ARC-001 to ARC-007, MOD-001 to MOD-003, MOD-008, MOD-010 and their shared module graph): one `mod` declaration and one `pub use` per check, so the number of modules it names is the number of checks by construction, not accidental coupling (it reached the threshold of 14 when MOD-008 was added). Owner: coderipper lane. Revisit if it starts to hold logic beyond the ARC-001 component graph it also contains, or when the family is split into sub-directories."
+
+# TYP-007 (a function with two or more bool parameters, advisory) reports three functions of this repository. Each is waived here with its reason; nothing is excluded by path.
+[[allow]]
+check = "TYP-007"
+file = "src/cli.rs"
+symbol = "conformance_command"
+reason = "`conformance_command(network, require_proven)` takes the two switches of the `conformance` subcommand as plain `bool`s because both come straight from clap flags; a small options struct would carry the names. Owner: coderipper lane. Remove this entry when the flags travel as a struct."
+
+[[allow]]
+check = "TYP-007"
+file = "src/module/neutral/sup001.rs"
+symbol = "loose_commands"
+reason = "`loose_commands(npm_lock, yarn_lock, locked_cargo_application)` takes three presence flags read from the repository; an enum or a struct of the three facts would say which is which. Owner: coderipper lane. Remove this entry when the facts travel as a struct."
+
+[[allow]]
+check = "TYP-007"
+file = "src/module/protocol.rs"
+symbol = "Capabilities::new"
+reason = "`Capabilities::new` takes the four capability switches of a module (`executes_project_code`, `needs_network`, `needs_checkout`, `emits_progress`) as plain `bool`s; it is called once per module from a const table and a builder or a flags type would name them. Owner: coderipper lane. Remove this entry when the constructor takes a flags type."
+
+[[allow]]
+check = "TYP-007"
+file = "src/module/neutral/typ001.rs"
+symbol = "reportable"
+reason = "`reportable(class, number, text, name)` is a private helper of TYP-001, called once, whose two `bool`s are the kind of primitive the parameter has (a number, a string) and are named at the single call site; an enum would add a type for one call. Owner: coderipper lane. Remove this entry when the helper takes the primitive's kind as a value."

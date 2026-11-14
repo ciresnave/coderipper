@@ -143,6 +143,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Replace the booleans with enums or separate functions, and return a descriptive type instead of a bare flag."
 related = ["RDB-004"]
+checked_today = "Rust, from the source with syn: every function with a parameter list (a free function, a method of an inherent impl, a method declared in a trait), outside vendored directories, tests, examples, benches, build.rs, cfg(test) items and #[test] functions, with two or more parameters whose type is the bare bool (not &bool, not Option<bool>) is reported once, at its name, naming the parameters. Not read: the methods of impl Trait for Type (the trait dictates the signature), the record's second half (a bare bool return whose meaning is unclear: a predicate's name says what the answer means), a bool behind a type alias, macro-generated functions, other languages. Low severity, Medium confidence. Related, not the same: RDB-004 reads a single flag argument that the body branches on."
 lifecycle = "experimental"
 
 [rule.applicability]
