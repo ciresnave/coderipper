@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.83 - 2026-11-14 (proposed, Docs)
+
+**ROADMAP: rows for TypeScript and JavaScript, C, C++, CUDA, Slang and shader code, and for completing the mechanical Rust rules** (PM task 2026-11-12, CireSnave: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds"). Measured at `main@9da0f91`: 128 of the 230 rules that apply to Rust have no check, 105 of them mechanical and 23 needing a model (parked, not declined). The census and language-options documents it links to land in #320 and #321. Docs only.
+
 ## 0.43.82 - 2026-11-14 (proposed, Added)
 
 **TYP-007 is built in part: a Rust function with two or more `bool` parameters** (`syn`). A free function, a method of an inherent `impl` or a method declared in a trait, outside tests, examples, benches and `build.rs`, with two or more parameters of the bare type `bool` is reported once, at its name, naming the parameters: at a call site `f(true, false)` does not say which flag is which, and two flags of one type can be swapped unseen. Default on in `extended` and `portfolio`, advisory, Low severity, Medium confidence. Not read: the methods of `impl Trait for Type` (the trait dictates the signature), `&bool` and `Option<bool>`, a `bool` behind a type alias, and the record's second half (a bare `bool` return whose meaning is unclear). Evidence: 55 Rust repos under `C:\Projects` (local checkouts, 2026-11-13): 81 functions in 16 repos (74 with two `bool` parameters, 5 with three, one with four, one with five; agentlife 25, aocl 12, unisql 9, fuel 7), and a read of 20 picked at random found each a function that does take two or more bare `bool`s, as the rule states it; whether to replace them is the owner's call.
