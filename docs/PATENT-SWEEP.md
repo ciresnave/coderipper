@@ -1564,3 +1564,22 @@ Version line covered by this addendum: **0.43** (0.43.62). One rule is added, re
 **Result: no hit reads on `ERR-006`.** The rule wraps no error, builds no exception hierarchy, runs no exception manager and shows no dialog; it reads declared components, error type names and namespaces in source. **Watch:** re-read US20160026521A1 before the rule suggests or generates the translating wrapper rather than only naming the leak.
 
 **Limits:** three queries, one search engine, no Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one publication read from page images), and the status shown is Google Patents' where it was reachable, not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.75)
+
+Version line covered by this addendum: **0.43** (0.43.75). One rule is added, read from `src/module/neutral/ext007.rs`: `EXT-007` (a crate-private Rust trait with exactly one implementation). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 97 (`EXT-007`).** Parse the Rust sources of a package, collect the traits that are not `pub`, count the `impl Trait for Type` blocks naming each, and report a trait with exactly one implementation (for a type the package defines, outside test code, no test-double implementer). Counting trait declarations and implementations by name is the whole mechanism; nothing is executed.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q195 | 97 | patent static analysis source code detect interface or abstract class with only one implementation speculative generality unnecessary abstraction refactoring |
+| Q196 | 97 | patent.google.com method identifying unused extension point abstraction single implementing class code smell detection automated refactoring suggestion |
+
+**Positive controls:** Q195 returned code-smell catalogs, an IntelliJ structural-search post and the Go `iface` linter (which reports interfaces with a single concrete type), so the engine reaches the neighbourhood. Q196 returned smell-detection research and US20080288932A1 (refactoring opportunities in an object-oriented program, Siemens). **A patent that reports a trait or interface for having one implementation, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). Neither query returned a granted patent on the practice itself; counting implementers is prior art as a linter feature and a code-smell catalog entry (Fowler's Speculative Generality).
+
+**Read:** the claims of **US20080288932A1** (Siemens, filed 2008-05-08; Google Patents shows it Expired, Fee Related); claims 1 to 7 are cancelled, the independent claims are claim 8 (a method), claim 12 (a method) and claim 16 (a system). Each requires computing a property set for an entity of a class, finding the entity of maximum cardinality, and moving entities whose ratio of shared to unshared properties exceeds a threshold. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `EXT-007`.** The rule computes no property set, ratio or cardinality and moves no entity; it counts `impl .. for ..` blocks by trait name. **Watch:** re-read before the rule reads the history half or proposes a refactoring.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
