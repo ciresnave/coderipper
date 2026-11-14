@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.76 - 2026-11-13 (proposed, Docs)
+
+**SEC-011 design note** (`docs/rules/design-sec-011.md`): the Rust route inventory for axum, actix-web, rocket and warp that would be the first reading of authentication on entry points, with the framework census (7 repositories depend on a Rust web framework), what can and cannot be judged, the staging, and three questions for the PM (the id clash with the zeroize rule of the 2026-10-24 plan, opt-in, whether an inventory finding is wanted). Design only: no rule, no check.
+
 ## 0.43.75 - 2026-11-13 (proposed, Added)
 
 **EXT-007 is built in part: a crate-private Rust trait with exactly one implementation** (`syn`; the first of the record's three halves). A trait that is not `pub`, has at least one item, and has exactly one `impl .. for ..` in the package outside `#[cfg(test)]`, for a type the package defines, with no implementation in test code (a test double is the second variant the seam is for) and no `#[automock]`, is reported once at its name: a seam nothing varies. Not reported: an extension trait (the one impl is for a primitive or another crate's type), a blanket impl, a marker trait, a trait named in a `macro_rules!`, a `pub` trait. Low severity, Low confidence, advisory. Not built: unused type parameters, parameters that always receive the same argument, and the history half. Evidence: 55 Rust repos under `C:\Projects` (local checkouts, 2026-11-12): 5 traits at first, of which 2 were extension traits (`ToF32Ext` on `f64`, `TensorResultExt` on another crate's `Tensor`, excluded now); the 3 left (`MaxUnknown` in agentlife, `CpuF16` and `CpuBF16` in fuel) are one-impl private traits, so 3 of 3 are what the rule says (whether each is a mistake is the owner's call). The exclusion was fitted to those two.
