@@ -1,0 +1,6 @@
+# The seeded defect: six nested ifs score 1+2+3+4+5+6 = 21, above the warning level of 15 (reported at the function name, line 1).
+
+[[expect]]
+rule = "RDB-003"
+file = "src/lib.rs"
+line = 1
