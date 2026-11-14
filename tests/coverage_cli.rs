@@ -11,8 +11,8 @@ mod common;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-/// The fixtures' `main` reads its arguments by hand (to answer OPS-011's probes), so the manifest names a parser as OPS-012 asks.
-const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nclap = \"4\"\n";
+/// The fixtures' `main` reads its arguments by hand (to answer OPS-011's probes), so the manifest names a parser as OPS-012 asks (and lists it as ignored for SUP-006, since no source names it).
+const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nclap = \"4\"\n\n[package.metadata.cargo-machete]\nignored = [\"clap\"]\n";
 
 /// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
 const LOCK: &str = "version = 4\n\n[[package]]\nname = \"clap\"\nversion = \"4.5.0\"\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\ndependencies = [\"clap\"]\n";
