@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.88 - 2026-11-14 (proposed, Added: the `pure` tag and `[architecture.effects]` in the declaration (no finding yet))
+
+**The `[architecture]` declaration accepts `pure = true` on a component and an optional `[architecture.effects]` table (`add`, `remove`)**, the keys the 2026-11-12 extension proposal gives EFX-001, plus `pure` as a value of `none`. Opt-in and read by nothing yet, so no run changes. Malformed keys, `pure` on an adapter, infrastructure or composition component, an `effects` table with no pure component, a blank or repeated entry, and `none = ["pure"]` beside a pure component are configuration errors that name the file. EFX-001 follows in its own PR. See `docs/rules/arc.md`.
+
 ## 0.43.86 - 2026-11-14 (proposed, Docs)
 
 **The route-authentication design note is now SEC-014** (`docs/rules/design-sec-014.md`, renamed from `design-sec-011.md`), with the PM's rulings recorded: id SEC-014 (the zeroize rule keeps SEC-011; slug migration is coderipper#281), the inventory Info finding is default-on, and "route with no recognised authentication" is Low/Low and opt-in until a denominator read. The `REMAINING.md` row follows the new id. Nothing is built.
