@@ -1583,3 +1583,23 @@ Version line covered by this addendum: **0.43** (0.43.75). One rule is added, re
 **Result: no hit reads on `EXT-007`.** The rule computes no property set, ratio or cardinality and moves no entity; it counts `impl .. for ..` blocks by trait name. **Watch:** re-read before the rule reads the history half or proposes a refactoring.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.77)
+
+Version line covered by this addendum: **0.43** (0.43.77). One rule is added, read from `src/module/neutral/api008.rs`: `API-008` (a public Rust signature names a type from a dependency). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 98 (`API-008`).** Read a Rust library package's manifest for its third-party dependency names, parse its sources, and for every `pub` function, method, field, alias and constant report a type path that starts with a dependency's name or with a name a `use` imports from it; one finding per dependency, at the first site. Matching paths against the manifest's dependency names is the whole mechanism; no type is resolved and no build runs.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q197 | 98 | patent static analysis detect public API signature exposing third-party library types dependency leaking into public interface semantic versioning breaking change |
+| Q198 | 98 | patent.google.com method checking public interface of software library references types defined in external dependency, warning, encapsulation of dependency types, source code analysis |
+| Q199 | 98 | "public interface" "third party" library types exposed application programming interface detect dependency leakage patent US claims analyzing source code API signatures |
+
+**Positive controls:** Q197 returned the research on semantic-versioning breakage and the `cargo-check-external-types` tool, so the engine reaches the neighbourhood; Q198 returned the same tool, the compiler's `exported_private_dependencies` lint and RFC 1977, and the Java ABI Inspector (`abi.cli`); Q199 returned Android third-party library detection papers and EP3982257. **A patent that reports a public signature for naming a dependency's type, from source and manifest, was not found; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not a patent:** `cargo-check-external-types` (a Rust tool that flags external types in a crate's public API, with an allow list; it reads rustdoc output and needs a nightly toolchain), rustc's `exported_private_dependencies` lint (RFC 1977) and the Java ABI Inspector do the same job. This rule is our own reading of the source and manifest, written without their code; the tools are named for credit and so a reader can choose them.
+
+**Read:** the claims of **EP3982257A1** (Microsoft, "Controlling runtime access to application programming interfaces", filed 2014-04-21; Google Patents shows it Active); claim 1 requires a development environment in which an API is marked with an attribute that changes the default visibility a runtime gives it (internal, private or public) for dynamic access requests. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `API-008`.** The rule marks no API, changes no visibility and controls no runtime access; it reads type paths in public signatures against a manifest. **Watch:** re-read EP3982257A1 before the rule reads an attribute that declares which dependency types may be exposed.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one document read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
