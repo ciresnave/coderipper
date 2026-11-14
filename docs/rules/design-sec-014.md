@@ -1,7 +1,7 @@
-# SEC-011 design note: authentication and authorization on Rust entry points
+# SEC-014 design note: authentication and authorization on Rust entry points
 
 > Design only. No code, no rule record, no check. Written by the coderipper-c lane at `origin/main` 842261a, 2026-11-13, for the PM to rule on.
-> **Which SEC-011:** this note is about the row in [`REMAINING.md`](REMAINING.md) ("Authentication and authorization on Rust entry points",
+> **Id (ruled by the PM, see "PM rulings"):** this rule is **SEC-014**; it was drafted as SEC-011. The row in [`REMAINING.md`](REMAINING.md) ("Authentication and authorization on Rust entry points",
 > the Rust half of SEC-003 and SEC-010; scheduled in `RULES-REVIEW-2026-11-07.md` item 3). The 2026-10-24 security-crypto plan
 > (`docs/superpowers/plans/2026-10-24-security-crypto-rules.md`) uses the same id for "secret field not zeroized"; one of the two needs another id before either is built.
 
@@ -9,7 +9,7 @@
 
 An HTTP route of a Rust web service is reached by anyone who can reach the port. SEC-003 asks that every such handler enforce access
 control, preferably in one deny-by-default layer. The catalog's SEC-003 excludes Rust (`languages = ["typescript","python"]`), so a Rust
-service gets no reading at all; SEC-011 would be that reading, first as an **inventory** (which routes exist, which of them are behind an
+service gets no reading at all; SEC-014 would be that reading, first as an **inventory** (which routes exist, which of them are behind an
 authentication layer or extractor) and only later as a judgement.
 
 ## Denominator: how much Rust here serves HTTP
@@ -65,14 +65,15 @@ A route is a `(method, path, handler)` triple. What `syn` can see without types:
 
 ## Staging
 
-1. **Cut 1:** axum and actix-web, inventory only (finding 1), opt-in; Info severity; a conformance pair, a patent sweep, and a read of every portfolio service by hand.
+1. **Cut 1:** axum and actix-web, inventory only (finding 1), default on per the PM ruling below; Info severity; a conformance pair, a patent sweep, and a read of every portfolio service by hand.
 2. **Cut 2:** rocket and warp inventory; the "route with no recognised authentication" finding (2), opt-in, Low/Low.
 3. **Cut 3 (if the read supports it):** SEC-003 and SEC-008 gain Rust applicability in the catalog, `[security] auth_names`, default-on only if the false-positive rate on real services is low with its denominator stated.
 
-## Questions for the PM
+## PM rulings
 
-- **Which id?** Renumber the zeroize rule (planned SEC-011 in the 2026-10-24 plan) or call this one SEC-014? Nothing is built under either id yet (`rules/sec.toml` has no SEC-011 record at 842261a).
-- **Opt-in for cut 1 and 2?** The denominator above is about four services; a default-on rule needs a larger read, which this portfolio cannot supply.
-- **Is an inventory Info finding wanted at all?** It is the least judgemental and the most useful to a reviewer, but it reports on every service that has routes.
+- **Id: SEC-014** (free). The zeroize rule keeps SEC-011. The slug migration is coderipper#281.
+- **Inventory Info finding: wanted, default ON.** One finding per package, never a judgement.
+- **"Route with no recognised authentication": Low severity, Low confidence, opt-in** until a read of real services supplies a denominator.
+- **Denominator:** 7 repositories depend on a Rust web framework (table above), an upper bound on services.
 
 — lane: coderipper-c
