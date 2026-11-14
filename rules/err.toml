@@ -163,13 +163,14 @@ evidence_strength = "C"
 contested = false
 scope = "project"
 network = "local"
-unit = "package"
+unit = "repository"
 executes_project_code = false
 default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Keep domain errors in domain terms and translate them to status codes or driver-specific forms in the adapter at the edge."
 related = ["ARC-004"]
+checked_today = "Rust workspaces with an [architecture] table that has a policy component (role = policy, or no role and volatility = stable); a repository that declares none gets not run, never clean. For each policy component, in the library of each of its crates at HEAD (test items skipped), every public error type, a struct or enum whose name ends in Error: its public fields and its variant fields, the types they name resolved through the module use declarations. A path is a transport detail when it is infrastructure for ARC-004 (a namespace or name in [architecture.volatile], [arc004] patterns, a crate of a volatile, adapter or infrastructure component), or starts with a namespace this rule always counts as transport or driver: http, hyper, axum, actix_web, warp, rocket, tonic, reqwest, tower_http, sqlx, diesel, sea_orm, tokio_postgres, postgres, rusqlite, mysql, mysql_async, redis, mongodb, rdkafka, lapin. One finding per Type::Variant or Type.field site, naming every transport type; Low severity, Low confidence; default on in extended and portfolio, advisory (the portfolio profile only reports it). Not judged: an error type whose name does not end in Error, methods of an error type, a type alias or re-export that hides the origin, macro-generated items (a thiserror #[from] field is read, the generated impl is not), glob imports, module-path components (noted, only whole crates judged)."
 lifecycle = "experimental"
 
 [rule.applicability]

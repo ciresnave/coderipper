@@ -103,6 +103,8 @@ builtin_checks! {
     Entangled => ARC_011, true, false, EntangledCheck;
     /// `ARC-012`.
     CompositionRoots => ARC_012, true, false, CompositionRootsCheck;
+    /// `ERR-006`.
+    TransportErrors => ERR_006, true, false, TransportErrorCheck;
     /// `MOD-001`.
     PublicSurface => MOD_001, true, false, PublicSurfaceCheck;
     /// `MOD-002`.
