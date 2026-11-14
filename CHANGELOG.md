@@ -8,7 +8,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ## 0.43.78 - 2026-11-14 (proposed, Docs)
 
-**ROADMAP M17:** a declaration key for API-008 (allowed third-party types per crate, a reason required); API-008 stays opt-in until it exists and the false-positive rate with it is stated. Docs only.
+**ROADMAP M17:** a declaration key for API-008 (allowed third-party types per crate, a reason required); API-008 stays opt-in until it exists and the false-positive rate with it is stated, as a sampled rate with its denominator. Docs only.
 
 ## 0.43.77 - 2026-11-13 (proposed, Added)
 
