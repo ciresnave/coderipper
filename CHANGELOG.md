@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.79 - 2026-11-14 (proposed, Fix)
+
+**The portfolio workflow installs coderipper 0.43.77.** It was pinned at 0.43.49, so a caller could not use the changelog.d fragment rule of `version-and-changelog` (#313), a root `PATENT-SWEEP.md` (#327) or `[architecture] none = [..]` (#322) however it repinned the workflow. Callers pick the new binary up by moving their workflow SHA to this change.
+
 ## 0.43.78 - 2026-11-14 (proposed, Docs)
 
 **ROADMAP M17:** a declaration key for API-008 (allowed third-party types per crate, a reason required); API-008 stays opt-in until it exists and the false-positive rate with it is stated, as a sampled rate with its denominator. Docs only.
