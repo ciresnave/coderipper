@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.80 - 2026-11-14 (proposed, Added)
+
+**RDB-003 is built in part: a Rust function whose cognitive complexity is over the record's levels** (`syn`; opt-in, `coderipper check RDB-003`, in no profile). SonarSource's *Cognitive Complexity* (G. Ann Campbell, 2017) of every function with a body outside tests, examples, benches, `build.rs` and generated files: +1 plus the nesting level per `if`, `match`, `for`, `while` and `loop`, +1 per `else`, +1 per sequence of like `&&`/`||`, +1 per labelled `break`/`continue` and direct recursive call, closures add nesting. One finding per function over 15 (Low) and over 30 (Medium), Medium confidence. Not built: the "must not become more complex while edited" half (needs a baseline at the merge base). Evidence: 55 Rust repos under `C:\Projects` (local checkouts, 2026-11-13): 891 functions over 15 in 39 repos (255 over 30, median score 23, 90th percentile 49), which is why it is opt-in; one function (`graph_from_metadata`, 21) was scored by hand and matched the rule exactly. Parsers and state machines score high by nature: allow them with a reason.
+
 ## 0.43.79 - 2026-11-14 (proposed, Fix)
 
 **The portfolio workflow installs coderipper 0.43.77.** It was pinned at 0.43.49, so a caller could not use the changelog.d fragment rule of `version-and-changelog` (#313), a root `PATENT-SWEEP.md` (#327) or `[architecture] none = [..]` (#322) however it repinned the workflow. Callers pick the new binary up by moving their workflow SHA to this change.
