@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.84 - 2026-11-14 (proposed, Docs)
+
+**Coverage census of the rule catalog per language** (`docs/rules/COVERAGE-CENSUS-2026-11-12.md`; PM task 2026-11-12): measured at `main@9da0f91` with the binary's own coverage report. Rust: 230 rules apply, 102 built, 128 not (105 mechanical, 23 needing a model); TypeScript 32 of 221 (the 32nd is SEC-004, a neutral-module rule that reads Rust); the language-neutral rules 31 of 183. The counts are with all 8 delegated tools installed (11 delegated rules; without them Rust reads 89 covered, not 100); the census links `docs/language-options-2026-11-12.md`, which lands in #321. Docs only.
+
 ## 0.43.83 - 2026-11-14 (proposed, Docs)
 
 **ROADMAP: rows for TypeScript and JavaScript, C, C++, CUDA, Slang and shader code, and for completing the mechanical Rust rules** (PM task 2026-11-12, CireSnave: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds"). Measured at `main@9da0f91`: 128 of the 230 rules that apply to Rust have no check, 105 of them mechanical and 23 needing a model (parked, not declined). The census and language-options documents it links to land in #320 and #321. Docs only.
