@@ -1,0 +1,8 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "pricing"
+paths = ["pricing"]
+role = "policy"
+pure = true
