@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.78 - 2026-11-14 (proposed, Docs)
+
+**ROADMAP M17:** a declaration key for API-008 (allowed third-party types per crate, a reason required); API-008 stays opt-in until it exists and the false-positive rate with it is stated, as a sampled rate with its denominator. Docs only.
+
 ## 0.43.77 - 2026-11-13 (proposed, Added)
 
 **API-008 is built in part: a public Rust signature that names a type from a third-party dependency** (`syn` and `Cargo.toml`; opt-in, `coderipper check API-008`, in no profile). For a library package, a `pub` function, method, field, alias, const or static whose type path starts with the name of a dependency (or of a name a `use` imports from it) is reported once per package and dependency, at the first site, with the number of sites; Low severity, Medium confidence. Path dependencies and packages of the same repository are not third parties; `pub use` re-exports, trait-impl methods and test code are not read. Whether an exposure is deliberate is not judged (an allowlist entry with a reason declares it). Evidence: 55 Rust repos under `C:\Projects` (local checkouts, 2026-11-13): 253 findings in 37 repos (most for `serde_json` 27, `chrono` 13, `tokio` 12, `half` 9), and a hand read of 26 at random found each one a real exposure as the rule states it; many are deliberate (a JSON value type, a clock), which is why the rule is opt-in. The sibling-package exclusion changed none of the 253 (the sibling crates here live in other repositories). Prior art for the practice, credited: `cargo-check-external-types` and rustc's `exported_private_dependencies` lint.
