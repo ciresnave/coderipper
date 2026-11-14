@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.43.74 - 2026-11-13 (proposed, Added)
+
+**`[architecture] none = [..]`: a repository can state it has none of an optional input.** `ARC-003` (volatile detail), `ARC-006` (an API budget), `ARC-007` (owned data) and `ARC-012` (a composition root) each need a section of the declaration that a small library may genuinely not have, and read "not run" without it, which the portfolio workflow fails the job on. `none = ["volatile", "api_budget", "owns_data", "composition"]` (any subset) in `[architecture]` makes each listed rule run and report 0 sites by declaration, with a note that says it is a statement the repository made. An unknown value, a value listed twice, and an input that is both listed and declared are configuration errors; a statement about one input excuses only that input's rule; a repository with no `[architecture]` table is still "not run". Documented in `docs/rules/arc.md`.
+
 ## 0.43.62 - 2026-11-13 (proposed, Added)
 
 **ERR-006 is built (Rust): domain errors free of transport details.** For each policy component of an `[architecture]` declaration, a public error type (a struct or enum whose name ends in `Error`) whose fields or variants name a transport or driver type is reported once per `Type::Variant` or `Type.field`, at Low severity and Low confidence: a namespace `ARC-004` counts as infrastructure, or one this rule always counts (`http`, `hyper`, `axum`, `actix_web`, `reqwest`, `sqlx`, `diesel`, `redis` and similar), so `Db(sqlx::Error)` or `Http(http::StatusCode)` is found even when the declaration names no volatile detail. A repository with no `[architecture]` table or no policy component gets "not run", never clean. It is on by default in `extended` and `portfolio`, where it reports and never fails a run.
