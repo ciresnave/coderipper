@@ -6,10 +6,6 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
-## 0.43.64 - 2026-11-13 (proposed, Docs)
-
-**ROADMAP: rows for TypeScript and JavaScript, C, C++, CUDA, Slang and shader code, and for completing the mechanical Rust rules** (PM task 2026-11-12, CireSnave: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds"). Measured at `main@9da0f91`: 128 of the 230 rules that apply to Rust have no check, 105 of them mechanical and 23 needing a model (parked, not declined). Docs only.
-
 ## 0.43.62 - 2026-11-13 (proposed, Added)
 
 **ERR-006 is built (Rust): domain errors free of transport details.** For each policy component of an `[architecture]` declaration, a public error type (a struct or enum whose name ends in `Error`) whose fields or variants name a transport or driver type is reported once per `Type::Variant` or `Type.field`, at Low severity and Low confidence: a namespace `ARC-004` counts as infrastructure, or one this rule always counts (`http`, `hyper`, `axum`, `actix_web`, `reqwest`, `sqlx`, `diesel`, `redis` and similar), so `Db(sqlx::Error)` or `Http(http::StatusCode)` is found even when the declaration names no volatile detail. A repository with no `[architecture]` table or no policy component gets "not run", never clean. It is on by default in `extended` and `portfolio`, where it reports and never fails a run.
