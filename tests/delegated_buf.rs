@@ -331,7 +331,7 @@ fn a_named_baseline_that_does_not_exist_is_an_error_not_a_gap() {
 }
 
 #[test]
-fn the_repository_cannot_silence_its_own_findings() {
+fn the_repositorys_own_buf_ignore_is_honoured_and_said_at_info() {
     needs_tool!();
     let ignoring = "version: v2\nbreaking:\n  ignore:\n    - a\n";
     let repo = released(&[
@@ -373,11 +373,43 @@ fn the_repository_cannot_silence_its_own_findings() {
         "the control did not silence anything: {plain}"
     );
 
+    // ruling 8: buf's own ignore files are a waiver source. The root buf.yaml ignores `a`, where the change is, so buf reports no
+    // violation, and each buf.yaml that ignores something is one Info finding (no reason, owner or expiry: GOV-002)
     let (code, out, err) = run_json(repo.path());
     assert_eq!(code, 0, "{out}\n{err}");
     let all = findings(&out);
-    assert_eq!(all.len(), 1, "{out}\n{err}");
-    assert_eq!(all[0]["subject"], "FIELD_SAME_TYPE");
+    assert!(all.iter().all(|f| f["severity"] == "info"), "{out}\n{err}");
+    assert!(
+        all.iter().all(|f| f["subject"] != "FIELD_SAME_TYPE"),
+        "the ignored violation came back: {out}"
+    );
+    assert!(
+        all.iter().any(|f| f["subject"] == "buf.yaml"
+            && f["summary"].as_str().unwrap().contains("needs a reason")),
+        "{out}\n{err}"
+    );
+}
+
+#[test]
+fn a_buf_ignore_for_other_paths_silences_nothing_here() {
+    needs_tool!();
+    // control for the test above: the same change, with a buf.yaml that ignores a path the change is not in, is still reported
+    let elsewhere = "version: v2\nbreaking:\n  ignore:\n    - zzz\n";
+    let repo = released(&[
+        (S, &schema("int32")),
+        (AGAINST_V1.0, AGAINST_V1.1),
+        ("buf.yaml", elsewhere),
+    ]);
+    write(repo.path(), &[(S, &schema("string"))]);
+    commit(repo.path(), "retype");
+    let (code, out, err) = run_json(repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    let all = findings(&out);
+    assert!(
+        all.iter()
+            .any(|f| f["subject"] == "FIELD_SAME_TYPE" && f["severity"] == "high"),
+        "{out}\n{err}"
+    );
 }
 
 #[test]

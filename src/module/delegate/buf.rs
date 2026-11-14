@@ -26,12 +26,12 @@
 //! import it cannot find or a syntax error, and builds all of the schemas or none (measured: with one file that does not compile it
 //! prints that error and **no** violation at all), so the rule is then a **coverage gap** naming the file, never clean.
 //!
-//! **The repository cannot silence the rule:** buf reads its configuration from a `buf.yaml` found in the tree and from the baseline
-//! (`breaking: ignore:`, `ignore_only:`, `use:`, `except:`). Both are replaced by a configuration given on the command line
-//! (`--config` and `--against-config`; measured with buf 1.73.0: a `buf.yaml` that ignores the whole tree changes nothing, nested ones
-//! included; no test tells whether `--against-config` is needed, so it is defensive). An inline `// buf:breaking:ignore` comment is
-//! not a feature of buf 1.73.0 (measured: the finding comes back), so nothing turns it off. The project's way to suppress a finding is
-//! the `.coderipper.toml` allowlist, which is visible.
+//! **The project's own buf ignores are a waiver source (CireSnave 2026-11-07, ruling 8: "Honor each tools' own ignore files"):** buf
+//! reads its configuration from a `buf.yaml` found in the tree. The configuration is still given on the command line (`--config` and
+//! `--against-config`) so that `use:` and `except:` cannot change which rules run, but the tracked `buf.yaml` files' `breaking:
+//! ignore:` and `ignore_only:` (paths relative to the file's directory) are carried into it. A buf.yaml that ignores something is
+//! reported as one **Info** finding at the file, because the ignore carries no reason, owner or expiry (GOV-002). An inline
+//! `// buf:breaking:ignore` comment is not a feature of buf 1.73.0 (measured: the finding comes back), so nothing reads it.
 //!
 //! **Only the project's files:** buf walks the module roots on disk, so a finding is kept only for a file the index tracks or the
 //! baseline had (a stray `.proto` in an ignored directory is not the project's; a violation left out is counted and the result says so,
@@ -317,16 +317,119 @@ fn module_roots(listing: &str, prefix: &str, read: &dyn Fn(&str) -> Option<Strin
     roots
 }
 
-/// The configuration buf is given for both sides of the comparison, in place of every `buf.yaml`.
-fn config(roots: &[String]) -> String {
+/// What the project's tracked `buf.yaml` files ignore under `breaking:` (paths relative to the top of the working tree).
+#[derive(Debug, Clone, Default, PartialEq)]
+struct Ignores {
+    /// `breaking: ignore:`, whole paths.
+    ignore: Vec<String>,
+    /// `breaking: ignore_only:`, a rule or category and the paths it is ignored in.
+    ignore_only: std::collections::BTreeMap<String, Vec<String>>,
+    /// The `buf.yaml` files that ignore something.
+    sources: Vec<String>,
+}
+
+/// The `ignore:` and `ignore_only:` of every tracked `buf.yaml` / `buf.yml` below `prefix`, as paths from the top of the tree. A path
+/// that is absolute or leaves its directory is not carried: it names nothing of the project's.
+fn native_ignores(listing: &str, prefix: &str, read: &dyn Fn(&str) -> Option<String>) -> Ignores {
+    let mut out = Ignores::default();
+    for path in listing.split('\0') {
+        if path.is_empty() || !path.starts_with(prefix) || skipped(path) {
+            continue;
+        }
+        let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
+        if !matches!(name, "buf.yaml" | "buf.yml") {
+            continue;
+        }
+        let Some(text) = read(path) else { continue };
+        let Ok(doc) = yaml_serde::from_str::<yaml_serde::Value>(&text) else {
+            continue;
+        };
+        let Some(breaking) = doc.get("breaking") else {
+            continue;
+        };
+        let join = |rel: &str| -> Option<String> {
+            let rel = rel.trim().trim_start_matches("./").trim_end_matches('/');
+            if rel.is_empty()
+                || rel.starts_with('/')
+                || rel.contains(':')
+                || rel.split('/').any(|s| s == "..")
+            {
+                return None;
+            }
+            Some(if dir.is_empty() {
+                rel.to_string()
+            } else {
+                format!("{dir}/{rel}")
+            })
+        };
+        let paths = |v: &yaml_serde::Value| -> Vec<String> {
+            v.as_sequence()
+                .map(|s| s.iter().filter_map(|p| p.as_str().and_then(join)).collect())
+                .unwrap_or_default()
+        };
+        let mut found = false;
+        if let Some(list) = breaking.get("ignore") {
+            let list = paths(list);
+            found |= !list.is_empty();
+            out.ignore.extend(list);
+        }
+        if let Some(only) = breaking.get("ignore_only").and_then(|m| m.as_mapping()) {
+            for (rule, list) in only {
+                let (Some(rule), list) = (rule.as_str(), paths(list)) else {
+                    continue;
+                };
+                if !list.is_empty() {
+                    found = true;
+                    out.ignore_only
+                        .entry(rule.to_string())
+                        .or_default()
+                        .extend(list);
+                }
+            }
+        }
+        if found {
+            out.sources.push(path.to_string());
+        }
+    }
+    // buf refuses an ignore that lies within another (measured, buf 1.73.0: `ignore "a/a" is within ignore "a" which is not allowed`),
+    // so each list keeps the outer path only
+    let outer = |list: &mut Vec<String>| {
+        list.sort();
+        list.dedup();
+        let all = list.clone();
+        list.retain(|p| {
+            !all.iter().any(|o| {
+                o != p
+                    && p.strip_prefix(o.as_str())
+                        .is_some_and(|t| t.starts_with('/'))
+            })
+        });
+    };
+    outer(&mut out.ignore);
+    for list in out.ignore_only.values_mut() {
+        outer(list);
+    }
+    out
+}
+
+/// The configuration buf is given for both sides of the comparison, in place of every `buf.yaml`: the modules, the `FILE` category,
+/// and what the project's own `buf.yaml` files ignore.
+fn config(roots: &[String], ignores: &Ignores) -> String {
     let modules: Vec<serde_json::Value> = roots
         .iter()
         .map(|r| serde_json::json!({ "path": if r.is_empty() { "." } else { r.as_str() } }))
         .collect();
+    let mut breaking = serde_json::json!({ "use": ["FILE"] });
+    if !ignores.ignore.is_empty() {
+        breaking["ignore"] = serde_json::json!(ignores.ignore);
+    }
+    if !ignores.ignore_only.is_empty() {
+        breaking["ignore_only"] = serde_json::json!(ignores.ignore_only);
+    }
     serde_json::json!({
         "version": "v2",
         "modules": modules,
-        "breaking": { "use": ["FILE"] },
+        "breaking": breaking,
     })
     .to_string()
 }
@@ -343,6 +446,8 @@ struct Plan {
     removed: Vec<String>,
     /// The files whose findings are the project's: tracked now, or in the baseline.
     known: HashSet<String>,
+    /// What the project's own `buf.yaml` files ignore.
+    ignores: Ignores,
 }
 
 /// What preparing the run came to.
@@ -464,6 +569,7 @@ fn prepare(root: &Path, configured: Option<&str>) -> Prepared {
             ));
         }
     }
+    let ignores = native_ignores(&listing, &repo.prefix, &read_tree);
     Prepared::Ready(Box::new(Plan {
         repo,
         sha,
@@ -471,6 +577,7 @@ fn prepare(root: &Path, configured: Option<&str>) -> Prepared {
         roots,
         removed,
         known,
+        ignores,
     }))
 }
 
@@ -513,7 +620,7 @@ fn short(sha: &str) -> &str {
 /// The arguments of the comparison: buf is given the top of the working tree, the baseline as a commit of the repository, and the
 /// same configuration for both, with JSON on stdout.
 fn check_args(plan: &Plan) -> Vec<OsString> {
-    let config = config(&plan.roots);
+    let config = config(&plan.roots, &plan.ignores);
     let against = format!("{}#ref={}", plan.repo.common.display(), plan.sha);
     vec![
         OsString::from("breaking"),
@@ -635,6 +742,8 @@ enum Scan {
         /// What was not judged, in words (each is a reason a clean result cannot be believed).
         notes: Vec<String>,
         how: String,
+        /// The `buf.yaml` files that ignore something: honoured, and each is said in an Info finding.
+        waivers: Vec<String>,
     },
     Gap(String),
     Failed(ErrorKind, String),
@@ -729,7 +838,27 @@ fn scan_with(
         hits: report.hits,
         notes,
         how,
+        waivers: plan.ignores.sources.clone(),
     }
+}
+
+/// The Info finding for a `buf.yaml` that ignores part of the tree: honoured, and it gives no reason, owner or expiry.
+fn waiver_finding(file: &str, project: &str) -> Finding {
+    let file = clean(file, 200);
+    Finding::new(
+        RULE,
+        Severity::Info,
+        Confidence::High,
+        project,
+        format!("{file} ignores breaking-change findings and needs a reason"),
+        format!(
+            "{file} has `breaking: ignore:` or `ignore_only:`, and buf's own ignore is honoured, so a violation in those paths is not \
+             reported. That is the project's own waiver and it is respected, but it gives no reason, owner or expiry (GOV-002): say why \
+             in the file's comments, or move the waiver to an `[[allow]]` entry, which carries all three."
+        ),
+    )
+    .location(Location::new(file.clone(), Some(1)))
+    .subject(file)
 }
 
 /// What a result says about what was not judged.
@@ -798,25 +927,35 @@ pub(super) fn run(env: &ToolEnv, request: &Request) -> Verdict {
         }
     };
     match scan_with(&program, check_args, request, allowlist.buf_baseline()) {
-        Scan::Read { hits, notes, how } => {
+        Scan::Read {
+            hits,
+            notes,
+            how,
+            waivers,
+        } => {
             let note = caveat(&notes);
+            let project = root
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let waived: Vec<Finding> = waivers
+                .iter()
+                .map(|file| waiver_finding(file, &project))
+                .collect();
             if hits.is_empty() {
                 if let Some(note) = note {
                     return Verdict::Unavailable(format!(
                         "{TOOL} found nothing to report, but it cannot say the schemas are compatible. {note}"
                     ));
                 }
-                return Verdict::Findings(vec![]);
+                return Verdict::Findings(waived);
             }
-            let project = root
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            Verdict::Findings(
-                hits.iter()
-                    .map(|h| to_finding(h, &project, &how, note.as_deref()))
-                    .collect(),
-            )
+            let mut found: Vec<Finding> = hits
+                .iter()
+                .map(|h| to_finding(h, &project, &how, note.as_deref()))
+                .collect();
+            found.extend(waived);
+            Verdict::Findings(found)
         }
         Scan::Gap(detail) => Verdict::Unavailable(detail),
         Scan::Failed(kind, detail) => Verdict::Failed(kind, detail),
@@ -924,13 +1063,60 @@ mod tests {
 
     #[test]
     fn the_configuration_replaces_every_buf_yaml_and_selects_file() {
-        let value: serde_json::Value =
-            serde_json::from_str(&config(&["proto".to_string(), String::new()])).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&config(
+            &["proto".to_string(), String::new()],
+            &Ignores::default(),
+        ))
+        .unwrap();
         assert_eq!(value["version"], "v2");
         assert_eq!(value["modules"][0]["path"], "proto");
         assert_eq!(value["modules"][1]["path"], ".");
         assert_eq!(value["breaking"]["use"][0], "FILE");
         assert!(value.get("lint").is_none() && value["breaking"].get("ignore").is_none());
+    }
+
+    #[test]
+    fn a_buf_yaml_ignore_is_carried_into_the_configuration_from_its_own_directory() {
+        let read = files(&[
+            (
+                "proto/buf.yaml",
+                "version: v1\nbreaking:\n  use:\n    - WIRE\n  ignore:\n    - old\n  ignore_only:\n    FIELD_SAME_TYPE:\n      - legacy/a.proto\n",
+            ),
+            ("other/buf.yaml", "version: v1\nbreaking:\n  ignore:\n    - ../up\n    - /abs\n"),
+        ]);
+        let found = native_ignores("proto/buf.yaml\0other/buf.yaml\0", "", &read);
+        assert_eq!(found.ignore, ["proto/old"]);
+        assert_eq!(
+            found.ignore_only["FIELD_SAME_TYPE"],
+            ["proto/legacy/a.proto"]
+        );
+        assert_eq!(found.sources, ["proto/buf.yaml"]);
+        let value: serde_json::Value =
+            serde_json::from_str(&config(&["proto".to_string()], &found)).unwrap();
+        // `use:` is still the tool's own category, not the project's
+        assert_eq!(value["breaking"]["use"][0], "FILE");
+        assert_eq!(value["breaking"]["ignore"][0], "proto/old");
+        assert_eq!(
+            value["breaking"]["ignore_only"]["FIELD_SAME_TYPE"][0],
+            "proto/legacy/a.proto"
+        );
+        // an ignore within another is dropped (buf refuses it), the outer one stays
+        let nested = native_ignores(
+            "buf.yaml\0a/buf.yaml\0",
+            "",
+            &files(&[
+                ("buf.yaml", "version: v2\nbreaking:\n  ignore:\n    - a\n"),
+                ("a/buf.yaml", "version: v2\nbreaking:\n  ignore:\n    - a\n"),
+            ]),
+        );
+        assert_eq!(nested.ignore, ["a"]);
+        // control: a buf.yaml that ignores nothing adds nothing
+        let none = native_ignores(
+            "a/buf.yaml\0",
+            "",
+            &files(&[("a/buf.yaml", "version: v1\n")]),
+        );
+        assert_eq!(none, Ignores::default());
     }
 
     #[test]
@@ -1030,6 +1216,7 @@ mod tests {
             roots: vec![String::new()],
             removed: vec![],
             known: HashSet::new(),
+            ignores: Ignores::default(),
         };
         let args: Vec<String> = check_args(&plan)
             .iter()

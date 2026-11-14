@@ -468,8 +468,9 @@ coderipper check SUP-008 --profile extended
 One finding per zizmor finding, at the file and line it is on, with zizmor's severity and confidence. zizmor cannot know what a job needs,
 so a workflow-level `contents: write` that is needed is reported too; say so in the `.coderipper.toml` allowlist. A workflow zizmor could not read (a YAML
 syntax error: it skips the file and still exits 0) makes a clean result **not run**, never clean, as does a project with no workflow. The
-repository cannot silence the rule: a committed `zizmor.yml` and `# zizmor: ignore` comments are not honoured (a finding that carries such a
-comment is reported and says so).
+project's own zizmor ignores are honoured, as a waiver source: a committed `zizmor.yml` that disables an audit or ignores a place is
+respected and reported as one finding at the file (Medium when nothing in a comment says why, Info when one does), and a finding that carries a `# zizmor: ignore` comment is reported at Info; each
+says the waiver needs a reason, an owner and an expiry (GOV-002), which an `[[allow]]` entry carries.
 
 ### Rule run by a tool: `API-001`
 
@@ -520,8 +521,9 @@ that had schema in the baseline and has none now cannot be compared by buf: the 
 `.coderipper.toml` that does not exist is an **error**. A `.proto` file buf cannot compile (a missing import, a Buf Schema Registry
 dependency, a syntax error) stops buf from judging any file (it builds all of the schemas or none), so the rule is **not run**, naming the file. Where the schemas' roots are is read from
 the tracked `buf.yaml` and `buf.work.yaml` files (their directory, a v2 file's `modules:` `path:`s, a work file's `directories:`), else the
-project's directory. The repository cannot silence the rule: its `buf.yaml` (at the tree and at the baseline) is replaced by a configuration
-given on the command line. One finding per violation, at the file and line buf prints, with buf's rule id as the subject.
+project's directory. The project's own buf ignores are honoured, as a waiver source: the `breaking: ignore:` and `ignore_only:` of its tracked `buf.yaml` files
+are carried into the configuration given on the command line (which still fixes the rule category), and each buf.yaml that ignores something
+is one Info finding saying the waiver needs a reason, an owner and an expiry (GOV-002). One finding per violation, at the file and line buf prints, with buf's rule id as the subject.
 
 ### Rule run by a tool: `SEC-009`
 
