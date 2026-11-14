@@ -8,7 +8,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ## 0.43.84 - 2026-11-14 (proposed, Docs)
 
-**Coverage census of the rule catalog per language** (`docs/rules/COVERAGE-CENSUS-2026-11-12.md`; PM task 2026-11-12): measured at `main@9da0f91` with the binary's own coverage report. Rust: 230 rules apply, 102 built, 128 not (105 mechanical, 23 needing a model); TypeScript 32 of 221; the language-neutral rules 31 of 183. Docs only.
+**Coverage census of the rule catalog per language** (`docs/rules/COVERAGE-CENSUS-2026-11-12.md`; PM task 2026-11-12): measured at `main@9da0f91` with the binary's own coverage report. Rust: 230 rules apply, 102 built, 128 not (105 mechanical, 23 needing a model); TypeScript 32 of 221 (the 32nd is SEC-004, a neutral-module rule that reads Rust); the language-neutral rules 31 of 183. The counts are with all 8 delegated tools installed (11 delegated rules; without them Rust reads 89 covered, not 100); the census links `docs/language-options-2026-11-12.md`, which lands in #321. Docs only.
 
 ## 0.43.81 - 2026-11-14 (proposed, Added)
 

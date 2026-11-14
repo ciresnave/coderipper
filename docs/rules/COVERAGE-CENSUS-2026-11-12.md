@@ -10,7 +10,10 @@ The checks that require a model's judgement, those can wait until we have more o
 1. **Denominator:** every `[[rule]]` in `rules/*.toml` at that ref: **233 rules**. Each record names the languages it applies to (`[rule.applicability] languages`):
    183 `any`, 35 `rust, typescript, python`, 12 `rust`, 3 `typescript, python`. No record names C, C++, CUDA, Slang, HLSL, GLSL or JavaScript.
 2. **Built, per language:** the binary's own coverage report, `coderipper fast --profile extended --coverage=full`, run on a one-file Rust repository and on a repository holding a
-   `package.json` and a `.ts` file. The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
+   `package.json` and a `.ts` file. **Tool setup: all 8 delegated tools installed** (`buf`, `cargo-semver-checks`, `checkov`, `gitleaks`, `lychee`, `osv-scanner`, `squawk`, `zizmor`, as pinned by the binary's embedded tool lock at that ref).
+   The covered figure depends on it, the built figure does not: re-run at `9da0f91` (0.43.59, release build) with `CODERIPPER_TOOLS_DIR` pointing at an empty directory, Rust reads **89 covered,
+   13 claimed but not proven** (the 11 delegated rules move from covered to unproven, and the run lists them as not yet implemented) against **100 covered, 2 claimed but not proven** with the tools; the 128 not yet implemented in the report's heading is the same in both, and so is
+   built = 102. To reproduce the table, install the 8 tools first (`--install-tools`). The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
    and those "implemented, not yet proven". **built = applicable - not yet implemented** (an unproven rule runs, so it is built).
 3. **MECHANICAL or MODEL, per unbuilt Rust rule:** the "input needed" column of `docs/rules/REMAINING.md` (2026-11-07, the lane's per-rule judgment, not a measurement):
    `a model` is MODEL; every other input (source, history, network, a runtime) is MECHANICAL. All 128 unbuilt Rust ids have a row there (checked by script: 0 unclassified).
@@ -19,15 +22,14 @@ The checks that require a model's judgement, those can wait until we have more o
 
 | Language family | Rules that apply | Built | Unbuilt | How it is checked today |
 | :--- | ---: | ---: | ---: | :--- |
-| **Rust** | 230 | 102 (100 covered + 2 implemented, not yet proven) | **128** | the built-in Rust module (`syn`, `cargo`, rustc diagnostics), the neutral module and 9 delegated tools |
+| **Rust** | 230 | 102 (100 covered + 2 implemented, not yet proven) | **128** | the built-in Rust module (`syn`, `cargo`, rustc diagnostics), the neutral module and 8 delegated tools (11 rules: gitleaks 2, osv-scanner 2, checkov 2, lychee, zizmor, buf, cargo-semver-checks, squawk) |
 | **TypeScript** | 221 | 32 | 189 | no module: only the language-neutral rules run (31) plus 1 more; "1 source file not checked" |
 | **JavaScript** | not in the catalog (read as TypeScript: 221) | 0 language-aware | - | no roadmap row of its own; `src/coverage.rs` `LANGUAGES` lists `js`, `jsx`, `mjs`, `cjs` as TypeScript source, so a JavaScript project reads as "typescript: no module" |
 | **C, C++, CUDA** | 183 (the `any` rules; no record names them) | 0 language-aware; 31 language-neutral | - | not in `src/coverage.rs` `LANGUAGES` (it knows only python and typescript), so a C, C++ or CUDA project is not even reported as an unchecked language |
 | **Slang, HLSL, GLSL (shader code)** | 183 (the `any` rules) | 0 language-aware; 31 language-neutral | - | not in `LANGUAGES`; not reported as unchecked |
 | **Language-neutral** (`languages = ["any"]`) | 183 | 31 | 152 | the neutral module: files read as text, git history, CI and repository metadata |
 
-Python has the same shape as TypeScript (221 apply) and is outside this task. The 31 neutral rules are the same 31 for every language, so "32 of 221" for TypeScript is those 31 plus one rule
-the TypeScript-applicable set adds.
+Python has the same shape as TypeScript (221 apply) and is outside this task. The 31 neutral rules are the same 31 for every language, so "32 of 221" for TypeScript is those 31 plus **SEC-004**, the one rule whose record names TypeScript (`rust, typescript, python`) and that a built module claims. That module is the neutral one, and its SEC-004 check (`src/module/neutral/sec004.rs`) reads Rust source only, so the 32nd is a catalog-applicability count, not a TypeScript check: TypeScript has no module of its own and no language-aware check.
 
 **Unbuilt Rust rules by kind (128):** MODEL **23** (tag `needs-model`, parked until the ML stack is ready, not declined); MECHANICAL **105**, of which by what they need:
 
@@ -67,6 +69,8 @@ the TypeScript-applicable set adds.
 | TYP | 3 / 8 | 0 / 8 | 0 / 8 |
 | WSP | 6 / 14 | 4 / 13 | 4 / 11 |
 | **all** | **102 / 230** | **32 / 221** | **31 / 183** |
+
+The 21 domain rows sum to the "all" row in every column (checked by script on this table: Rust 102 / 230, TypeScript 32 / 221, language-neutral 31 / 183); a domain with no rule for a family has a smaller denominator (ARC is 12 / 12 / 8).
 
 ## The 128 unbuilt Rust rules
 
@@ -215,6 +219,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 - "Built" is "has a check with a claim", the report's own word; it is not "finds every instance". Many built rules are narrow proxies (REMAINING.md says which).
 - The MODEL tag is the lane's judgment of 2026-11-07, applied to today's unbuilt set; CireSnave or the PM can retag a row. A rule tagged MECHANICAL with input `a runtime` may still need the self-hosted runner.
 - The 2026-11-07 table counted 231 rules and 165 unbuilt for all languages (a different predicate: no check of any kind); this census counts Rust-applicable rules only (230), which is why it is 128.
-- The neutral module reads some Rust only (it uses `syn` for a few rules); the language-neutral column counts a rule built for every language only as far as the catalog's `any` says. Whether each of the 31 truly reads C or CUDA is what the language-options note's "first rules per language" measures when built.
+- The neutral module reads some Rust only (it uses `syn` for a few rules); the language-neutral column counts a rule built for every language only as far as the catalog's `any` says. Whether each of the 31 truly reads C or CUDA is what the "first rules per language" measurement in `docs/language-options-2026-11-12.md` covers when built (that document lands in #321, so the link does not resolve until it merges).
 
 — lane: coderipper
