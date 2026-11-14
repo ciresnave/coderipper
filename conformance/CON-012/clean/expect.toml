@@ -1,0 +1,1 @@
+# The clean twin: the futures hold only Send types (an Arc parameter), and the Rc lives in a plain function.
