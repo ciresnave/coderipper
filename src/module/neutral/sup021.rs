@@ -109,10 +109,10 @@ impl<'ast> Visit<'ast> for Sites {
                         walk(t, trail, found);
                     }
                 }
-                syn::UseTree::Name(n) => {
-                    if found.is_none() && NETWORK.contains(&n.ident.to_string().as_str()) {
-                        *found = Some((line_of(n.ident.span()), n.ident.to_string()));
-                    }
+                syn::UseTree::Name(n)
+                    if found.is_none() && NETWORK.contains(&n.ident.to_string().as_str()) =>
+                {
+                    *found = Some((line_of(n.ident.span()), n.ident.to_string()));
                 }
                 _ => {}
             }
@@ -186,22 +186,30 @@ fn says_when_to_rerun(text: &str) -> bool {
     text.contains("rerun") || EMITTERS.iter().any(|e| text.contains(e))
 }
 
-fn finding(
-    view: &RepoView,
-    path: &str,
-    line: u32,
-    sev_conf: Confidence,
-    kind: &str,
-    message: String,
-    remediation: &str,
+/// What every finding of one script shares: the repository, the script's path and how many scripts were read.
+struct Script<'a> {
+    view: &'a RepoView,
+    path: &'a str,
     scripts: usize,
-) -> Finding {
-    Finding::new(ID, Severity::Low, sev_conf, view.name(), message, remediation)
-        .location(Location::new(path, Some(line)))
-        .subject(format!("{path}: {kind}"))
-        .positive_control(format!(
-            "{scripts} build script(s) were read for the same four things, and a script that does none of them is not reported"
-        ))
+}
+
+impl Script<'_> {
+    fn finding(
+        &self,
+        line: u32,
+        confidence: Confidence,
+        kind: &str,
+        message: String,
+        remediation: &str,
+    ) -> Finding {
+        let (path, scripts) = (self.path, self.scripts);
+        Finding::new(ID, Severity::Low, confidence, self.view.name(), message, remediation)
+            .location(Location::new(path, Some(line)))
+            .subject(format!("{path}: {kind}"))
+            .positive_control(format!(
+                "{scripts} build script(s) were read for the same four things, and a script that does none of them is not reported"
+            ))
+    }
 }
 
 pub(super) fn judge(view: &RepoView) -> Verdict {
@@ -232,56 +240,49 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             unparsed.push(path.clone());
             continue;
         };
+        let script = Script {
+            view,
+            path,
+            scripts: total,
+        };
         let mut sites = Sites::default();
         sites.visit_file(&file);
         if let Some((line, what)) = &sites.network {
-            findings.push(finding(
-                view,
-                path,
+            findings.push(script.finding(
                 *line,
                 Confidence::Medium,
                 "network",
                 format!("the build script `{path}` reaches the network (`{what}`): a build that downloads is not reproducible and fails offline"),
                 "Vendor or pin what the script fetches and check it in, or move the download to an explicit step the builder runs and can see; a build script that needs the network should say so in the crate's documentation.",
-                total,
             ));
         }
         if !text.contains("OUT_DIR") {
             if let Some((line, what)) = &sites.write {
-                findings.push(finding(
-                    view,
-                    path,
+                findings.push(script.finding(
                     *line,
                     Confidence::Low,
                     "write",
                     format!("the build script `{path}` writes files (`{what}`) and never names `OUT_DIR`: it writes into the source tree or elsewhere on the builder's machine"),
                     "Write generated files under the directory in the `OUT_DIR` environment variable, which Cargo gives a build script for this, and `include!` them from there.",
-                    total,
                 ));
             }
         }
         if !says_when_to_rerun(&text) {
-            findings.push(finding(
-                view,
-                path,
+            findings.push(script.finding(
                 1,
                 Confidence::Medium,
                 "rerun",
                 format!("the build script `{path}` prints no `cargo:rerun-if-changed` or `cargo:rerun-if-env-changed`: Cargo reruns it whenever any file of the package changes"),
                 "Print `cargo:rerun-if-changed=build.rs` and one `cargo:rerun-if-changed=<input>` or `cargo:rerun-if-env-changed=<VAR>` per input the script reads.",
-                total,
             ));
         }
         if let Some(line) = sites.unsafe_code {
-            findings.push(finding(
-                view,
-                path,
+            findings.push(script.finding(
                 line,
                 Confidence::Medium,
                 "unsafe",
                 format!("the build script `{path}` uses `unsafe`: it runs unreviewed on every builder's machine before their code compiles"),
                 "Avoid `unsafe` in a build script; use a safe wrapper crate for what it needs, or move the work to a build dependency that is reviewed as one.",
-                total,
             ));
         }
     }
