@@ -10,6 +10,7 @@
 //! Files are read from `HEAD` (`git ls-tree`, `git show`), as the Rust checks analyse `HEAD`, so a dirty working tree changes
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
+mod api008;
 mod architecture_ratchet;
 mod ci_security;
 mod con005;
@@ -29,6 +30,7 @@ mod ext001;
 mod ext002;
 mod ext003;
 mod ext004;
+mod ext007;
 mod global_state;
 mod licence;
 mod lint_suppression;
@@ -65,6 +67,7 @@ mod tst003;
 mod tst004;
 mod tst006;
 mod tst009;
+mod typ001;
 mod typ002;
 mod typ005;
 mod typ006;
@@ -228,6 +231,14 @@ const RULES: &[Rule] = &[
         judge: ext003::judge,
     },
     Rule {
+        id: "API-008",
+        judge: api008::judge,
+    },
+    Rule {
+        id: "EXT-007",
+        judge: ext007::judge,
+    },
+    Rule {
         id: "CON-010",
         judge: con010::judge,
     },
@@ -324,6 +335,10 @@ const RULES: &[Rule] = &[
         judge: rel009::judge,
     },
     Rule {
+        id: "TYP-001",
+        judge: typ001::judge,
+    },
+    Rule {
         id: "TYP-002",
         judge: typ002::judge,
     },
@@ -386,7 +401,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
-        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006",
+        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
     ]
 }
 
@@ -752,6 +767,8 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("API-008", &["rust"]),
+    ("EXT-007", &["rust"]),
     ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
@@ -772,6 +789,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("CON-011", &["rust"]),
     ("EFX-007", &["rust"]),
     ("REL-009", &["rust"]),
+    ("TYP-001", &["rust"]),
     ("TYP-002", &["rust"]),
     ("test-artifact-path", &["rust"]),
     ("COR-006", &["rust"]),
@@ -819,6 +837,8 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "API-008",
+    "EXT-007",
     "CON-010",
     "TYP-005",
     "SEC-007",
@@ -847,6 +867,7 @@ const PROVEN: &[&str] = &[
     "CON-011",
     "EFX-007",
     "REL-009",
+    "TYP-001",
     "TYP-002",
     "COR-006",
     "SEC-012",
