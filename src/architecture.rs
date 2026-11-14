@@ -51,6 +51,83 @@ pub(crate) struct ArchitectureConfig {
     /// Once set, the number of waivers may only fall (not read yet).
     #[serde(default)]
     pub ratchet: Option<bool>,
+    /// Inputs this repository states it has none of: `none = ["volatile", "api_budget", "owns_data", "composition"]` (any subset). A rule
+    /// whose input is listed here **runs and reports 0 sites by declaration**, instead of "not run", so a small library that genuinely has
+    /// no volatile detail, no API budget, no owned data or no composition root can say so. Listing an input that is also declared is an error.
+    #[serde(default)]
+    pub none: Vec<NoneInput>,
+}
+
+/// An input of an A-class rule that a repository may state it has none of (see [`ArchitectureConfig::none`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum NoneInput {
+    /// `[architecture.volatile]`: the names and namespaces of volatile detail (ARC-003).
+    Volatile,
+    /// `[architecture.api_budget]`: a budget per component (ARC-006).
+    ApiBudget,
+    /// `owns_data` on a component: the data only that component may name (ARC-007).
+    OwnsData,
+    /// `[architecture.composition]` roots, or a component with `role = "composition"` (ARC-012).
+    Composition,
+}
+
+impl NoneInput {
+    /// The key as written in the declaration.
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Volatile => "volatile",
+            Self::ApiBudget => "api_budget",
+            Self::OwnsData => "owns_data",
+            Self::Composition => "composition",
+        }
+    }
+
+    /// What the input is, for a sentence.
+    fn what(self) -> &'static str {
+        match self {
+            Self::Volatile => "volatile detail to look for",
+            Self::ApiBudget => "API budget to compare",
+            Self::OwnsData => "owned data to look for",
+            Self::Composition => "composition root to compare",
+        }
+    }
+}
+
+impl ArchitectureConfig {
+    /// Whether the declaration states, with `none = [..]`, that the repository has none of `input`.
+    pub(crate) fn declares_none(&self, input: NoneInput) -> bool {
+        self.none.contains(&input)
+    }
+
+    /// Whether the declaration also gives `input` a value (the contradiction `none` must not have).
+    fn gives(&self, input: NoneInput) -> bool {
+        match input {
+            NoneInput::Volatile => self.volatile.as_ref().is_some_and(|v| {
+                !v.names.is_empty() || !v.namespaces.is_empty() || v.feature_cfg_in_policy
+            }),
+            NoneInput::ApiBudget => !self.api_budget.is_empty(),
+            NoneInput::OwnsData => self.component.iter().any(|c| !c.owns_data.is_empty()),
+            NoneInput::Composition => {
+                self.composition
+                    .as_ref()
+                    .is_some_and(|c| !c.roots.is_empty())
+                    || self
+                        .component
+                        .iter()
+                        .any(|c| c.role == Some(Role::Composition))
+            }
+        }
+    }
+}
+
+/// The note a rule prints when the declaration states it has none of the rule's input: a fact the repository stated, not a gap.
+pub(crate) fn none_note(rule: &str, input: NoneInput) -> String {
+    format!(
+        "{rule}: the declaration says this repository has no {} (`none = [\"{}\"]`), so there is nothing to compare: 0 sites by declaration",
+        input.what(),
+        input.key()
+    )
 }
 
 /// One `[[architecture.component]]`.
@@ -212,6 +289,18 @@ impl ArchitectureConfig {
                     .into(),
             ));
         }
+        let mut stated: BTreeSet<NoneInput> = BTreeSet::new();
+        for n in &self.none {
+            if !stated.insert(*n) {
+                return Err(bad(format!("lists `{}` twice in `none`", n.key())));
+            }
+            if self.gives(*n) {
+                return Err(bad(format!(
+                    "lists `{}` in `none` and also declares it: say one or the other",
+                    n.key()
+                )));
+            }
+        }
         let mut declared: BTreeSet<&str> = BTreeSet::new();
         for c in &self.component {
             if !declared.insert(c.name.as_str()) {
@@ -302,6 +391,69 @@ mod tests {
 
     fn members(names: &[&str]) -> BTreeSet<String> {
         names.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    fn parse_err(toml: &str) -> String {
+        match crate::config::ConfigFile::parse(toml, Path::new(".coderipper.toml")) {
+            Ok(f) => {
+                let a = f.architecture.expect("an [architecture] table");
+                a.validate(&members(&["core"]), Path::new(".coderipper.toml"))
+                    .expect_err("an error")
+                    .to_string()
+            }
+            Err(e) => e.to_string(),
+        }
+    }
+
+    #[test]
+    fn none_names_the_inputs_a_repository_states_it_has_none_of() {
+        let a = parse("[architecture]\nnone = [\"volatile\", \"api_budget\", \"owns_data\", \"composition\"]\n");
+        a.validate(&members(&[]), Path::new(".coderipper.toml"))
+            .unwrap();
+        for input in [
+            NoneInput::Volatile,
+            NoneInput::ApiBudget,
+            NoneInput::OwnsData,
+            NoneInput::Composition,
+        ] {
+            assert!(a.declares_none(input), "{input:?}");
+        }
+        let b = parse("[architecture]\nnone = [\"owns_data\"]\n");
+        assert!(b.declares_none(NoneInput::OwnsData) && !b.declares_none(NoneInput::Volatile));
+        assert!(!parse("[architecture]\n").declares_none(NoneInput::Volatile));
+    }
+
+    #[test]
+    fn an_unknown_none_value_a_duplicate_and_a_contradiction_are_errors() {
+        assert!(parse_err("[architecture]\nnone = [\"bogus\"]\n").contains("bogus"));
+        assert!(
+            parse_err("[architecture]\nnone = [\"volatile\", \"volatile\"]\n").contains("twice")
+        );
+        let both = "[architecture]\nnone = [\"api_budget\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\n[architecture.api_budget]\ncore = 5\n";
+        assert!(
+            parse_err(both).contains("also declares it"),
+            "{}",
+            parse_err(both)
+        );
+        let owns = "[architecture]\nnone = [\"owns_data\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\nowns_data = [\"orders\"]\n";
+        assert!(parse_err(owns).contains("owns_data"));
+        let vol = "[architecture]\nnone = [\"volatile\"]\n[architecture.volatile]\nnames = [\"BackendId\"]\n";
+        assert!(parse_err(vol).contains("also declares it"));
+        let comp = "[architecture]\nnone = [\"composition\"]\n[architecture.composition]\nroots = [\"src/main.rs\"]\n";
+        assert!(parse_err(comp).contains("also declares it"));
+    }
+
+    #[test]
+    fn the_note_says_it_is_a_stated_fact_not_a_gap() {
+        let n = none_note("ARC-006", NoneInput::ApiBudget);
+        assert!(
+            n.starts_with("ARC-006: ") && n.contains("0 sites by declaration"),
+            "{n}"
+        );
+        assert!(
+            n.contains("none = [\"api_budget\"]") && !n.contains("not run"),
+            "{n}"
+        );
     }
 
     #[test]

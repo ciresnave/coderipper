@@ -1,0 +1,11 @@
+# The seeded defects: a domain error that carries a driver error (OrderError::Db) and one that carries an HTTP status code (ApiError.status), both in the policy crate.
+
+[[expect]]
+rule = "ERR-006"
+file = "core/src/lib.rs"
+line = 4
+
+[[expect]]
+rule = "ERR-006"
+file = "core/src/lib.rs"
+line = 8

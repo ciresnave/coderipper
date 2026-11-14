@@ -79,6 +79,10 @@ until  = "2027-03-01"                               # an expired waiver is a fin
 Rules for reading it: unknown keys are an error; a name used but not declared is an error; `layer` order is bottom to top and the
 bottom layer is listed first; a component in no layer may only use `allow` edges (it is judged, not skipped).
 
+**Addendum, 2026-11-12 (built):** a repository that genuinely has none of an optional input says so with `none = ["volatile", "api_budget", 
+"owns_data", "composition"]` (any subset) in `[architecture]`, and the rule that needs it runs with 0 sites by declaration instead of 
+"not run"; listing an input that is also declared is an error. See `docs/rules/arc.md`.
+
 ## 4. Three worked examples
 
 ### 4.1 Fuel: layers (MEASURED source: `fuel-ir/tests/crate_dependency_tiers.txt` at fuel `origin/main` 3a41200c; the crate names are

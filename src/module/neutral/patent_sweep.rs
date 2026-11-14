@@ -5,7 +5,8 @@
 //! our projects before release."):** the repository declares a version that could be published (the root `Cargo.toml`'s
 //! `[package]` version, else `[workspace.package]` version, unless `publish = false`; or the root `package.json`'s `version`,
 //! unless `"private": true`), and then:
-//! - **Medium:** no tracked file `docs/PATENT-SWEEP.md`.
+//! - **Medium:** no tracked file `docs/PATENT-SWEEP.md` (or, where a repository keeps its documents at the top, `PATENT-SWEEP.md` at the root:
+//!   `docs/` is read first, and the finding names the file that was read).
 //! - **Medium:** the file is there, but no version in it is in the same **version line** as the manifest's: `0.9` for any `0.9.x`
 //!   (before 1.0 the second number is the major, CireSnave 2026-09-24), `2` for any `2.x.y`. A sweep names the version it covered;
 //!   a sweep of `0.8.3` does not cover `0.9.0`.
@@ -26,6 +27,8 @@ const ID: &str = crate::rule_id::PATENT_SWEEP_RECORD;
 
 /// Where the record lives, relative to the repository root.
 const RECORD: &str = "docs/PATENT-SWEEP.md";
+/// Where a repository that keeps its documents at the top has it; read when [`RECORD`] is not tracked.
+const ROOT_RECORD: &str = "PATENT-SWEEP.md";
 
 /// `(manifest, version)` of the root manifest that could be published.
 pub(super) fn releasable(view: &RepoView) -> Option<(&'static str, String)> {
@@ -156,6 +159,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         );
     };
     let project = view.name();
+    // `docs/PATENT-SWEEP.md`, else the root file; neither tracked: the finding asks for the first
+    let record = if !view.has(RECORD) && view.has(ROOT_RECORD) {
+        ROOT_RECORD
+    } else {
+        RECORD
+    };
     let Some(line) = line_of(&version) else {
         return Verdict::NotApplicable(format!(
             "{manifest} declares the version {version}, which has no major.minor to name a version line"
@@ -163,26 +172,26 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     };
     let advice = format!(
         "A file that exists is not a sweep, and no file is none. Do the patent sweep (C:\\Projects\\PATENT-SWEEP-PROCESS.md): list the project's ideas, search patent sources, read the closest \
-         hits claim by claim, and record it in {RECORD} naming the version it covers ({version}, version line {line}). It is a \
+         hits claim by claim, and record it in {record} naming the version it covers ({version}, version line {line}). It is a \
          due-diligence read, not a legal opinion. A project that will never be released opts out with an [[allow]] entry and a reason."
     );
-    if !view.has(RECORD) {
+    if !view.has(record) {
         return Verdict::Findings(vec![Finding::absence(
             ID,
             Severity::Medium,
             Confidence::High,
             project,
-            format!("{manifest} declares version {version}, and the repository has no {RECORD}"),
+            format!("{manifest} declares version {version}, and the repository has no {record}"),
             advice,
             format!(
-                "the search covered the {} tracked files for {RECORD}",
+                "the search covered the {} tracked files for {record}",
                 view.paths().len()
             ),
         )
-        .location(Location::new(RECORD, None))
+        .location(Location::new(record, None))
         .subject("patent-sweep-record")]);
     }
-    let Some(text) = view.read(RECORD) else {
+    let Some(text) = view.read(record) else {
         return Verdict::Findings(Vec::new());
     };
     let mut found = Vec::new();
@@ -194,14 +203,14 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 Confidence::High,
                 project,
                 format!(
-                    "{RECORD} does not name a version in the line of {manifest} version {version} ({line})"
+                    "{record} does not name a version in the line of {manifest} version {version} ({line})"
                 ),
                 advice.clone(),
                 format!(
-                    "{RECORD} was read whole, and no version token in it is in the version line {line}"
+                    "{record} was read whole, and no version token in it is in the version line {line}"
                 ),
             )
-            .location(Location::new(RECORD, Some(1)))
+            .location(Location::new(record, Some(1)))
             .subject("patent-sweep-record:version"),
         );
     }
@@ -214,7 +223,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 Confidence::High,
                 project,
                 format!(
-                    "{RECORD} is not a patent sweep: it has no heading for {}",
+                    "{record} is not a patent sweep: it has no heading for {}",
                     missing.join(", ")
                 ),
                 format!(
@@ -222,11 +231,11 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                      hits read claim by claim, each with a verdict. {advice}"
                 ),
                 format!(
-                    "{RECORD} was read whole, and no Markdown heading names {}",
+                    "{record} was read whole, and no Markdown heading names {}",
                     missing.join(", ")
                 ),
             )
-            .location(Location::new(RECORD, Some(1)))
+            .location(Location::new(record, Some(1)))
             .subject("patent-sweep-record:sections"),
         );
     }
@@ -238,13 +247,13 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 Severity::Medium,
                 Confidence::High,
                 project,
-                format!("{RECORD} has {} hit(s) with the verdict unread", unread.len()),
+                format!("{record} has {} hit(s) with the verdict unread", unread.len()),
                 format!(
                     "An unread hit is not clear: its claims were not read, so nothing is known about the overlap. Read each (the \
                      independent claims first), then give it `clear`, `design-around` or `needs-review`. {advice}"
                 ),
             )
-            .location(Location::new(RECORD, Some(*first)))
+            .location(Location::new(record, Some(*first)))
             .subject("patent-sweep-record:unread"),
         );
     }
@@ -281,6 +290,33 @@ mod tests {
             "{}",
             f[0].summary
         );
+    }
+
+    #[test]
+    fn a_record_at_the_root_is_read_when_docs_has_none() {
+        let text = format!("# Patent sweep 0.9.37\n{BODY}");
+        // the root file counts
+        assert!(findings(run(&[("Cargo.toml", CARGO), (ROOT_RECORD, &text)])).is_empty());
+        // and is judged like the other: one that is not a sweep is a finding that names it
+        let f = findings(run(&[
+            ("Cargo.toml", CARGO),
+            (ROOT_RECORD, "# Patent sweep 0.9.37\ntodo\n"),
+        ]));
+        assert!(!f.is_empty(), "{f:?}");
+        assert!(f.iter().all(|x| x.summary.contains(ROOT_RECORD)), "{f:?}");
+        // positive control: neither file is still a finding that asks for docs/PATENT-SWEEP.md
+        let none = findings(run(&[("Cargo.toml", CARGO)]));
+        assert!(
+            none[0].summary.contains("no docs/PATENT-SWEEP.md"),
+            "{none:?}"
+        );
+        // docs/ wins when both are there
+        let both = findings(run(&[
+            ("Cargo.toml", CARGO),
+            (RECORD, &text),
+            (ROOT_RECORD, "# nothing\n"),
+        ]));
+        assert!(both.is_empty(), "{both:?}");
     }
 
     #[test]

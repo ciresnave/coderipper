@@ -165,6 +165,7 @@ executes_project_code = false
 default_severity = "low"
 confidence_class = "low"
 kb_refs = []
+checked_today = "Rust, first cut (one of the record's three halves), from the source: a trait that is not pub (private, pub(crate), pub(super), pub(in ..)), has at least one item, has exactly one impl .. for .. in the package outside cfg(test), is implemented for a type the package defines (not a primitive or another crate's type, which is the extension-trait idiom), has no implementation in test code (a test double is the second variant the seam is for) and no #[automock], is not a blanket impl, has a name unique among the package's traits and is named in no macro_rules! body. One finding per trait at its name (Low severity, Low confidence). Not judged: unused type parameters, parameters that always receive the same argument, history that shows an abstraction never extended (V3), a pub trait (outsiders may implement it), a trait whose second implementer is in another repository or a tests/ directory, other languages."
 remediation = "Inline the abstraction until a second real variant appears."
 related = ["ARC-008", "EXT-005"]
 lifecycle = "experimental"

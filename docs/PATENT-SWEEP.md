@@ -1505,3 +1505,159 @@ Version line covered by this addendum: **0.43** (0.43.68). One rule is added, re
 **Result: no hit reads on `test-artifact-path`.** The rule intercepts no process start, hashes no object file and associates no executable with its sources; it reads a function body and looks for a call, a walking method and a directory literal. **Watch:** re-read US10048960 before the rule resolves which executable a path names rather than naming the walk.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-12, 0.43.70)
+
+Version line covered by this addendum: **0.43** (0.43.70). One rule is added, read from `src/module/neutral/typ001.rs`: `TYP-001` (a public Rust function that takes a domain value, named for money, a duration or an identifier, as a bare primitive). Swept 2026-11-12 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 94 (`TYP-001`).** Parse Rust source and, for each public function, read its parameter names as `snake_case` segments; report a parameter whose name says money, a duration or an identifier and whose declared type is a bare number or string, unless the name already states its unit. Matching a name against three word lists and a type against a list of primitives is the whole mechanism; no type is inferred and no call is followed.
+
+| # | Idea | Query (2026-11-12) |
+|---|---|---|
+| Q187 | 94 | patent static analysis detect function parameters named id price amount duration declared with primitive integer or float type suggest newtype domain type primitive obsession source code |
+| Q188 | 94 | patent.google.com automatically detect primitive obsession code smell method parameters semantic type unit of measure mismatch swapped arguments identifier raw integer program analysis |
+| Q189 | 94 | patent method detecting variable or parameter in source code whose name indicates a unit of measurement or domain concept but whose data type is a primitive number, generating warning to use a dedicated type |
+
+**Positive controls:** Q187 returned the Primitive Enthusiasm paper (a metric for primitive obsession in Java), articles on the smell and a Rust post on raw primitives, so the engine reaches the neighbourhood. Q188 returned further primitive-obsession research and tool articles. Q189 returned SA4U (unit type error detection, a paper that also infers units from variable names), US8689195B2 and US9201765B2, so it reaches the neighbourhood too. **A patent that reports a parameter for being named as a domain value and typed as a bare primitive, from source code, was not found; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search). Two queries returned no patent at all, hence the third. Name-based unit and type inference is prior art for the practice itself (SA4U), not a patent.
+
+**Read:** the claims of **US8689195B2** (Identifying structured data types as requiring designated initializers, IBM, filed 2008-06-03; Google Patents shows it Active) through `tools/patent-claims.py`; its independent claims are claim 1 (a machine-implemented method), claim 6 (a system), claim 11 (a computer program product) and claim 16 (a method). Each requires determining that a structured data type requires a designated initializer, from a syntax in its definition or from an information resource, parsing a variable's initialization, and performing a diagnostic when the initializer is inconsistent with the type. **Not read in full:** US9201765B2 and every other result named above, by title and snippet only.
+
+**Result: no hit reads on `TYP-001`.** The rule does not mark a type as requiring anything, reads no initialization and compares no initializer with a type; it matches a parameter name against word lists and a declared type against a list of primitives. **Watch:** re-read US8689195B2 before the rule reads an attribute or a declared list that says which types must be used for a concept.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.71)
+
+Version line covered by this addendum: **0.43** (0.43.71). One rule is added, read from `src/module/neutral/ops010.rs`: `OPS-010` (a Rust binary package that has no way to report its version or build). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 95 (`OPS-010`).** Find the binary packages of a repository (a `main.rs` or a `src/bin` file) and read their sources, manifest and build script for any of a fixed list of version markers (`CARGO_PKG_VERSION`, a clap `version`, a literal `--version`, a build-information crate, a build script that sets build variables); report a binary package that names none. A text and attribute match over a fixed list is the whole mechanism; nothing is executed and no binary is read.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q190 | 95 | patent method static analysis source code determine whether executable program exposes version information build identifier command line version flag |
+| Q191 | 95 | patent.google.com automatically detect software package lacking embedded version or revision identifier build script source repository analysis warning |
+
+**Positive controls:** Q190 returned US6931626 (versioning statically bound files), US11288375 (static analysis security assessment that uses build versioning data) and US9032376, so the engine reaches the neighbourhood. Q191 returned the "Software verification system and methods" family (US10489137, US9891903, US9405524) and US20060161892A1 (package identity during a system build). **A patent that reports a binary package for exposing no version, from its source and manifest, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own).
+
+**Read:** the claims of **US6931626B2** (Hewlett Packard, filed 2001-01-17; Google Patents shows it Expired); its independent claims are claim 1 and claim 14. Each requires creating a source file holding a function whose name carries version information of a library, compiling it into an object file, building it into the library, and building an executable so that the version information is carried through the presence of that function. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `OPS-010`.** The rule creates, compiles and links nothing; it checks whether version markers already appear in the text. The claims of US6931626B2 are about embedding the information, which the rule's advice does not reproduce as claimed (it points to `CARGO_PKG_VERSION`, clap and build crates). The patent is also expired. **Watch:** none.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.62)
+
+Version line covered by this addendum: **0.43** (0.43.62). One rule is added, read from `src/checks/architecture/transport_errors.rs`: `ERR-006` (a public error type of a declared policy component whose fields or variants name a transport or driver type). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 96 (`ERR-006`).** Read an architecture declaration that marks components as policy, parse the Rust source of those components, and report each public error type (a name ending in `Error`) whose fields or variants name a type from a transport or driver namespace, resolved through the module's own `use` declarations. Matching a declared component, an error type's name and a namespace is the whole mechanism; nothing is executed and no exception flow is followed.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q192 | 96 | patent static analysis detect domain layer error types containing HTTP status code or database driver exception layering violation source code architecture conformance |
+| Q193 | 96 | patent.google.com automatically detect leaky abstraction exception wrapping infrastructure exception type in business logic layer error class architecture rule checking tool |
+| Q194 | 96 | patent "exception" translation between software layers static analysis source code identifies lower-layer exception types propagated to upper layer interface declarations computer-implemented method |
+
+**Positive controls:** Q192 returned layer-violation detectors and write-ups on keeping HTTP out of the domain (tools and articles, not patents), so the engine reaches the neighbourhood. Q193 returned an exception-handling anti-pattern study and articles on abstraction leakage. Q194 returned US20160026521A1 (Exception wrapping system), US10019304 (an application interface programming exception in an upper management layer) and US20140123113A1 (analyzing a piece of code), so it reaches the neighbourhood too. **A patent that reports a domain error type for naming a transport or driver type, from source code and a declared architecture, was not found; that absence is a statement about these three queries only** (one engine, no Espacenet or WIPO search). Two queries returned no patent at all, hence the third.
+
+**Read:** the claims of **US20160026521A1** (Exception wrapping system, published 2016-01-28) from the USPTO page images (pages 9 and 10 of the publication), because Google Patents' public page returned HTTP 503 for every number tried through `tools/patent-claims.py` on the sweep date; all three independent claims, 1 (system), 12 (method) and 18 (machine-readable storage media). Each is at run time: wrapping code coupled to an error handler of a routine wraps the error with relevant information using an exception type hierarchy, and an exception manager that receives the wrapped exception determines actions (a dialog, a restart, a navigation, a retry) from its exception type (claim 12 decides whether to preserve a passed exception instance or create a new instance of the calling exception type when the calling type is not an ancestor of the passed one). **Not read in full:** US10019304 and US20140123113A1 and every other result named above, by title and snippet only. Their status was not read.
+
+**Result: no hit reads on `ERR-006`.** The rule wraps no error, builds no exception hierarchy, runs no exception manager and shows no dialog; it reads declared components, error type names and namespaces in source. **Watch:** re-read US20160026521A1 before the rule suggests or generates the translating wrapper rather than only naming the leak.
+
+**Limits:** three queries, one search engine, no Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one publication read from page images), and the status shown is Google Patents' where it was reachable, not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.75)
+
+Version line covered by this addendum: **0.43** (0.43.75). One rule is added, read from `src/module/neutral/ext007.rs`: `EXT-007` (a crate-private Rust trait with exactly one implementation). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 97 (`EXT-007`).** Parse the Rust sources of a package, collect the traits that are not `pub`, count the `impl Trait for Type` blocks naming each, and report a trait with exactly one implementation (for a type the package defines, outside test code, no test-double implementer). Counting trait declarations and implementations by name is the whole mechanism; nothing is executed.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q195 | 97 | patent static analysis source code detect interface or abstract class with only one implementation speculative generality unnecessary abstraction refactoring |
+| Q196 | 97 | patent.google.com method identifying unused extension point abstraction single implementing class code smell detection automated refactoring suggestion |
+
+**Positive controls:** Q195 returned code-smell catalogs, an IntelliJ structural-search post and the Go `iface` linter (which reports interfaces with a single concrete type), so the engine reaches the neighbourhood. Q196 returned smell-detection research and US20080288932A1 (refactoring opportunities in an object-oriented program, Siemens). **A patent that reports a trait or interface for having one implementation, from source code, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). Neither query returned a granted patent on the practice itself; counting implementers is prior art as a linter feature and a code-smell catalog entry (Fowler's Speculative Generality).
+
+**Read:** the claims of **US20080288932A1** (Siemens, filed 2008-05-08; Google Patents shows it Expired, Fee Related); claims 1 to 7 are cancelled, the independent claims are claim 8 (a method), claim 12 (a method) and claim 16 (a system). Each requires computing a property set for an entity of a class, finding the entity of maximum cardinality, and moving entities whose ratio of shared to unshared properties exceeds a threshold. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `EXT-007`.** The rule computes no property set, ratio or cardinality and moves no entity; it counts `impl .. for ..` blocks by trait name. **Watch:** re-read before the rule reads the history half or proposes a refactoring.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-13, 0.43.77)
+
+Version line covered by this addendum: **0.43** (0.43.77). One rule is added, read from `src/module/neutral/api008.rs`: `API-008` (a public Rust signature names a type from a dependency). Swept 2026-11-13 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 98 (`API-008`).** Read a Rust library package's manifest for its third-party dependency names, parse its sources, and for every `pub` function, method, field, alias and constant report a type path that starts with a dependency's name or with a name a `use` imports from it; one finding per dependency, at the first site. Matching paths against the manifest's dependency names is the whole mechanism; no type is resolved and no build runs.
+
+| # | Idea | Query (2026-11-13) |
+|---|---|---|
+| Q197 | 98 | patent static analysis detect public API signature exposing third-party library types dependency leaking into public interface semantic versioning breaking change |
+| Q198 | 98 | patent.google.com method checking public interface of software library references types defined in external dependency, warning, encapsulation of dependency types, source code analysis |
+| Q199 | 98 | "public interface" "third party" library types exposed application programming interface detect dependency leakage patent US claims analyzing source code API signatures |
+
+**Positive controls:** Q197 returned the research on semantic-versioning breakage and the `cargo-check-external-types` tool, so the engine reaches the neighbourhood; Q198 returned the same tool, the compiler's `exported_private_dependencies` lint and RFC 1977, and the Java ABI Inspector (`abi.cli`); Q199 returned Android third-party library detection papers and EP3982257. **A patent that reports a public signature for naming a dependency's type, from source and manifest, was not found; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not a patent:** `cargo-check-external-types` (a Rust tool that flags external types in a crate's public API, with an allow list; it reads rustdoc output and needs a nightly toolchain), rustc's `exported_private_dependencies` lint (RFC 1977) and the Java ABI Inspector do the same job. This rule is our own reading of the source and manifest, written without their code; the tools are named for credit and so a reader can choose them.
+
+**Read:** the claims of **EP3982257A1** (Microsoft, "Controlling runtime access to application programming interfaces", filed 2014-04-21; Google Patents shows it Active); claim 1 requires a development environment in which an API is marked with an attribute that changes the default visibility a runtime gives it (internal, private or public) for dynamic access requests. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `API-008`.** The rule marks no API, changes no visibility and controls no runtime access; it reads type paths in public signatures against a manifest. **Watch:** re-read EP3982257A1 before the rule reads an attribute that declares which dependency types may be exposed.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one document read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.80)
+
+Version line covered by this addendum: **0.43** (0.43.80). One rule is added, read from `src/module/neutral/rdb003.rs`: `RDB-003` (a Rust function whose cognitive complexity is over 15, and over 30). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 99 (`RDB-003`).** Parse Rust source with `syn` and, per function, add one for each branching structure plus its nesting level, one per `else`, one per run of like logical operators, one per labelled jump and recursive call; report a function whose total is over a warning level and a higher error level. A visitor over the syntax tree with a nesting counter is the whole mechanism; nothing is executed.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q200 | 99 | patent method computing cognitive complexity score of source code function nesting increments control flow structures readability metric |
+| Q201 | 99 | patent.google.com system for measuring understandability of program code by weighting nested conditional statements and loops with nesting level, generating warning when threshold exceeded |
+
+**Positive controls:** Q200 returned SonarSource's published specification (RSPEC 3776), Rust crates that compute the score (`debtmap`, `neti`, `complexity`) and the Axivion metric page, so the engine reaches the neighbourhood. Q201 returned US6651244 and papers on nesting-level complexity measures. **A patent that reports a function for a nesting-weighted cognitive-complexity score over a threshold, from source, was not found beyond the one read below; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the measure, not a patent:** G. Ann Campbell, "Cognitive Complexity: a new way of measuring understandability" (SonarSource, 2017), the specification this rule follows; the rule is our own reading of it, written without the crates' code.
+
+**Read:** the claims of **US6651244B1** (Cisco, "System and method for determining program complexity", filed 1999-07-26; Google Patents shows it Expired, Fee Related); independent claims 1, 12, 14, 21, 24, 27 and 28. Claims 1, 14, 24 and 27 require analysing an *incomplete* subroutine during development, recomputing a complexity factor as each statement is input, and inserting a non-compilable string of code (or preventing the subroutine from running) when the factor exceeds a maximum; claims 12, 21 and 28 require weights assigned to decision-point keywords of an incomplete subroutine during input. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `RDB-003`.** The rule reads committed, complete functions in a repository sweep, recomputes nothing per keystroke, inserts nothing into the code and prevents nothing from running; its weights are the nesting level and the structure kind, not a table of keyword weights. The patent is also expired. **Watch:** re-read before the rule runs in an editor or inserts or blocks anything.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.81)
+
+Version line covered by this addendum: **0.43** (0.43.81). One rule is added, read from `src/module/neutral/sup006.rs`: `SUP-006` (a Rust package declares a dependency whose name appears in none of its source files). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 100 (`SUP-006`).** Read each Rust package's `Cargo.toml` for its declared dependency keys, tokenise the text of its `.rs` files, and report a declared dependency whose name (hyphen read as underscore, any case) is not a token of any of them, unless a feature forwards to it, the manifest lists it as ignored, or the package includes generated code. A set lookup of declared names against the identifier tokens of the sources is the whole mechanism; nothing is built or executed.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q202 | 100 | patent method detect unused dependencies declared in package manifest by analyzing source code references to imported libraries, remove unused dependency |
+| Q203 | 100 | patent.google.com identifying declared but unused library dependencies in build configuration file by comparing import statements in source files, automated dependency pruning bloat reduction |
+| Q204 | 100 | US patent "unused dependencies" software project "dependency" claims "determining that the dependency is not used" source code manifest |
+
+**Positive controls:** Q202 returned knip, unimported, deptry-style tools and the PyTrim paper, Q203 returned FawltyDeps, Maven's `dependency:analyze` and `go mod tidy`, so the engine reaches the neighbourhood; Q204 returned US10409567B2, US9558017B2, US20060161898A1, US9760349B1 and US20240303333. **A patent that reports a declared dependency as unused by comparing a manifest's names with the identifier tokens of the sources, as a repository check, was not found beyond the two read below; that absence is a statement about these three queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** `cargo-machete` and `cargo-udeps` (Rust), knip, depcheck, FawltyDeps and deptry, `go mod tidy` and Maven `dependency:analyze`; `cargo-machete`'s name-based reading is the closest, and this rule is our own implementation of the same idea, written without its code and honouring the ignore list it defines.
+
+**Read:** the claims of **US9558017B2** (SAP, "Software dependency management through declarative constraints", priority 2014-03-18; Google Patents shows it Active, expiry estimated 2034-03-27) and **US10409567B2** (Microsoft, "Trimming unused dependencies using package graph and module graph", priority 2016-09-14; Active, expiry estimated 2037-03-26). SAP's independent claims 1, 10 and 15 require declarative constraint definitions, checking libraries against a vulnerability database to identify violations in a manifest file, generating dependency expressions, determining a subset that satisfies the constraints and rewriting the manifest file to omit libraries. Microsoft's independent claims 1, 13 and 21 require a first traversal of a package graph from package roots, a second traversal of a module graph from module roots, distinguishing the packages and modules encountered from those not encountered, and configuring a second version of the application for deployment that includes the encountered packages and not the others. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `SUP-006`.** The rule holds no constraint language, consults no vulnerability database, rewrites no manifest, traverses no package graph or module graph and builds no deployment version; it compares declared names with identifier tokens and reports. **Watch:** re-read both before the rule rewrites a manifest, follows a graph from roots, or reads a vulnerability database.
+
+**Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the two patents read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.82)
+
+Version line covered by this addendum: **0.43** (0.43.82). One rule is added, read from `src/module/neutral/typ007.rs`: `TYP-007` (a Rust function with two or more `bool` parameters). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 101 (`TYP-007`).** Parse Rust source and report a function (free, inherent method, trait declaration) whose parameter list holds two or more parameters of the bare type `bool`. Counting parameters whose declared type is `bool` is the whole mechanism; nothing is executed and no call site is read.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q205 | 101 | patent static analysis detect function signature with multiple boolean parameters flag arguments boolean trap suggest enum refactoring source code |
+| Q206 | 101 | patent.google.com method automatically identifying method with boolean flag parameters in source code code smell detection flag argument refactoring tool claims |
+
+**Positive controls:** Q205 returned the linters that flag the pattern (Ruff's FBT rules from `flake8-boolean-trap`, JetBrains' "public method with boolean parameter" inspection) and the "boolean trap" articles, so the engine reaches the neighbourhood. Q206 returned code-smell write-ups and US20080288932A1. **A patent that reports a function for having two or more boolean parameters, from source, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** `flake8-boolean-trap` and Ruff's `FBT001`, JetBrains' `BooleanParameter` inspection, Fowler's "flag argument" and the "boolean trap" write-ups; this rule is our own reading of Rust signatures, written without their code.
+
+**Read:** the claims of **US20080288932A1** (Siemens, "System and method for identifying opportunities for refactoring in an object-oriented program", filed 2008-05-08; Google Patents shows it Expired, Fee Related); claims 1 to 7 are cancelled, the independent claims are claim 8 (a method), claim 12 (a method) and claim 16 (a system). Each requires computing a property set for an entity of a class, finding the entity of maximum cardinality, and moving entities whose ratio of shared to unshared properties exceeds a threshold. **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `TYP-007`.** The rule computes no property set, ratio or cardinality and moves no entity; it counts `bool` parameters in a signature. **Watch:** none.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
