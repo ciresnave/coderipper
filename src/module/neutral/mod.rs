@@ -10,6 +10,7 @@
 //! Files are read from `HEAD` (`git ls-tree`, `git show`), as the Rust checks analyse `HEAD`, so a dirty working tree changes
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
+mod api008;
 mod architecture_ratchet;
 mod ci_security;
 mod con005;
@@ -235,6 +236,10 @@ const RULES: &[Rule] = &[
         judge: sup006::judge,
     },
     Rule {
+        id: "API-008",
+        judge: api008::judge,
+    },
+    Rule {
         id: "EXT-007",
         judge: ext007::judge,
     },
@@ -401,7 +406,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
-        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006",
+        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
     ]
 }
 
@@ -768,6 +773,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
     ("SUP-006", &["rust"]),
+    ("API-008", &["rust"]),
     ("EXT-007", &["rust"]),
     ("CON-010", &["rust"]),
     ("TYP-005", &["rust"]),
@@ -838,6 +844,7 @@ const PROVEN: &[&str] = &[
     "SEC-005",
     "EXT-003",
     "SUP-006",
+    "API-008",
     "EXT-007",
     "CON-010",
     "TYP-005",
