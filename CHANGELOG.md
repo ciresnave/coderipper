@@ -8,7 +8,7 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 ## 0.43.83 - 2026-11-14 (proposed, Docs)
 
-**ROADMAP: rows for TypeScript and JavaScript, C, C++, CUDA, Slang and shader code, and for completing the mechanical Rust rules** (PM task 2026-11-12, CireSnave: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds"). Measured at `main@9da0f91`: 128 of the 230 rules that apply to Rust have no check, 105 of them mechanical and 23 needing a model (parked, not declined). Docs only.
+**ROADMAP: rows for TypeScript and JavaScript, C, C++, CUDA, Slang and shader code, and for completing the mechanical Rust rules** (PM task 2026-11-12, CireSnave: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds"). Measured at `main@9da0f91`: 128 of the 230 rules that apply to Rust have no check, 105 of them mechanical and 23 needing a model (parked, not declined). The census and language-options documents it links to land in #320 and #321. Docs only.
 
 ## 0.43.82 - 2026-11-14 (proposed, Added)
 
