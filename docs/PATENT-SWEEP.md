@@ -1661,3 +1661,22 @@ Version line covered by this addendum: **0.43** (0.43.82). One rule is added, re
 **Result: no hit reads on `TYP-007`.** The rule computes no property set, ratio or cardinality and moves no entity; it counts `bool` parameters in a signature. **Watch:** none.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.87)
+
+Version line covered by this addendum: **0.43** (0.43.87). One rule is added, read from `src/module/neutral/sup021.rs`: `SUP-021` (a Rust build script that reaches the network, writes outside `OUT_DIR`, prints no rerun directive, or uses `unsafe`). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 102 (`SUP-021`).** Parse each `build.rs` with `syn` and report, once each, a path that names a socket type or an HTTP client, a file-system write in a script whose text never names `OUT_DIR`, a script text with no `rerun-if-changed` or `rerun-if-env-changed`, and an `unsafe` block, function or impl. Nothing is executed, monitored or enforced; the script is read as text.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q207 | 102 | patent static analysis detect build script network access writes outside output directory missing dependency rerun directive source code analysis claims |
+| Q208 | 102 | patents.google.com method for analyzing build scripts to detect network calls and file system writes outside build output directory, software supply chain build script security |
+
+**Positive controls:** Q207 returned the tools and write-ups of the practice (SonarSource's Rust `build.rs` rules, a `build.rs` review checklist, build-dependency research papers) and US20100042974 (IBM, build optimization with static analysis), so the engine reaches the neighbourhood. Q208 returned US11609985B1 (CyberArk), US7797689 and the `build-inspector` and `cargo-build-inspector` tools. **A patent that reports network access, writes outside an output directory or a missing rerun directive from a build script's source was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** SonarSource's `build.rs` rules, `cargo-build-inspector` and the `build-inspector` tool, the Cargo book's build-script documentation; this rule is our own reading of Rust build scripts, written without their code.
+
+**Read:** the independent claims of **US11609985B1** (CyberArk Software Ltd, "Analyzing scripts to create and enforce security policies in dynamic development pipelines", filed 2022-05-11, granted 2023-03-21; Google Patents shows it Active, expiring 2042-05-11): claim 1 (a medium) and claim 14 (a method) each require accessing a build script from a database, parsing it for scripted build instructions, determining expected build actions, building a representation of them, **automatically generating a tiered security policy from that representation, monitoring a build machine running the script, and enforcing the policy on the build machine.** Network resources and input and output instructions appear only in dependent claims 5 and 7. The claims were read through a fetched copy of the Google Patents page (the middle of the page was summarised by the fetch tool, the claims section was read). **Not read in full:** every other result named above, by title and snippet only.
+
+**Result: no hit reads on `SUP-021`.** The rule generates no policy, monitors no build machine and enforces nothing; it reads script text and prints findings. **Watch: US11609985B1 (Active).** If `SUP-021` ever grows a policy generated from a script's actions, or a run that monitors or blocks a build, re-read its claims 1 and 14 first.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
