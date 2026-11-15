@@ -1680,3 +1680,22 @@ Version line covered by this addendum: **0.43** (0.43.87). One rule is added, re
 **Result: no hit reads on `SUP-021`.** The rule generates no policy, monitors no build machine and enforces nothing; it reads script text and prints findings. **Watch: US11609985B1 (Active).** If `SUP-021` ever grows a policy generated from a script's actions, or a run that monitors or blocks a build, re-read its claims 1 and 14 first.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+### 0.43.89 (0.43 line) - 2026-11-14
+
+Version line covered by this addendum: **0.43** (0.43.89). One rule is added, read from `src/checks/architecture/pure_effects.rs`: `EFX-001` (a component the declaration tags pure that names a file, network, environment, process, clock, randomness or thread API). Swept 2026-11-14 by the coderipper-b lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 103 (`EFX-001`).** Read an architecture declaration that tags components as pure, parse the Rust source of those components, and report each path the source names that resolves, through the file's own `use` declarations, to an entry of an effect list (file, network, environment, process, clock, randomness, thread namespaces). Matching a declared component, a resolved path and a list entry is the whole mechanism; nothing is executed, no function is classified from its body, and no effect is propagated through calls.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q209 | 103 | patent static analysis source code detect module declared pure side effects file network clock random API usage architecture annotation |
+| Q210 | 103 | patent.google.com determining function purity side-effect free source code analysis flag component calls input output system calls computer-implemented method |
+
+**Positive controls:** Q209 returned an academic effect scanner for Rust crates (Cargo Scan, arXiv 2602.06466, not a patent) and US10783245 (feedback-directed static analysis of side effects), so the engine reaches the neighbourhood. Q210 returned US9594754B2 (purity analysis using white list/black list analysis), US8826254B2 (memoizing with read only side effects) and US8839204B2 (determination of function purity for memoization), so it reaches the purity-analysis family. **A patent that reports a component declared pure for naming an effect namespace, from source code and a declared architecture, was not found; that absence is a statement about these two queries only** (one engine, no Espacenet or WIPO search).
+
+**Read:** none of the claims. Only the search engine's summaries of US9594754B2, US8826254B2, US8839204B2 and US10783245 were read (`tools/patent-claims.py` is not in this checkout). The three purity patents classify a function's side effects by static analysis, with a white list or black list, to decide whether the function can be memoized; the rule decides nothing about memoization and classifies no function from its body. **Not read in full, so no clearance claimed:** all four.
+
+**Result: no hit read in full, and none is known to read on `EFX-001` from the summaries.** The rule memoizes nothing and propagates no effect through calls; it compares resolved path names with a list for components a person tagged. **Watch:** read the independent claims of US9594754B2 and US8826254B2 before the rule classifies functions from their bodies or suggests memoization.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, no claim read, and the status is the search engine's, not the official record. A due-diligence read, not legal advice.
