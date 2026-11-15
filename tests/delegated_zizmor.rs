@@ -236,7 +236,7 @@ fn an_unpinned_action_is_a_finding_at_its_file_and_line_and_the_clean_twin_repor
 }
 
 #[test]
-fn the_repository_cannot_silence_its_own_findings() {
+fn the_repositorys_own_zizmor_config_and_ignore_comment_are_honoured_and_said_at_info() {
     needs_tool!();
     let ignored = String::from_utf8(workflow("actions/checkout@v4"))
         .unwrap()
@@ -279,16 +279,56 @@ fn the_repository_cannot_silence_its_own_findings() {
         "the control did not silence anything: {plain}"
     );
 
+    // ruling 8: zizmor's own ignore files are a waiver source. The config disables the audit, so the audit's finding is gone, and the
+    // two configs are each reported at Medium (a bare disable carries no reason, owner or expiry)
+    let (code, out, err) = run_json(repo.path());
+    assert_eq!(code, 0, "{out}\n{err}");
+    let all = findings(&out);
+    assert_eq!(all.len(), 2, "{out}\n{err}");
+    for f in &all {
+        assert_eq!(f["severity"], "medium", "{f}");
+        assert!(
+            f["summary"].as_str().unwrap().contains("needs a reason"),
+            "{f}"
+        );
+    }
+    let mut files: Vec<_> = all
+        .iter()
+        .map(|f| f["location"]["file"].as_str().unwrap().to_string())
+        .collect();
+    files.sort();
+    assert_eq!(files, [".github/zizmor.yml", "zizmor.yml"]);
+}
+
+#[test]
+fn an_inline_zizmor_ignore_comment_is_reported_at_info_and_asks_for_a_reason() {
+    needs_tool!();
+    let ignored = String::from_utf8(workflow("actions/checkout@v4"))
+        .unwrap()
+        .replace(
+            "actions/checkout@v4",
+            "actions/checkout@v4 # zizmor: ignore[unpinned-uses]",
+        );
+    let repo = repo_with(&[(".github/workflows/ci.yml", ignored.as_bytes())]);
     let (code, out, err) = run_json(repo.path());
     assert_eq!(code, 0, "{out}\n{err}");
     let all = findings(&out);
     assert_eq!(all.len(), 1, "{out}\n{err}");
     assert_eq!(all[0]["subject"], "actions/checkout@v4");
+    assert_eq!(all[0]["severity"], "info");
+    assert!(all[0]["summary"]
+        .as_str()
+        .unwrap()
+        .contains("needs a reason"));
     let detail = all[0]["detail"].as_str().unwrap();
     assert!(
-        detail.contains("zizmor: ignore") && detail.contains("does not honour"),
+        detail.contains("zizmor: ignore") && detail.contains("expiry"),
         "{detail}"
     );
+    // control: the same workflow without the comment is the High finding it always was
+    let bad = repo_with(&[(".github/workflows/ci.yml", &workflow("actions/checkout@v4"))]);
+    let (_, out, _) = run_json(bad.path());
+    assert_eq!(findings(&out)[0]["severity"], "high", "{out}");
 }
 
 #[test]
