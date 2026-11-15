@@ -1,3 +1,0 @@
-kind: Added: the `pure` tag and `[architecture.effects]` in the declaration (no finding yet)
----
-**The `[architecture]` declaration accepts `pure = true` on a component and an optional `[architecture.effects]` table (`add`, `remove`)**, the keys the 2026-11-12 extension proposal gives EFX-001, plus `pure` as a value of `none`. Opt-in and read by nothing yet, so no run changes. Malformed keys, `pure` on an adapter, infrastructure or composition component, an `effects` table with no pure component, a blank or repeated entry, and `none = ["pure"]` beside a pure component are configuration errors that name the file. EFX-001 follows in its own PR. See `docs/rules/arc.md`.
