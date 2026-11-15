@@ -1,0 +1,13 @@
+[architecture]
+
+[[architecture.component]]
+name = "core"
+paths = ["src/core"]
+purpose = "the domain model and its rules"
+owner = "lane-core"
+
+[[architecture.component]]
+name = "io"
+paths = ["src/io"]
+purpose = "files and sockets, behind traits the core defines"
+owner = "lane-io"

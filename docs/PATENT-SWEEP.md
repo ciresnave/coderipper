@@ -1681,6 +1681,25 @@ Version line covered by this addendum: **0.43** (0.43.87). One rule is added, re
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
 
+### 0.43.95 (0.43 line) - 2026-11-14
+
+Version line covered by this addendum: **0.43** (0.43.95). One rule is added, read from `src/checks/architecture/pure_effects.rs`: `EFX-001` (a component the declaration tags pure that names a file, network, environment, process, clock, randomness or thread API). Swept 2026-11-14 by the coderipper-b lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 104 (`EFX-001`).** Read an architecture declaration that tags components as pure, parse the Rust source of those components, and report each path the source names that resolves, through the file's own `use` declarations, to an entry of an effect list (file, network, environment, process, clock, randomness, thread namespaces). Matching a declared component, a resolved path and a list entry is the whole mechanism; nothing is executed, no function is classified from its body, and no effect is propagated through calls.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q211 | 104 | patent static analysis source code detect module declared pure side effects file network clock random API usage architecture annotation |
+| Q212 | 104 | patent.google.com determining function purity side-effect free source code analysis flag component calls input output system calls computer-implemented method |
+
+**Positive controls:** Q211 returned an academic effect scanner for Rust crates (Cargo Scan, arXiv 2602.06466, not a patent) and US10783245 (feedback-directed static analysis of side effects), so the engine reaches the neighbourhood. Q212 returned US9594754B2 (purity analysis using white list/black list analysis), US8826254B2 (memoizing with read only side effects) and US8839204B2 (determination of function purity for memoization), so it reaches the purity-analysis family. **A patent that reports a component declared pure for naming an effect namespace, from source code and a declared architecture, was not found; that absence is a statement about these two queries only** (one engine, no Espacenet or WIPO search).
+
+**Read:** none of the claims. Only the search engine's summaries of US9594754B2, US8826254B2, US8839204B2 and US10783245 were read (`tools/patent-claims.py` is not in this checkout). The three purity patents classify a function's side effects by static analysis, with a white list or black list, to decide whether the function can be memoized; the rule decides nothing about memoization and classifies no function from its body. **Not read in full, so no clearance claimed:** all four.
+
+**Result: no hit read in full, and none is known to read on `EFX-001` from the summaries.** The rule memoizes nothing and propagates no effect through calls; it compares resolved path names with a list for components a person tagged. **Watch:** read the independent claims of US9594754B2 and US8826254B2 before the rule classifies functions from their bodies or suggests memoization.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, no claim read, and the status is the search engine's, not the official record. A due-diligence read, not legal advice.
+
 ## Addendum: the 0.43 line (2026-11-14, 0.43.91)
 
 Version line covered by this addendum: **0.43** (0.43.91). One rule is added, read from `src/module/neutral/con012.rs`: `CON-012` (a public Rust `async fn` whose future is not `Send`, read from a parameter typed `Rc`, a raw pointer or a shared `&Cell`/`&RefCell`, or from a local `Rc` or raw pointer declared before the function's last `.await`). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
@@ -1716,5 +1735,43 @@ Version line covered by this addendum: **0.43** (0.43.94). One rule is added, re
 **Read:** no patent claim was read. **Not read in full:** every result named above, by title and snippet only.
 
 **Result: no hit found for `COR-012`, from two queries that reached no patent page.** The evidence is thin and is stated as thin, not hidden. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.96)
+
+Version line covered by this addendum: **0.43** (0.43.96). One rule is added, read from `src/module/neutral/doc003.rs`: `DOC-003` (a component of the repository's own `[architecture]` declaration that lacks a `purpose` or an `owner`, once any component carries either). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 105 (`DOC-003`).** Read the repository's `.coderipper.toml`, and report each declared component whose `purpose` or `owner` key is absent or blank, in a declaration where some component carries one. Nothing about the components' code is read; the check is that two text fields are present.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q213 | 105 | patent software architecture specification validation each component must have purpose and owner field, check configuration file completeness of component ownership |
+| Q214 | 105 | patents.google.com method verifying software component catalog entries include owner and description metadata, service catalog ownership validation claims |
+
+**Positive controls:** Q213 returned the practice itself (an architecture-diagram tool's "deployment-ownership" profile that requires a non-empty owner tag on every non-external component, and architecture-conformance tools such as Teamscale's), so the engine reaches the neighbourhood. Q214 returned patent documents on software-component catalogs and metadata: US8495621 (catalog-based software component management, admits an identifier to a catalog after validation), US2008/0172403 (categorisation and review of software identifiers, a dependent claim naming an owner among the entities), US9489687 and US2008/0154965 (owner and licence metadata of software components), US6564377B1 and Oracle's US11775285B2 (ledger-based component catalogs). **A patent that validates that each component of a project's own architecture specification carries a purpose and an owner was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the tool above; ownership fields in service catalogs and `CODEOWNERS` files.
+
+**Read:** no claim of any patent above was read; each is known by title and a search-engine snippet only. They concern catalogs of third-party software components or identifiers, not a project's own declaration of its components, which is why they are not read as hits, but that is a judgement from snippets and is **owed a claim read** before this rule leaves opt-in.
+
+**Result: no hit found for `DOC-003` on the two queries; five related catalog patents are named and unread.** **Watch: US8495621 and US2008/0172403** (claims to be read: validation before a component enters a catalog; owner as a verified entity). The rule validates a file the project writes about itself, with no catalog, signature or third-party identifier.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.97)
+
+Version line covered by this addendum: **0.43** (0.43.97). One rule is added, read from `src/module/neutral/prf006.rs`: `PRF-006` (a source comment that begins `PERF-EXCEPTION:` with no benchmark reference on its line or the next two). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 106 (`PRF-006`).** Read source comments for a marker the repository chooses to write (`PERF-EXCEPTION:`) and report a marker whose line or next two comment lines hold no link, `benches/`-style path or `bench::` name. Nothing is measured, run or compared; the rule reads comment text.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q215 | 106 | patent method detect performance optimization exception in source code comment marker requiring benchmark reference static analysis claims |
+| Q216 | 106 | patents.google.com linking code annotation to performance benchmark result, verify source code comment references benchmark evidence for optimization |
+
+**Positive controls:** Q215 returned related work on source-level performance analysis (a 2007 IEEE paper on linking static pattern detection to performance measurement, the CARAMEL loop-bug paper, a CommentSense project that gates changes on running a benchmark suite) and one patent, **US 8,875,100** ("Pattern analysis and performance accounting"), so the engine reaches the neighbourhood. Q216 returned code-comment research and a CodSpeed benchmark dashboard, and no patent. **A patent that checks a source comment for a benchmark reference was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the benchmark-gated review rules of open-source projects, `TODO(owner)` conventions (`RDB-008`), and Rust's own `// SAFETY:` comment convention, which this marker copies in form.
+
+**Read:** no claim was read. US 8,875,100 is known from a search-engine excerpt only: it describes comments or annotations that mark code sections for evaluation, and flow-graph static analysis compared with prior regression patterns, which runs and compares tests; `PRF-006` runs nothing. That is a judgement from an excerpt, not a claim read. **Not read in full:** every result named above.
+
+**Result: no hit found for `PRF-006` on the two queries; one related patent is named and unread.** **Watch: US 8,875,100** (read its independent claims before this rule leaves opt-in; re-read them if `PRF-006` ever runs a benchmark or compares results).
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.

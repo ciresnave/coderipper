@@ -63,6 +63,8 @@ default_severity = "low"
 confidence_class = "high"
 kb_refs = []
 remediation = "Fill in a purpose and an owner for every component in the declared architecture, and validate the spec so blanks are rejected."
+related = ["ARC-001"]
+checked_today = "The [[architecture.component]] entries of .coderipper.toml at HEAD, read with the declaration parser. Two optional keys on a component, added with this rule: purpose and owner. A declaration in which no component carries either key has not adopted the convention and is not applicable; once any component carries one, every component without a non-blank purpose and a non-blank owner is reported once, at its component header, with the missing key named. Low severity, high confidence; opt-in (check DOC-003). Not judged: whether a purpose says anything, whether an owner is a real person, a declaration moved to another file, purposes written only as comments. An unparsable .coderipper.toml is a note."
 lifecycle = "experimental"
 
 [rule.applicability]
