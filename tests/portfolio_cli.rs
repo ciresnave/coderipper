@@ -319,16 +319,13 @@ fn a_package_whose_targets_are_outside_src_is_analysed_from_its_cargo_targets() 
         ),
     ]);
     // all three Rust checks run on the root file cargo names, each with its sentinel: a result, not an error
-    sweep_portfolio(
-        &repo,
-        &["--skip-rule", "WSP-011=no forge in a test"],
-    )
-    .assert()
-    .code(0)
-    .stdout(predicate::str::contains("`unused_helper` has zero callers"))
-    .stdout(predicate::str::contains("(ERR-012)"))
-    .stderr(predicate::str::contains("os error").not())
-    .stderr(predicate::str::contains("check error").not());
+    sweep_portfolio(&repo, &["--skip-rule", "WSP-011=no forge in a test"])
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains("`unused_helper` has zero callers"))
+        .stdout(predicate::str::contains("(ERR-012)"))
+        .stderr(predicate::str::contains("os error").not())
+        .stderr(predicate::str::contains("check error").not());
 }
 
 #[test]
@@ -343,16 +340,13 @@ fn a_target_outside_src_with_a_file_module_is_refused_by_name_not_half_read() {
         ("hello.rs", "mod helper;\nfn main() { helper::f(); }\n"),
         ("helper.rs", "pub fn f() {}\n"),
     ]);
-    sweep_portfolio(
-        &repo,
-        &["--skip-rule", "WSP-011=no forge in a test"],
-    )
-    .assert()
-    .code(3)
-    .stderr(predicate::str::contains(
-        "declares the file module `helper`",
-    ))
-    .stderr(predicate::str::contains("os error").not());
+    sweep_portfolio(&repo, &["--skip-rule", "WSP-011=no forge in a test"])
+        .assert()
+        .code(3)
+        .stderr(predicate::str::contains(
+            "declares the file module `helper`",
+        ))
+        .stderr(predicate::str::contains("os error").not());
 }
 
 fn workspace_with_config(config: &str) -> tempfile::TempDir {

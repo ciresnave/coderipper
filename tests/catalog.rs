@@ -181,7 +181,11 @@ fn every_new_rule_starts_experimental_with_no_overlap_refs() {
             .is_some_and(|c| c.is_ascii_uppercase())
         {
             // the fourteen rules renamed from slugs keep their lifecycle: they are old rules under new ids
-            if rule.aliases().iter().any(|a| a.starts_with(|c: char| c.is_ascii_lowercase())) {
+            if rule
+                .aliases()
+                .iter()
+                .any(|a| a.starts_with(|c: char| c.is_ascii_lowercase()))
+            {
                 continue;
             }
             assert_eq!(rule.lifecycle(), Lifecycle::Experimental, "{}", rule.id());
@@ -426,7 +430,10 @@ fn the_migration_tool_renames_exactly_the_slug_aliases() {
         .filter_map(|l| {
             let l = l.trim().strip_suffix(',')?;
             let (old, new) = l.split_once("\": \"")?;
-            Some((old.strip_prefix('"')?.to_string(), new.strip_suffix('"')?.to_string()))
+            Some((
+                old.strip_prefix('"')?.to_string(),
+                new.strip_suffix('"')?.to_string(),
+            ))
         })
         .collect();
     let mut catalog: Vec<(String, String)> = Vec::new();
@@ -439,6 +446,10 @@ fn the_migration_tool_renames_exactly_the_slug_aliases() {
     }
     tool.sort();
     catalog.sort();
-    assert_eq!(catalog.len(), 14, "positive control: fourteen slug aliases: {catalog:?}");
+    assert_eq!(
+        catalog.len(),
+        14,
+        "positive control: fourteen slug aliases: {catalog:?}"
+    );
     assert_eq!(tool, catalog);
 }

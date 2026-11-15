@@ -442,11 +442,7 @@ fn a_clean_twin_that_gains_the_defect_makes_the_real_module_fail() {
         }
     }
     let defect = std::fs::read_to_string(source.join("defective/src/lib.rs")).unwrap();
-    std::fs::write(
-        fixtures.path().join("RDB-014/clean/src/lib.rs"),
-        defect,
-    )
-    .unwrap();
+    std::fs::write(fixtures.path().join("RDB-014/clean/src/lib.rs"), defect).unwrap();
     let checks = coderipper::registered_checks();
     let module = coderipper::module::RustModule::new(&checks);
     let result = run(&module, &Options::new(fixtures.path()).rule("RDB-014")).unwrap();

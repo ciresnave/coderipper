@@ -32,9 +32,7 @@ fn a_claim_without_a_fixture_is_reported_but_does_not_fail() {
         .arg(fixtures())
         .assert()
         .code(0)
-        .stdout(predicate::str::contains(
-            "WSP-011: no fixture",
-        ));
+        .stdout(predicate::str::contains("WSP-011: no fixture"));
 }
 
 #[test]
@@ -138,9 +136,7 @@ fn requiring_proof_fails_a_claim_that_is_not_earned() {
         .arg(fixtures())
         .assert()
         .code(1)
-        .stdout(predicate::str::contains(
-            "WSP-011: no fixture",
-        ));
+        .stdout(predicate::str::contains("WSP-011: no fixture"));
     coderipper()
         .args([
             "conformance",

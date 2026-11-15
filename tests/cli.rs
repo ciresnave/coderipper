@@ -587,17 +587,21 @@ fn skip_rule_runs_a_check_out_with_its_reason_and_refuses_a_typo_or_a_missing_re
         cmd
     };
     // control: without the skip the check runs, cannot, and the run says so
-    sweep(&[]).assert().code(3).stderr(predicate::str::contains(
-        "WSP-011 failed to run",
-    ));
-    // with it the check is not called, and the reason is on the run
-    sweep(&["--skip-rule", "WSP-011=needs admin read; the PM sweep runs it"])
+    sweep(&[])
         .assert()
-        .success()
-        .stderr(predicate::str::contains(
-            "WSP-011 not run: skipped on request (needs admin read; the PM sweep runs it)",
-        ))
-        .stderr(predicate::str::contains("failed to run").not());
+        .code(3)
+        .stderr(predicate::str::contains("WSP-011 failed to run"));
+    // with it the check is not called, and the reason is on the run
+    sweep(&[
+        "--skip-rule",
+        "WSP-011=needs admin read; the PM sweep runs it",
+    ])
+    .assert()
+    .success()
+    .stderr(predicate::str::contains(
+        "WSP-011 not run: skipped on request (needs admin read; the PM sweep runs it)",
+    ))
+    .stderr(predicate::str::contains("failed to run").not());
     // a name that is no built-in check is an error, not a quiet no-op
     sweep(&["--skip-rule", "ci-protection-presense=why"])
         .assert()

@@ -200,9 +200,7 @@ theirs
         coderipper(&defective, &["fast", "--profile", profile])
             .assert()
             .code(0)
-            .stdout(predicate::str::contains(
-                "docs/DEVICE-TESTS.md:3 (GOV-011)",
-            ));
+            .stdout(predicate::str::contains("docs/DEVICE-TESTS.md:3 (GOV-011)"));
         Command::cargo_bin("coderipper")
             .unwrap()
             .args(["fast", "--profile", profile, "--project"])

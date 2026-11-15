@@ -98,7 +98,10 @@ fn a_finding_names_its_file_and_line_in_the_text_output() {
 fn a_waived_finding_names_its_place_too() {
     let repo = common::git_repo_with(&[
         ("Cargo.toml", MANIFEST),
-        ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() {\n    f();\n}\n"),
+        (
+            "src/main.rs",
+            "fn f() -> i32 { 1 }\nfn main() {\n    f();\n}\n",
+        ),
         (
             ".coderipper.toml",
             "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"fixture\"\n",
