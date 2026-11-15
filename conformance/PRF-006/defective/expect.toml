@@ -1,0 +1,6 @@
+# The seeded defect: a performance exception with no benchmark reference (line 2).
+
+[[expect]]
+rule = "PRF-006"
+file = "src/main.rs"
+line = 2

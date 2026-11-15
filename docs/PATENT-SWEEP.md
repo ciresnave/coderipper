@@ -1756,3 +1756,41 @@ Version line covered by this addendum: **0.43** (0.43.96). One rule is added, re
 **Result: no hit found for `DOC-003` on the two queries; five related catalog patents are named and unread.** **Watch: US8495621 and US2008/0172403** (claims to be read: validation before a component enters a catalog; owner as a verified entity). The rule validates a file the project writes about itself, with no catalog, signature or third-party identifier.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.97)
+
+Version line covered by this addendum: **0.43** (0.43.97). One rule is added, read from `src/module/neutral/prf006.rs`: `PRF-006` (a source comment that begins `PERF-EXCEPTION:` with no benchmark reference on its line or the next two). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 106 (`PRF-006`).** Read source comments for a marker the repository chooses to write (`PERF-EXCEPTION:`) and report a marker whose line or next two comment lines hold no link, `benches/`-style path or `bench::` name. Nothing is measured, run or compared; the rule reads comment text.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q215 | 106 | patent method detect performance optimization exception in source code comment marker requiring benchmark reference static analysis claims |
+| Q216 | 106 | patents.google.com linking code annotation to performance benchmark result, verify source code comment references benchmark evidence for optimization |
+
+**Positive controls:** Q215 returned related work on source-level performance analysis (a 2007 IEEE paper on linking static pattern detection to performance measurement, the CARAMEL loop-bug paper, a CommentSense project that gates changes on running a benchmark suite) and one patent, **US 8,875,100** ("Pattern analysis and performance accounting"), so the engine reaches the neighbourhood. Q216 returned code-comment research and a CodSpeed benchmark dashboard, and no patent. **A patent that checks a source comment for a benchmark reference was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the benchmark-gated review rules of open-source projects, `TODO(owner)` conventions (`RDB-008`), and Rust's own `// SAFETY:` comment convention, which this marker copies in form.
+
+**Read:** no claim was read. US 8,875,100 is known from a search-engine excerpt only: it describes comments or annotations that mark code sections for evaluation, and flow-graph static analysis compared with prior regression patterns, which runs and compares tests; `PRF-006` runs nothing. That is a judgement from an excerpt, not a claim read. **Not read in full:** every result named above.
+
+**Result: no hit found for `PRF-006` on the two queries; one related patent is named and unread.** **Watch: US 8,875,100** (read its independent claims before this rule leaves opt-in; re-read them if `PRF-006` ever runs a benchmark or compares results).
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.98)
+
+Version line covered by this addendum: **0.43** (0.43.98). One rule is added, read from `src/module/neutral/mod007.rs`: `MOD-007`, mechanical half only (a component that declares a `purpose` whose root file has no `//!` module documentation). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 107 (`MOD-007`).** Read the project's own architecture declaration and, for each component with a declared purpose, test that its root source file carries a non-blank inner doc comment. No text is compared with another; the check is that module documentation exists.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q217 | 107 | patent method comparing module documentation comment with declared component purpose to check software module has stated responsibility |
+| Q218 | 107 | (not run) a second query on "docstring" and "declared responsibility" is owed |
+
+**Positive control:** Q217 returned patent documents on comparing source code with feature documentation (US 11,836,069, validating software components by comparing summaries of the code and of its documentation) and a family titled "Document analysis method and apparatus", so the engine reaches the neighbourhood; it also returned non-patent work on comment-code inconsistency (@tComment, CoDAT). **A patent claiming that a component with a declared purpose has a root file with a module doc was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 11,836,069 compares *summaries* of code and documentation, which is the judgement half this rule does not build; it is owed a claim read **before that half is built, and before this rule leaves opt-in**.
+
+**Result: no hit on the one query; US 11,836,069 is named and unread. Watch: US 11,836,069.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
