@@ -59,6 +59,9 @@ fn missing_declaration(a: Option<&ArchitectureConfig>) -> Option<String> {
     let Some(a) = a else {
         return Some("this repository declares no [architecture] table in .coderipper.toml, so ARC-007 has no owned data to look for; a missing declaration is a gap, not a pass (docs/rules/arc.md)".into());
     };
+    if a.declares_none(crate::architecture::NoneInput::OwnsData) {
+        return None;
+    }
     if !a.component.iter().any(|c| !c.owns_data.is_empty()) {
         return Some("no [[architecture.component]] declares owns_data (the tables, collections or topics only that component may name), so there is no ownership to judge (docs/rules/arc.md)".into());
     }
@@ -106,6 +109,15 @@ impl Check for DataOwnershipCheck {
         let graph = read_graph(&ctx.project_root)?;
         let names = graph.members.iter().map(|m| m.name.clone()).collect();
         arch.validate(&names, &file)?;
+        if arch.declares_none(crate::architecture::NoneInput::OwnsData) {
+            return Ok((
+                Vec::new(),
+                vec![crate::architecture::none_note(
+                    CHECK_ID,
+                    crate::architecture::NoneInput::OwnsData,
+                )],
+            ));
+        }
         let project = ctx.project_root.file_name().map_or_else(
             || "repository".to_string(),
             |n| n.to_string_lossy().into_owned(),

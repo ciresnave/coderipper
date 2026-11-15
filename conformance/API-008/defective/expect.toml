@@ -1,0 +1,6 @@
+# The seeded defect: a public function returns a `serde_json::Value`, so the dependency's version policy becomes the library's (line 1).
+
+[[expect]]
+rule = "API-008"
+file = "src/lib.rs"
+line = 1

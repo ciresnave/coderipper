@@ -443,6 +443,18 @@ impl RuleResult {
         }
     }
 
+    /// A rule with nothing to judge in this project (`not_applicable_here`): skipped, and the reason is printed as a note.
+    pub fn not_applicable(rule: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            rule: rule.into(),
+            status: RuleRan::Skipped,
+            findings: 0,
+            reason_code: Some("not_applicable_here".into()),
+            detail: Some(detail.into()),
+            error_kind: None,
+        }
+    }
+
     /// A rule not run because the project has not configured what it judges against (see [`NOT_CONFIGURED`]); `detail` says what to add.
     pub fn not_configured(rule: impl Into<String>, detail: impl Into<String>) -> Self {
         Self {

@@ -104,6 +104,18 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("AIH-010");
     // the security-support-statement rule (a neutral-module rule that is not a knowledge-base id)
     triaged.push("security-support-statement");
+    // the test-artifact-path rule (a test finds a built artifact through Cargo's variables; id allocated by the PM 2026-11-12, not a knowledge-base id)
+    triaged.push("test-artifact-path");
+    // the architecture-waiver ratchet (GOV-001's architecture half, id allocated by the PM 2026-11-12; not a knowledge-base id)
+    triaged.push("architecture-ratchet");
+    // SEC-012, a Debug impl that prints a secret: allocated by the PM (2026-11-12) from two real leaks, not a knowledge-base id
+    triaged.push("SEC-012");
+    // CON-012, public async fns return Send futures: scheduled in docs/RULES-REVIEW-2026-11-07.md item 4 and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
+    triaged.push("CON-012");
+    // SUP-021, build-script hygiene: scheduled in docs/RULES-REVIEW-2026-11-07.md item 7 and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
+    triaged.push("SUP-021");
+    // COR-012, Send and Sync impls are sound: scheduled in docs/rules/REMAINING.md and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
+    triaged.push("COR-012");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
     triaged.retain(|id| *id != "TYP-003");
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();

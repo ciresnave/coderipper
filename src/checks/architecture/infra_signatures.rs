@@ -63,7 +63,7 @@ impl InfraSignatureCheck {
 }
 
 /// A component this rule judges.
-fn is_policy(c: &ComponentDecl) -> bool {
+pub(super) fn is_policy(c: &ComponentDecl) -> bool {
     c.role == Some(Role::Policy) || (c.role.is_none() && c.volatility == Some(Volatility::Stable))
 }
 
@@ -179,7 +179,7 @@ impl Check for InfraSignatureCheck {
 }
 
 /// What counts as infrastructure.
-struct Banned {
+pub(super) struct Banned {
     names: BTreeSet<String>,
     prefixes: Vec<Vec<String>>,
     /// Crate identifier (`my_db`) -> the infrastructure component it belongs to.
@@ -187,7 +187,7 @@ struct Banned {
 }
 
 impl Banned {
-    fn new(
+    pub(super) fn new(
         arch: &ArchitectureConfig,
         patterns: &[String],
         members: &[super::Member],
@@ -233,8 +233,28 @@ impl Banned {
         }
     }
 
+    /// A classifier that knows only the namespaces given (for rules that bring their own list).
+    #[cfg(test)]
+    pub(super) fn from_namespaces(namespaces: &[&[&str]]) -> Self {
+        let mut b = Self {
+            names: BTreeSet::new(),
+            prefixes: Vec::new(),
+            crates: BTreeMap::new(),
+        };
+        for n in namespaces {
+            b.add_namespace(n);
+        }
+        b
+    }
+
+    /// Treat a namespace (`http`, `sqlx`) as infrastructure too, whatever the declaration says.
+    pub(super) fn add_namespace(&mut self, segments: &[&str]) {
+        self.prefixes
+            .push(segments.iter().map(|s| (*s).to_string()).collect());
+    }
+
     /// Why a resolved path is infrastructure, or `None`.
-    fn why(&self, path: &[String]) -> Option<String> {
+    pub(super) fn why(&self, path: &[String]) -> Option<String> {
         let first = path.first()?;
         if let Some(comp) = self.crates.get(first) {
             return Some(format!(
@@ -264,11 +284,11 @@ impl Banned {
 
 /// One public signature: where it is, what it is called, and the paths of the types it names (use-resolved).
 #[derive(Debug)]
-struct Site {
-    label: String,
-    file: String,
-    line: usize,
-    paths: Vec<Vec<String>>,
+pub(super) struct Site {
+    pub(super) label: String,
+    pub(super) file: String,
+    pub(super) line: usize,
+    pub(super) paths: Vec<Vec<String>>,
     /// For a method or associated item: the type or trait that owns it, which must be public for the site to count.
     owner: Option<String>,
 }
@@ -331,7 +351,10 @@ struct Reader<'a> {
 }
 
 /// The public signature sites of the library whose tracked sources are `files`, plus notes. A file `syn` cannot parse is an error.
-fn signature_sites(files: &[SourceFile], dir: &str) -> anyhow::Result<(Vec<Site>, Vec<String>)> {
+pub(super) fn signature_sites(
+    files: &[SourceFile],
+    dir: &str,
+) -> anyhow::Result<(Vec<Site>, Vec<String>)> {
     let by_path: BTreeMap<&str, &SourceFile> = files.iter().map(|f| (f.path.as_str(), f)).collect();
     let Some(root) = by_path.get("src/lib.rs").copied() else {
         return Ok((

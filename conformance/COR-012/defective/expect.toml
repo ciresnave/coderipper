@@ -1,0 +1,6 @@
+# The seeded defect: a type with an Rc field promises to be Send (line 7).
+
+[[expect]]
+rule = "COR-012"
+file = "src/lib.rs"
+line = 7

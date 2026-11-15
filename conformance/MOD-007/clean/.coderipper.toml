@@ -1,0 +1,6 @@
+[architecture]
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+purpose = "parses orders"

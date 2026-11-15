@@ -319,7 +319,7 @@ Proposed ids; each becomes a record, with `checked_today`, in the PR that builds
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | AIH-009 | Tests are not weakened to make a change pass | AIH | the diff against the merge-base | `src/module/neutral/lint_suppression.rs` (ratchet, merge-base compare) | M | removed `#[test]`, removed or loosened assertion, new `#[ignore]` |
 | AIH-010 | Tests were run before the work is called done | AIH | the commit's CI status | `src/checks/ci_protection_presence/` | S | RULING: harness hook in scope, or CI status only |
-| SEC-011 | Authentication and authorization on Rust entry points (SEC-003/SEC-010 Rust half) | SEC | source only | `src/module/neutral/sec005.rs` | L | route inventory for axum, actix-web, rocket, warp; SEC-003 and SEC-008 gain Rust applicability |
+| SEC-014 | Authentication and authorization on Rust entry points (SEC-003/SEC-010 Rust half) | SEC | source only | `src/module/neutral/sec005.rs` | L | route inventory for axum, actix-web, rocket, warp; SEC-003 and SEC-008 gain Rust applicability |
 | CON-012 | Public async functions return `Send` futures | CON | source only | `src/module/neutral/concurrency.rs` | M | clippy `future_not_send` is nursery |
 | SUP-020 | Cargo features are additive | SUP | Cargo.toml | `src/module/neutral/sup001.rs` | S | `no-*` features, mutually exclusive pairs |
 | SEC-012 | No `Debug` on secret-holding types | SEC | source only | `src/module/neutral/sec004.rs` | S | `derive(Debug)` on a type with a secret-named field and no wrapper |

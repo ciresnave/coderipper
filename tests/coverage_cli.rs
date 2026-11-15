@@ -11,8 +11,8 @@ mod common;
 use assert_cmd::Command;
 use predicates::prelude::*;
 
-/// The fixtures' `main` reads its arguments by hand (to answer OPS-011's probes), so the manifest names a parser as OPS-012 asks.
-const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nclap = \"4\"\n";
+/// The fixtures' `main` reads its arguments by hand (to answer OPS-011's probes), so the manifest names a parser as OPS-012 asks (and lists it as ignored for SUP-006, since no source names it).
+const MANIFEST: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nclap = \"4\"\n\n[package.metadata.cargo-machete]\nignored = [\"clap\"]\n";
 
 /// What the language-neutral rules ask of a project with a binary: a committed lockfile and a default owner.
 const LOCK: &str = "version = 4\n\n[[package]]\nname = \"clap\"\nversion = \"4.5.0\"\n\n[[package]]\nname = \"fixture\"\nversion = \"0.1.0\"\ndependencies = [\"clap\"]\n";
@@ -390,7 +390,8 @@ fn min_coverage_zero_passes_and_a_floor_above_the_coverage_exits_one_naming_the_
 fn min_coverage_measures_a_language_no_module_checks_by_the_neutral_rules_and_never_hides_a_worse_exit_code(
 ) {
     fast(&polyglot_project())
-        .args(["--min-coverage", "10"])
+        // 20, not 10: typescript is about 10% (22 of 215 once the aliases left the catalog) while rust is over 40%, so only typescript is under the floor
+        .args(["--min-coverage", "20"])
         .assert()
         .code(1)
         .stderr(predicate::str::contains("typescript is "));

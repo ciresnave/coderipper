@@ -1,0 +1,6 @@
+# The seeded defect: a global mutex-wrapped registry (line 4).
+
+[[expect]]
+rule = "CON-011"
+file = "src/lib.rs"
+line = 4

@@ -120,6 +120,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Keep the join handle and await it, spawn inside a task scope or set, or record in a comment why this task is allowed to run on its own."
 related = ["CON-007", "CON-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions (any attribute ending in test, tokio::test included) skipped: a call of a free spawn function (tokio::spawn, task::spawn, task::spawn_local, spawn_blocking, thread::spawn, std::thread::spawn, async_std or smol spawn, or a bare spawn the file imports from one of them) whose handle is dropped on the spot, as a statement of its own or bound to an underscore. A handle kept in a variable, returned, pushed, awaited or joined, a spawn through a method (a JoinSet, a scope) and a spawn with a justifying comment (detach, fire-and-forget, background, on purpose, deliberate, intentional, supervis, owned by) on its line or in the three lines above are not reported. One Medium finding with Medium confidence per detached spawn; opt-in (check CON-005). Not judged: a kept handle that is never joined, a spawn through a wrapper of the project, a runtime handle method, whether the task forwards its errors, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -193,6 +194,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Wrap the operation in a timeout or pass a deadline down from the caller; list the few places where waiting indefinitely is intended."
 related = ["REL-001", "CON-003"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; CON-008 reports only the second kind, the awaits, of one scan that finds three kinds of site: an HTTP client built without a timeout (reqwest Client::new, reqwest::get and the blocking forms, or a Client::builder or ClientBuilder::new chain ending in build with no timeout, connect_timeout or read_timeout in it; a bare Client counts when the file imports it from reqwest), an awaited TcpStream::connect (tokio, async-std, smol) outside a call of timeout or timeout_at, and a blocking std::net::TcpStream::connect (connect_timeout has a deadline). Not judged: a request sent on a client built elsewhere, a deadline applied by a wrapper or a middleware layer, FutureExt::timeout adapters (treated as a deadline), database and RPC clients, a timeout set from the environment, other languages. One Medium finding with Medium confidence per site; opt-in (check CON-008)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -241,6 +243,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Use the strongest ordering unless profiling shows a need, and write the reasoning next to each weaker one; model-check the algorithm where the stakes are high."
 related = ["CON-001"]
+checked_today = "Tracked Rust files of every package outside vendored and fixture directories, tests, benches, examples, tools, scripts and build.rs, parsed with syn, items under cfg(test) and test functions skipped. A site is a path ending in Ordering::Relaxed, Ordering::Acquire, Ordering::Release or Ordering::AcqRel; it is justified when a comment is on its line or on any of the three lines above. One Low finding with Low confidence per package, listing the first undocumented sites; opt-in (check CON-010). Not judged: an ordering imported by name, held in a constant or inside a macro's arguments, whether the comment argues the ordering, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -265,8 +268,34 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Extract the shared items from the code, declare an owner for each in the architecture description, and replace any that have no good reason to be shared with passed-in values."
 related = ["CON-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; one scan finds a static mut, a static whose type names Mutex, RwLock, RefCell, Cell, UnsafeCell, ArcSwap or an Atomic type (read through OnceLock, LazyLock, Lazy, Arc and Box to what they hold, so a lazily built Regex is not a site), and the same kinds of entry inside lazy_static and thread_local. EFX-002 and CON-011 read the same sites. Not judged: a type alias that hides the lock, an allowlist or an owner inventory (none is read), statics in other macros, other languages. One finding per site with Medium confidence; Low severity; opt-in (check CON-011)."
 lifecycle = "experimental"
 
 [rule.applicability]
 languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "CON-012"
+title = "Public async functions return Send futures"
+domain = "CON"
+statement = "A public async function returns a future that is Send, so callers can spawn it on a multi-threaded runtime."
+rationale = "A future that is not Send cannot be spawned with tokio::spawn or moved between threads, and the compiler reports it at the caller, far from the function that holds the Rc, raw pointer or cell reference."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+remediation = "Use Arc instead of Rc, end the scope of a non-Send value before the await, take an owned or Sync type, or mark a single-threaded API with async_trait(?Send) or spawn_local."
+related = ["CON-002"]
+checked_today = "Rust, from the source with syn (opt-in): tracked Rust files outside vendored, fixture and development directories, items under cfg(test) and test functions skipped. A pub free async fn, or a pub async fn of an inherent impl, is reported once when a parameter type names Rc, is a raw pointer or is a shared reference to a Cell or RefCell (Medium confidence), or when a local declared before the last await is annotated with or initialised from an Rc or a cast to a raw pointer (Low confidence). A file whose text contains ?Send, spawn_local, LocalSet or wasm_bindgen is single-threaded on purpose and is not read. Not seen: a non-Send type other than Rc or a raw pointer (a std MutexGuard, Ref, RefMut, a user type), a value made by a called function, a local whose scope ends before the await, impl Future returns and async blocks, whether the function is reachable from outside the crate. A file syn cannot parse is named in a note."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
 scopes = ["first_party"]

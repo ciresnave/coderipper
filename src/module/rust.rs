@@ -67,6 +67,10 @@ impl Module for RustModule<'_> {
                 errored += 1;
                 continue;
             };
+            if let Some(why) = check.not_applicable(&ctx) {
+                events.push(Event::RuleResult(RuleResult::not_applicable(rule, why)));
+                continue;
+            }
             if let Some(why) = check.not_configured(&ctx) {
                 events.push(Event::RuleResult(RuleResult::not_configured(rule, why)));
                 continue;

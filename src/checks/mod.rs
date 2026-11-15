@@ -30,8 +30,10 @@ pub use architecture::{
     ModuleCyclesCheck,
     PassThroughCheck,
     PublicSurfaceCheck,
+    PureEffectsCheck,
     ReachThroughCheck,
     StabilityCheck,
+    TransportErrorCheck,
     VolatileDetailCheck,
 };
 pub use ci_protection_presence::CiProtectionPresenceCheck;

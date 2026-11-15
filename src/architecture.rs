@@ -48,9 +48,116 @@ pub(crate) struct ArchitectureConfig {
     /// `[architecture.api_budget]` (ARC-006).
     #[serde(default)]
     pub api_budget: BTreeMap<String, u32>,
+    /// `[architecture.effects]`: what counts as an effect for a component tagged `pure = true` (EFX-001). Optional: absent, the rule's
+    /// built-in list is used.
+    #[serde(default)]
+    pub effects: Option<EffectsDecl>,
     /// Once set, the number of waivers may only fall (not read yet).
     #[serde(default)]
     pub ratchet: Option<bool>,
+    /// Inputs this repository states it has none of: `none = ["volatile", "api_budget", "owns_data", "composition"]` (any subset). A rule
+    /// whose input is listed here **runs and reports 0 sites by declaration**, instead of "not run", so a small library that genuinely has
+    /// no volatile detail, no API budget, no owned data or no composition root can say so. Listing an input that is also declared is an error.
+    #[serde(default)]
+    pub none: Vec<NoneInput>,
+}
+
+/// An input of an A-class rule that a repository may state it has none of (see [`ArchitectureConfig::none`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum NoneInput {
+    /// `[architecture.volatile]`: the names and namespaces of volatile detail (ARC-003).
+    Volatile,
+    /// `[architecture.api_budget]`: a budget per component (ARC-006).
+    ApiBudget,
+    /// `owns_data` on a component: the data only that component may name (ARC-007).
+    OwnsData,
+    /// `[architecture.composition]` roots, or a component with `role = "composition"` (ARC-012).
+    Composition,
+    /// A component tagged `pure = true` (EFX-001).
+    Pure,
+}
+
+impl NoneInput {
+    /// The key as written in the declaration.
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Volatile => "volatile",
+            Self::ApiBudget => "api_budget",
+            Self::OwnsData => "owns_data",
+            Self::Composition => "composition",
+            Self::Pure => "pure",
+        }
+    }
+
+    /// What the input is, for a sentence.
+    fn what(self) -> &'static str {
+        match self {
+            Self::Volatile => "volatile detail to look for",
+            Self::ApiBudget => "API budget to compare",
+            Self::OwnsData => "owned data to look for",
+            Self::Composition => "composition root to compare",
+            Self::Pure => "component declared pure to judge",
+        }
+    }
+}
+
+impl ArchitectureConfig {
+    /// The effect list EFX-001 applies to every pure component: the built-in list, plus `effects.add`, minus `effects.remove`, each
+    /// entry normalized (see [`normalize_effect`]). The list is global: `[architecture.effects]` is not per component.
+    pub(crate) fn effect_list(&self) -> Vec<String> {
+        let (add, remove) = self.effects.as_ref().map_or((&[][..], &[][..]), |e| {
+            (e.add.as_slice(), e.remove.as_slice())
+        });
+        let removed: BTreeSet<String> = remove.iter().map(|r| normalize_effect(r)).collect();
+        let mut list: Vec<String> = DEFAULT_EFFECTS
+            .iter()
+            .map(|d| (*d).to_string())
+            .filter(|d| !removed.contains(d))
+            .collect();
+        for a in add {
+            let a = normalize_effect(a);
+            if !list.contains(&a) {
+                list.push(a);
+            }
+        }
+        list
+    }
+
+    /// Whether the declaration states, with `none = [..]`, that the repository has none of `input`.
+    pub(crate) fn declares_none(&self, input: NoneInput) -> bool {
+        self.none.contains(&input)
+    }
+
+    /// Whether the declaration also gives `input` a value (the contradiction `none` must not have).
+    fn gives(&self, input: NoneInput) -> bool {
+        match input {
+            NoneInput::Volatile => self.volatile.as_ref().is_some_and(|v| {
+                !v.names.is_empty() || !v.namespaces.is_empty() || v.feature_cfg_in_policy
+            }),
+            NoneInput::ApiBudget => !self.api_budget.is_empty(),
+            NoneInput::OwnsData => self.component.iter().any(|c| !c.owns_data.is_empty()),
+            NoneInput::Composition => {
+                self.composition
+                    .as_ref()
+                    .is_some_and(|c| !c.roots.is_empty())
+                    || self
+                        .component
+                        .iter()
+                        .any(|c| c.role == Some(Role::Composition))
+            }
+            NoneInput::Pure => self.component.iter().any(|c| c.pure == Some(true)),
+        }
+    }
+}
+
+/// The note a rule prints when the declaration states it has none of the rule's input: a fact the repository stated, not a gap.
+pub(crate) fn none_note(rule: &str, input: NoneInput) -> String {
+    format!(
+        "{rule}: the declaration says this repository has no {} (`none = [\"{}\"]`), so there is nothing to compare: 0 sites by declaration",
+        input.what(),
+        input.key()
+    )
 }
 
 /// One `[[architecture.component]]`.
@@ -69,6 +176,64 @@ pub(crate) struct ComponentDecl {
     pub owns_data: Vec<String>,
     #[serde(default)]
     pub invariant_types: Vec<String>,
+    /// `pure = true`: this component performs no effects (file, network, environment, process, clock, randomness, threads); EFX-001
+    /// judges it. Absent means "not judged", not "impure"; `false` is the same as absent but states it was considered.
+    #[serde(default)]
+    pub pure: Option<bool>,
+    /// What the component is for, in a sentence (DOC-003). Optional: a declaration in which no component carries `purpose` or `owner`
+    /// has not adopted the convention and DOC-003 is silent on it.
+    #[serde(default)]
+    pub purpose: Option<String>,
+    /// Who answers for the component: a person, team or lane (DOC-003). Optional, as `purpose`.
+    #[serde(default)]
+    pub owner: Option<String>,
+}
+
+/// The effects EFX-001 looks for in a component tagged `pure = true`, as path prefixes (the rule's seven families: file, network,
+/// environment, process, clock, randomness, threads). `[architecture.effects]` adds to and removes from this list.
+pub(crate) const DEFAULT_EFFECTS: &[&str] = &[
+    "std::fs",
+    "tokio::fs",
+    "std::net",
+    "tokio::net",
+    "reqwest",
+    "hyper",
+    "std::env",
+    "std::process",
+    "tokio::process",
+    "std::time::SystemTime",
+    "std::time::Instant",
+    "chrono::Utc::now",
+    "chrono::Local::now",
+    "rand",
+    "getrandom",
+    "std::thread",
+    "tokio::spawn",
+];
+
+/// An effect entry in one form: trimmed, a trailing `::` dropped, so `metrics::`, `metrics` and ` metrics ` are the same entry.
+pub(crate) fn normalize_effect(entry: &str) -> String {
+    let e = entry.trim();
+    e.strip_suffix("::").unwrap_or(e).trim().to_string()
+}
+
+/// Whether a normalized entry is a `::`-separated path of identifiers.
+fn is_effect_path(e: &str) -> bool {
+    !e.is_empty()
+        && e.split("::")
+            .all(|seg| !seg.is_empty() && seg.chars().all(|c| c.is_alphanumeric() || c == '_'))
+}
+
+/// `[architecture.effects]`: the project's changes to the built-in effect list that EFX-001 applies to a pure component.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct EffectsDecl {
+    /// More effect namespaces or names (a path prefix such as `metrics::`, or one name such as `Instant`).
+    #[serde(default)]
+    pub add: Vec<String>,
+    /// Entries of the built-in list this project does not count as an effect (say why in a comment next to it).
+    #[serde(default)]
+    pub remove: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -212,10 +377,68 @@ impl ArchitectureConfig {
                     .into(),
             ));
         }
+        let mut stated: BTreeSet<NoneInput> = BTreeSet::new();
+        for n in &self.none {
+            if !stated.insert(*n) {
+                return Err(bad(format!("lists `{}` twice in `none`", n.key())));
+            }
+            if self.gives(*n) {
+                return Err(bad(format!(
+                    "lists `{}` in `none` and also declares it: say one or the other",
+                    n.key()
+                )));
+            }
+        }
         let mut declared: BTreeSet<&str> = BTreeSet::new();
         for c in &self.component {
             if !declared.insert(c.name.as_str()) {
                 return Err(bad(format!("declares the component `{}` twice", c.name)));
+            }
+        }
+        for c in &self.component {
+            if c.pure == Some(true)
+                && matches!(
+                    c.role,
+                    Some(Role::Adapter | Role::Infrastructure | Role::Composition)
+                )
+            {
+                return Err(bad(format!(
+                    "the component `{}` is `pure = true` and also has an effectful role: an adapter, infrastructure or composition component is where effects live",
+                    c.name
+                )));
+            }
+        }
+        if let Some(e) = &self.effects {
+            if !self.component.iter().any(|c| c.pure == Some(true)) {
+                return Err(bad(
+                    "has an `[architecture.effects]` table and no component with `pure = true`: it would change nothing".into(),
+                ));
+            }
+            let mut seen: BTreeSet<String> = BTreeSet::new();
+            for (list, entries) in [("add", &e.add), ("remove", &e.remove)] {
+                for entry in entries {
+                    let n = normalize_effect(entry);
+                    if n.is_empty() {
+                        return Err(bad(format!("`effects.{list}` has a blank entry")));
+                    }
+                    if !is_effect_path(&n) {
+                        return Err(bad(format!(
+                            "`effects.{list}` has `{}`, which is not a path of names separated by `::` (for example `metrics::` or `std::fs`)",
+                            entry.trim()
+                        )));
+                    }
+                    if !seen.insert(n.clone()) {
+                        return Err(bad(format!(
+                            "`effects` names `{n}` more than once (in `add` and `remove`, or twice in one)"
+                        )));
+                    }
+                    if list == "remove" && !DEFAULT_EFFECTS.contains(&n.as_str()) {
+                        return Err(bad(format!(
+                            "`effects.remove` has `{n}`, which is not on the built-in effect list ({}): a stale removal changes nothing",
+                            DEFAULT_EFFECTS.join(", ")
+                        )));
+                    }
+                }
             }
         }
         let known = |name: &str| declared.contains(name) || members.contains(name);
@@ -302,6 +525,198 @@ mod tests {
 
     fn members(names: &[&str]) -> BTreeSet<String> {
         names.iter().map(|s| (*s).to_string()).collect()
+    }
+
+    fn parse_err(toml: &str) -> String {
+        match crate::config::ConfigFile::parse(toml, Path::new(".coderipper.toml")) {
+            Ok(f) => {
+                let a = f.architecture.expect("an [architecture] table");
+                a.validate(&members(&["core"]), Path::new(".coderipper.toml"))
+                    .expect_err("an error")
+                    .to_string()
+            }
+            Err(e) => e.to_string(),
+        }
+    }
+
+    #[test]
+    fn none_names_the_inputs_a_repository_states_it_has_none_of() {
+        let a = parse("[architecture]\nnone = [\"volatile\", \"api_budget\", \"owns_data\", \"composition\"]\n");
+        a.validate(&members(&[]), Path::new(".coderipper.toml"))
+            .unwrap();
+        for input in [
+            NoneInput::Volatile,
+            NoneInput::ApiBudget,
+            NoneInput::OwnsData,
+            NoneInput::Composition,
+        ] {
+            assert!(a.declares_none(input), "{input:?}");
+        }
+        let b = parse("[architecture]\nnone = [\"owns_data\"]\n");
+        assert!(b.declares_none(NoneInput::OwnsData) && !b.declares_none(NoneInput::Volatile));
+        assert!(!parse("[architecture]\n").declares_none(NoneInput::Volatile));
+    }
+
+    #[test]
+    fn an_unknown_none_value_a_duplicate_and_a_contradiction_are_errors() {
+        assert!(parse_err("[architecture]\nnone = [\"bogus\"]\n").contains("bogus"));
+        assert!(
+            parse_err("[architecture]\nnone = [\"volatile\", \"volatile\"]\n").contains("twice")
+        );
+        let both = "[architecture]\nnone = [\"api_budget\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\n[architecture.api_budget]\ncore = 5\n";
+        assert!(
+            parse_err(both).contains("also declares it"),
+            "{}",
+            parse_err(both)
+        );
+        let owns = "[architecture]\nnone = [\"owns_data\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\nowns_data = [\"orders\"]\n";
+        assert!(parse_err(owns).contains("owns_data"));
+        let vol = "[architecture]\nnone = [\"volatile\"]\n[architecture.volatile]\nnames = [\"BackendId\"]\n";
+        assert!(parse_err(vol).contains("also declares it"));
+        let comp = "[architecture]\nnone = [\"composition\"]\n[architecture.composition]\nroots = [\"src/main.rs\"]\n";
+        assert!(parse_err(comp).contains("also declares it"));
+    }
+
+    const PURE: &str = "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = true\n";
+
+    #[test]
+    fn a_component_can_be_tagged_pure_and_the_effect_list_changed() {
+        let a = parse(&format!(
+            "{PURE}[architecture.effects]\nadd = [\"metrics::\"]\nremove = [\"std::time::Instant\"]\n"
+        ));
+        a.validate(&members(&[]), Path::new(".coderipper.toml"))
+            .unwrap();
+        assert_eq!(a.component[0].pure, Some(true));
+        let e = a.effects.as_ref().unwrap();
+        assert_eq!(
+            (e.add.as_slice(), e.remove.as_slice()),
+            (
+                &["metrics::".to_string()][..],
+                &["std::time::Instant".to_string()][..]
+            )
+        );
+        let plain = parse(
+            "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\n",
+        );
+        assert_eq!(plain.component[0].pure, None);
+        assert!(plain.effects.is_none());
+    }
+
+    #[test]
+    fn a_malformed_purity_key_is_an_error() {
+        let not_bool = "[architecture]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = \"yes\"\n";
+        assert!(
+            parse_err(not_bool).contains("pure"),
+            "{}",
+            parse_err(not_bool)
+        );
+        let bad_effects = format!("{PURE}[architecture.effects]\nbogus = [\"x\"]\n");
+        assert!(parse_err(&bad_effects).contains("bogus"));
+        let not_list = format!("{PURE}[architecture.effects]\nadd = \"metrics::\"\n");
+        assert!(parse_err(&not_list).contains("add") || parse_err(&not_list).contains("sequence"));
+    }
+
+    #[test]
+    fn purity_beside_a_contradiction_is_a_config_error() {
+        let none = "[architecture]\nnone = [\"pure\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = true\n";
+        assert!(
+            parse_err(none).contains("also declares it"),
+            "{}",
+            parse_err(none)
+        );
+        let fine = "[architecture]\nnone = [\"pure\"]\n[[architecture.component]]\nname = \"core\"\npaths = [\"core\"]\npure = false\n";
+        let a = parse(fine);
+        a.validate(&members(&[]), Path::new("c")).unwrap();
+        assert!(a.declares_none(NoneInput::Pure));
+        let role = "[architecture]\n[[architecture.component]]\nname = \"db\"\npaths = [\"db\"]\nrole = \"adapter\"\npure = true\n";
+        assert!(
+            parse_err(role).contains("effectful role"),
+            "{}",
+            parse_err(role)
+        );
+        let orphan = "[architecture]\n[architecture.effects]\nadd = [\"metrics::\"]\n";
+        assert!(
+            parse_err(orphan).contains("would change nothing"),
+            "{}",
+            parse_err(orphan)
+        );
+        let blank = format!("{PURE}[architecture.effects]\nadd = [\" \"]\n");
+        assert!(parse_err(&blank).contains("blank"), "{}", parse_err(&blank));
+        let both =
+            format!("{PURE}[architecture.effects]\nadd = [\"rand::\"]\nremove = [\"rand::\"]\n");
+        assert!(
+            parse_err(&both).contains("more than once"),
+            "{}",
+            parse_err(&both)
+        );
+        let spaced = format!(
+            "{PURE}[architecture.effects]
+add = [\"metrics::\", \" metrics \"]
+"
+        );
+        assert!(
+            parse_err(&spaced).contains("more than once"),
+            "{}",
+            parse_err(&spaced)
+        );
+        let junk = format!(
+            "{PURE}[architecture.effects]
+add = [\"a b\"]
+"
+        );
+        assert!(
+            parse_err(&junk).contains("not a path"),
+            "{}",
+            parse_err(&junk)
+        );
+    }
+
+    #[test]
+    fn a_stale_removal_is_an_error_and_the_list_is_normalized() {
+        let stale = format!(
+            "{PURE}[architecture.effects]
+remove = [\"std::io\"]
+"
+        );
+        let e = parse_err(&stale);
+        assert!(e.contains("stale removal") && e.contains("std::io"), "{e}");
+        let a = parse(&format!(
+            "{PURE}[architecture.effects]
+add = [\" metrics:: \"]
+remove = [\"std::time::Instant::\"]
+"
+        ));
+        a.validate(&members(&[]), Path::new("c")).unwrap();
+        let list = a.effect_list();
+        assert!(list.contains(&"metrics".to_string()) && list.contains(&"std::fs".to_string()));
+        assert!(!list.contains(&"std::time::Instant".to_string()));
+        assert_eq!(
+            list.len(),
+            DEFAULT_EFFECTS.len(),
+            "one added, one removed: {list:?}"
+        );
+        assert_eq!(
+            parse(
+                "[architecture]
+"
+            )
+            .effect_list()
+            .len(),
+            DEFAULT_EFFECTS.len()
+        );
+    }
+
+    #[test]
+    fn the_note_says_it_is_a_stated_fact_not_a_gap() {
+        let n = none_note("ARC-006", NoneInput::ApiBudget);
+        assert!(
+            n.starts_with("ARC-006: ") && n.contains("0 sites by declaration"),
+            "{n}"
+        );
+        assert!(
+            n.contains("none = [\"api_budget\"]") && !n.contains("not run"),
+            "{n}"
+        );
     }
 
     #[test]

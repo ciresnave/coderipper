@@ -10,42 +10,76 @@
 //! Files are read from `HEAD` (`git ls-tree`, `git show`), as the Rust checks analyse `HEAD`, so a dirty working tree changes
 //! nothing. A project that is not a git repository with a commit is an error for every rule, never a clean run.
 
+mod api008;
+mod architecture_ratchet;
 mod ci_security;
+mod con005;
+mod con010;
+mod con012;
 mod concurrency;
 mod conflict_marker;
+mod cor003;
+mod cor006;
+mod cor007;
+mod cor012;
+mod deadline;
+mod doc003;
 mod doc005;
 mod doc009;
 mod efx003;
+mod efx007;
 mod err001;
+mod ext001;
 mod ext002;
 mod ext003;
+mod ext004;
+mod ext007;
+mod global_state;
 mod licence;
 mod lint_suppression;
 mod lock_order;
+mod mod007;
+mod ops003;
 mod ops009;
+mod ops010;
 mod ops012;
 mod patent_index;
 mod patent_sweep;
 mod prf003;
 mod prf005;
+mod prf006;
+mod rdb003;
 mod rdb004;
 mod rdb007;
 mod rdb008;
+mod rel009;
 mod rust_package;
 mod rust_src;
 mod sec004;
 mod sec005;
 mod sec007;
+mod sec012;
+mod sensitive_output;
 mod sup001;
 mod sup004;
 mod sup005;
+mod sup006;
 mod sup009;
+mod sup010;
 mod sup011;
+mod sup021;
 mod support_statement;
 mod surface;
+mod test_artifact_path;
 mod tst003;
+mod tst004;
+mod tst006;
+mod tst009;
+mod typ001;
+mod typ002;
 mod typ005;
 mod typ006;
+mod typ007;
 #[cfg(test)]
 mod variants;
 mod version_changelog;
@@ -94,6 +128,14 @@ const RULES: &[Rule] = &[
         judge: doc005::judge,
     },
     Rule {
+        id: "DOC-003",
+        judge: doc003::judge,
+    },
+    Rule {
+        id: "MOD-007",
+        judge: mod007::judge,
+    },
+    Rule {
         id: "DOC-009",
         judge: doc009::judge,
     },
@@ -104,6 +146,14 @@ const RULES: &[Rule] = &[
     Rule {
         id: "lint-suppression",
         judge: lint_suppression::judge,
+    },
+    Rule {
+        id: "test-artifact-path",
+        judge: test_artifact_path::judge,
+    },
+    Rule {
+        id: "architecture-ratchet",
+        judge: architecture_ratchet::judge,
     },
     Rule {
         id: "conflict-marker",
@@ -136,6 +186,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "OPS-012",
         judge: ops012::judge,
+    },
+    Rule {
+        id: "OPS-010",
+        judge: ops010::judge,
     },
     Rule {
         id: "security-support-statement",
@@ -194,6 +248,38 @@ const RULES: &[Rule] = &[
         judge: ext003::judge,
     },
     Rule {
+        id: "TYP-007",
+        judge: typ007::judge,
+    },
+    Rule {
+        id: "SUP-006",
+        judge: sup006::judge,
+    },
+    Rule {
+        id: "RDB-003",
+        judge: rdb003::judge,
+    },
+    Rule {
+        id: "SUP-021",
+        judge: sup021::judge,
+    },
+    Rule {
+        id: "API-008",
+        judge: api008::judge,
+    },
+    Rule {
+        id: "EXT-007",
+        judge: ext007::judge,
+    },
+    Rule {
+        id: "CON-010",
+        judge: con010::judge,
+    },
+    Rule {
+        id: "CON-012",
+        judge: con012::judge,
+    },
+    Rule {
         id: "TYP-005",
         judge: typ005::judge,
     },
@@ -234,6 +320,10 @@ const RULES: &[Rule] = &[
         judge: prf005::judge,
     },
     Rule {
+        id: "PRF-006",
+        judge: prf006::judge,
+    },
+    Rule {
         id: "RDB-004",
         judge: rdb004::judge,
     },
@@ -246,8 +336,100 @@ const RULES: &[Rule] = &[
         judge: tst003::judge,
     },
     Rule {
+        id: "TST-006",
+        judge: tst006::judge,
+    },
+    Rule {
+        id: "TST-009",
+        judge: tst009::judge,
+    },
+    Rule {
         id: "EXT-002",
         judge: ext002::judge,
+    },
+    Rule {
+        id: "ERR-009",
+        judge: sensitive_output::judge_err009,
+    },
+    Rule {
+        id: "SEC-008",
+        judge: sensitive_output::judge_sec008,
+    },
+    Rule {
+        id: "OPS-003",
+        judge: ops003::judge,
+    },
+    Rule {
+        id: "EFX-002",
+        judge: global_state::judge_efx002,
+    },
+    Rule {
+        id: "CON-011",
+        judge: global_state::judge_con011,
+    },
+    Rule {
+        id: "EFX-007",
+        judge: efx007::judge,
+    },
+    Rule {
+        id: "REL-009",
+        judge: rel009::judge,
+    },
+    Rule {
+        id: "TYP-001",
+        judge: typ001::judge,
+    },
+    Rule {
+        id: "TYP-002",
+        judge: typ002::judge,
+    },
+    Rule {
+        id: "COR-006",
+        judge: cor006::judge,
+    },
+    Rule {
+        id: "SEC-012",
+        judge: sec012::judge,
+    },
+    Rule {
+        id: "EXT-004",
+        judge: ext004::judge,
+    },
+    Rule {
+        id: "CON-008",
+        judge: deadline::judge_con008,
+    },
+    Rule {
+        id: "REL-001",
+        judge: deadline::judge_rel001,
+    },
+    Rule {
+        id: "CON-005",
+        judge: con005::judge,
+    },
+    Rule {
+        id: "EXT-001",
+        judge: ext001::judge,
+    },
+    Rule {
+        id: "COR-003",
+        judge: cor003::judge,
+    },
+    Rule {
+        id: "COR-007",
+        judge: cor007::judge,
+    },
+    Rule {
+        id: "COR-012",
+        judge: cor012::judge,
+    },
+    Rule {
+        id: "TST-004",
+        judge: tst004::judge,
+    },
+    Rule {
+        id: "SUP-010",
+        judge: sup010::judge,
     },
 ];
 
@@ -262,7 +444,10 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
         "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005",
+        "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
+        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
+        "CON-012", "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007",
     ]
 }
 
@@ -617,6 +802,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("patent-index-match", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
+    ("OPS-010", &["rust"]),
     ("CON-002", &["rust"]),
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
@@ -627,6 +813,14 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-004", &["rust"]),
     ("SEC-005", &["rust"]),
     ("EXT-003", &["rust"]),
+    ("TYP-007", &["rust"]),
+    ("SUP-006", &["rust"]),
+    ("RDB-003", &["rust"]),
+    ("SUP-021", &["rust"]),
+    ("API-008", &["rust"]),
+    ("EXT-007", &["rust"]),
+    ("CON-010", &["rust"]),
+    ("CON-012", &["rust"]),
     ("TYP-005", &["rust"]),
     ("SUP-005", &["rust"]),
     ("ERR-001", &["rust"]),
@@ -636,7 +830,30 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("RDB-004", &["rust"]),
     ("RDB-007", &["rust"]),
     ("TST-003", &["rust"]),
+    ("TST-006", &["rust"]),
+    ("TST-009", &["rust"]),
     ("EXT-002", &["rust"]),
+    ("ERR-009", &["rust"]),
+    ("SEC-008", &["rust"]),
+    ("OPS-003", &["rust"]),
+    ("EFX-002", &["rust"]),
+    ("CON-011", &["rust"]),
+    ("EFX-007", &["rust"]),
+    ("REL-009", &["rust"]),
+    ("TYP-001", &["rust"]),
+    ("TYP-002", &["rust"]),
+    ("test-artifact-path", &["rust"]),
+    ("COR-006", &["rust"]),
+    ("SEC-012", &["rust"]),
+    ("EXT-004", &["rust"]),
+    ("CON-008", &["rust"]),
+    ("REL-001", &["rust"]),
+    ("CON-005", &["rust"]),
+    ("EXT-001", &["rust"]),
+    ("COR-003", &["rust"]),
+    ("COR-007", &["rust"]),
+    ("COR-012", &["rust"]),
+    ("TST-004", &["rust"]),
 ];
 
 const PROVEN: &[&str] = &[
@@ -644,9 +861,13 @@ const PROVEN: &[&str] = &[
     "SUP-004",
     "SUP-011",
     "DOC-005",
+    "DOC-003",
+    "MOD-007",
     "DOC-009",
     "WSP-001",
     "lint-suppression",
+    "test-artifact-path",
+    "architecture-ratchet",
     "conflict-marker",
     "patent-index-match",
     "licence",
@@ -655,6 +876,7 @@ const PROVEN: &[&str] = &[
     "patent-sweep-record",
     "CON-006",
     "OPS-012",
+    "OPS-010",
     "security-support-statement",
     "RDB-008",
     "EFX-003",
@@ -669,6 +891,14 @@ const PROVEN: &[&str] = &[
     "ERR-004",
     "SEC-005",
     "EXT-003",
+    "TYP-007",
+    "SUP-006",
+    "RDB-003",
+    "SUP-021",
+    "API-008",
+    "EXT-007",
+    "CON-010",
+    "CON-012",
     "TYP-005",
     "SEC-007",
     "REL-007",
@@ -679,10 +909,34 @@ const PROVEN: &[&str] = &[
     "TYP-006",
     "PRF-003",
     "PRF-005",
+    "PRF-006",
     "RDB-004",
     "RDB-007",
     "TST-003",
+    "TST-006",
+    "TST-009",
     "EXT-002",
+    "OPS-003",
+    "CON-005",
+    "EXT-001",
+    "COR-003",
+    "COR-007",
+    "COR-012",
+    "CON-008",
+    "REL-001",
+    "EFX-002",
+    "CON-011",
+    "EFX-007",
+    "REL-009",
+    "TYP-001",
+    "TYP-002",
+    "COR-006",
+    "SEC-012",
+    "EXT-004",
+    "ERR-009",
+    "SEC-008",
+    "TST-004",
+    "SUP-010",
 ];
 
 impl Module for NeutralModule {

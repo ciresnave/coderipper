@@ -18,6 +18,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Introduce a newtype or branded type for the concept, but only where confusion is plausible or an invariant exists."
 related = ["MOD-010", "TYP-005", "RDB-007"]
+checked_today = "Rust, from the source with syn: tracked .rs files of a library outside vendored directories, tests, examples, benches, build.rs, main.rs and src/bin, and outside cfg(test) and doc(hidden) items. A public function (a free function, a pub method of an inherent impl, a method of a pub trait; not the methods of impl Trait for Type) is reported once, at its signature, when a parameter is named for a domain value and typed as a bare primitive. Three classes by the snake_case segments of the name: money (price, amount, money, cost, balance, fee, salary) typed as a float or an integer; duration (duration, timeout, ttl, delay) typed as a float or an integer; identifier (the last segment is id) typed as an integer, String, &str or &String. A name that states its unit is not reported (timeout_ms, amount_cents, and the segments ms, millis, secs, seconds, minutes, hours, days, micros, nanos, us, ns, sec, cents, pence, minor). An identifier is reported only where a swap is plausible: two identifier parameters of the same primitive type in one signature, which the compiler cannot tell apart; a lone id: &str, or ids of different types, are not reported. Money and duration are reported alone. Not judged: return types, struct fields, a type alias that hides the primitive, a newtype that is itself a bare wrapper, other words, other languages, whether confusion is really plausible (the record asks for it, a name cannot know). Low severity, Low confidence; default on in extended and portfolio, advisory."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -42,6 +43,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Define an enum or union of the legal values and switch over it exhaustively."
 related = ["TYP-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; a site is a match whose arms carry three or more distinct string-literal patterns, or an if / else if chain whose conditions compare something to three or more string literals (also through ||), reported once at the match or the first if. Not reported: the body of a function named from_str, try_from or from (turning outside text into a typed value is where a string match belongs), fewer than three literals, matches! and other macro bodies, other languages. Not judged: whether the strings are a closed set or a lookup of data, strings compared through a helper, constants as patterns. One finding per site with Medium confidence; Low severity; opt-in (check TYP-002)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -141,6 +143,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Replace the booleans with enums or separate functions, and return a descriptive type instead of a bare flag."
 related = ["RDB-004"]
+checked_today = "Rust, from the source with syn: every function with a parameter list (a free function, a method of an inherent impl, a method declared in a trait), outside vendored directories, tests, examples, benches, build.rs, cfg(test) items and #[test] functions, with two or more parameters whose type is the bare bool (not &bool, not Option<bool>) is reported once, at its name, naming the parameters. Not read: the methods of impl Trait for Type (the trait dictates the signature), the record's second half (a bare bool return whose meaning is unclear: a predicate's name says what the answer means), a bool behind a type alias, macro-generated functions, other languages. Low severity, Medium confidence. Related, not the same: RDB-004 reads a single flag argument that the body branches on."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -56,6 +56,9 @@ fn missing_declaration(a: Option<&ArchitectureConfig>) -> Option<String> {
     let Some(a) = a else {
         return Some("this repository declares no [architecture] table in .coderipper.toml, so ARC-003 has no stable component and no volatile detail to compare; a missing declaration is a gap, not a pass (docs/rules/arc.md)".into());
     };
+    if a.declares_none(crate::architecture::NoneInput::Volatile) {
+        return None;
+    }
     let table_empty = a
         .volatile
         .as_ref()
@@ -115,6 +118,15 @@ impl Check for VolatileDetailCheck {
         let graph = read_graph(&ctx.project_root)?;
         let names = graph.members.iter().map(|m| m.name.clone()).collect();
         arch.validate(&names, &file)?;
+        if arch.declares_none(crate::architecture::NoneInput::Volatile) {
+            return Ok((
+                Vec::new(),
+                vec![crate::architecture::none_note(
+                    CHECK_ID,
+                    crate::architecture::NoneInput::Volatile,
+                )],
+            ));
+        }
         let project = ctx.project_root.file_name().map_or_else(
             || "repository".to_string(),
             |n| n.to_string_lossy().into_owned(),

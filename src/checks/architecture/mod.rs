@@ -570,8 +570,12 @@ mod passthrough;
 pub use passthrough::PassThroughCheck;
 mod public_surface;
 pub use public_surface::PublicSurfaceCheck;
+mod pure_effects;
+pub use pure_effects::PureEffectsCheck;
 mod stability;
 pub use stability::StabilityCheck;
+mod transport_errors;
+pub use transport_errors::TransportErrorCheck;
 mod volatile;
 pub use volatile::VolatileDetailCheck;
 

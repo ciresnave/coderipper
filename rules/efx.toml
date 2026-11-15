@@ -11,13 +11,14 @@ evidence_strength = "C"
 contested = false
 scope = "project"
 network = "local"
-unit = "package"
+unit = "repository"
 executes_project_code = false
 default_severity = "medium"
 confidence_class = "high"
 kb_refs = []
 remediation = "Move the effectful call out to the caller and pass in the value, or pass a capability the tests can replace."
 related = ["EFX-006", "EFX-003"]
+checked_today = "Rust workspaces with an [architecture] table that has a component tagged pure = true (or says none = [\"pure\"], then 0 sites by declaration); a repository with no declaration or no pure component gets not run, never clean. For each pure component, in the tracked .rs files under src/ of each of its crates at HEAD (files of test code by name and cfg(test) and test items skipped), every path an expression or a type names, resolved through the file use declarations (a renamed import is seen), compared with one effect list for the whole repository: std::fs, tokio::fs, std::net, tokio::net, reqwest, hyper, std::env, std::process, tokio::process, std::time::SystemTime, std::time::Instant, chrono::Utc::now, chrono::Local::now, rand, getrandom, std::thread, tokio::spawn, plus [architecture.effects] add, minus remove. One finding per site and effect, Medium severity, High confidence. Pure means none of the listed effects is named, not referentially pure: a static, unsafe, interior mutability and println are outside the list. Not judged: an effect behind a trait object the component is handed, macro-generated calls or macro arguments, a glob import (counted in a note, names not resolved), a type alias in another crate, a method on an inferred type, a component of module paths inside a crate (noted), other languages. Default on in extended and portfolio, not classic; nothing runs without a pure tag."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -42,6 +43,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Pass the state in explicitly from a composition root; allowlist the legitimate cases such as logging or metrics."
 related = ["EFX-007"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; one scan finds a static mut, a static whose type names Mutex, RwLock, RefCell, Cell, UnsafeCell, ArcSwap or an Atomic type (read through OnceLock, LazyLock, Lazy, Arc and Box to what they hold, so a lazily built Regex is not a site), and the same kinds of entry inside lazy_static and thread_local. EFX-002 and CON-011 read the same sites. Not judged: a type alias that hides the lock, an allowlist or an owner inventory (none is read), statics in other macros, other languages. One finding per site with Medium confidence; Medium severity; opt-in (check EFX-002)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -164,6 +166,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Add a comment naming the owner, the access discipline and the invalidation rule, or remove the sharing."
 related = ["EFX-002"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; one scan finds a struct field (named or tuple) or a static whose type is interior-mutable or a lock (Cell, RefCell, UnsafeCell, Mutex, RwLock, ArcSwap, an Atomic type, read through Arc, Rc, Box, Option, OnceLock, LazyLock and Lazy to what they hold) and reports it when it has no doc comment and no // comment on the line directly above it (attributes between are skipped). Differs from EFX-002, which reports every global mutable static whether documented or not. Not judged: whether the comment names an owner, an access discipline or an invalidation rule (presence only), a type alias that hides the lock, lazy_static and thread_local entries, enum variant fields, other languages. One finding per site with Medium confidence; Low severity; opt-in (check EFX-007)."
 lifecycle = "experimental"
 
 [rule.applicability]

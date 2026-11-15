@@ -39,6 +39,8 @@ pub(super) struct Facts {
     pub exported: BTreeSet<(String, usize)>,
     /// Identifiers written in test code and in documentation examples.
     pub test_idents: BTreeSet<String>,
+    /// Identifiers written in the bodies of the documented public inherent functions of the library's public types.
+    pub api_idents: BTreeSet<String>,
 }
 
 /// The class of one finding.
@@ -120,8 +122,12 @@ pub(super) fn read_facts(root: &Path, has_lib: bool) -> anyhow::Result<Facts> {
     let files: Vec<SourceFile> = read_sources(root)?;
     if has_lib {
         let (totals, _) = surface(&files, "", &BTreeSet::new())?;
+        // what a `pub use` reaches out of a private module is public too (`mod store; pub use store::FileStore;`)
         facts.api = totals.documented_sites;
+        facts.api.extend(totals.reexport_documented_sites);
         facts.exported = totals.public_sites;
+        facts.exported.extend(totals.reexport_sites);
+        facts.api_idents = totals.api_method_idents;
     }
     for f in &files {
         doc_example_idents(&f.text, &mut facts.test_idents);

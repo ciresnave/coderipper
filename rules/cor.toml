@@ -68,6 +68,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Add a property test per pair using a generator library, asserting the round trip and idempotence for the supported input domain."
 related = ["TST-009"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a codec pair, two public functions or methods of one scope (the same impl self type, or the same module; trait impl methods count as public) whose names are a verb pair (encode and decode, serialize and deserialize, to_bytes and from_bytes, to_json and from_json, pack and unpack, compress and decompress, encrypt and decrypt, marshal and unmarshal, with the same optional suffix). A pair is covered when a .rs file of the package, tests directories included, names a property-test library (proptest, quickcheck, prop_assert, bolero, test_strategy) and holds both function names as whole words; an uncovered pair gets one Medium finding with Low confidence at the encoder. Opt-in (check COR-003). Not judged: pairs named another way, a codec split across two types, a property test that reaches the functions through a helper, whether the property asserts the round trip, idempotence of normalization, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -140,6 +141,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Forbid unsafe by default, keep any remaining blocks minimal with a SAFETY comment, and run the suite under Miri or the sanitizers that fit the language."
 related = ["COR-001"]
+checked_today = "The static half only. Tracked Rust files of each package (nearest Cargo.toml), outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) skipped; the unsafe inventory is the one SEC-005 reads (one scan, two rules). One finding per package that has an unsafe block, or an unsafe impl or unsafe trait, with no SAFETY comment on its line or in the comment lines directly above it; a package with no unsafe at all passes, and so does one whose every block and impl is justified. An unsafe fn is counted by SEC-005 and not asked for a comment here (its contract belongs in a # Safety doc section). The Miri half is not built: running the test suite under Miri or a sanitizer needs a nightly toolchain and a run of the project's tests, which a reader of source cannot judge, so a pass says nothing about whether the suite was run under Miri. Not judged: unsafe inside macro arguments or macro-generated code, native code in other languages, whether a SAFETY comment says anything useful, whether a block is sound. High severity, Medium confidence; opt-in (check COR-006)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -164,6 +166,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Compare with an explicit absolute or relative tolerance, and define the policy for NaN and infinity where they can occur."
 related = ["COR-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a == or != with a float operand that is visibly one (a non-zero float literal, a cast to f32 or f64, or an associated constant of f32, f64 or a consts module such as EPSILON, NAN or PI), and assert_eq, assert_ne, debug_assert_eq or debug_assert_ne with a non-zero float literal. A comparison with a zero literal, INFINITY, NEG_INFINITY, MAX, MIN or MIN_POSITIVE is an exact sentinel and is not reported. One Medium finding per comparison; opt-in (check COR-007). Not judged: two variables whose float type only a type checker knows, PartialEq::eq calls, whether a tolerance is declared, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -240,4 +243,29 @@ lifecycle = "experimental"
 
 [rule.applicability]
 languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "COR-012"
+title = "Send and Sync impls are sound"
+domain = "COR"
+statement = "An unsafe impl of Send or Sync is not contradicted by the type's own fields: no Rc, no Cell or RefCell behind Sync, and no type parameter left with no trait bound at all."
+rationale = "An unsafe impl Send or Sync is a promise the compiler does not check; an Rc field, an unsynchronised cell or an unbounded type parameter makes the promise false and the data race undefined behaviour."
+evidence_tiers = ["V1"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+remediation = "Remove the impl if a field cannot be sent or shared, replace Rc with Arc and Cell or RefCell with a Mutex, or add the T: Send or T: Sync bound the impl needs, and keep a SAFETY comment that says why the rest holds."
+related = ["SEC-005", "COR-006"]
+checked_today = "Rust, from the source with syn (opt-in): tracked Rust files outside vendored, fixture and development directories, items under cfg(test) skipped. Each unsafe impl Send and unsafe impl Sync (a negative impl is not one) is matched by type name to the one struct, enum or union of that name in the package and reported once when a field type names Rc, when a Sync impl covers a type with a Cell or RefCell field, or when an impl type parameter has no trait bound at all (in the list or a where clause; a bound on a project trait such as T: Element is not read, as it may imply Send) and a field other than a PhantomData mentions the matching parameter. A raw pointer field is not reported. Not seen: a type in another package or made by a macro, two types of one name (skipped), a cell or Rc behind a type alias or inside a field's own type, a bound that is too weak, an impl made sound by a lock. A file syn cannot parse is named in a note."
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
 scopes = ["first_party"]
