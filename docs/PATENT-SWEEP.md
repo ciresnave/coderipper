@@ -1775,3 +1775,22 @@ Version line covered by this addendum: **0.43** (0.43.97). One rule is added, re
 **Result: no hit found for `PRF-006` on the two queries; one related patent is named and unread.** **Watch: US 8,875,100** (read its independent claims before this rule leaves opt-in; re-read them if `PRF-006` ever runs a benchmark or compares results).
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.98)
+
+Version line covered by this addendum: **0.43** (0.43.98). One rule is added, read from `src/module/neutral/mod007.rs`: `MOD-007`, mechanical half only (a component that declares a `purpose` whose root file has no `//!` module documentation). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 107 (`MOD-007`).** Read the project's own architecture declaration and, for each component with a declared purpose, test that its root source file carries a non-blank inner doc comment. No text is compared with another; the check is that module documentation exists.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q217 | 107 | patent method comparing module documentation comment with declared component purpose to check software module has stated responsibility |
+| Q218 | 107 | (not run) a second query on "docstring" and "declared responsibility" is owed |
+
+**Positive control:** Q217 returned patent documents on comparing source code with feature documentation (US 11,836,069, validating software components by comparing summaries of the code and of its documentation) and a family titled "Document analysis method and apparatus", so the engine reaches the neighbourhood; it also returned non-patent work on comment-code inconsistency (@tComment, CoDAT). **A patent claiming that a component with a declared purpose has a root file with a module doc was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 11,836,069 compares *summaries* of code and documentation, which is the judgement half this rule does not build; it is owed a claim read **before that half is built, and before this rule leaves opt-in**.
+
+**Result: no hit on the one query; US 11,836,069 is named and unread. Watch: US 11,836,069.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
