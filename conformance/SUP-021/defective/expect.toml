@@ -1,0 +1,11 @@
+# The seeded defects: a build script that opens a socket (line 2) and prints no rerun directive (reported at line 1).
+
+[[expect]]
+rule = "SUP-021"
+file = "build.rs"
+line = 2
+
+[[expect]]
+rule = "SUP-021"
+file = "build.rs"
+line = 1

@@ -79,6 +79,7 @@ governance domain. Procedural macros and build scripts both execute whatever the
 | SUP-011 | Third-party code excluded from own analysis | N | built: native; vendored directories (`vendor`, `third_party`, `node_modules`, ...) are named in the codecov, codacy, sonar-project, eslintignore or deepsource configuration; whether the name is an exclusion is not judged |
 | SUP-012 | New package names screened for squatting | N | no check yet (catalog record only; planned: registry existence, age and similarity lookups) |
 | SUP-013 | Audited versions only in sensitive tiers | M | no check yet (catalog record only; audit records are human artifacts; cargo-vet is the model) |
+| SUP-021 | Build scripts stay within what a build may do | P | built in part, opt-in (Rust, `syn`: a `build.rs` beside a `Cargo.toml` that reaches the network (a socket type or an HTTP client crate), writes files in a script that never names `OUT_DIR`, prints no rerun directive (no `rerun` in its text and no call to `prost_build`, `tonic_build`, `cc::` or `pkg_config`), or uses `unsafe`; up to four Low findings per script, each once; proc-macro crates, the record's second half, are not read) |
 
 The legacy checks do not overlap with this domain. Tool names in the last column come from CodeRipper's own triage; none is run
 by the current release.
