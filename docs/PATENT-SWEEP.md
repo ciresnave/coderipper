@@ -1794,3 +1794,21 @@ Version line covered by this addendum: **0.43** (0.43.98). One rule is added, re
 **Result: no hit on the one query; US 11,836,069 is named and unread. Watch: US 11,836,069.**
 
 **Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.44 line (2026-11-15, 0.44.0)
+
+Version line covered by this addendum: **0.44** (0.44.0). No new rule is added; two existing rules change what they do with a tool's own ignore files, read from `src/module/delegate/zizmor.rs` and `src/module/delegate/buf.rs` (`SUP-008`, `API-006`). Swept 2026-11-15 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 108 (a tool's own ignores are honoured and each is said).** Read the delegated tool's own tracked configuration (`zizmor.yml`, `buf.yaml`) and carry its ignores into the run instead of switching them off; report each such ignore as a finding of its own (Medium when no comment gives a reason, Info when one does), and a `# zizmor: ignore[...]` comment at Info instead of its real severity. This replaces idea 9 for these two tools (the repository could not silence a delegated rule); the repository's `[[allow]]` entry is still the place that carries a reason, an owner and an expiry.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q219 | 108 | patent method static analysis tool honoring a project's own ignore configuration file and reporting each suppression at reduced severity requiring a stated reason (Google Patents, one search) |
+
+**Positive control:** Q219 returned static-analysis patents (US 7,340,726 on a user-supplied configuration file, US 10,241,892 on suppression directives that a tool follows and on a complaint issued when an expected one is absent, US 8,806,441 on recording a user's remark on a defect they will ignore), so the engine reaches the neighbourhood. **A patent claiming that a tool's own ignore file is read and each ignore is reported at a lower severity with a needs-reason note was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 10,241,892 and US 8,806,441 are the nearest (suppression directives followed by a tool; a stated reason recorded against an ignored defect); each is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; US 10,241,892 and US 8,806,441 are named and unread. Watch: US 10,241,892, US 8,806,441.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
