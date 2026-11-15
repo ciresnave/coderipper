@@ -1,0 +1,6 @@
+# The seeded defect: a public async function takes an Rc, so its future cannot be Send (line 5).
+
+[[expect]]
+rule = "CON-012"
+file = "src/lib.rs"
+line = 5
