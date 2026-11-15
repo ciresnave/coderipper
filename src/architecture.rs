@@ -103,6 +103,27 @@ impl NoneInput {
 }
 
 impl ArchitectureConfig {
+    /// The effect list EFX-001 applies to every pure component: the built-in list, plus `effects.add`, minus `effects.remove`, each
+    /// entry normalized (see [`normalize_effect`]). The list is global: `[architecture.effects]` is not per component.
+    pub(crate) fn effect_list(&self) -> Vec<String> {
+        let (add, remove) = self.effects.as_ref().map_or((&[][..], &[][..]), |e| {
+            (e.add.as_slice(), e.remove.as_slice())
+        });
+        let removed: BTreeSet<String> = remove.iter().map(|r| normalize_effect(r)).collect();
+        let mut list: Vec<String> = DEFAULT_EFFECTS
+            .iter()
+            .map(|d| (*d).to_string())
+            .filter(|d| !removed.contains(d))
+            .collect();
+        for a in add {
+            let a = normalize_effect(a);
+            if !list.contains(&a) {
+                list.push(a);
+            }
+        }
+        list
+    }
+
     /// Whether the declaration states, with `none = [..]`, that the repository has none of `input`.
     pub(crate) fn declares_none(&self, input: NoneInput) -> bool {
         self.none.contains(&input)
@@ -166,6 +187,41 @@ pub(crate) struct ComponentDecl {
     /// Who answers for the component: a person, team or lane (DOC-003). Optional, as `purpose`.
     #[serde(default)]
     pub owner: Option<String>,
+}
+
+/// The effects EFX-001 looks for in a component tagged `pure = true`, as path prefixes (the rule's seven families: file, network,
+/// environment, process, clock, randomness, threads). `[architecture.effects]` adds to and removes from this list.
+pub(crate) const DEFAULT_EFFECTS: &[&str] = &[
+    "std::fs",
+    "tokio::fs",
+    "std::net",
+    "tokio::net",
+    "reqwest",
+    "hyper",
+    "std::env",
+    "std::process",
+    "tokio::process",
+    "std::time::SystemTime",
+    "std::time::Instant",
+    "chrono::Utc::now",
+    "chrono::Local::now",
+    "rand",
+    "getrandom",
+    "std::thread",
+    "tokio::spawn",
+];
+
+/// An effect entry in one form: trimmed, a trailing `::` dropped, so `metrics::`, `metrics` and ` metrics ` are the same entry.
+pub(crate) fn normalize_effect(entry: &str) -> String {
+    let e = entry.trim();
+    e.strip_suffix("::").unwrap_or(e).trim().to_string()
+}
+
+/// Whether a normalized entry is a `::`-separated path of identifiers.
+fn is_effect_path(e: &str) -> bool {
+    !e.is_empty()
+        && e.split("::")
+            .all(|seg| !seg.is_empty() && seg.chars().all(|c| c.is_alphanumeric() || c == '_'))
 }
 
 /// `[architecture.effects]`: the project's changes to the built-in effect list that EFX-001 applies to a pure component.
@@ -358,16 +414,28 @@ impl ArchitectureConfig {
                     "has an `[architecture.effects]` table and no component with `pure = true`: it would change nothing".into(),
                 ));
             }
-            let mut seen: BTreeSet<&str> = BTreeSet::new();
+            let mut seen: BTreeSet<String> = BTreeSet::new();
             for (list, entries) in [("add", &e.add), ("remove", &e.remove)] {
                 for entry in entries {
-                    if entry.trim().is_empty() {
+                    let n = normalize_effect(entry);
+                    if n.is_empty() {
                         return Err(bad(format!("`effects.{list}` has a blank entry")));
                     }
-                    if !seen.insert(entry.trim()) {
+                    if !is_effect_path(&n) {
                         return Err(bad(format!(
-                            "`effects` names `{}` more than once (in `add` and `remove`, or twice in one)",
+                            "`effects.{list}` has `{}`, which is not a path of names separated by `::` (for example `metrics::` or `std::fs`)",
                             entry.trim()
+                        )));
+                    }
+                    if !seen.insert(n.clone()) {
+                        return Err(bad(format!(
+                            "`effects` names `{n}` more than once (in `add` and `remove`, or twice in one)"
+                        )));
+                    }
+                    if list == "remove" && !DEFAULT_EFFECTS.contains(&n.as_str()) {
+                        return Err(bad(format!(
+                            "`effects.remove` has `{n}`, which is not on the built-in effect list ({}): a stale removal changes nothing",
+                            DEFAULT_EFFECTS.join(", ")
                         )));
                     }
                 }
@@ -580,6 +648,61 @@ mod tests {
             parse_err(&both).contains("more than once"),
             "{}",
             parse_err(&both)
+        );
+        let spaced = format!(
+            "{PURE}[architecture.effects]
+add = [\"metrics::\", \" metrics \"]
+"
+        );
+        assert!(
+            parse_err(&spaced).contains("more than once"),
+            "{}",
+            parse_err(&spaced)
+        );
+        let junk = format!(
+            "{PURE}[architecture.effects]
+add = [\"a b\"]
+"
+        );
+        assert!(
+            parse_err(&junk).contains("not a path"),
+            "{}",
+            parse_err(&junk)
+        );
+    }
+
+    #[test]
+    fn a_stale_removal_is_an_error_and_the_list_is_normalized() {
+        let stale = format!(
+            "{PURE}[architecture.effects]
+remove = [\"std::io\"]
+"
+        );
+        let e = parse_err(&stale);
+        assert!(e.contains("stale removal") && e.contains("std::io"), "{e}");
+        let a = parse(&format!(
+            "{PURE}[architecture.effects]
+add = [\" metrics:: \"]
+remove = [\"std::time::Instant::\"]
+"
+        ));
+        a.validate(&members(&[]), Path::new("c")).unwrap();
+        let list = a.effect_list();
+        assert!(list.contains(&"metrics".to_string()) && list.contains(&"std::fs".to_string()));
+        assert!(!list.contains(&"std::time::Instant".to_string()));
+        assert_eq!(
+            list.len(),
+            DEFAULT_EFFECTS.len(),
+            "one added, one removed: {list:?}"
+        );
+        assert_eq!(
+            parse(
+                "[architecture]
+"
+            )
+            .effect_list()
+            .len(),
+            DEFAULT_EFFECTS.len()
         );
     }
 
