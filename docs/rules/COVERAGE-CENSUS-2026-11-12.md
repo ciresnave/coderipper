@@ -1,19 +1,19 @@
 # Coverage census: what each language has built, and what Rust still lacks
 
-**Measured 2026-11-12 at `origin/main` 9da0f91 (0.43.59), a release build of that commit.** Written for the PM task "languages and Rust completeness"
+**Refreshed 2026-11-14 at `origin/main` 091b28e (0.43.86), a release build of that commit** (first measured 2026-11-12 at `9da0f91`, 0.43.59, when Rust had 102 built and 128 unbuilt; the tables below are the 2026-11-14 reading, and "What changed since 2026-11-12" lists the difference). Written for the PM task "languages and Rust completeness"
 (CireSnave 2026-11-12: "We commonly do TypeScript, JavaScript, C, C++, Slang, and CUDA builds. Are those all on CodeRipper's roadmap to add support for?" and "I doubt we have
 checks for all rules for Rust under CodeRipper. Lets get all of those languages plus completing our checks for rules for Rust code on the roadmap if they aren't already.
 The checks that require a model's judgement, those can wait until we have more of our ML stack ready").
 
 ## Method (so it can be repeated)
 
-1. **Denominator:** every `[[rule]]` in `rules/*.toml` at that ref: **233 rules**. Each record names the languages it applies to (`[rule.applicability] languages`):
-   183 `any`, 35 `rust, typescript, python`, 12 `rust`, 3 `typescript, python`. No record names C, C++, CUDA, Slang, HLSL, GLSL or JavaScript.
+1. **Denominator:** every `[[rule]]` in `rules/*.toml` at that ref: **235 rules**. Each record names the languages it applies to (`[rule.applicability] languages`):
+   184 `any`, 35 `rust, typescript, python`, 13 `rust`, 3 `typescript, python`. No record names C, C++, CUDA, Slang, HLSL, GLSL or JavaScript.
 2. **Built, per language:** the binary's own coverage report, `coderipper fast --profile extended --coverage=full`, run on a one-file Rust repository and on a repository holding a
    `package.json` and a `.ts` file. **Tool setup: all 8 delegated tools installed** (`buf`, `cargo-semver-checks`, `checkov`, `gitleaks`, `lychee`, `osv-scanner`, `squawk`, `zizmor`, as pinned by the binary's embedded tool lock at that ref).
-   The covered figure depends on it, the built figure does not: re-run at `9da0f91` (0.43.59, release build) with `CODERIPPER_TOOLS_DIR` pointing at an empty directory, Rust reads **89 covered,
-   13 claimed but not proven** (the 11 delegated rules move from covered to unproven, and the run lists them as not yet implemented) against **100 covered, 2 claimed but not proven** with the tools; the 128 not yet implemented in the report's heading is the same in both, and so is
-   built = 102. To reproduce the table, install the 8 tools first (`--install-tools`). The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
+   The covered figure depends on it, the built figure does not: re-run at `091b28e` (0.43.86, release build) with `CODERIPPER_TOOLS_DIR` pointing at an empty directory, Rust reads **99 covered,
+   13 claimed but not proven** (the 11 delegated rules move from covered to unproven) against **110 covered, 2 claimed but not proven** with the tools; the 120 not yet implemented in the report's heading is the same in both, and so is
+   built = 112. **One discrepancy, reported to the PM:** with no tools the report's list of not-yet-implemented Rust ids holds 131 ids (the 120 plus the 11 delegated rules) while its heading says 120; with the tools the list and the heading agree at 120. To reproduce the table, install the 8 tools first (`--install-tools`). The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
    and those "implemented, not yet proven". **built = applicable - not yet implemented** (an unproven rule runs, so it is built).
 3. **MECHANICAL or MODEL, per unbuilt Rust rule:** the "input needed" column of `docs/rules/REMAINING.md` (2026-11-07, the lane's per-rule judgment, not a measurement):
    `a model` is MODEL; every other input (source, history, network, a runtime) is MECHANICAL. All 128 unbuilt Rust ids have a row there (checked by script: 0 unclassified).
@@ -22,20 +22,20 @@ The checks that require a model's judgement, those can wait until we have more o
 
 | Language family | Rules that apply | Built | Unbuilt | How it is checked today |
 | :--- | ---: | ---: | ---: | :--- |
-| **Rust** | 230 | 102 (100 covered + 2 implemented, not yet proven) | **128** | the built-in Rust module (`syn`, `cargo`, rustc diagnostics), the neutral module and 8 delegated tools (11 rules: gitleaks 2, osv-scanner 2, checkov 2, lychee, zizmor, buf, cargo-semver-checks, squawk) |
+| **Rust** | 232 | 112 (110 covered + 2 implemented, not yet proven) | **120** | the built-in Rust module (`syn`, `cargo`, rustc diagnostics), the neutral module and 8 delegated tools (11 rules: gitleaks 2, osv-scanner 2, checkov 2, lychee, zizmor, buf, cargo-semver-checks, squawk) |
 | **TypeScript** | 221 | 32 | 189 | no module: only the language-neutral rules run (31) plus 1 more; "1 source file not checked" |
 | **JavaScript** | not in the catalog (read as TypeScript: 221) | 0 language-aware | - | no roadmap row of its own; `src/coverage.rs` `LANGUAGES` lists `js`, `jsx`, `mjs`, `cjs` as TypeScript source, so a JavaScript project reads as "typescript: no module" |
 | **C, C++, CUDA** | 183 (the `any` rules; no record names them) | 0 language-aware; 31 language-neutral | - | not in `src/coverage.rs` `LANGUAGES` (it knows only python and typescript), so a C, C++ or CUDA project is not even reported as an unchecked language |
 | **Slang, HLSL, GLSL (shader code)** | 183 (the `any` rules) | 0 language-aware; 31 language-neutral | - | not in `LANGUAGES`; not reported as unchecked |
 | **Language-neutral** (`languages = ["any"]`) | 183 | 31 | 152 | the neutral module: files read as text, git history, CI and repository metadata |
 
-Python has the same shape as TypeScript (221 apply) and is outside this task. The 31 neutral rules are the same 31 for every language, so "32 of 221" for TypeScript is those 31 plus **SEC-004**, the one rule whose record names TypeScript (`rust, typescript, python`) and that a built module claims. That module is the neutral one, and its SEC-004 check (`src/module/neutral/sec004.rs`) reads Rust source only, so the 32nd is a catalog-applicability count, not a TypeScript check: TypeScript has no module of its own and no language-aware check.
+Python has the same shape as TypeScript (221 apply) and is outside this task. The 32 neutral rules are the same 32 for every language, so "33 of 222" for TypeScript is those 32 plus **SEC-004**, the one rule whose record names TypeScript (`rust, typescript, python`) and that a built module claims. That module is the neutral one, and its SEC-004 check (`src/module/neutral/sec004.rs`) reads Rust source only, so the 32nd is a catalog-applicability count, not a TypeScript check: TypeScript has no module of its own and no language-aware check.
 
-**Unbuilt Rust rules by kind (128):** MODEL **23** (tag `needs-model`, parked until the ML stack is ready, not declined); MECHANICAL **105**, of which by what they need:
+**Unbuilt Rust rules by kind (120):** MODEL **23** (tag `needs-model`, parked until the ML stack is ready, not declined); MECHANICAL **97**, of which by what they need:
 
 | Input needed (REMAINING.md) | Rules | Buildable now? |
 | :--- | ---: | :--- |
-| source only | 41 | yes, from the committed tree |
+| source only | 33 | yes, from the committed tree |
 | a runtime | 34 | yes, but it runs project code (tests, benchmarks, probes): the self-hosted-runner rule applies |
 | history | 15 | yes, from git history |
 | source only (meta) | 9 | yes: rules about CodeRipper itself (GOV) |
@@ -48,31 +48,31 @@ Python has the same shape as TypeScript (221 apply) and is outside this task. Th
 | Domain | Rust | TypeScript | Language-neutral |
 | :--- | ---: | ---: | ---: |
 | AIH | 0 / 9 | 0 / 9 | 0 / 9 |
-| API | 5 / 12 | 3 / 12 | 3 / 12 |
+| API | 6 / 12 | 3 / 12 | 3 / 12 |
 | ARC | 11 / 12 | 0 / 12 | 0 / 8 |
 | CON | 8 / 11 | 0 / 9 | 0 / 8 |
 | COR | 4 / 10 | 0 / 9 | 0 / 5 |
 | DOC | 3 / 10 | 3 / 10 | 3 / 10 |
 | EFX | 3 / 7 | 1 / 7 | 1 / 7 |
-| ERR | 4 / 12 | 0 / 11 | 0 / 3 |
+| ERR | 5 / 12 | 0 / 11 | 0 / 3 |
 | EVO | 0 / 9 | 0 / 9 | 0 / 9 |
-| EXT | 4 / 9 | 0 / 10 | 0 / 4 |
-| GOV | 2 / 11 | 1 / 10 | 1 / 10 |
+| EXT | 5 / 9 | 0 / 10 | 0 / 4 |
+| GOV | 3 / 12 | 2 / 11 | 2 / 11 |
 | MOD | 10 / 11 | 0 / 10 | 0 / 2 |
-| OPS | 5 / 12 | 2 / 10 | 2 / 10 |
+| OPS | 6 / 12 | 2 / 10 | 2 / 10 |
 | PRF | 2 / 8 | 0 / 8 | 0 / 8 |
-| RDB | 4 / 14 | 1 / 13 | 1 / 13 |
+| RDB | 5 / 14 | 1 / 13 | 1 / 13 |
 | REL | 5 / 12 | 2 / 12 | 2 / 12 |
 | SEC | 7 / 9 | 5 / 10 | 4 / 5 |
-| SUP | 12 / 17 | 10 / 16 | 10 / 16 |
-| TST | 4 / 13 | 0 / 13 | 0 / 13 |
-| TYP | 3 / 8 | 0 / 8 | 0 / 8 |
+| SUP | 13 / 17 | 10 / 16 | 10 / 16 |
+| TST | 5 / 14 | 0 / 13 | 0 / 13 |
+| TYP | 5 / 8 | 0 / 8 | 0 / 8 |
 | WSP | 6 / 14 | 4 / 13 | 4 / 11 |
-| **all** | **102 / 230** | **32 / 221** | **31 / 183** |
+| **all** | **112 / 232** | **33 / 222** | **32 / 184** |
 
-The 21 domain rows sum to the "all" row in every column (checked by script on this table: Rust 102 / 230, TypeScript 32 / 221, language-neutral 31 / 183); a domain with no rule for a family has a smaller denominator (ARC is 12 / 12 / 8).
+The 21 domain rows sum to the "all" row in every column (checked by script on this table: Rust 112 / 232, TypeScript 33 / 222, language-neutral 32 / 184); a domain with no rule for a family has a smaller denominator (ARC is 12 / 12 / 8).
 
-## The 128 unbuilt Rust rules
+## The 120 unbuilt Rust rules
 
 Default-on policy (CireSnave, board 285): a built rule is default on and nothing is skipped; a rule still opt-in because it fired on too many non-defects is recorded in `src/module/neutral/mod.rs::opt_in_rule_ids`, not here.
 
@@ -104,7 +104,7 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | TYP-008 | Invariants are written down and checked | a model |
 | TYP-009 | State machines make transitions explicit | a model |
 
-### MECHANICAL: buildable now: 105
+### MECHANICAL: buildable now: 97
 
 | id | title | input needed |
 | :--- | :--- | :--- |
@@ -115,7 +115,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | API-002 | Public surface snapshot reviewed when changed | a runtime |
 | API-003 | Version number matches kind of change | history |
 | API-005 | Serialized formats tested for old and new readers | a runtime |
-| API-008 | Public API exposes no third-party types | source only |
 | API-010 | Doc samples build and execute | a runtime |
 | API-011 | Command-line, config and exit-code surfaces under test | a runtime |
 | CON-001 | No data races | a runtime |
@@ -138,7 +137,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | ERR-002 | Catch-all handlers only at boundaries | source only |
 | ERR-003 | No panics or unchecked indexing on input paths | source only |
 | ERR-005 | Cross-boundary errors keep context and cause | source only |
-| ERR-006 | Domain errors free of transport details | source only |
 | ERR-007 | Resources released on error paths | source only |
 | ERR-008 | Error branches covered by tests | a runtime |
 | ERR-011 | Non-throwing parse results are checked | source only |
@@ -152,7 +150,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | EVO-008 | Change-size distribution | history + network |
 | EVO-009 | Per-function complexity trend | history |
 | EXT-006 | Shared contract tests for every implementation | a runtime |
-| EXT-007 | Speculative generality | source only |
 | EXT-008 | Shotgun surgery when adding a variant | history |
 | EXT-009 | Stable components edited for new variants | history |
 | GOV-001 | Baseline findings and ratchet downward | source only (meta) |
@@ -170,7 +167,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | OPS-005 | Golden-signal metrics for endpoints and dependencies | a runtime |
 | OPS-007 | Flags need an accountable owner and a sunset date | source only |
 | OPS-008 | Liveness and readiness endpoints exist | a runtime |
-| OPS-010 | Build and version information is exposed | source only |
 | PRF-001 | Hot paths have budgets enforced by benchmarks | a runtime |
 | PRF-002 | Statistically detected benchmark regressions | a runtime |
 | PRF-004 | Hot loops tagged for speed allocate nothing | source only |
@@ -179,7 +175,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | PRF-008 | Tail latency tracked beside averages | a runtime |
 | RDB-001 | Code matches the project formatter | source only |
 | RDB-002 | Identifiers follow language naming conventions | source only |
-| RDB-003 | Cognitive complexity stays within bounds | source only |
 | RDB-005 | Duplicated knowledge across clone groups | source only |
 | RDB-006 | No dead code, unused imports or unused private items | source only |
 | REL-002 | Retries follow a safe policy | source only |
@@ -191,7 +186,6 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | REL-012 | SLO conformance checked at runtime | a runtime |
 | SEC-001 | No unsanitised taint flow to dangerous sinks | source only |
 | SUP-003 | Dependency licences satisfy policy | source only |
-| SUP-006 | Declared dependencies that are never used | source only |
 | SUP-007 | Justification record for each new dependency | history + network |
 | SUP-012 | New package names screened for squatting | network |
 | SUP-013 | Only audited versions in sensitive tiers | source only |
@@ -202,9 +196,7 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | TST-010 | Cross-component interfaces have two-sided contract tests | a runtime |
 | TST-011 | Test order and parallelism do not change results | a runtime |
 | TST-012 | Test duration budgets with size classes | a runtime |
-| TYP-001 | Public APIs wrap domain values in dedicated types | source only |
 | TYP-004 | Outside data becomes domain types at the boundary | source only |
-| TYP-007 | Boolean blindness in signatures | source only |
 | WSP-002 | Cross-repository dependencies point the right way and do not loop | source only |
 | WSP-003 | Internal library versions stay within the skew policy | source only |
 | WSP-004 | Widely used libraries are tested against their dependents before release | a runtime |
@@ -214,11 +206,15 @@ Default-on policy (CireSnave, board 285): a built rule is default on and nothing
 | WSP-008 | Conventions do not drift between repositories | source only |
 | WSP-009 | Repositories forced to release together | history |
 
+## What changed since 2026-11-12 (`9da0f91` to `091b28e`)
+
+Rust built 102 to **112**, unbuilt 128 to **120**, applicable 230 to **232**; TypeScript 32 / 221 to **33 / 222**; language-neutral 31 / 183 to **32 / 184**. Two rules were added to the catalog (`architecture-ratchet`, any language, built; `test-artifact-path`, Rust, built), and **eight rules that this census listed as unbuilt are built and registered**: `API-008` (#333), `EXT-007` (#330), `ERR-006` (#317), `OPS-010`, `RDB-003`, `SUP-006`, `TYP-001` (#325) and `TYP-007` (#337). All eight were MECHANICAL, source only, so MECHANICAL falls 105 to 97 and MODEL stays 23. The 2026-11-12 reading was a true reading of its ref; it is superseded here, not retracted. Open PRs not counted (they are not on `main`): `EFX-001` and the tag it reads (#342, #343), `SUP-021` (#341).
+
 ## What the numbers do not say
 
 - "Built" is "has a check with a claim", the report's own word; it is not "finds every instance". Many built rules are narrow proxies (REMAINING.md says which).
 - The MODEL tag is the lane's judgment of 2026-11-07, applied to today's unbuilt set; CireSnave or the PM can retag a row. A rule tagged MECHANICAL with input `a runtime` may still need the self-hosted runner.
-- The 2026-11-07 table counted 231 rules and 165 unbuilt for all languages (a different predicate: no check of any kind); this census counts Rust-applicable rules only (230), which is why it is 128.
+- The 2026-11-07 table counted 231 rules and 165 unbuilt for all languages (a different predicate: no check of any kind); this census counts Rust-applicable rules only (232), which is why it is 120.
 - The neutral module reads some Rust only (it uses `syn` for a few rules); the language-neutral column counts a rule built for every language only as far as the catalog's `any` says. Whether each of the 31 truly reads C or CUDA is what the "first rules per language" measurement in `docs/language-options-2026-11-12.md` covers when built (that document lands in #321, so the link does not resolve until it merges).
 
 — lane: coderipper
