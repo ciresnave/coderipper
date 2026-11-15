@@ -1699,3 +1699,22 @@ Version line covered by this addendum: **0.43** (0.43.91). One rule is added, re
 **Result: no hit found for `CON-012`, from two queries that did not reach any patent database page.** The thin evidence is stated, not hidden: this is weaker than the sweeps that read a claim. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, and the status of nothing was checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.94)
+
+Version line covered by this addendum: **0.43** (0.43.94). One rule is added, read from `src/module/neutral/cor012.rs`: `COR-012` (an `unsafe impl Send` or `unsafe impl Sync` contradicted by the type's own fields: an `Rc` field, a `Cell` or `RefCell` field behind `Sync`, or an impl type parameter with no trait bound at all that a field uses). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 104 (`COR-012`).** Parse each Rust file with `syn`, match each `unsafe impl Send`/`Sync` to the struct, enum or union of the same name in the package, and report the three field and bound patterns above. Nothing is type-checked, executed or proved; the impl and the field types are read as text.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q211 | 104 | patent static analysis detect unsound manual Send Sync implementation unsafe impl thread safety type fields Rust claims |
+| Q212 | 104 | patents.google.com method for detecting thread-unsafe type marked as thread-safe by programmer annotation, source code analysis of unsafe trait implementation |
+
+**Positive controls:** Q211 returned the practice itself (Rudra, a research static analyzer that has a send/sync variance checker for generic types that implement `Send` or `Sync` without bounds on their parameters, with its paper; Fuchsia's `rust-unsafe-analyzer`), so the engine reaches the neighbourhood. Q212 returned a 2025 paper on thread-safety analysis of annotated Java classes with CodeQL. **A patent that reports an unsound `Send` or `Sync` implementation from a type's source was not found; that absence is a statement about these two queries only** (one engine, which returned no patent page for either query, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** Rudra's send/sync variance checker (the unbounded-parameter pattern is the one it describes; this rule is our own text reading, written without its code), the Rustonomicon's chapter on `Send` and `Sync`, clippy's `non_send_fields_in_send_ty`.
+
+**Read:** no patent claim was read. **Not read in full:** every result named above, by title and snippet only.
+
+**Result: no hit found for `COR-012`, from two queries that reached no patent page.** The evidence is thin and is stated as thin, not hidden. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
