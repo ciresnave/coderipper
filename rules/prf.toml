@@ -141,7 +141,8 @@ default_severity = "info"
 confidence_class = "low"
 kb_refs = []
 remediation = "Add a marker next to the deviation that links to the benchmark evidence."
-related = []
+related = ["PRF-004"]
+checked_today = "Source comments in the families of RDB-008 (// and /* */, #, --), in tracked files outside the directories conflict-marker skips (opt-in; check PRF-006). The convention is a comment that begins with PERF-EXCEPTION: and gives a benchmark reference on its line or in the comment text of the next two lines: an http or https link, a path with a bench, benches, benchmark or benchmarks directory, or a bench:: name. A marker with none is one Info finding per file at the first such marker, with the count, at low confidence. A repository with no marker is not applicable: the rule judges that a stated exception has evidence, never that code is slow or that a slow site lacks the marker. Not judged: a deviation with no marker, whether a link resolves or the benchmark shows what the comment says, a reference above the marker."
 lifecycle = "experimental"
 
 [rule.applicability]

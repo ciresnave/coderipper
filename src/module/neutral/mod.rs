@@ -46,6 +46,7 @@ mod patent_index;
 mod patent_sweep;
 mod prf003;
 mod prf005;
+mod prf006;
 mod rdb003;
 mod rdb004;
 mod rdb007;
@@ -314,6 +315,10 @@ const RULES: &[Rule] = &[
         judge: prf005::judge,
     },
     Rule {
+        id: "PRF-006",
+        judge: prf006::judge,
+    },
+    Rule {
         id: "RDB-004",
         judge: rdb004::judge,
     },
@@ -437,7 +442,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
         "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
-        "CON-012", "RDB-003", "SUP-021", "COR-012", "DOC-003",
+        "CON-012", "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006",
     ]
 }
 
@@ -898,6 +903,7 @@ const PROVEN: &[&str] = &[
     "TYP-006",
     "PRF-003",
     "PRF-005",
+    "PRF-006",
     "RDB-004",
     "RDB-007",
     "TST-003",
