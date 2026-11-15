@@ -113,7 +113,7 @@ Each rule whose input is listed **runs and reports 0 sites by declaration**, wit
 `ARC-006: the declaration says this repository has no API budget to compare (none = ["api_budget"]), so there is nothing to compare: 0 sites by declaration`.
 That is a fact the repository stated and a reviewer can see in the diff, not a pass by silence and not a gap. The rules, in short:
 
-- A value other than `volatile`, `api_budget`, `owns_data` and `composition` is a configuration error; so is listing a value twice.
+- A value other than `volatile`, `api_budget`, `owns_data`, `composition` and `pure` is a configuration error; so is listing a value twice.
 - **Listing an input that the declaration also gives is a configuration error** (`none = ["api_budget"]` beside an `[architecture.api_budget]`
   table): say one or the other, so a stale `none` cannot hide a rule that has something to judge.
 - A statement about one input excuses only that input's rule: `none = ["volatile"]` does not make `ARC-006` run.
@@ -121,6 +121,30 @@ That is a fact the repository stated and a reviewer can see in the diff, not a p
   declaration, not a way to opt out of having one.
 - The statement is the repository's: it is read from the committed `.coderipper.toml` like the rest of the declaration, and it goes in
   the same pull request as the change that makes it true (adding a budget later means deleting the `none` line).
+
+## Tagging a component pure (read by EFX-001)
+
+A component that is meant to have no effects says so with `pure = true`; the rule that judges it is EFX-001, built separately. This
+change only adds the key and its checks, so nothing existing changes and no finding appears from it:
+
+```toml
+[[architecture.component]]
+name  = "pricing"
+paths = ["crates/pricing"]
+role  = "policy"
+pure  = true             # performs no file, network, environment, process, clock, randomness or thread effects
+
+[architecture.effects]   # optional: the rule's built-in list is used when this table is absent
+add    = ["metrics::"]   # more effect namespaces or names
+remove = ["std::time::Instant"]   # a built-in entry this project does not count (say why in a comment)
+```
+
+- `pure` is a boolean; absent means "not judged", never "impure". `pure = false` says the component was considered.
+- **Configuration errors:** a `pure` that is not a boolean, an unknown key in `[architecture.effects]`, a blank entry, an entry named twice
+  (in `add` and `remove`, or twice in one), `pure = true` on a component whose `role` is `adapter`, `infrastructure` or `composition` (that is
+  where effects live), and an `[architecture.effects]` table with no `pure = true` component (it would change nothing).
+- A repository with no pure component can say so with `none = ["pure"]`; listing it beside a `pure = true` component is an error, as for the
+  other inputs above.
 
 ## Further reading
 
