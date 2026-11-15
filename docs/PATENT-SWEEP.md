@@ -1681,9 +1681,9 @@ Version line covered by this addendum: **0.43** (0.43.87). One rule is added, re
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
 
-### 0.43.89 (0.43 line) - 2026-11-14
+### 0.43.95 (0.43 line) - 2026-11-14
 
-Version line covered by this addendum: **0.43** (0.43.89). One rule is added, read from `src/checks/architecture/pure_effects.rs`: `EFX-001` (a component the declaration tags pure that names a file, network, environment, process, clock, randomness or thread API). Swept 2026-11-14 by the coderipper-b lane (Claude Sonnet 5.5), same method and limits as above.
+Version line covered by this addendum: **0.43** (0.43.95). One rule is added, read from `src/checks/architecture/pure_effects.rs`: `EFX-001` (a component the declaration tags pure that names a file, network, environment, process, clock, randomness or thread API). Swept 2026-11-14 by the coderipper-b lane (Claude Sonnet 5.5), same method and limits as above.
 
 **Idea 104 (`EFX-001`).** Read an architecture declaration that tags components as pure, parse the Rust source of those components, and report each path the source names that resolves, through the file's own `use` declarations, to an entry of an effect list (file, network, environment, process, clock, randomness, thread namespaces). Matching a declared component, a resolved path and a list entry is the whole mechanism; nothing is executed, no function is classified from its body, and no effect is propagated through calls.
 
