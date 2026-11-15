@@ -110,6 +110,8 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("architecture-ratchet");
     // SEC-012, a Debug impl that prints a secret: allocated by the PM (2026-11-12) from two real leaks, not a knowledge-base id
     triaged.push("SEC-012");
+    // CON-012, public async fns return Send futures: scheduled in docs/RULES-REVIEW-2026-11-07.md item 4 and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
+    triaged.push("CON-012");
     // SUP-021, build-script hygiene: scheduled in docs/RULES-REVIEW-2026-11-07.md item 7 and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
     triaged.push("SUP-021");
     // COR-012, Send and Sync impls are sound: scheduled in docs/rules/REMAINING.md and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
