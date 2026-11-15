@@ -390,7 +390,8 @@ fn min_coverage_zero_passes_and_a_floor_above_the_coverage_exits_one_naming_the_
 fn min_coverage_measures_a_language_no_module_checks_by_the_neutral_rules_and_never_hides_a_worse_exit_code(
 ) {
     fast(&polyglot_project())
-        .args(["--min-coverage", "10"])
+        // 20, not 10: typescript is about 10% (22 of 215 once the aliases left the catalog) while rust is over 40%, so only typescript is under the floor
+        .args(["--min-coverage", "20"])
         .assert()
         .code(1)
         .stderr(predicate::str::contains("typescript is "));
