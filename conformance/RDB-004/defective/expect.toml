@@ -1,0 +1,16 @@
+# The seeded defects: eight parameters, five levels of nesting, a flag argument.
+
+[[expect]]
+rule = "RDB-004"
+file = "src/lib.rs"
+line = 1
+
+[[expect]]
+rule = "RDB-004"
+file = "src/lib.rs"
+line = 5
+
+[[expect]]
+rule = "RDB-004"
+file = "src/lib.rs"
+line = 20

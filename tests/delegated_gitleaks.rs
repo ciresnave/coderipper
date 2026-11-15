@@ -7,6 +7,9 @@
 //! These tests need the network once (the download, ~8 MB). To run the suite offline set `CODERIPPER_SKIP_NETWORK_TESTS=1`: they
 //! then print `SKIPPED` and pass, which proves nothing about gitleaks, and CI must not set it.
 
+#[path = "common/tools_root.rs"]
+mod tools_root;
+
 use assert_cmd::Command;
 use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::DelegatedModule;
@@ -21,11 +24,11 @@ fn offline() -> bool {
 
 /// A tools directory holding the real gitleaks, installed once for the whole test binary.
 fn tools_dir() -> &'static Path {
-    static DIR: OnceLock<tempfile::TempDir> = OnceLock::new();
+    static DIR: OnceLock<tools_root::ToolsRoot> = OnceLock::new();
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     DIR.get_or_init(|| {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tools_root::ToolsRoot::new();
         let path = ToolEnv::from_environment()
             .cache_root(dir.path())
             .consent(Consent::Granted)
@@ -146,7 +149,7 @@ fn a_committed_secret_is_a_sec_002_finding_and_the_value_is_never_printed() {
         .unwrap_or_else(|| panic!("no finding line in: {out}\nstderr: {err}"));
     let v: serde_json::Value = serde_json::from_str(finding).unwrap();
     assert_eq!(v["check_id"], "SEC-002");
-    assert_eq!(v["severity"], "high");
+    assert_eq!(v["severity"], "critical");
     assert_eq!(v["location"]["file"], "settings.cfg");
     assert_eq!(v["location"]["line"], 2);
     assert!(

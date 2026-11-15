@@ -11,7 +11,8 @@
 //! gitleaks' exit code is not the verdict (`--exit-code 0`; a non-zero exit is a failure of the tool).
 //!
 //! **The mapping record:** every gitleaks `RuleID` becomes a SEC-002 finding at `File`:`StartLine`, subject the file, severity
-//! `High` (a committed credential is exploitable by anyone who can read the repository). Confidence is capped at `Medium`
+//! `Critical` (the rule's record says Critical: a committed credential is exploitable by anyone who can read the repository; under
+//! OPS-006 it stays `High`, that rule's own severity). Confidence is capped at `Medium`
 //! until this module's own fixtures say more (design section 7), and is `Low` for the generic rule, which matches by entropy
 //! near a name and is the one that fires on non-secrets.
 
@@ -73,7 +74,7 @@ fn to_finding(leak: &Leak, project: &str) -> Finding {
     let line = (leak.start_line > 0).then_some(leak.start_line);
     let finding = Finding::new(
         RULE,
-        Severity::High,
+        Severity::Critical,
         confidence,
         project,
         format!("a committed secret (gitleaks rule {})", leak.rule_id),
@@ -204,6 +205,7 @@ pub(super) fn run_config(env: &ToolEnv, request: &Request) -> Verdict {
                 .filter(|f| f.location.as_ref().is_some_and(|l| is_config_file(&l.file)))
                 .map(|mut f| {
                     f.check_id = OPS_RULE.to_string();
+                    f.severity = Severity::High;
                     f.summary = f.summary.replacen(
                         "a committed secret",
                         "a committed secret in a configuration file",
@@ -421,7 +423,7 @@ mod tests {
         assert_eq!(leaks.len(), 1);
         let f = to_finding(&leaks[0], "demo");
         assert_eq!(f.check_id, "SEC-002");
-        assert_eq!(f.severity, Severity::High);
+        assert_eq!(f.severity, Severity::Critical);
         assert_eq!(
             f.confidence,
             Confidence::Low,

@@ -1,0 +1,6 @@
+# The seeded defect: an awaited connect with no timeout (line 4).
+
+[[expect]]
+rule = "CON-008"
+file = "src/lib.rs"
+line = 4

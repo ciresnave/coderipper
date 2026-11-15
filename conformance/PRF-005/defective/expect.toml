@@ -1,0 +1,11 @@
+# The seeded defects: a process-lifetime cache that is only ever inserted into (src/lib.rs:6), and a cache-named field that is only ever pushed to (src/store.rs:3).
+
+[[expect]]
+rule = "PRF-005"
+file = "src/lib.rs"
+line = 6
+
+[[expect]]
+rule = "PRF-005"
+file = "src/store.rs"
+line = 3

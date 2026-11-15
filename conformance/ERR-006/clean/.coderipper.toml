@@ -1,0 +1,14 @@
+[architecture]
+style = "layered"
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+role = "policy"
+volatility = "stable"
+
+[[architecture.component]]
+name = "backend"
+paths = ["backend"]
+role = "adapter"
+volatility = "volatile"

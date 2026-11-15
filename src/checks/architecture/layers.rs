@@ -71,34 +71,35 @@ impl Check for LayersCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let tests = read_test_sources(&package.dir)?;
-        let mut facts = collect(&files)?;
-        facts.test_impls.extend(test_file_impls(&tests)?);
-        facts.test_impls.extend(cfg_test_impls(&files)?);
-        let has_lib = files.iter().any(|f| f.path == "src/lib.rs");
-        let public = if has_lib {
-            public_names(&files)?
-        } else {
-            BTreeSet::new()
-        };
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let (traits, chains) = (
-            single_impl_traits(&facts, &public),
-            forwarding_chains(&facts),
-        );
-        let notes = vec![format!(
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let tests = read_test_sources(&package.dir)?;
+            let mut facts = collect(&files)?;
+            facts.test_impls.extend(test_file_impls(&tests)?);
+            facts.test_impls.extend(cfg_test_impls(&files)?);
+            let has_lib = files.iter().any(|f| f.path == "src/lib.rs");
+            let public = if has_lib {
+                public_names(&files)?
+            } else {
+                BTreeSet::new()
+            };
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let (traits, chains) = (
+                single_impl_traits(&facts, &public),
+                forwarding_chains(&facts),
+            );
+            let notes = vec![format!(
             "ARC-008 read {} trait(s) and {} struct(s); {} single-implementation trait(s), {} chain(s) of forwarding types",
             facts.traits.len(),
             facts.structs.len(),
             traits.len(),
             chains.len()
         )];
-        Ok((judge(&traits, &chains, &project), notes))
+            Ok((judge(&traits, &chains, &project), notes))
+        })
     }
 }
 

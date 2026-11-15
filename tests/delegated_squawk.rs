@@ -8,6 +8,9 @@
 //! workflow here is written by the test, so the result does not change with the day. To run the suite offline set
 //! `CODERIPPER_SKIP_NETWORK_TESTS=1`: they then print `SKIPPED` and pass, which proves nothing about squawk, and CI must not set it.
 
+#[path = "common/tools_root.rs"]
+mod tools_root;
+
 use assert_cmd::Command;
 use coderipper::conformance::{run, Options, Verdict};
 use coderipper::module::DelegatedModule;
@@ -21,12 +24,12 @@ fn offline() -> bool {
 }
 
 /// A tools directory holding the real squawk, installed once for the whole test binary, and the path of the tool.
-fn tools() -> &'static (tempfile::TempDir, PathBuf) {
-    static DIR: OnceLock<(tempfile::TempDir, PathBuf)> = OnceLock::new();
+fn tools() -> &'static (tools_root::ToolsRoot, PathBuf) {
+    static DIR: OnceLock<(tools_root::ToolsRoot, PathBuf)> = OnceLock::new();
     static LOCK: Mutex<()> = Mutex::new(());
     let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     DIR.get_or_init(|| {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = tools_root::ToolsRoot::new();
         let path = ToolEnv::from_environment()
             .cache_root(dir.path())
             .consent(Consent::Granted)

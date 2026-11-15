@@ -1,0 +1,6 @@
+# The seeded defect: an HTTP client made with no timeout (line 3).
+
+[[expect]]
+rule = "REL-001"
+file = "src/lib.rs"
+line = 3

@@ -1,0 +1,6 @@
+# The seeded defect: a library prints straight to standard output (line 3).
+
+[[expect]]
+rule = "OPS-003"
+file = "src/lib.rs"
+line = 3

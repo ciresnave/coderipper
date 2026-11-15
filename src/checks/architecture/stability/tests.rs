@@ -182,3 +182,25 @@ fn the_margin_is_read_from_the_repository_file() {
     assert!(crate::config::arc005_min_margin("[arc005]\nmin_margin = 0.0\n").is_err());
     assert!(crate::config::arc005_min_margin("[arc005]\nmin_margin = 1.5\n").is_err());
 }
+
+#[test]
+fn an_edge_to_an_ffi_sys_crate_is_left_out_and_the_same_shape_with_another_name_is_reported() {
+    // the shape of `baracuda-ozimmu -> baracuda-ozimmu-sys`: the dependency is on the less stable end by neighbour count
+    let sys_members = ["x", "y", "a", "b-sys", "p", "q"];
+    let sys_edges = [
+        ("x", "a"),
+        ("y", "a"),
+        ("a", "b-sys"),
+        ("b-sys", "p"),
+        ("b-sys", "q"),
+    ];
+    let (f, notes) = judge(None, &graph(&sys_members, &sys_edges), 0.3, "p");
+    assert!(f.is_empty(), "{f:?}");
+    assert!(
+        notes[0].contains("1 to a `-sys` crate left out"),
+        "{notes:?}"
+    );
+    // the control: the identical graph with the end named `b` is reported
+    let (f, _) = judge(None, &graph(&MEMBERS, &EDGES), 0.3, "p");
+    assert_eq!(f.len(), 1, "{f:?}");
+}

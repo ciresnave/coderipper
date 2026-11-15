@@ -1,0 +1,5 @@
+# The seeded defect: a project with a manifest and no failure model. The finding is at the manifest.
+
+[[expect]]
+rule = "REL-007"
+file = "Cargo.toml"

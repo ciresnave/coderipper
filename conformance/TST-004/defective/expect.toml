@@ -1,0 +1,6 @@
+# The seeded defect: a test that sets up four mock expectations and makes one assertion, line 5.
+
+[[expect]]
+rule = "TST-004"
+file = "src/lib.rs"
+line = 5

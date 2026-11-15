@@ -1,0 +1,6 @@
+# The seeded defect: a bail! message that repeats the token (line 3).
+
+[[expect]]
+rule = "ERR-009"
+file = "src/lib.rs"
+line = 3

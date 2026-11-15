@@ -1,0 +1,1 @@
+# The clean twin: the same cache and field, now bounded by a length check with eviction; a static that is never grown; growth inside test code. Nothing is reported.

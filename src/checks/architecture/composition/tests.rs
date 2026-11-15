@@ -116,3 +116,22 @@ pub fn b(_s: PgStore) -> Option<PgStore> { None }
 ");
     assert_eq!(f.len(), 1, "{f:#?}");
 }
+
+#[test]
+fn a_stated_none_lets_the_rule_run_with_nothing_to_compare() {
+    let parse = |t: &str| {
+        crate::config::ConfigFile::parse(t, std::path::Path::new(".coderipper.toml"))
+            .unwrap()
+            .architecture
+            .unwrap()
+    };
+    // the same table without the statement is a gap, with it the rule runs
+    assert!(missing_declaration(Some(&parse("[architecture]\n"))).is_some());
+    let stated = parse("[architecture]\nnone = [\"composition\"]\n");
+    assert!(missing_declaration(Some(&stated)).is_none());
+    // a statement about another input does not excuse this one
+    let other = parse("[architecture]\nnone = [\"owns_data\"]\n");
+    assert!(missing_declaration(Some(&other)).is_some());
+    // and no declaration at all is still a gap
+    assert!(missing_declaration(None).is_some());
+}

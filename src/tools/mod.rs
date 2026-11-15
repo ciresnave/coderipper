@@ -124,7 +124,7 @@ pub enum ToolError {
         note: &'static str,
     },
     /// The download failed.
-    #[error("download_failed: {tool} {version} from {source_url}: {reason}")]
+    #[error("download_failed: {tool} {version} from {source_url}: {reason} (the download failed, it is not a finding in your code: re-run the job)")]
     DownloadFailed {
         /// The tool.
         tool: String,
@@ -323,8 +323,35 @@ fn read_limited(reader: impl std::io::Read) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// Waits between the attempts of one download: three attempts in all, so two waits.
+#[cfg(feature = "cli")]
+const DOWNLOAD_BACKOFF: [std::time::Duration; 2] = [
+    std::time::Duration::from_secs(5),
+    std::time::Duration::from_secs(20),
+];
+
 #[cfg(feature = "cli")]
 fn http_get(source: &str) -> Result<Vec<u8>, String> {
+    http_get_with(source, &DOWNLOAD_BACKOFF)
+}
+
+/// Whether trying the same download again can help: a server error or a connection that failed, never a 4xx or a bad URL.
+#[cfg(feature = "cli")]
+fn worth_retrying(error: &ureq::Error) -> bool {
+    match error {
+        ureq::Error::StatusCode(code) => *code >= 500,
+        ureq::Error::Io(_)
+        | ureq::Error::Timeout(_)
+        | ureq::Error::HostNotFound
+        | ureq::Error::ConnectionFailed => true,
+        _ => false,
+    }
+}
+
+/// One attempt per entry of `waits` plus a first one. Only the download is repeated; what comes back is checked
+/// (against the lock's hash) by the caller, so a wrong file is never retried.
+#[cfg(feature = "cli")]
+fn http_get_with(source: &str, waits: &[std::time::Duration]) -> Result<Vec<u8>, String> {
     // An https source may redirect (release hosts do) but never down to http; a loopback http source never redirects.
     let secure = source.starts_with("https://");
     let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -333,13 +360,35 @@ fn http_get(source: &str) -> Result<Vec<u8>, String> {
         .max_redirects(if secure { 10 } else { 0 })
         .build()
         .into();
-    let mut response = agent.get(source).call().map_err(|e| e.to_string())?;
-    response
-        .body_mut()
-        .with_config()
-        .limit(MAX_TOOL_BYTES)
-        .read_to_vec()
-        .map_err(|e| e.to_string())
+    let mut attempt = 0;
+    loop {
+        let result = agent
+            .get(source)
+            .call()
+            .map_err(|e| (worth_retrying(&e), e.to_string()))
+            .and_then(|mut response| {
+                response
+                    .body_mut()
+                    .with_config()
+                    .limit(MAX_TOOL_BYTES)
+                    .read_to_vec()
+                    .map_err(|e| (worth_retrying(&e), e.to_string()))
+            });
+        match result {
+            Ok(bytes) => return Ok(bytes),
+            Err((true, why)) if attempt < waits.len() => {
+                eprintln!(
+                    "coderipper: download of {source} failed ({why}); attempt {} of {}, trying again in {}s",
+                    attempt + 1,
+                    waits.len() + 1,
+                    waits[attempt].as_secs()
+                );
+                std::thread::sleep(waits[attempt]);
+                attempt += 1;
+            }
+            Err((_, why)) => return Err(why),
+        }
+    }
 }
 
 #[cfg(not(feature = "cli"))]

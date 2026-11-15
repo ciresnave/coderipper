@@ -1,0 +1,6 @@
+# The seeded defect: a Relaxed atomic operation with no comment (line 4).
+
+[[expect]]
+rule = "CON-010"
+file = "src/lib.rs"
+line = 4

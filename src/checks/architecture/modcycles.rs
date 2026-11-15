@@ -74,28 +74,29 @@ impl Check for ModuleCyclesCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let Some(facts) = modgraph::read(&files)? else {
-            return Ok((
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let Some(facts) = modgraph::read(&files)? else {
+                return Ok((
                 Vec::new(),
                 vec!["no src/lib.rs or src/main.rs among the tracked sources; no module graph, so no cycle is judged".into()],
             ));
-        };
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let (edges, nodes) = module_edges(&facts);
-        let sets = sccs(&nodes, &edges.keys().cloned().collect());
-        let mut notes = facts.notes.clone();
-        notes.push(format!(
-            "MOD-002 read {} module(s) and {} edge(s) between them; {} cycle(s)",
-            nodes.len(),
-            edges.len(),
-            sets.len()
-        ));
-        Ok((judge(&facts, &edges, &sets, &project), notes))
+            };
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let (edges, nodes) = module_edges(&facts);
+            let sets = sccs(&nodes, &edges.keys().cloned().collect());
+            let mut notes = facts.notes.clone();
+            notes.push(format!(
+                "MOD-002 read {} module(s) and {} edge(s) between them; {} cycle(s)",
+                nodes.len(),
+                edges.len(),
+                sets.len()
+            ));
+            Ok((judge(&facts, &edges, &sets, &project), notes))
+        })
     }
 }
 

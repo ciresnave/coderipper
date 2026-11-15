@@ -1,0 +1,6 @@
+# The seeded defect: a six-method trait that an implementer stubs five of (the trait, line 1).
+
+[[expect]]
+rule = "EXT-004"
+file = "src/lib.rs"
+line = 1

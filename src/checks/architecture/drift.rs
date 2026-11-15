@@ -122,10 +122,11 @@ impl Check for DriftCheck {
         Network::LocalOnly
     }
 
-    fn not_configured(&self, ctx: &CheckContext) -> Option<String> {
+    fn not_applicable(&self, ctx: &CheckContext) -> Option<String> {
         match base_of(&ctx.project_root) {
             Ok(Some(_)) => None,
-            Ok(None) => Some("ARC-009 compares the crates with the last release, and no release tag `v<version>` is reachable from HEAD besides HEAD itself; tag a release (`tools/tag-release.sh`) or set `[arc009] base = \"<tag, branch or commit>\"` in .coderipper.toml; an absent baseline is a gap, not a pass".into()),
+            // a repository that has never published a release has nothing to drift from; to compare with something else, set a base
+            Ok(None) => Some("ARC-009 compares the crates with the last release, and no release tag `v<version>` is reachable from HEAD besides HEAD itself (a repository that has not published has nothing to drift from; it is not clean, it is not compared); once a release is tagged (`tools/tag-release.sh`) it runs, or set `[arc009] base = \"<tag, branch or commit>\"` in .coderipper.toml to compare with something now".into()),
             // an unreadable repository is an error of the run, raised by `run`
             Err(_) => None,
         }

@@ -1,0 +1,6 @@
+# The seeded defect: an alert (line 4) with no runbook_url annotation.
+
+[[expect]]
+rule = "OPS-009"
+file = "monitoring/app.rules.yml"
+line = 4

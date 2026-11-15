@@ -1,0 +1,1 @@
+# The clean twin: the password sits in a masking wrapper, the token type is not a secret, and the hand-written Debug prints a placeholder.

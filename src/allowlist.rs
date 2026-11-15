@@ -23,6 +23,17 @@ pub(crate) struct TrackEntry {
     pub reason: String,
 }
 
+/// `[[interface]]`: `package` versions by its own interface, not by the project number (CireSnave, board 295: each interface crate of a
+/// project that has several, such as FireLine's, keeps its own version, and they meet at one number at a major release). The package is
+/// left out of the uniform comparison; a project at a major release (`X.0.0`, or `0.Y.0` before 1.0) needs every interface crate at that
+/// number. `reason` is required, like every exception's.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct InterfaceEntry {
+    pub package: String,
+    pub reason: String,
+}
+
 /// `[[skip_member]]`: a workspace member this repository's `--workspace` run does not build, and says so every run ("not judged
 /// (declared skip)"). `name` is the cargo package name. `reason` and `owner` are required, like a waiver's. With `needs` the skip
 /// holds only while that executable is absent from `PATH`: a runner that has the tool builds and judges the member.
@@ -113,6 +124,11 @@ pub(crate) struct AllowEntry {
     /// run is then covered, whatever the finding's `project` (the directory name) is.
     #[serde(skip)]
     pub run_scoped: bool,
+    /// Set by the reader for an `[[allow]]` entry of a workspace root's file that a member's run inherits: the member's directory
+    /// relative to the workspace root (`crates/a`). `file` is then read relative to the root, as it is in the root's own run, so the
+    /// entry matches a member finding whose path, put behind this prefix, equals it.
+    #[serde(skip)]
+    pub member_prefix: Option<String>,
 }
 
 /// One item of `[reachability] public_api`: the project declares that what `file` (a path or a glob: `*` inside one directory,
@@ -177,6 +193,7 @@ impl PublicApiCrate {
             declared_public: true,
             crate_scope: Some(self.name.clone()),
             run_scoped: false,
+            member_prefix: None,
         }
     }
 }
@@ -194,6 +211,7 @@ impl PublicApiEntry {
             declared_public: true,
             crate_scope: None,
             run_scoped: false,
+            member_prefix: None,
         }
     }
 
@@ -233,6 +251,42 @@ fn workspace_declarations_for(project_root: &Path) -> Vec<AllowEntry> {
         .filter(|e| e.crate_scope.as_deref() == Some(package.as_str()))
         .map(|mut e| {
             e.run_scoped = true;
+            e
+        })
+        .collect()
+}
+
+/// The `[[allow]]` entries of the nearest enclosing workspace root's `.coderipper.toml`, as a member's run inherits them. A waiver written
+/// once at the root covers the members it names, with `file` read relative to the workspace root, as in the root's own run:
+/// `file = "crates/a/src/lib.rs"` waives the finding at `src/lib.rs` of the package in `crates/a`, and no other. Only the root's own
+/// entries are taken (a wide file's apply to every run already), they carry a `source` (so a member they do not name never reports them
+/// stale) and the member's directory as their `member_prefix`. Empty when `project_root` is not below a workspace root.
+fn workspace_allow_for(project_root: &Path) -> Vec<AllowEntry> {
+    let is_workspace = |dir: &Path| -> bool {
+        std::fs::read_to_string(dir.join("Cargo.toml"))
+            .ok()
+            .and_then(|t| t.parse::<toml::Table>().ok())
+            .is_some_and(|t| t.contains_key("workspace"))
+    };
+    let Some(root) = project_root.ancestors().skip(1).find(|d| is_workspace(d)) else {
+        return Vec::new();
+    };
+    let Ok(rel) = project_root.strip_prefix(root) else {
+        return Vec::new();
+    };
+    let prefix = rel.to_string_lossy().replace('\\', "/");
+    if prefix.is_empty() {
+        return Vec::new();
+    }
+    let Ok(list) = Allowlist::load(root) else {
+        return Vec::new();
+    };
+    list.entries
+        .into_iter()
+        .filter(|e| e.source.is_none() && e.crate_scope.is_none() && !e.declared_public)
+        .map(|mut e| {
+            e.source = Some("the workspace root's .coderipper.toml".to_string());
+            e.member_prefix = Some(prefix.clone());
             e
         })
         .collect()
@@ -296,6 +350,7 @@ fn line_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<LineRange
 pub struct Allowlist {
     entries: Vec<AllowEntry>,
     tracks: Vec<TrackEntry>,
+    interfaces: Vec<InterfaceEntry>,
     skip_members: Vec<SkipMemberEntry>,
     cli_waivers: Vec<CliWaiver>,
     buf_baseline: Option<String>,
@@ -306,6 +361,7 @@ impl Allowlist {
         Self {
             entries: Vec::new(),
             tracks: Vec::new(),
+            interfaces: Vec::new(),
             skip_members: Vec::new(),
             cli_waivers: Vec::new(),
             buf_baseline: None,
@@ -329,6 +385,7 @@ impl Allowlist {
                         .chain(file.reachability.iter().flat_map(|r| r.entries(None)))
                         .collect(),
                     tracks: file.tracks,
+                    interfaces: file.interface,
                     skip_members: file.skip_member,
                     cli_waivers: file.cli_waiver,
                     buf_baseline: file.buf.and_then(|b| b.baseline),
@@ -357,6 +414,7 @@ impl Allowlist {
                     .flat_map(|r| r.entries(Some(source.clone()))),
             );
             list.tracks.extend(layer.file.tracks.iter().cloned());
+            list.interfaces.extend(layer.file.interface.iter().cloned());
             if let Some(b) = layer.file.buf.as_ref().and_then(|b| b.baseline.clone()) {
                 wide_baseline = Some(b);
             }
@@ -378,12 +436,15 @@ impl Allowlist {
         self
     }
 
-    /// [`Self::load`] for the package at `project_root`, plus the crate-level declarations that its **workspace root's** file makes for
-    /// this package. The same run, whether `--workspace` made it or a lane ran `--project crates/x` by hand, so a local run agrees with CI.
+    /// [`Self::load`] for the package at `project_root`, plus what its **workspace root's** file says for this package: the crate-level
+    /// declarations, and the root's own `[[allow]]` entries (`file` relative to the workspace root, see `workspace_allow_for`), so a
+    /// waiver written once at the root covers the member it names in a `--workspace` run. The same run, whether `--workspace` made it
+    /// or a lane ran `--project crates/x` by hand, so a local run agrees with CI.
     pub fn load_for_package(project_root: &Path) -> anyhow::Result<Self> {
         let mut list = Self::load(project_root)?;
         list.entries
             .extend(workspace_declarations_for(project_root));
+        list.entries.extend(workspace_allow_for(project_root));
         Ok(list)
     }
 
@@ -396,6 +457,10 @@ impl Allowlist {
     /// The repository's own `[[cli_waiver]]` entries (a wide file's are not read: what a binary's contract is belongs to the repository).
     pub(crate) fn cli_waivers(&self) -> &[CliWaiver] {
         &self.cli_waivers
+    }
+
+    pub(crate) fn interfaces(&self) -> &[InterfaceEntry] {
+        &self.interfaces
     }
 
     pub(crate) fn tracks(&self) -> &[TrackEntry] {

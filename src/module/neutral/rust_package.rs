@@ -38,7 +38,7 @@ pub(super) struct Packages {
     pub unparsed: Vec<String>,
 }
 
-fn skipped(path: &str) -> bool {
+pub(super) fn skipped(path: &str) -> bool {
     path.split('/').any(|s| VENDORED.contains(&s))
 }
 

@@ -68,28 +68,29 @@ impl Check for InternalsCheck {
     }
 
     fn run_noted(&self, ctx: &CheckContext) -> anyhow::Result<(Vec<Finding>, Vec<String>)> {
-        let (package, _) = crate::package::locate(&ctx.project_root)?;
-        let files = read_sources(&package.dir)?;
-        let Some(facts) = modgraph::read(&files)? else {
-            return Ok((
+        crate::package::fan_out(ctx, |_, package| {
+            let files = read_sources(&package.dir)?;
+            let Some(facts) = modgraph::read(&files)? else {
+                return Ok((
                 Vec::new(),
                 vec!["no src/lib.rs or src/main.rs among the tracked sources; no module graph, so no reach-through is judged".into()],
             ));
-        };
-        let reaches = reach_throughs(&facts);
-        let project = package.dir.file_name().map_or_else(
-            || package.name.clone(),
-            |n| n.to_string_lossy().into_owned(),
-        );
-        let mut notes = facts.notes.clone();
-        notes.push(format!(
-            "MOD-003 read {} file(s), {} path(s) and {} re-export(s); {} reach-through(s)",
-            facts.files.len(),
-            facts.refs.len(),
-            facts.reexports.len(),
-            reaches.len()
-        ));
-        Ok((judge(&reaches, &project), notes))
+            };
+            let reaches = reach_throughs(&facts);
+            let project = package.dir.file_name().map_or_else(
+                || package.name.clone(),
+                |n| n.to_string_lossy().into_owned(),
+            );
+            let mut notes = facts.notes.clone();
+            notes.push(format!(
+                "MOD-003 read {} file(s), {} path(s) and {} re-export(s); {} reach-through(s)",
+                facts.files.len(),
+                facts.refs.len(),
+                facts.reexports.len(),
+                reaches.len()
+            ));
+            Ok((judge(&reaches, &project), notes))
+        })
     }
 }
 

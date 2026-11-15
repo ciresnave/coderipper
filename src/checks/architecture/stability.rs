@@ -12,7 +12,8 @@
 //!
 //! **Not reported.** An edge to a component declared `volatility = "volatile"` (depending on it is the project's decision, and `ARC-003` /
 //! `ARC-004` judge it); an edge inside one strongly connected set (those are `ARC-002`'s); an edge to the standard library or to a
-//! crate outside the workspace (the graph has only workspace members and module groups).
+//! crate outside the workspace (the graph has only workspace members and module groups); an edge to an FFI `-sys` crate (a component named
+//! `*-sys`, cargo's convention for a binding to a system library), which is the stable end of the graph by design.
 //!
 //! **No declaration still runs:** without an `[architecture]` table every workspace member is its own component, so a workspace of
 //! several crates is read at crate level. A repository of one crate and no declared module groups has no edge; the note says so (a gap is
@@ -140,6 +141,11 @@ pub(crate) fn instability(ca: usize, ce: usize) -> Option<f64> {
     (ca + ce > 0).then(|| ce as f64 / (ca + ce) as f64)
 }
 
+/// Whether a component is an FFI `-sys` crate by cargo's naming convention (`foo-sys`, or `foo_sys` as a module group).
+fn is_sys_crate(name: &str) -> bool {
+    name.ends_with("-sys") || name.ends_with("_sys")
+}
+
 /// The findings and notes for `graph` judged against `arch` (or crate by crate when there is none).
 pub(crate) fn judge(
     arch: Option<&ArchitectureConfig>,
@@ -171,7 +177,7 @@ pub(crate) fn judge(
             .map(|m| m.manifest.clone())
     };
     let mut ranked: Vec<(f64, &(String, String), f64, f64)> = Vec::new();
-    let (mut skipped_volatile, mut skipped_cycle) = (0usize, 0usize);
+    let (mut skipped_volatile, mut skipped_cycle, mut skipped_sys) = (0usize, 0usize, 0usize);
     for e in &edges {
         let (a, b) = (&e.0, &e.1);
         if volatile.contains(b.as_str()) {
@@ -180,6 +186,12 @@ pub(crate) fn judge(
         }
         if same_cycle(a, b) {
             skipped_cycle += 1;
+            continue;
+        }
+        // an FFI `-sys` crate is the stable end of the graph by design: it binds a system library whose interface neither side owns,
+        // and its few edges make it look unstable by neighbour count
+        if is_sys_crate(b) {
+            skipped_sys += 1;
             continue;
         }
         let (Some(ia), Some(ib)) = (
@@ -225,7 +237,7 @@ pub(crate) fn judge(
         })
         .collect();
     let mut notes = vec![format!(
-        "ARC-005 read {} component(s) and {} edge(s) (minimum margin {min_margin}): {} reported, {skipped_volatile} edge(s) to a volatile component and {skipped_cycle} inside a cycle left out",
+        "ARC-005 read {} component(s) and {} edge(s) (minimum margin {min_margin}): {} reported, {skipped_volatile} edge(s) to a volatile component, {skipped_cycle} inside a cycle and {skipped_sys} to a `-sys` crate left out",
         nodes.len(),
         edges.len(),
         ranked.len()
