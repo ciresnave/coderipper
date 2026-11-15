@@ -124,8 +124,7 @@ That is a fact the repository stated and a reviewer can see in the diff, not a p
 
 ## Tagging a component pure (read by EFX-001)
 
-A component that is meant to have no effects says so with `pure = true`; the rule that judges it is EFX-001, built separately. This
-change only adds the key and its checks, so nothing existing changes and no finding appears from it:
+A component that is meant to have no effects says so with `pure = true`; the rule that judges it is EFX-001 (see `docs/rules/efx.md`):
 
 ```toml
 [[architecture.component]]
@@ -143,6 +142,9 @@ remove = ["std::time::Instant"]   # a built-in entry this project does not count
 - **Configuration errors:** a `pure` that is not a boolean, an unknown key in `[architecture.effects]`, a blank entry, an entry named twice
   (in `add` and `remove`, or twice in one), `pure = true` on a component whose `role` is `adapter`, `infrastructure` or `composition` (that is
   where effects live), and an `[architecture.effects]` table with no `pure = true` component (it would change nothing).
+- **`[architecture.effects]` is global**: one list for the whole repository, not per component. EFX-001 uses the built-in list (`std::fs`, `tokio::fs`, `std::net`, `tokio::net`, `reqwest`, `hyper`, `std::env`, `std::process`, `tokio::process`, `std::time::SystemTime`, `std::time::Instant`, `chrono::Utc::now`, `chrono::Local::now`, `rand`, `getrandom`, `std::thread`, `tokio::spawn`), plus `add`, minus `remove`. An entry is a `::` path of names and matches a path that starts with all of its segments; entries are trimmed and a trailing `::` is dropped, so `metrics::`, `metrics` and ` metrics ` are one entry.
+- **A `remove` entry that is not on the built-in list is a configuration error** (a stale removal changes nothing); so is an entry that is not a `::` path.
+- **`pure` means none of the listed effects is named, not referentially pure.** A `static`, `unsafe`, interior mutability and `println!` are outside the list, so a component can pass EFX-001 and still not be a pure function of its inputs.
 - A repository with no pure component can say so with `none = ["pure"]`; listing it beside a `pure = true` component is an error, as for the
   other inputs above.
 
