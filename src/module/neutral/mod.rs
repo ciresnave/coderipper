@@ -22,6 +22,7 @@ mod cor003;
 mod cor006;
 mod cor007;
 mod deadline;
+mod doc003;
 mod doc005;
 mod doc009;
 mod efx003;
@@ -122,6 +123,10 @@ const RULES: &[Rule] = &[
     Rule {
         id: "DOC-005",
         judge: doc005::judge,
+    },
+    Rule {
+        id: "DOC-003",
+        judge: doc003::judge,
     },
     Rule {
         id: "DOC-009",
@@ -427,7 +432,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
         "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
-        "CON-012", "RDB-003", "SUP-021",
+        "CON-012", "RDB-003", "SUP-021", "DOC-003",
     ]
 }
 
@@ -840,6 +845,7 @@ const PROVEN: &[&str] = &[
     "SUP-004",
     "SUP-011",
     "DOC-005",
+    "DOC-003",
     "DOC-009",
     "WSP-001",
     "lint-suppression",

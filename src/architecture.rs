@@ -159,6 +159,13 @@ pub(crate) struct ComponentDecl {
     /// judges it. Absent means "not judged", not "impure"; `false` is the same as absent but states it was considered.
     #[serde(default)]
     pub pure: Option<bool>,
+    /// What the component is for, in a sentence (DOC-003). Optional: a declaration in which no component carries `purpose` or `owner`
+    /// has not adopted the convention and DOC-003 is silent on it.
+    #[serde(default)]
+    pub purpose: Option<String>,
+    /// Who answers for the component: a person, team or lane (DOC-003). Optional, as `purpose`.
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 /// `[architecture.effects]`: the project's changes to the built-in effect list that EFX-001 applies to a pure component.
