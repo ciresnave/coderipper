@@ -127,7 +127,7 @@ fn counted(name: &str, budget: u32, items: usize, members: usize) -> Tally {
         component: name.into(),
         budget,
         manifest: Some(format!("{name}/Cargo.toml")),
-        totals,
+        totals: Box::new(totals),
     }
 }
 
@@ -162,7 +162,7 @@ fn third_party_re_exports_are_an_info_finding_with_their_own_subject() {
             component: "domain".into(),
             budget: 100,
             manifest: None,
-            totals,
+            totals: Box::new(totals),
         }],
         "p",
         vec![],
@@ -191,4 +191,23 @@ fn not_run_names_what_to_add() {
         .contains("api_budget"));
     let a: ArchitectureConfig = toml::from_str("[api_budget]\ndomain = 5\n").unwrap();
     assert!(missing_declaration(Some(&a)).is_none());
+}
+
+#[test]
+fn a_stated_none_lets_the_rule_run_with_nothing_to_compare() {
+    let parse = |t: &str| {
+        crate::config::ConfigFile::parse(t, std::path::Path::new(".coderipper.toml"))
+            .unwrap()
+            .architecture
+            .unwrap()
+    };
+    // the same table without the statement is a gap, with it the rule runs
+    assert!(missing_declaration(Some(&parse("[architecture]\n"))).is_some());
+    let stated = parse("[architecture]\nnone = [\"api_budget\"]\n");
+    assert!(missing_declaration(Some(&stated)).is_none());
+    // a statement about another input does not excuse this one
+    let other = parse("[architecture]\nnone = [\"owns_data\"]\n");
+    assert!(missing_declaration(Some(&other)).is_some());
+    // and no declaration at all is still a gap
+    assert!(missing_declaration(None).is_some());
 }

@@ -1,0 +1,6 @@
+# The seeded defect: a test that reads the wall clock (line 5, the `#[test]` fn signature at line 6).
+
+[[expect]]
+rule = "TST-006"
+file = "src/lib.rs"
+line = 6

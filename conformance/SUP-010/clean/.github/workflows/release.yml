@@ -1,0 +1,11 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/attest-build-provenance@v2
+      - run: cargo publish

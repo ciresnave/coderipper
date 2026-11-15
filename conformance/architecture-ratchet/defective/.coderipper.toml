@@ -1,0 +1,18 @@
+[architecture]
+ratchet = true
+
+[[architecture.component]]
+name = "core"
+paths = ["core"]
+
+[[architecture.waiver]]
+edge = ["core", "backend"]
+reason = "migration in progress"
+owner = "core lane"
+until = "2027-03-01"
+
+[[architecture.waiver]]
+edge = ["core", "storage"]
+reason = "a second exception"
+owner = "core lane"
+until = "2027-03-01"

@@ -142,6 +142,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Remove the declaration, or document why a dependency that looks unused is needed (for instance a feature-only or macro use)."
 related = []
+checked_today = "Rust, from the manifest and the source text: every tracked Cargo.toml with a [package] table is a package, and its .rs files are the tracked ones below it that no nearer Cargo.toml owns. A key of [dependencies], [build-dependencies] or [dev-dependencies] (and the target-specific forms), read as the identifier code spells it (hyphen as underscore, any case), is used when it is a token (letters, digits, underscore) in the text of any of the package's .rs files, comments and macro bodies included, or, for a build dependency, in build.rs or build/; or when [features] forward to it (dep:name, name/f, name?/f). One Low-severity, Low-confidence finding per unused dependency, at its line in Cargo.toml. Not reported: a name in [package.metadata.cargo-machete] ignored or [package.metadata.cargo-udeps.ignore], a crate linked for its side effects (a -sys name, openssl, openssl-probe, native-tls, mimalloc, jemallocator, tikv-jemallocator, link-cplusplus), the normal and dev dependencies of a package whose source names OUT_DIR (generated code is not read). Not judged: a library name that differs from the package name, a crate used only through a derive or attribute that never names it, a normal dependency used only in tests (counts as used), [workspace.dependencies], other languages. Prior art: cargo-machete and cargo-udeps."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -232,7 +233,7 @@ evidence_tiers = ["V0", "V5"]
 evidence_strength = "C"
 contested = false
 scope = "project"
-network = "network"
+network = "local"
 unit = "repository"
 executes_project_code = false
 default_severity = "medium"
@@ -240,6 +241,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Generate provenance attestations in the release pipeline and sign artifacts with a keyless or managed key."
 related = ["SUP-009"]
+checked_today = "From the tracked GitHub Actions workflows (.github/workflows/*.yml and .yaml), read as text with comment lines excluded: a workflow that names a publisher of SUP-009 (cargo publish, cargo release, npm publish, twine upload, gh release, pypa/gh-action-pypi-publish, softprops/action-gh-release, actions/create-release, goreleaser; a --dry-run line is not read) is a release workflow; one that also names cosign, sigstore, slsa, provenance, attest, gpg or minisign (any case) signs or attests. One Medium finding at Low confidence per release workflow without one, at its first publishing line. A repository with no release workflow is not applicable. Local check of the pipeline only: the published release is not fetched or verified. Not judged: releases made outside GitHub Actions, signing done in a reusable workflow or composite action the file calls, whether a signature covers the published artifact or verifies, and the assurance level. Opt-in (check SUP-010)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -317,6 +319,31 @@ lifecycle = "experimental"
 
 [rule.applicability]
 languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-021"
+title = "Build scripts stay within what a build may do"
+domain = "SUP"
+statement = "A build script does not reach the network, writes only under the directory Cargo gives it, says when it needs to rerun, and avoids unsafe code, because it runs unreviewed on every builder's machine before their code compiles."
+rationale = "A build script is code a dependency's author runs on the builder's machine with the builder's rights; a download makes the build irreproducible, a write outside OUT_DIR changes the source tree, a missing rerun directive makes Cargo rerun it on every change, and unsafe code there is unreviewed."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "package"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "low"
+kb_refs = []
+checked_today = "Rust, from the source with syn (opt-in): every build.rs beside a tracked Cargo.toml, outside vendored directories. Up to four findings per script, each once at its first site: a path naming a socket or HTTP client (TcpStream, TcpListener, UdpSocket, std::net, reqwest, ureq, curl, hyper, isahc, attohttpc, minreq, surf); a file-system write (fs::write, fs::copy, fs::rename, fs::create_dir, fs::create_dir_all, fs::remove_file, fs::remove_dir_all, File::create) in a script whose text never names OUT_DIR; the text has no rerun word at all (cargo:rerun-if-changed, cargo:rerun-if-env-changed or a helper such as emit_rerun_hints) and calls none of prost_build, tonic_build, cc:: or pkg_config, which print the directives for their inputs; an unsafe block, function or impl. Not seen: a write whose path escapes OUT_DIR in a script that names it elsewhere, a network call through an unlisted crate or a child process, a script named by [package] build other than build.rs, proc-macro crates (not built), a rerun directive printed by a helper whose name does not say rerun. A script syn cannot parse is named in a note."
+remediation = "Fetch and pin inputs outside the build, write generated files under OUT_DIR, print a rerun-if-changed or rerun-if-env-changed line for each input, and avoid unsafe code in the script."
+related = ["SUP-007"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]

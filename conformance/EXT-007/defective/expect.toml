@@ -1,0 +1,6 @@
+# The seeded defect: a crate-private trait with one implementation and no test double (reported at the trait name, line 1).
+
+[[expect]]
+rule = "EXT-007"
+file = "src/lib.rs"
+line = 1

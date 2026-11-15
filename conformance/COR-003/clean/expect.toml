@@ -1,0 +1,1 @@
+# The clean twin: a proptest asserts that decoding an encoding gives back the input.

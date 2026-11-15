@@ -21,6 +21,8 @@ remediation = "Bring the package to the project's version, or declare it as trac
 related = ["ci-protection-presence"]
 lifecycle = "advisory"
 
+checked_today = "Rust (cargo) packages only, read with cargo metadata from the working tree (not HEAD) and judged once at the workspace root: run with --project on a member's directory it says so in one Info finding instead of giving a verdict. The project's version is [workspace.package] version when the root defines one, else the version most packages are at (a tie goes to the highest; with no workspace version, at least two packages are needed to compare). Each package whose version differs (build metadata after + is ignored) is one High-severity, High-confidence finding at its manifest; a package with no version key is left out. A package named in a [[tracks]] entry of .coderipper.toml is left out of that comparison and compared with the current version of the manifest the entry names, and a difference is a High finding too; an unreadable reference, an unknown package or two entries for one package is an error, never a pass. A package can also be waived with an [[allow]] entry. Runs in the classic, extended and portfolio profiles at the fast tier; under portfolio a finding of Medium or higher fails the run. Not judged: non-Rust manifests (package.json, pyproject.toml), the version requirements one package puts on another, the lockfile, and whether the version was raised since the last release or a changelog says so."
+
 [rule.applicability]
 languages = ["rust"]
 scopes = ["first_party"]
@@ -45,6 +47,8 @@ aliases = []
 remediation = "Require the CI checks on the default branch through branch protection or a ruleset."
 related = ["version-consistency"]
 lifecycle = "advisory"
+
+checked_today = "GitHub only, read with the gh CLI (GET requests, as whichever account gh has active) for the repository origin points at; never the protected flag. High severity and High confidence: the default branch has no classic protection or its required_status_checks have enforcement level off or require no check, and no active ruleset for the branch requires a status check or a workflow. Beside it, one Medium finding per repository setting that differs from the portfolio's: squash merge off, merge commits or rebase merges allowed, merged branches not deleted (from repos/<slug>); when classic protection is enabled, admins unable to bypass (enforce_admins on), force-pushes allowed, deletions allowed (from branches/<branch>/protection); for a branch governed by rulesets alone, no active rule of type non_fast_forward or deletion. A fork (not audited), an archived repository and a repository with no commits yield one Info finding saying why. Network (sweep) tier: it runs under coderipper sweep or when named, never in a fast run, in the classic, extended and portfolio profiles, and is advisory in portfolio. Errors, never clean: no origin, an origin that is not GitHub, gh missing or an API failure, a reply without the protection object (a token without push access to a private repository) or without the merge settings (these need repository admin). It can be set aside with --skip-rule ID=WHY, which prints the reason as a note. Not judged: required reviews, signed commits, whether the required check names match what the workflows produce, branches other than the default, forges other than GitHub, and whether a fork was taken over."
 
 [rule.applicability]
 languages = ["any"]

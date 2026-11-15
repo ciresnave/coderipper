@@ -115,20 +115,22 @@ fn a_cycle_and_a_surface_added_since_the_release_tag_are_reported() {
 }
 
 #[test]
-fn a_repository_without_a_release_tag_is_not_run_and_a_base_setting_runs_it() {
+fn a_repository_without_a_release_tag_is_not_applicable_and_a_base_setting_runs_it() {
     let dir = repo(false);
     let ctx = CheckContext::new(dir.path());
-    let why = DriftCheck::new().not_configured(&ctx);
+    let why = DriftCheck::new().not_applicable(&ctx);
     assert!(
-        why.is_some_and(|w| w.contains("tag a release")),
-        "reported as not run"
+        why.is_some_and(|w| w.contains("has not published")),
+        "reported as not applicable"
     );
+    // not a gap in what the repository declares: it is never reported as "not configured" (which prints "not run")
+    assert!(DriftCheck::new().not_configured(&ctx).is_none());
     write(
         dir.path(),
         ".coderipper.toml",
         "[arc009]\nbase = \"HEAD~1\"\n",
     );
-    assert!(DriftCheck::new().not_configured(&ctx).is_none());
+    assert!(DriftCheck::new().not_applicable(&ctx).is_none());
     let (f, _) = DriftCheck::new().run_noted(&ctx).unwrap();
     assert_eq!(f.len(), 2, "{f:?}");
 }

@@ -64,12 +64,12 @@ None of these rules is run by the current release. The notes say what is planned
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | EFX-001 | Components declared pure avoid effectful APIs | A | no check yet; needs a declared architecture (a deny-list per tagged component) |
-| EFX-002 | Global mutable state only where allowed | P | no check yet; planned: native scan in Rust, TypeScript and Python |
+| EFX-002 | Global mutable state only where allowed | P | built in part (Rust, `syn`, outside tests; a `static mut`, or a `static` holding a lock, cell or atomic, also in `lazy_static!` and `thread_local!`, Medium; the same scan as `CON-011`; opt-in (`check EFX-002`); no allowlist is read, so a legitimate site is waived with its reason; other languages and aliased types are not read) |
 | EFX-003 | Environment reads are centralized | N | built, **opt-in** (runs when named, in no profile): native; named reads of the process environment in three or more source files (Rust, Python, JS/TS, Go, Java, Kotlin, Scala, Ruby, C#, PHP), Low, one finding per repository naming the files; not counted: forwarding the whole environment, platform variables, reads in strings or docstrings, tooling and test code; the threshold of three is chosen, not measured; 25% of findings were false or unclear on the portfolio run, which is why it is not default-on |
 | EFX-004 | Deterministic algorithms give identical results every run | X | no check yet; needs running the algorithm repeatedly and comparing hashes |
 | EFX-005 | Methods that both change state and answer queries | P | no check yet; planned: native heuristic, advisory |
 | EFX-006 | Functions claimed pure are pure | P | no check yet; planned: native call-graph check for TypeScript and Python; Rust needs effect reachability |
-| EFX-007 | Shared-mutation spots say who owns them | P | no check yet; planned: native check that cells, locks and caches carry an ownership comment |
+| EFX-007 | Shared-mutation spots say who owns them | P | built in part (Rust, `syn`, outside tests; a struct field or static of a cell, lock or atomic type with no doc comment and no `//` comment above it, Low severity, Medium confidence; opt-in (`check EFX-007`); comment presence only, the owner is not judged; `EFX-002` reports global statics whether documented or not) |
 
 ## Further reading
 

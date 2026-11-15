@@ -4,7 +4,7 @@
 id = "EXT-001"
 title = "Exhaustive matching on closed variant sets"
 domain = "EXT"
-statement = "A match over a fixed family of variants lists them all. A catch-all arm outside the defining module is reported, because it would silently absorb variants added later."
+statement = "A match over a fixed family of variants lists them all. A catch-all arm outside the defining module is reported, because it would silently absorb variants added later, except where the compiler requires it: a match over an enum marked `#[non_exhaustive]` in another crate must have one, so that arm is never a finding (otherwise this rule and API-009 would contradict each other: marking the type would trade an API-009 finding for an EXT-001 one)."
 rationale = "Exhaustive matching lets the compiler point at each place needing attention once a new variant appears."
 evidence_tiers = ["V0", "V1"]
 evidence_strength = "C"
@@ -18,6 +18,7 @@ confidence_class = "high"
 kb_refs = []
 remediation = "Replace the catch-all arm with explicit variants so a new variant produces a compile error."
 related = ["EXT-002"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) skipped: the enums of the package are collected (an enum name held by two enums, and an enum marked non_exhaustive, are left out); a match whose arms name variants of exactly one of them by a path with the enum name, with an unguarded catch-all arm (an underscore or a lower-case binding) that absorbs at least one variant no other unguarded arm lists, in a file other than the one defining the enum, gets one Medium finding with Medium confidence at the catch-all arm, naming the absorbed variants. Opt-in (check EXT-001). Not judged: a variant matched by its bare name after a use of the variants, Self:: patterns, an enum of another crate, a tuple scrutinee over two enums, if let and matches!, whether the catch-all is a deliberate default, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -93,6 +94,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Split the interface into small role interfaces matching how clients use it."
 related = ["EXT-003"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; the package is read as a whole in two passes. The implementer half only: a trait declared in the package with six or more methods is reported once, at its declaration, when at least one impl of it in the package stubs three or more members, a stub being an empty body or a body that is only unimplemented!() or todo!(). A default method an implementer does not override is not counted (a default is the trait author's own mitigation). A trait name declared twice in the package, and a trait from another crate, are skipped (no name resolution). The per-client usage half of the rule (clients that each use disjoint subsets of the members) is deliberately not built: it needs a call graph resolved to the trait's methods through generics and dyn values, per client, and this reader has no name or type resolution, so a count of method names would match unrelated methods that share a name and miss every call made through a generic bound. One finding per trait with Low confidence; Low severity; opt-in (check EXT-004)."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -163,6 +165,7 @@ executes_project_code = false
 default_severity = "low"
 confidence_class = "low"
 kb_refs = []
+checked_today = "Rust, first cut (one of the record's three halves), from the source: a trait that is not pub (private, pub(crate), pub(super), pub(in ..)), has at least one item, has exactly one impl .. for .. in the package outside cfg(test), is implemented for a type the package defines (not a primitive or another crate's type, which is the extension-trait idiom), has no implementation in test code (a test double is the second variant the seam is for) and no #[automock], is not a blanket impl, has a name unique among the package's traits and is named in no macro_rules! body. One finding per trait at its name (Low severity, Low confidence). Not judged: unused type parameters, parameters that always receive the same argument, history that shows an abstraction never extended (V3), a pub trait (outsiders may implement it), a trait whose second implementer is in another repository or a tests/ directory, other languages."
 remediation = "Inline the abstraction until a second real variant appears."
 related = ["ARC-008", "EXT-005"]
 lifecycle = "experimental"

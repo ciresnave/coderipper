@@ -1,0 +1,11 @@
+# The seeded defect: a Cell field with no comment saying who owns it (line 5).
+
+[[expect]]
+rule = "EFX-007"
+file = "src/lib.rs"
+line = 5
+
+[[expect]]
+rule = "EFX-007"
+file = "src/lib.rs"
+line = 6

@@ -1,0 +1,6 @@
+# The seeded defect: a public function takes an identifier and an amount as bare primitives (line 1).
+
+[[expect]]
+rule = "TYP-001"
+file = "src/lib.rs"
+line = 1

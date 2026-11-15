@@ -414,8 +414,20 @@ const KEYWORDS: &[&str] = &[
 ];
 
 fn collect(tokens: proc_macro2::TokenStream, out: &mut BTreeSet<String>) {
-    for tree in tokens {
-        match tree {
+    let trees: Vec<proc_macro2::TokenTree> = tokens.into_iter().collect();
+    for (at, tree) in trees.iter().enumerate() {
+        // `#[serde(with = "codec")]` names a module, and the derive calls `codec::serialize` and `codec::deserialize`: nothing else
+        // in the source writes either name
+        if let proc_macro2::TokenTree::Ident(i) = tree {
+            if i == "with"
+                && matches!(trees.get(at + 1), Some(proc_macro2::TokenTree::Punct(p)) if p.as_char() == '=')
+                && matches!(trees.get(at + 2), Some(proc_macro2::TokenTree::Literal(l)) if l.to_string().starts_with('"'))
+            {
+                out.insert("serialize".to_string());
+                out.insert("deserialize".to_string());
+            }
+        }
+        match tree.clone() {
             proc_macro2::TokenTree::Ident(i) => {
                 let text = i.to_string();
                 // a raw identifier (`r#type`) is a real name; a bare keyword is syntax
@@ -617,6 +629,21 @@ mod tests {
         );
         // ordinary prose in a string is not a path
         assert!(!identifiers_in("fn f() { let s = \"two words\"; }").contains("two"));
+    }
+
+    #[test]
+    fn a_serde_with_module_names_the_two_functions_the_derive_calls() {
+        let ids = identifiers_in("#[serde(with = \"hexbytes\")] pub key: Vec<u8>,");
+        assert!(
+            ids.contains("serialize") && ids.contains("deserialize") && ids.contains("hexbytes"),
+            "{ids:?}"
+        );
+        // controls: the same names without a `with = \"..\"` are not invented, and `with` as a plain word does not count
+        let plain = identifiers_in("#[serde(default = \"d\")] pub key: Vec<u8>, fn with() {}");
+        assert!(
+            !plain.contains("serialize") && !plain.contains("deserialize"),
+            "{plain:?}"
+        );
     }
 
     #[test]

@@ -229,7 +229,7 @@ impl Check for ReachabilityCheck {
                 })
                 .cloned()
                 .collect();
-            if roots.is_empty() {
+            if roots.is_empty() && facts.api_idents.is_empty() {
                 (
                     first.kept,
                     first.rescued.len(),
@@ -241,6 +241,9 @@ impl Check for ReachabilityCheck {
             } else {
                 let mut foreign_and_api = foreign.clone();
                 foreign_and_api.extend(roots.iter().map(|h| h.symbol.clone()));
+                // What a documented method of the interface calls is live too, though `rustc` never reported the method (it does not
+                // report the methods of a type nothing constructs) and so it is no root above.
+                foreign_and_api.extend(facts.api_idents.iter().cloned());
                 let second = rescue(
                     candidates,
                     &foreign_and_api,

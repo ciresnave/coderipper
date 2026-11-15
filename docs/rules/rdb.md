@@ -96,7 +96,7 @@ ones. Both are narrower than the rule, which also asks for no unused imports or 
 | :--- | :--- | :--- | :--- |
 | RDB-001 | Code matches the project formatter | P | no check yet; planned: run rustfmt, Prettier or Ruff format in check mode |
 | RDB-002 | Identifiers follow language naming conventions | P | no check yet; planned: surface rustc naming lints, typescript-eslint naming-convention, Ruff pep8-naming |
-| RDB-003 | Cognitive complexity stays within bounds | P | no check yet; planned: Clippy and complexipy results plus a baseline for regression gating; no TypeScript tool (licence) |
+| RDB-003 | Cognitive complexity stays within bounds | P | built in part, opt-in (Rust, `syn`: SonarSource's Cognitive Complexity per function, one finding per function over 15 (Low) and over 30 (Medium); the "must not become more complex while edited" half needs a merge-base baseline and is not built; other languages are not read) |
 | RDB-004 | Nesting, parameter count and flag arguments stay small | P | built in part, **opt-in** (`coderipper check RDB-004`, in no profile): native, Rust only, `syn`, outside tests; per function, Low at medium confidence: more than 7 parameters (`self` not counted; trait impls not read), control flow nested 5 or more deep, a `bool` parameter used directly as an `if`/`while` condition or `match` scrutinee. TypeScript and Python are not read |
 | RDB-005 | Duplicated knowledge across clone groups | P | no check yet; planned: jscpd clone groups; churn weighting and semantic clones need history and an LLM |
 | RDB-006 | No dead code, unused imports or unused private items | P | no check yet beyond the legacy checks `unused-parameters` and `reachability`, which cover only part of it; planned: rustc, knip, vulture |
