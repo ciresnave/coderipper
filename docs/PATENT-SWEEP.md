@@ -1812,3 +1812,21 @@ Version line covered by this addendum: **0.44** (0.44.0). No new rule is added; 
 **Result: no hit on the one query; US 10,241,892 and US 8,806,441 are named and unread. Watch: US 10,241,892, US 8,806,441.**
 
 **Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.45 line (2026-11-15, 0.45.0)
+
+Version line covered by this addendum: **0.45** (0.45.0). No check is added; seven rule ids that duplicated another become aliases of it (`RDB-010`, `API-010`, `EVO-003`, `SEC-008`, `TST-010`, `AIH-005` and `REL-003` of `DOC-006`, `DOC-002`, `MOD-006`, `ERR-009`, `WSP-007`, `TST-013` and `CON-004`), read from the `alias` fields of `rules/*.toml` and from `src/module/neutral/sensitive_output.rs`. Swept 2026-11-15 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 109 (a duplicate rule id is an alias of the rule it duplicated).** A rule catalogue entry carries the id of the rule it duplicates; the check runs once, under the canonical id, and a finding, a waiver or a request to run the rule by the alias id resolves to the canonical rule. The one check that absorbs two (`ERR-009`, which now judges both an error message and a log record) keeps a severity per kind of site.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q220 | 109 | patent method code analysis tool rule identifier alias mapping duplicate rules to one canonical rule so findings and suppressions under either identifier are the same (Google Patents, one search) |
+
+**Positive control:** Q220 returned patents on coding-rule checkers and rule suppression (US 5,860,011 on suppressing a rule globally, US 2017/0315903 on labelling a violation with the identity of the rule violated, US 8,527,446 on mapping a native rule to a canonical rule), so the engine reaches the neighbourhood. **A patent claiming that a duplicate rule id in a code-analysis catalogue resolves to a canonical rule for findings and waivers was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 8,527,446 is the nearest (it maps a native rule to a canonical rule after checking that the native rule is unique) but concerns business-rule enforcement, not source-code analysis; it is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; US 8,527,446 is named and unread. Watch: US 8,527,446, US 2017/0315903.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
