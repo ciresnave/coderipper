@@ -1680,3 +1680,22 @@ Version line covered by this addendum: **0.43** (0.43.87). One rule is added, re
 **Result: no hit reads on `SUP-021`.** The rule generates no policy, monitors no build machine and enforces nothing; it reads script text and prints findings. **Watch: US11609985B1 (Active).** If `SUP-021` ever grows a policy generated from a script's actions, or a run that monitors or blocks a build, re-read its claims 1 and 14 first.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.91)
+
+Version line covered by this addendum: **0.43** (0.43.91). One rule is added, read from `src/module/neutral/con012.rs`: `CON-012` (a public Rust `async fn` whose future is not `Send`, read from a parameter typed `Rc`, a raw pointer or a shared `&Cell`/`&RefCell`, or from a local `Rc` or raw pointer declared before the function's last `.await`). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 103 (`CON-012`).** Parse each Rust file with `syn` and report, once per public async function, a parameter or local whose type text names `Rc`, a raw pointer or a shared cell reference. Nothing is type-checked or executed; the text of the signature and the body is read.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q209 | 103 | patent static analysis detect non-Send types held across await in asynchronous function thread-safety source code analysis claims |
+| Q210 | 103 | patents.google.com method determining whether asynchronous function future can be transferred between threads by analyzing types captured across suspension points |
+
+**Positive controls:** both queries returned the practice itself (the Rust async book's "Send approximation" page, the Rust blog's 2019 "Future is not Send" diagnostic post, compiler-team notes on values held across `.await`), so the engine reaches the neighbourhood. Q210 returned two IPIQ listings on a thread-local return structure for asynchronous state machines (not about analysing source for thread transfer). **A patent that reports a non-thread-transferable asynchronous function from its source was not found; that absence is a statement about these two queries only** (one engine, which returned no Google Patents page at all, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the Rust compiler's own `Send` check for futures, clippy's `future_not_send` (nursery); this rule is our own text reading, written without their code.
+
+**Read:** no patent claim was read; the two IPIQ listings were seen by title only. **Not read in full:** every result named above.
+
+**Result: no hit found for `CON-012`, from two queries that did not reach any patent database page.** The thin evidence is stated, not hidden: this is weaker than the sweeps that read a claim. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, and the status of nothing was checked. A due-diligence read, not legal advice.

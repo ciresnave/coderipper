@@ -79,6 +79,7 @@ guidance are available but no finding is produced.
 | CON-009 | Cancellation safety is documented | L | catalog record; no check yet (needs a human decision; a model can only propose candidates) |
 | CON-010 | Weak atomic orderings are justified | P | built in part (Rust, `syn`, outside tests; `Ordering::Relaxed`, `Acquire`, `Release` and `AcqRel` with no comment on the line or the three lines above, Low severity, Low confidence, one finding per package; opt-in (`check CON-010`); comment presence only, the argument is not judged) |
 | CON-011 | Shared state has a declared owner | A | built in part (the Rust reading of `EFX-002`, reported at Low: global statics holding locks, cells or atomics; no inventory is read, so each site is waived with its owner named; opt-in, `check CON-011`) |
+| CON-012 | Public async functions return `Send` futures | P | built in part, opt-in (Rust, `syn`, outside tests: a `pub` async function, free or in an inherent `impl`, with a parameter that is an `Rc`, a raw pointer or a shared `&Cell`/`&RefCell` (Medium confidence), or a local `Rc` or raw pointer declared before its last `.await` (Low); one Low finding per function; a file with `?Send`, `spawn_local`, `LocalSet` or `wasm_bindgen` is not read; other `!Send` types, `impl Future` returns and async blocks are not seen) |
 
 ## Further reading
 
