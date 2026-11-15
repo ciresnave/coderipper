@@ -6,6 +6,15 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.45.0 - 2026-11-15 (proposed, Breaking: seven duplicate rule ids become aliases; REL-003 findings are CON-004 findings)
+
+**RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005 and REL-003 are no longer records; each is an alias of the rule it duplicated** (CireSnave 2026-11-07, ruling 1: "merge as aliases"): DOC-006, DOC-002, MOD-006, ERR-009, WSP-007, TST-013 and CON-004. The catalog has 224 rules (was 231). SEC-008 now applies where ERR-009 does (Rust as well as TypeScript and Python), which is the Rust gap Pip's review found.
+
+**One finding with both names.** REL-003 and CON-004 read the same channel creation, so a project that ran both got two findings for one site. There is one rule now, `CON-004`, and one finding. A name that is an alias is resolved wherever a rule is named: `coderipper check REL-003`, `check = "REL-003"` in an `[[allow]]` entry, `blocking = ["REL-003"]` and `--skip-rule REL-003=why` all mean `CON-004`, so no `.coderipper.toml` has to change. The only visible change is the id on the finding (`CON-004` for what was `REL-003`), and the removed `conformance/REL-003` fixtures (identical to CON-004's apart from the name).
+
+
+**What each merge kept.** The surviving record absorbed the alias face: DOC-006 is `contested` (RDB-010 was); MOD-006 is Low (EVO-003 was Low); ERR-009 says telemetry and carries SEC-008's masked-secret remediation and its related rules; WSP-007 covers an interface between components in one repository as well as between repositories (TST-010 did). One rise is deliberate and costs nothing today: SEC-008 was Medium and ERR-009 is High (low confidence); neither has a checker yet, so no finding changes, and ERR-009's severity is the open GOV-006 question the rules review raised, not something this merge decides. The Rust coverage SEC-008 gains is on the record only until a checker is built.
+
 ## 0.44.0 - 2026-11-15 (proposed, Breaking: zizmor's and buf's own ignore files are honoured)
 
 **SUP-008 and API-006 honour the project's own tool ignores** (CireSnave 2026-11-07, ruling 8: "Honor each tools' own ignore files"). Until now both rules turned the project's ignores off (`zizmor --no-config`, and a replaced `buf.yaml`), which contradicted GOV-002's idea of a waiver and ignored a decision the project had already written down. Now a tracked `zizmor.yml` (or `.github/zizmor.yml`) is honoured, a `# zizmor: ignore[...]` comment is reported at **Info** instead of its real severity, and the `breaking: ignore:` and `ignore_only:` of tracked `buf.yaml` files are carried into the configuration buf is given (an ignore inside another is dropped, which buf refuses). `use:` and `except:` are still not read, so a project cannot change which rules run.
