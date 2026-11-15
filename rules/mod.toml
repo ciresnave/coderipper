@@ -165,11 +165,12 @@ scope = "project"
 network = "local"
 unit = "repository"
 executes_project_code = false
-default_severity = "info"
+default_severity = "low"
 confidence_class = "low"
 kb_refs = []
 remediation = "Separate the parts of the module that change for different reasons, using the commit clusters as the guide."
 related = ["MOD-004", "MOD-007"]
+aliases = ["EVO-003"]
 checked_today = "Divergent change from committed history, no network and no checkout: git log over the newest 500 non-merge commits (window), leaving out commits touching more than 25 files (bulk changes) and files touched by more than a fifth of the remaining commits. For each tracked source file at HEAD (known code extensions such as rs, py, ts, js, go, java, c, cpp, cs; registries such as lib.rs, mod.rs, main.rs, __init__.py and index.ts, and test, bench and example files, are not judged) the commits that touched it with another file are joined when they share another source file, and the file is reported when two or more such groups of at least 3 commits each result. Info (Low confidence), one finding per file naming the groups and commits; it ranks and scores nothing. Window and thresholds are set in [mod006] (window, min_commits, max_files) of the repository own .coderipper.toml. The check runs in the extended and portfolio profiles, not classic. Not judged: what the file changes were about or whether they touch different parts of it, renames (not followed); a squash-merging repository records one commit per pull request so groups are coarse; a shallow clone cuts the history (noted)."
 lifecycle = "experimental"
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
-//! ERR-009 and SEC-008: a secret named in a message that leaves the program.
+//! ERR-009 (which also carries what was SEC-008, merged as an alias): a secret named in a message that leaves the program.
 //!
 //! One scan of each package's Rust source (the same walk for both rules, so they cannot disagree about a site) finds a macro whose
 //! tokens name a sensitive value. Every tracked `.rs` file of a package (outside vendored directories, tests, examples, tools and
@@ -399,7 +399,7 @@ impl<'ast> Visit<'ast> for Walk {
     }
 }
 
-fn sites_of(view: &RepoView, id: &str, wanted: Kind, severity: Severity) -> Verdict {
+fn sites_of(view: &RepoView, id: &str, wanted: &[(Kind, Severity)]) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
         return Verdict::NotApplicable(
@@ -417,7 +417,10 @@ fn sites_of(view: &RepoView, id: &str, wanted: Kind, severity: Severity) -> Verd
                 sites: Vec::new(),
             };
             walk.visit_file(&s.file);
-            for site in walk.sites.into_iter().filter(|x| x.kind == wanted) {
+            for site in walk.sites {
+                let Some(&(wanted, severity)) = wanted.iter().find(|(k, _)| *k == site.kind) else {
+                    continue;
+                };
                 let (what, advice) = if wanted == Kind::Log {
                     (
                         format!("`{}!` names `{}`", site.macro_name, site.name),
@@ -462,14 +465,34 @@ fn sites_of(view: &RepoView, id: &str, wanted: Kind, severity: Severity) -> Verd
     }
 }
 
-/// `SEC-008`: a logging macro that names a sensitive value.
-pub(super) fn judge_sec008(view: &RepoView) -> Verdict {
-    sites_of(view, crate::rule_id::SEC_008, Kind::Log, Severity::Medium)
+/// `ERR-009`, which also carries what was `SEC-008` (merged as an alias, CireSnave 2026-11-07): an error message that names a sensitive
+/// value (High), or a logging macro that does (Medium).
+pub(super) fn judge_err009(view: &RepoView) -> Verdict {
+    sites_of(
+        view,
+        crate::rule_id::ERR_009,
+        &[(Kind::Error, Severity::High), (Kind::Log, Severity::Medium)],
+    )
 }
 
-/// `ERR-009`: an error message that names a sensitive value.
-pub(super) fn judge_err009(view: &RepoView) -> Verdict {
-    sites_of(view, crate::rule_id::ERR_009, Kind::Error, Severity::High)
+/// The logging half alone, as the tests read it.
+#[cfg(test)]
+fn judge_log_records(view: &RepoView) -> Verdict {
+    sites_of(
+        view,
+        crate::rule_id::ERR_009,
+        &[(Kind::Log, Severity::Medium)],
+    )
+}
+
+/// The error-message half alone, as the tests read it.
+#[cfg(test)]
+fn judge_error_messages(view: &RepoView) -> Verdict {
+    sites_of(
+        view,
+        crate::rule_id::ERR_009,
+        &[(Kind::Error, Severity::High)],
+    )
 }
 
 #[cfg(test)]
@@ -497,10 +520,10 @@ mod tests {
     error!(\"{:?}\", self.secret);
 }
 ";
-        let f = run(judge_sec008, src);
+        let f = run(judge_log_records, src);
         assert_eq!(f.len(), 4, "{f:?}");
         assert_eq!(f[0].location.as_ref().unwrap().line, Some(2));
-        assert!(run(judge_err009, src).is_empty());
+        assert!(run(judge_error_messages, src).is_empty());
     }
 
     #[test]
@@ -517,7 +540,7 @@ mod tests {
     #[cfg(test)] fn t() { info!(\"{}\", password); }
 }
 ";
-        let f = run(judge_sec008, src);
+        let f = run(judge_log_records, src);
         assert!(f.is_empty(), "{f:?}");
     }
 
@@ -540,16 +563,16 @@ impl fmt::Display for AuthError {
     }
 }
 ";
-        let f = run(judge_err009, src);
+        let f = run(judge_error_messages, src);
         assert_eq!(f.len(), 4, "{f:?}");
-        assert!(run(judge_sec008, src).is_empty());
+        assert!(run(judge_log_records, src).is_empty());
     }
 
     #[test]
     fn a_format_outside_an_error_context_is_not_reported() {
         let src = "pub fn a(token: &str) -> String { format!(\"Bearer {}\", token) }
 ";
-        assert!(run(judge_err009, src).is_empty());
+        assert!(run(judge_error_messages, src).is_empty());
     }
 
     #[test]

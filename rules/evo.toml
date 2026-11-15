@@ -47,30 +47,6 @@ languages = ["any"]
 scopes = ["first_party"]
 
 [[rule]]
-id = "EVO-003"
-title = "Divergent change inside a module"
-domain = "EVO"
-statement = "A module whose files change in independent groups of commits is flagged as holding several responsibilities."
-rationale = "If different reasons for change touch different parts of one module, it is probably several modules joined together."
-evidence_tiers = ["V3"]
-evidence_strength = "E"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = false
-default_severity = "low"
-confidence_class = "low"
-kb_refs = []
-remediation = "Split the module along the clusters of changes, keeping each cluster's reason for change in one place."
-related = ["MOD-006"]
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "EVO-004"
 title = "Sole-owner risk in critical components"
 domain = "EVO"

@@ -220,10 +220,6 @@ const RULES: &[Rule] = &[
         judge: concurrency::judge_con004,
     },
     Rule {
-        id: "REL-003",
-        judge: concurrency::judge_rel003,
-    },
-    Rule {
         id: "API-004",
         judge: surface::judge_api004,
     },
@@ -352,10 +348,6 @@ const RULES: &[Rule] = &[
         judge: sensitive_output::judge_err009,
     },
     Rule {
-        id: "SEC-008",
-        judge: sensitive_output::judge_sec008,
-    },
-    Rule {
         id: "OPS-003",
         judge: ops003::judge,
     },
@@ -442,12 +434,12 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// by id (`check EFX-003`). A rule is here when the portfolio run found too many false findings to put it in front of everyone.
 pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
-        "EFX-003", "CON-003", "CON-004", "REL-003", "SEC-005", "API-009", "COR-001", "ERR-004",
-        "SEC-007", "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007",
-        "PRF-003", "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001",
-        "EFX-002", "CON-011", "OPS-003", "ERR-009", "SEC-008", "TST-006", "TST-004", "TST-009",
-        "SUP-010", "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008",
-        "CON-012", "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007",
+        "EFX-003", "CON-003", "CON-004", "SEC-005", "API-009", "COR-001", "ERR-004", "SEC-007",
+        "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007", "PRF-003",
+        "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001", "EFX-002",
+        "CON-011", "OPS-003", "ERR-009", "TST-006", "TST-004", "TST-009", "SUP-010", "EFX-007",
+        "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008", "CON-012", "RDB-003",
+        "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007",
     ]
 }
 
@@ -806,7 +798,6 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("CON-002", &["rust"]),
     ("CON-003", &["rust"]),
     ("CON-004", &["rust"]),
-    ("REL-003", &["rust"]),
     ("API-004", &["rust"]),
     ("API-009", &["rust"]),
     ("COR-001", &["rust"]),
@@ -884,7 +875,6 @@ const PROVEN: &[&str] = &[
     "CON-002",
     "CON-003",
     "CON-004",
-    "REL-003",
     "API-004",
     "API-009",
     "COR-001",

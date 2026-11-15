@@ -1,6 +1,0 @@
-# The seeded defect: a channel with no capacity, line 4 (a slow consumer lets the queue grow without limit).
-
-[[expect]]
-rule = "REL-003"
-file = "src/lib.rs"
-line = 4

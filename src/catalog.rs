@@ -492,6 +492,16 @@ impl Catalog {
     }
 }
 
+/// The canonical id for a rule name a user typed (`check <name>`, `check = "<name>"` in an allowlist, `blocking`, `--skip-rule`): a
+/// name that is a record's alias (`TYP-003`, `REL-003`) gives the record's id, any other name is returned unchanged, so a typo
+/// still fails where it always did. Findings carry the canonical id, so an entry written with an old name keeps matching.
+pub(crate) fn canonical_name(name: &str) -> String {
+    Catalog::builtin()
+        .canonical_id(name)
+        .unwrap_or(name)
+        .to_string()
+}
+
 /// An ID is ASCII letters, digits and hyphens, starting with a letter or digit: a kebab-case name or `XXX-nnn`.
 fn is_id(text: &str) -> bool {
     let mut chars = text.chars();
