@@ -1,0 +1,6 @@
+# The seeded defect: the component declares a purpose and its root file has no //! doc (line 1).
+
+[[expect]]
+rule = "MOD-007"
+file = "core/src/lib.rs"
+line = 1

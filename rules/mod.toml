@@ -196,6 +196,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Treat the finding as a prompt to review; clarify the declared purpose or split the module if the summary reveals several actors."
 related = ["MOD-004", "MOD-006"]
+checked_today = "Mechanical half only: a component of the .coderipper.toml architecture declaration with a non-blank purpose (the key DOC-003 added) has a root file (src/lib.rs, src/main.rs, lib.rs, main.rs, mod.rs under its path, or path.rs) and the file has no non-blank inner doc comment: one Info, low-confidence finding per such root at line 1. Opt-in (check MOD-007). Not built: the judgement half, comparing the stated responsibility with the declared purpose and noting joined unrelated actors, which needs a language model or a human; it stays this named row with ARC-010."
 lifecycle = "experimental"
 
 [rule.applicability]

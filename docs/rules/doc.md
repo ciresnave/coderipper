@@ -56,7 +56,7 @@ No rule in this domain is run by the current release; every row below is a catal
 | :--- | :--- | :--- | :--- |
 | DOC-001 | Public items are documented | P | catalog record; no check yet; planned: rustc for Rust, typedoc for TypeScript, ruff for Python |
 | DOC-002 | Documentation examples build and run | X | catalog record; no check yet (needs running project code) |
-| DOC-003 | Components carry a purpose and an owner in the spec | A | catalog record; no check yet (needs a declared architecture) |
+| DOC-003 | Components carry a purpose and an owner in the spec | P | built, opt-in (`.coderipper.toml`: two optional keys on `[[architecture.component]]`, `purpose` and `owner`; a declaration where no component carries either is not applicable, once one does every component needs both non-blank, one Low finding per component at its header; whether a purpose says anything is not judged) |
 | DOC-004 | Significant architectural changes come with a decision record | P | catalog record; no check yet; planned: a native check diffing dependency edges and looking for a record in the change |
 | DOC-005 | Decision-record statuses and links are consistent | N | built: native; decision records in an `adr`, `adrs` or `decisions` directory state a valid status and supersession links point both ways |
 | DOC-006 | Docs and comments match current behaviour | L | catalog record; no check yet (needs a language-model judgement) |
