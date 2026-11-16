@@ -1848,3 +1848,13 @@ Version line covered by this addendum: **0.46** (0.46.0). No check is added; fou
 **Result: no hit on the one query; US 7,251,668 and US 7,337,435 are named and unread. Watch: US 7,251,668, US 7,337,435.**
 
 **Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+### 0.47.0 (0.47 line) - 2026-11-15
+
+Version line covered by this addendum: **0.47** (0.47.0). No check is added; one more rule id that duplicated another becomes an alias: `DOC-001` (public items are documented) of `MOD-001` (a small, documented public surface), read from `aliases` in `rules/mod.toml` and the removal of the record from `rules/doc.toml`. Swept by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**No new idea.** This is the same mechanism as idea 109 (a duplicate rule id is an alias of the rule it duplicated), an eighth pair; no query was run for it, and the 0.45 addendum's query Q220, its positive control, its result and its watches (US 8,527,446, US 2017/0315903) apply unchanged. Nothing is read beyond what that addendum read.
+
+**Result: no new hit; no new search. Watch: US 8,527,446, US 2017/0315903 (unread, still owed a claim read before publication).**
+
+**Limits:** no new search, no claims read, no status checked. A due-diligence read, not legal advice.
