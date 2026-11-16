@@ -22,8 +22,19 @@
 //! or `SecretValue` (these print a mask), and a hand-written `Debug` impl that never reads the field, or that carries `redact`,
 //! `REDACTED`, `<hidden>`, `***` or `finish_non_exhaustive` in its body.
 //!
-//! **Not judged:** whether a field named `token` really holds a secret (a count of LLM tokens, an iterator of lexer tokens), enum
-//! variants, a type alias that hides the wrapper, a `Debug` bound by another derive macro (`derive_more::Debug`), and other languages. A
+//! **Read as not a secret, though the name matches (the false positives of the 0.47.5 pin-move round):**
+//!
+//! * a count (`..._token_num`, `num`/`number` are companions) and a list of *names* of secrets (`secret_names`: `names` is a companion);
+//! * a `token` written with a vocabulary or LLM qualifier directly before it (`bos_token`, `eos_token`, `pad_token`, `special_token`,
+//!   `prompt_token`, `draft_token`, ..): a lexer's token, not a credential. `bearer_token`, `access_token`, `refresh_token` are still read;
+//! * a collection of numbers: `Vec<u32>`, `BTreeSet<u64>`, a map whose *values* are numbers (`HashMap<String, u32>`, a vocabulary's
+//!   token to id table). `Vec<u8>`, `Vec<String>` and `HashMap<String, String>` can hold a credential and are still read;
+//! * the word `token` alone, in a struct whose name says vocabulary (`Vocab..`, `Tokenizer..`, `Lexer..`, `SpecialTokens..`) or in a file
+//!   whose path says so (`baracuda-cuda-vocab/src/manifest.rs`). Only the word `token` is set aside there: a `password` in such a struct is
+//!   still reported.
+//!
+//! **Not judged:** whether a field named `token` really holds a secret in any other context (a count of LLM tokens, an iterator of lexer
+//! tokens that carries none of the words above), enum variants, a type alias that hides the wrapper, a `Debug` bound by another derive macro (`derive_more::Debug`), and other languages. A
 //! struct name declared twice in the repository is skipped (the impl cannot be matched to one of them without name resolution). A file
 //! `syn` cannot parse is counted in a note, never read as clean.
 
@@ -133,10 +144,45 @@ const COMPANIONS: &[&str] = &[
     "configurations",
     "supported",
     "ids",
+    "names",
+    "num",
+    "number",
     "allow",
     "reference",
     "exclude",
 ];
+
+/// Segments that, directly before `token`, say it is a lexer's or a model's token (a vocabulary entry, a count's subject), not a credential.
+const TOKEN_QUALIFIERS: &[&str] = &[
+    "bos",
+    "eos",
+    "pad",
+    "unk",
+    "cls",
+    "sep",
+    "mask",
+    "sos",
+    "special",
+    "added",
+    "prompt",
+    "completion",
+    "generated",
+    "draft",
+    "accepted",
+    "emitted",
+    "input",
+    "output",
+    "stop",
+];
+
+/// Words that, in a file path or a struct name, say the item is about a vocabulary or a lexer.
+const VOCAB_WORDS: &[&str] = &["vocab", "tokeniz", "lexer", "specialtoken"];
+
+/// Whether a path or a type name says it is about a vocabulary (`crates/baracuda-cuda-vocab/..`, `VocabEntry`, `TokenizerConfig`).
+fn vocabulary_context(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    VOCAB_WORDS.iter().any(|w| lower.contains(w))
+}
 
 /// Types whose `Debug` prints a mask, so a field of one is redacted by construction.
 const REDACTING: &[&str] = &[
@@ -184,6 +230,8 @@ pub(super) struct Hit {
 }
 
 struct Scan<'a> {
+    /// Whether the file's path says it is about a vocabulary.
+    vocabulary_path: bool,
     lines: Vec<&'a str>,
     structs: Vec<StructDecl>,
     impls: Vec<DebugImpl>,
@@ -199,11 +247,27 @@ fn segments(name: &str) -> Vec<String> {
 
 /// Whether a field name says it holds a secret.
 pub(super) fn secret_name(name: &str) -> bool {
+    secret_name_in(name, false)
+}
+
+/// [`secret_name`], in a file or struct that is about a vocabulary (`vocabulary`): there the word `token` alone is a lexer's token.
+fn secret_name_in(name: &str, vocabulary: bool) -> bool {
     let segs = segments(name);
     if segs.iter().any(|s| COMPANIONS.contains(&s.as_str())) {
         return false;
     }
-    if segs.iter().any(|s| SECRET_SEGMENTS.contains(&s.as_str())) {
+    let says_secret = segs.iter().enumerate().any(|(i, s)| {
+        if !SECRET_SEGMENTS.contains(&s.as_str()) {
+            return false;
+        }
+        if s == "token" {
+            // `bos_token` is a vocabulary entry, `bearer_token` is a credential; `token` alone is a guess, set aside in a vocabulary
+            let qualified = i > 0 && TOKEN_QUALIFIERS.contains(&segs[i - 1].as_str());
+            return !qualified && !vocabulary;
+        }
+        true
+    });
+    if says_secret {
         return true;
     }
     segs.windows(2)
@@ -263,8 +327,57 @@ fn is_plain_scalar(words: &[String]) -> bool {
     })
 }
 
+/// The single type argument of the last path segment (`Vec<T>` gives `T`), or both of a two-argument one (`HashMap<K, V>`).
+fn type_args(ty: &Type) -> Option<(&syn::PathSegment, Vec<&Type>)> {
+    let Type::Path(p) = ty else {
+        return None;
+    };
+    let seg = p.path.segments.last()?;
+    let syn::PathArguments::AngleBracketed(a) = &seg.arguments else {
+        return None;
+    };
+    let args = a
+        .args
+        .iter()
+        .filter_map(|g| match g {
+            syn::GenericArgument::Type(t) => Some(t),
+            _ => None,
+        })
+        .collect();
+    Some((seg, args))
+}
+
+fn is_scalar_type(ty: &Type) -> bool {
+    let mut words = Vec::new();
+    type_words(ty, &mut words);
+    words.len() == 1 && is_plain_scalar(&words)
+}
+
+fn is_u8(ty: &Type) -> bool {
+    matches!(ty, Type::Path(p) if p.path.is_ident("u8"))
+}
+
+/// Whether a type is a collection of numbers: a list or set of non-byte numbers, or a map whose values are numbers (a vocabulary's token to
+/// id table, a list of token ids). Bytes (`Vec<u8>`) and strings can hold a credential, so they are not numbers here.
+fn numeric_collection(ty: &Type) -> bool {
+    let Some((seg, args)) = type_args(ty) else {
+        return false;
+    };
+    let name = seg.ident.to_string();
+    match (name.as_str(), args.as_slice()) {
+        ("Option" | "Box" | "Arc" | "Rc" | "Mutex" | "RwLock", [inner]) => numeric_collection(inner),
+        ("Vec" | "VecDeque" | "HashSet" | "BTreeSet" | "BinaryHeap" | "IndexSet", [el]) => {
+            (is_scalar_type(el) && !is_u8(el)) || numeric_collection(el)
+        }
+        ("HashMap" | "BTreeMap" | "IndexMap" | "FxHashMap", [_, value]) => {
+            is_scalar_type(value) || numeric_collection(value)
+        }
+        _ => false,
+    }
+}
+
 /// A field is an exposed secret when it looks like one and its type does not mask it.
-fn exposed_secret(name: &str, ty: &Type) -> bool {
+fn exposed_secret(name: &str, ty: &Type, vocabulary: bool) -> bool {
     let mut words = Vec::new();
     type_words(ty, &mut words);
     if words.iter().any(|w| REDACTING.contains(&w.as_str())) {
@@ -273,7 +386,7 @@ fn exposed_secret(name: &str, ty: &Type) -> bool {
     if words.iter().any(|w| w == "Zeroizing") {
         return true;
     }
-    !is_plain_scalar(&words) && secret_name(name)
+    !is_plain_scalar(&words) && !numeric_collection(ty) && secret_name_in(name, vocabulary)
 }
 
 fn derives_debug(attrs: &[Attribute]) -> bool {
@@ -306,11 +419,12 @@ impl<'ast> Visit<'ast> for Scan<'_> {
             return;
         }
         let mut exposed = Vec::new();
+        let vocabulary = self.vocabulary_path || vocabulary_context(&s.ident.to_string());
         match &s.fields {
             Fields::Named(n) => {
                 for f in &n.named {
                     if let Some(id) = &f.ident {
-                        if exposed_secret(&id.to_string(), &f.ty) {
+                        if exposed_secret(&id.to_string(), &f.ty, vocabulary) {
                             exposed.push(id.to_string());
                         }
                     }
@@ -319,7 +433,7 @@ impl<'ast> Visit<'ast> for Scan<'_> {
             Fields::Unnamed(u) => {
                 for (i, f) in u.unnamed.iter().enumerate() {
                     // a tuple field has no name: only a `Zeroizing` type says it is a secret
-                    if exposed_secret("", &f.ty) {
+                    if exposed_secret("", &f.ty, vocabulary) {
                         exposed.push(i.to_string());
                     }
                 }
@@ -364,9 +478,10 @@ impl<'ast> Visit<'ast> for Scan<'_> {
     }
 }
 
-fn scan(text: &str) -> Option<(Vec<StructDecl>, Vec<DebugImpl>)> {
+fn scan(path: &str, text: &str) -> Option<(Vec<StructDecl>, Vec<DebugImpl>)> {
     let parsed = syn::parse_file(text).ok()?;
     let mut s = Scan {
+        vocabulary_path: vocabulary_context(path),
         lines: text.lines().collect(),
         structs: Vec::new(),
         impls: Vec::new(),
@@ -390,7 +505,7 @@ pub(super) fn analyse(files: &[(String, String)]) -> (Vec<Hit>, Vec<String>) {
     let mut impls: Vec<DebugImpl> = Vec::new();
     let mut unparsed = Vec::new();
     for (path, text) in files {
-        let Some((ss, is)) = scan(text) else {
+        let Some((ss, is)) = scan(path, text) else {
             unparsed.push(path.clone());
             continue;
         };
@@ -590,5 +705,84 @@ mod tests {
         let (hits, unparsed) = analyse(&[("x.rs".to_string(), "struct (((".to_string())]);
         assert!(hits.is_empty());
         assert_eq!(unparsed, vec!["x.rs".to_string()]);
+    }
+
+    fn one_at(path: &str, src: &str) -> Vec<Hit> {
+        analyse(&[(path.to_string(), src.to_string())]).0
+    }
+
+    // ---- the false positives from the 0.47.5 pin-move round (baracuda, mlmf, WebHostAnt) ----
+
+    #[test]
+    fn a_list_of_secret_names_is_not_a_secret() {
+        // WebHostAnt `Observed.secret_names` and `ReadBack.secret_names`: the names of secrets, never their values
+        let src = "#[derive(Debug)]\nstruct Observed { secret_names: BTreeSet<String> }\n#[derive(Debug)]\nstruct ReadBack { secret_names: Vec<String> }";
+        assert!(one(src).is_empty());
+    }
+
+    #[test]
+    fn a_count_or_tensor_of_llm_tokens_is_not_a_secret() {
+        // baracuda `SpeculativeSamplingArgs`: output_accepted_token_num, output_emitted_draft_token_num
+        let src = "#[derive(Debug)]\nstruct SpeculativeSamplingArgs<'a> { output_accepted_token_num: TensorMut<'a, i32>, output_emitted_draft_token_num: TensorMut<'a, i32>, max_tokens: u32 }";
+        assert!(one(src).is_empty());
+    }
+
+    #[test]
+    fn special_tokens_and_vocabulary_entries_are_not_secrets() {
+        // mlmf `SpecialTokensMap`, `TokenizerConfig`, `VocabEntry`
+        let special = "#[derive(Debug)]\nstruct SpecialTokensMap { bos_token: Option<String>, eos_token: Option<String>, unk_token: Option<String>, pad_token: Option<String>, sep_token: Option<String>, cls_token: Option<String>, mask_token: Option<String> }";
+        assert!(one(special).is_empty());
+        let config = "#[derive(Debug)]\nstruct TokenizerConfig { bos_token: Option<String>, eos_token: Option<String> }";
+        assert!(one(config).is_empty());
+        let entry = "#[derive(Debug)]\nstruct VocabEntry { token: String, id: u32 }";
+        assert!(one(entry).is_empty());
+    }
+
+    #[test]
+    fn a_vocabulary_map_or_a_list_of_token_ids_is_not_a_secret() {
+        let map = "#[derive(Debug)]\nstruct V { token: HashMap<String, u32> }\n#[derive(Debug)]\nstruct W { token: BTreeMap<String, usize> }";
+        assert!(one(map).is_empty());
+        let ids = "#[derive(Debug)]\nstruct V { token: Vec<u32> }\n#[derive(Debug)]\nstruct W { token: BTreeSet<u64> }";
+        assert!(one(ids).is_empty());
+    }
+
+    #[test]
+    fn a_token_in_a_vocabulary_crate_is_a_vocabulary_token() {
+        // baracuda `baracuda-cuda-vocab` `Member.token`: the canonical `cuda:` token of a codec, a String
+        let src = "#[derive(Debug)]\npub struct Member { pub token: String, pub class: String }";
+        assert!(one_at("crates/baracuda-cuda-vocab/src/manifest.rs", src).is_empty());
+        // ... but only the word `token` is neutralised there, never a password
+        let both = "#[derive(Debug)]\npub struct Member { pub token: String, pub password: String }";
+        let hits = one_at("crates/baracuda-cuda-vocab/src/manifest.rs", both);
+        assert_eq!(hits[0].fields, vec!["password"]);
+    }
+
+    // ---- the true positives that must keep firing ----
+
+    #[test]
+    fn a_string_token_or_key_still_reports_outside_a_vocabulary_context() {
+        // mlmf `HubRangedFile.token`, surfaceant `Config.token`, synapse `KeyPair.private_key`
+        let hub = "#[derive(Debug, Clone)]\npub struct HubRangedFile { pub repo: String, pub token: Option<String> }";
+        assert_eq!(one_at("crates/mlmf-source-hub/src/ranged.rs", hub)[0].fields, vec!["token"]);
+        let config = "#[derive(Debug)]\npub struct Config { pub base_url: String, pub token: String }";
+        assert_eq!(one_at("crates/surfaceant-client/src/lib.rs", config)[0].fields, vec!["token"]);
+        let pair = "#[derive(Debug)]\npub struct KeyPair { pub public_key: Vec<u8>, pub private_key: Vec<u8> }";
+        assert_eq!(one(pair)[0].fields, vec!["private_key"]);
+    }
+
+    #[test]
+    fn access_and_refresh_tokens_and_lists_of_strings_still_report() {
+        let src = "#[derive(Debug)]\nstruct S { access_token: Option<String>, refresh_token: String }";
+        assert_eq!(one(src)[0].fields, vec!["access_token", "refresh_token"]);
+        // a list or a map of strings can still hold credentials; only a list or map of NUMBERS is read as ids and counters
+        let list = "#[derive(Debug)]\nstruct L { token: Vec<String> }\n#[derive(Debug)]\nstruct M { token: HashMap<String, String> }\n#[derive(Debug)]\nstruct B { token: Vec<u8> }";
+        assert_eq!(one(list).len(), 3);
+    }
+
+    #[test]
+    fn a_vocabulary_word_does_not_hide_a_secret_named_for_what_it_is() {
+        // `bos_token` is a special token; `bearer_token` and `refresh_token` are credentials
+        let src = "#[derive(Debug)]\nstruct S { bos_token: String, bearer_token: String, refresh_token: String }";
+        assert_eq!(one(src)[0].fields, vec!["bearer_token", "refresh_token"]);
     }
 }
