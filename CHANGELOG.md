@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.0 - 2026-11-15 (proposed, Breaking: DOC-001 is an alias of MOD-001)
+
+**DOC-001 ("Public items are documented") becomes an alias of MOD-001** (CireSnave's ruling 1, the pattern of the seven pairs merged in 0.45.0). The catalog keeps one record, MOD-001, which answers to both ids in `--skip-rule`, the allowlist and blocking; a record named `DOC-001` no longer exists, so a tool that listed the catalog by id sees one fewer rule (229). MOD-001 already reports undocumented public items for Rust; DOC-001's other-languages case stays a note in `docs/rules/REMAINING.md`. To keep the old behaviour of a `DOC-001` allowlist entry, change nothing: it resolves to MOD-001.
+
 ## 0.46.0 - 2026-11-15 (proposed, Breaking: the fourteen slug-named rules have numbered ids; ARC-002 is Medium)
 
 **The fourteen rules named by a kebab-case slug now have ids in their domains** (CireSnave 2026-11-07, ruling 7: rename them and fix each project). `unused-return-values` is `ERR-012`, `lint-suppression` `GOV-010`, `conflict-marker` `GOV-011`, `reachability` `MOD-011`, `unused-parameters` `RDB-014`, `patent-index-match` `SUP-014`, `dependency-freshness` `SUP-015`, `licence` `SUP-016`, `ci-security` `SUP-017`, `version-consistency` `WSP-010`, `ci-protection-presence` `WSP-011`, `version-and-changelog` `WSP-012`, `patent-sweep-record` `WSP-013` and `security-support-statement` `WSP-014`. Findings, JSON, SARIF and the conformance fixtures carry the new id.

@@ -118,7 +118,7 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("COR-012");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
     triaged.retain(|id| *id != "TYP-003");
-    // the seven duplicate pairs merged on 2026-11-07: each second id is an alias of the first (see `merged_duplicates_are_aliases`)
+    // the duplicate pairs merged on 2026-11-07: each second id is an alias of the first (see `merged_duplicates_are_aliases`)
     triaged.retain(|id| !MERGED.iter().any(|(_, alias)| alias == id));
     let mut in_catalog: Vec<&str> = Catalog::builtin().rules().iter().map(|r| r.id()).collect();
     triaged.sort_unstable();
@@ -131,6 +131,7 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
 /// `(canonical id, the id that became its alias)`, CireSnave 2026-11-07: "merge as aliases".
 const MERGED: &[(&str, &str)] = &[
     ("DOC-006", "RDB-010"),
+    ("MOD-001", "DOC-001"),
     ("DOC-002", "API-010"),
     ("MOD-006", "EVO-003"),
     ("ERR-009", "SEC-008"),
