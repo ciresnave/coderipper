@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.4 - 2026-11-15 (proposed, Docs)
+
+**IQ* patent search record and a scanned-PDF OCR tool.** `docs/IQ-PATENT-SEARCH-2026-11-16.md` keeps the database/assignee pass for ml-convertant (including the US12524655B2 family addendum and what could not be searched), and `tools/ocr-scanned-pdf.py` is the method used to check US12645455B2's claims against the scanned official PDF. No code change.
+
 ## 0.47.3 - 2026-11-15 (proposed, Documentation)
 
 `tools/migrate-rule-ids.py` now says the slug-to-numbered-id rename shipped in 0.46.0 (its docstring said 0.44.0).
