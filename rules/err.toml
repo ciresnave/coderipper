@@ -295,6 +295,8 @@ remediation = "Branch on the success flag or the presence of the value, and hand
 related = ["ERR-001", "ERR-012"]
 lifecycle = "experimental"
 
+checked_today = "Rust only (the catalog also names TypeScript and Python, which are not read): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped. A parse whose failure is replaced on the spot by a value is reported: x.parse() with no arguments (any turbofish), or T::from_str(x), optionally followed by .ok(), then .unwrap_or_default(), .unwrap_or(..) or .unwrap_or_else(..). One Medium finding with Medium confidence per site; opt-in (check ERR-011). A comment on the line, or in the comment block directly above it, that says why (default, fall back, fallback, lenient, best effort, on purpose, deliberate, intentional) silences the site. Not judged: the receiver type (syn has no types: a zero-argument parse is read as str::parse), a parse that is ok()-ed and tested later, a parse wrapped in a function of the project, a default that is the right answer, other languages."
+
 [rule.applicability]
 languages = ["rust", "typescript", "python"]
 scopes = ["first_party"]
