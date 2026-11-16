@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.46.0 - 2026-11-15 (proposed, Breaking: the fourteen slug-named rules have numbered ids; ARC-002 is Medium)
+
+**The fourteen rules named by a kebab-case slug now have ids in their domains** (CireSnave 2026-11-07, ruling 7: rename them and fix each project). `unused-return-values` is `ERR-012`, `lint-suppression` `GOV-010`, `conflict-marker` `GOV-011`, `reachability` `MOD-011`, `unused-parameters` `RDB-014`, `patent-index-match` `SUP-014`, `dependency-freshness` `SUP-015`, `licence` `SUP-016`, `ci-security` `SUP-017`, `version-consistency` `WSP-010`, `ci-protection-presence` `WSP-011`, `version-and-changelog` `WSP-012`, `patent-sweep-record` `WSP-013` and `security-support-statement` `WSP-014`. Findings, JSON, SARIF and the conformance fixtures carry the new id.
+
+**The old name is accepted for one release.** It is an alias: `coderipper check licence`, `check = "licence"` in an `[[allow]]` entry, `blocking = ["licence"]` and `--skip-rule licence=why` all still work and print one warning per name saying what it is now. A `[reachability]` settings table is not a rule name and is unchanged. `python tools/migrate-rule-ids.py [--dry-run] [PATH ...]` rewrites a `.coderipper.toml` (and `check <old>` / `--skip-rule <old>` in a workflow or script) to the numbered ids, keeps line endings and is idempotent; `--dry-run` exits 1 when something would change, so it can gate CI. A test ties the tool's table to the catalog's aliases.
+
+**ARC-002 is Medium** (was Low): a cycle between components means they cannot be built, tested or replaced apart. Measured at this commit over the 58 Rust projects under C:\Projects: no project declares an `[architecture]` table, so ARC-002 ran to a verdict on none of them and reported no finding; its precision cannot be measured on this corpus until a project declares components.
+
 ## 0.45.0 - 2026-11-15 (proposed, Breaking: seven duplicate rule ids become aliases; REL-003 findings are CON-004 findings)
 
 **RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005 and REL-003 are no longer records; each is an alias of the rule it duplicated** (CireSnave 2026-11-07, ruling 1: "merge as aliases"): DOC-006, DOC-002, MOD-006, ERR-009, WSP-007, TST-013 and CON-004. The catalog has 224 rules (was 231). SEC-008 now applies where ERR-009 does (Rust as well as TypeScript and Python), which is the Rust gap Pip's review found.

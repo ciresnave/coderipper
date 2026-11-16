@@ -189,7 +189,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
             ),
         )
         .location(Location::new(record, None))
-        .subject("patent-sweep-record")]);
+        .subject("WSP-013")]);
     }
     let Some(text) = view.read(record) else {
         return Verdict::Findings(Vec::new());
@@ -283,7 +283,7 @@ mod tests {
     fn a_releasable_project_with_no_record_is_a_finding_at_the_record() {
         let f = findings(run(&[("Cargo.toml", CARGO)]));
         assert_eq!(f.len(), 1, "{f:?}");
-        assert_eq!(f[0].check_id, "patent-sweep-record");
+        assert_eq!(f[0].check_id, "WSP-013");
         assert_eq!(f[0].location.as_ref().unwrap().file, RECORD);
         assert!(
             f[0].summary.contains("no docs/PATENT-SWEEP.md"),

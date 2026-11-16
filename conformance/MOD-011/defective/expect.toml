@@ -1,0 +1,4 @@
+[[expect]]
+rule = "MOD-011"
+file = "src/lib.rs"
+line = 1

@@ -409,7 +409,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                                     custom.iter().map(|l| format!("`{l}`")).collect::<Vec<_>>().join(", ")
                                 ),
                                 format!(
-                                    r#"On a public repository prefer a hosted runner (ubuntu-latest, windows-latest, macos-latest) for a job that needs no GPU: a self-hosted runner executes whatever a pull request's workflow says. Keep a self-hosted label only for a job that needs our GPU or other hardware (a power-loss rig, a device). A job that does need it is waived with this entry in .coderipper.toml:{nl}[[allow]]{nl}check = "ci-security"{nl}file = "{file}"{nl}symbol = "{name}:runner"{nl}reason = "<why this job needs our hardware>""#,
+                                    r#"On a public repository prefer a hosted runner (ubuntu-latest, windows-latest, macos-latest) for a job that needs no GPU: a self-hosted runner executes whatever a pull request's workflow says. Keep a self-hosted label only for a job that needs our GPU or other hardware (a power-loss rig, a device). A job that does need it is waived with this entry in .coderipper.toml:{nl}[[allow]]{nl}check = "SUP-017"{nl}file = "{file}"{nl}symbol = "{name}:runner"{nl}reason = "<why this job needs our hardware>""#,
                                     nl = char::from(10)
                                 ),
                                 format!("{file} job `{name}` was read whole; the search covers its name, steps, labels and the workflow's file name, and finds GPU, CUDA, Vulkan, ROCm and OpenCL where a job names them"),

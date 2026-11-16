@@ -381,11 +381,11 @@ fn it_belongs_to_the_sweep_tier_and_is_not_run_by_fast() {
         answers: HashMap::new(),
         asked: Arc::new(Mutex::new(Vec::new())),
     }));
-    assert_eq!(check.id(), "ci-protection-presence");
+    assert_eq!(check.id(), "WSP-011");
     assert_eq!(check.tier(), Tier::Sweep);
     assert!(coderipper::registered_checks()
         .iter()
-        .any(|c| c.id() == "ci-protection-presence"));
+        .any(|c| c.id() == "WSP-011"));
 }
 
 #[test]
@@ -393,7 +393,7 @@ fn fast_does_not_run_it_and_sweep_does() {
     // A GitLab origin makes the check fail without any network, which makes "was it run?" observable.
     let repo = repo_with_origin(Some("https://gitlab.com/acme/widgets.git"));
     let ctx = CheckContext::new(repo.path().to_path_buf());
-    let mentions = |errors: &[String]| errors.iter().any(|e| e.contains("ci-protection-presence"));
+    let mentions = |errors: &[String]| errors.iter().any(|e| e.contains("WSP-011"));
     let fast = coderipper::run_checks(&ctx, Tier::Fast, None);
     assert!(!mentions(&fast.errors), "{:?}", fast.errors);
     let sweep = coderipper::run_checks(&ctx, Tier::Sweep, None);

@@ -40,7 +40,7 @@ fn check(repo: &Path, envs: &[(&str, &str)]) -> Run {
     run_cli(
         &[
             "check",
-            "unused-parameters",
+            "RDB-014",
             "--deny",
             "none",
             "--project",
@@ -199,11 +199,7 @@ fn an_in_repo_path_crate_is_still_recompiled_and_the_findings_are_still_right() 
     assert_eq!(fresh2, 0, "{}", second.stderr);
     assert_eq!(compiled2, compiled1, "{}", second.stderr);
     assert_eq!(first.stdout, second.stdout);
-    assert!(
-        first.stdout.contains("unused-parameters"),
-        "{}",
-        first.stdout
-    );
+    assert!(first.stdout.contains("RDB-014"), "{}", first.stdout);
 }
 
 #[test]
@@ -215,7 +211,7 @@ fn a_changed_source_is_never_served_from_the_cache() {
     let cache = tempfile::tempdir().unwrap();
     let first = check_cached(repo.path(), cache.path());
     assert!(
-        first.stdout.contains("unused-parameters"),
+        first.stdout.contains("RDB-014"),
         "precondition: run 1 must report the unused parameter: {}",
         first.stdout
     );
@@ -224,7 +220,7 @@ fn a_changed_source_is_never_served_from_the_cache() {
     let second = check_cached(repo.path(), cache.path());
     assert!(second.ok, "{}", second.stderr);
     assert!(
-        !second.stdout.contains("unused-parameters"),
+        !second.stdout.contains("RDB-014"),
         "a stale cache hit replayed the old warning: {}",
         second.stdout
     );

@@ -45,7 +45,7 @@ fn run_on_a_project_prints_the_findings_of_the_project_it_is_given() {
     ]);
     let out = run_example("run_on_a_project", &[repo.path().as_os_str()]);
     assert!(out.status.success(), "{}", text(&out.stderr));
-    assert!(text(&out.stdout).contains("(unused-return-values)"));
+    assert!(text(&out.stdout).contains("(ERR-012)"));
 }
 
 #[test]

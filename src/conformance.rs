@@ -15,7 +15,7 @@
 //! needs_network = false      # optional: the rule needs the network; unproven unless the run allows it
 //! origin = "https://github.com/acme/widgets"   # optional: the fixture's repository gets this `origin` remote
 //! [[expect]]
-//! rule = "version-consistency"
+//! rule = "WSP-010"
 //! file = "c/Cargo.toml"
 //! line = 3                   # optional
 //! many = true                # optional: one or more findings here, not exactly one (see below)

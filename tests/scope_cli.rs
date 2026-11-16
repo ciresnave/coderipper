@@ -31,13 +31,7 @@ fn coderipper() -> Command {
 /// `coderipper check unused-return-values --profile classic --scope <list>` plus `extra` arguments.
 fn run(list: &std::path::Path, extra: &[&str]) -> assert_cmd::assert::Assert {
     coderipper()
-        .args([
-            "check",
-            "unused-return-values",
-            "--profile",
-            "classic",
-            "--scope",
-        ])
+        .args(["check", "ERR-012", "--profile", "classic", "--scope"])
         .arg(list)
         .args(extra)
         .assert()
@@ -65,7 +59,7 @@ fn each_listed_repository_is_run_grouped_and_the_exit_code_is_the_worst() {
         .code(1)
         .stdout(predicate::str::contains("(1 of 2) =="))
         .stdout(predicate::str::contains("(2 of 2) =="))
-        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stdout(predicate::str::contains("(ERR-012)"))
         .stdout(predicate::str::contains(
             "scope: 2 repositories, 1 clean, 1 with findings, 0 could not be run",
         ));
@@ -81,7 +75,7 @@ fn json_marks_each_repository_and_ends_with_a_scope_summary() {
     let out = coderipper()
         .args([
             "check",
-            "unused-return-values",
+            "ERR-012",
             "--profile",
             "classic",
             "--message-format",
@@ -133,7 +127,7 @@ fn a_repository_that_cannot_be_read_is_reported_and_the_others_still_run() {
         .code(3)
         .stderr(predicate::str::contains("no-such-directory"))
         // the second repository was still analysed
-        .stdout(predicate::str::contains("(unused-return-values)"))
+        .stdout(predicate::str::contains("(ERR-012)"))
         .stdout(predicate::str::contains(
             "1 with findings, 1 could not be run",
         ));
@@ -180,13 +174,7 @@ fn a_relative_path_is_read_from_the_directory_of_the_list() {
     let elsewhere = tempfile::tempdir().unwrap();
     coderipper()
         .current_dir(elsewhere.path())
-        .args([
-            "check",
-            "unused-return-values",
-            "--profile",
-            "classic",
-            "--scope",
-        ])
+        .args(["check", "ERR-012", "--profile", "classic", "--scope"])
         .arg(&list)
         .assert()
         .code(0)

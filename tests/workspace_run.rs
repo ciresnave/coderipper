@@ -110,13 +110,13 @@ fn every_member_is_checked_and_findings_name_their_member() {
     let ws = workspace_of(&[("one", "alpha"), ("two", "beta")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
     ]);
     assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
-    let mut found = labels(&out.stdout, "unused-parameters");
+    let mut found = labels(&out.stdout, "RDB-014");
     found.sort();
     assert_eq!(found, vec!["alpha", "beta"], "{}", out.stdout);
 }
@@ -127,7 +127,7 @@ fn findings_equal_those_of_running_each_member_by_hand() {
     let ws = workspace_of(&[("alpha", "alpha"), ("beta", "beta")]);
     let all = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
@@ -137,15 +137,15 @@ fn findings_equal_those_of_running_each_member_by_hand() {
     for member in ["alpha", "beta"] {
         let one = run(&[
             "check",
-            "unused-parameters",
+            "RDB-014",
             "--project",
             path(&ws.path().join(member)),
         ]);
         assert!(one.ok, "{}", one.stderr);
-        by_hand.extend(without_labels(&one.stdout, "unused-parameters"));
+        by_hand.extend(without_labels(&one.stdout, "RDB-014"));
     }
     assert!(!by_hand.is_empty());
-    assert_eq!(without_labels(&all.stdout, "unused-parameters"), by_hand);
+    assert_eq!(without_labels(&all.stdout, "RDB-014"), by_hand);
 }
 
 #[test]
@@ -175,13 +175,13 @@ fn a_member_that_does_not_compile_does_not_stop_the_others_and_the_run_fails() {
     }
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
     ]);
     assert!(!out.ok, "a member error must fail the run");
-    let mut found = labels(&out.stdout, "unused-parameters");
+    let mut found = labels(&out.stdout, "RDB-014");
     found.sort();
     assert_eq!(
         found,
@@ -213,10 +213,10 @@ fn repository_checks_run_once_not_per_member() {
         ),
         ("beta/src/lib.rs", "pub fn b() {}\n"),
     ]);
-    let by_hand = run(&["check", "version-consistency", "--project", path(ws.path())]);
+    let by_hand = run(&["check", "WSP-010", "--project", path(ws.path())]);
     let workspace = run(&[
         "check",
-        "version-consistency",
+        "WSP-010",
         "--workspace",
         "--project",
         path(ws.path()),
@@ -224,7 +224,7 @@ fn repository_checks_run_once_not_per_member() {
     let count = |o: &Out| {
         o.stdout
             .lines()
-            .filter(|l| l.ends_with("(version-consistency)"))
+            .filter(|l| l.ends_with("(WSP-010)"))
             .count()
     };
     assert!(
@@ -240,13 +240,13 @@ fn members_sharing_a_directory_name_are_told_apart() {
     let ws = workspace_of(&[("x/util", "x-util"), ("y/util", "y-util")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
     ]);
     assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
-    let mut found = labels(&out.stdout, "unused-parameters");
+    let mut found = labels(&out.stdout, "RDB-014");
     found.sort();
     assert_eq!(found, vec!["x-util", "y-util"], "{}", out.stdout);
 }
@@ -256,13 +256,13 @@ fn a_member_directory_given_to_workspace_runs_the_whole_workspace() {
     let ws = workspace_of(&[("alpha", "alpha"), ("beta", "beta")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(&ws.path().join("alpha")),
     ]);
     assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
-    let mut found = labels(&out.stdout, "unused-parameters");
+    let mut found = labels(&out.stdout, "RDB-014");
     found.sort();
     assert_eq!(found, vec!["alpha", "beta"]);
 }
@@ -272,7 +272,7 @@ fn members_are_analysed_in_sorted_order_with_a_progress_line_each() {
     let ws = workspace_of(&[("c", "pc"), ("a", "pa"), ("b", "pb")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
@@ -314,13 +314,13 @@ fn a_dev_dependency_cycle_still_analyses_every_member() {
     ]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
     ]);
     assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
-    let mut found = labels(&out.stdout, "unused-parameters");
+    let mut found = labels(&out.stdout, "RDB-014");
     found.sort();
     assert_eq!(found, vec!["pa", "pb"], "{}", out.stdout);
 }
@@ -354,7 +354,7 @@ fn workspace_with_no_cargo_project_at_all_is_a_gap_that_says_so() {
     let dir = common::git_repo_with(&[("README.md", "not a cargo project\n")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(dir.path()),
@@ -372,7 +372,7 @@ fn workspace_with_a_tracked_manifest_cargo_cannot_read_is_an_error_that_says_so(
     let dir = common::git_repo_with(&[("Cargo.toml", "this is [not a manifest\n")]);
     let out = run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(dir.path()),
@@ -395,14 +395,14 @@ fn a_named_repository_check_runs_once_with_workspace() {
     let ws = workspace_of(&[("alpha", "alpha"), ("beta", "beta")]);
     let out = run(&[
         "check",
-        "version-consistency",
+        "WSP-010",
         "--workspace",
         "--project",
         path(ws.path()),
     ]);
     assert!(out.ok, "{}\n{}", out.stdout, out.stderr);
     // no member of this fixture runs a package check, and no `member` progress line is needed for a repository check
-    assert!(!out.stdout.contains("(unused-parameters)"));
+    assert!(!out.stdout.contains("(RDB-014)"));
 }
 
 // ---------------------------------------------------------------- the payoff
@@ -455,7 +455,7 @@ fn the_siblings_are_compiled_once_per_session() {
         let out = cli(
             &[
                 "check",
-                "unused-parameters",
+                "RDB-014",
                 "--project",
                 path(&ws.path().join(member)),
             ],
@@ -469,7 +469,7 @@ fn the_siblings_are_compiled_once_per_session() {
     let all = cli(
         &[
             "check",
-            "unused-parameters",
+            "RDB-014",
             "--workspace",
             "--project",
             path(ws.path()),
@@ -519,7 +519,7 @@ fn a_set_aside_note_names_the_member_it_is_about() {
     ]);
     let out = run(&[
         "check",
-        "reachability",
+        "MOD-011",
         "--workspace",
         "--project",
         path(repo.path()),
@@ -564,7 +564,7 @@ fn a_workspace_run_does_not_report_what_a_dependent_member_uses() {
     let ws = common::git_repo_with(&refs);
     let out = run(&[
         "check",
-        "reachability",
+        "MOD-011",
         "--workspace",
         "--project",
         path(ws.path()),
@@ -573,7 +573,7 @@ fn a_workspace_run_does_not_report_what_a_dependent_member_uses() {
     let lines: Vec<&str> = out
         .stdout
         .lines()
-        .filter(|l| l.ends_with("(reachability)"))
+        .filter(|l| l.ends_with("(MOD-011)"))
         .collect();
     assert!(
         lines.iter().any(|l| l.contains("`dead_everywhere`")),
@@ -610,7 +610,7 @@ fn skip_run(config: &str) -> Out {
     );
     run(&[
         "check",
-        "unused-parameters",
+        "RDB-014",
         "--workspace",
         "--project",
         path(ws.path()),
@@ -636,12 +636,7 @@ fn a_declared_skip_is_not_built_and_is_named_not_judged() {
         out.stderr
     );
     // the member that was set aside reports nothing, and the other is still judged
-    assert_eq!(
-        labels(&out.stdout, "unused-parameters"),
-        ["alpha"],
-        "{}",
-        out.stdout
-    );
+    assert_eq!(labels(&out.stdout, "RDB-014"), ["alpha"], "{}", out.stdout);
     // a skip is not a failure to build
     assert!(
         !out.stderr
@@ -662,12 +657,7 @@ fn a_skip_whose_tool_is_present_builds_the_member() {
         out.stderr
     );
     assert!(out.stderr.contains("member beta ("), "{}", out.stderr);
-    assert_eq!(
-        labels(&out.stdout, "unused-parameters").len(),
-        2,
-        "{}",
-        out.stdout
-    );
+    assert_eq!(labels(&out.stdout, "RDB-014").len(), 2, "{}", out.stdout);
 }
 
 #[test]
@@ -692,10 +682,5 @@ fn a_skip_naming_no_member_is_a_finding() {
         "{}",
         out.stdout
     );
-    assert_eq!(
-        labels(&out.stdout, "unused-parameters").len(),
-        2,
-        "{}",
-        out.stdout
-    );
+    assert_eq!(labels(&out.stdout, "RDB-014").len(), 2, "{}", out.stdout);
 }

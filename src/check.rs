@@ -193,7 +193,7 @@ impl CheckContext {
 /// `Send + Sync` are supertraits so a check can run on a thread pool, an async runtime or a service; a check that holds
 /// an `Rc` or a `RefCell` must hold an `Arc` or a `Mutex` instead.
 pub trait Check: Send + Sync {
-    /// Stable identifier, e.g. `"reachability"`. Used in `coderipper check <id>`, in every `Finding`'s
+    /// Stable identifier, e.g. `"MOD-011"`. Used in `coderipper check <id>`, in every `Finding`'s
     /// `check_id`, and as the key for allowlist entries.
     fn id(&self) -> &'static str;
 
