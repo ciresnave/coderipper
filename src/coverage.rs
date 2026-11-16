@@ -143,6 +143,10 @@ pub struct LanguageCoverage {
     /// The ids in `gaps` that the module HAS built and claims, but that have no conformance fixture yet (so they are not
     /// counted as covered). The rest of `gaps` are not built.
     pub claimed_unproven_ids: Vec<String>,
+    /// The ids in `gaps` that are delegated to a tool, with the tool each needs (an empty name when the claim names none). They
+    /// are claimed but not proven because the tool is not installed, so they are neither "not implemented" nor in
+    /// `claimed_unproven_ids`. Invariant: `gaps` is `not_covered` ids, plus these, plus `claimed_unproven_ids`.
+    pub delegated_unproven: Vec<(String, String)>,
     /// How this run fared, when a run is being reported.
     pub run: Option<RunCounts>,
     /// For a language with no module: how many tracked source files were found and not checked.
@@ -218,7 +222,11 @@ pub fn for_module(
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
                 // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
-                if c.status != ClaimStatus::Delegated {
+                if c.status == ClaimStatus::Delegated {
+                    coverage
+                        .delegated_unproven
+                        .push((rule.id().to_string(), c.tool.clone().unwrap_or_default()));
+                } else {
                     coverage.claimed_unproven_ids.push(rule.id().to_string());
                 }
             }
@@ -292,7 +300,11 @@ pub fn for_missing_module_with(
                 coverage.claimed_unproven += 1;
                 coverage.gaps.push(rule.id().to_string());
                 // a delegated rule has no proof until its tool is installed: it cannot run here, so it is not "implemented"
-                if c.status != ClaimStatus::Delegated {
+                if c.status == ClaimStatus::Delegated {
+                    coverage
+                        .delegated_unproven
+                        .push((rule.id().to_string(), c.tool.clone().unwrap_or_default()));
+                } else {
                     coverage.claimed_unproven_ids.push(rule.id().to_string());
                 }
             }
@@ -320,6 +332,7 @@ fn empty(catalog: &Catalog, language: &str) -> LanguageCoverage {
         not_covered: 0,
         gaps: Vec::new(),
         claimed_unproven_ids: Vec::new(),
+        delegated_unproven: Vec::new(),
         run: None,
         source_files: None,
         note: None,
@@ -356,6 +369,11 @@ impl LanguageCoverage {
             "gaps": self.gaps.iter().take(limit).collect::<Vec<_>>(),
             "gaps_truncated": self.gaps.len() > limit,
             "claimed_unproven_ids": self.claimed_unproven_ids,
+            "delegated_unproven": self
+                .delegated_unproven
+                .iter()
+                .map(|(id, tool)| json!({"id": id, "tool": tool}))
+                .collect::<Vec<_>>(),
         });
         let object = value.as_object_mut().expect("an object");
         if let Some(run) = self.run {
