@@ -9,7 +9,7 @@ the next planning pass starts from facts. Read at `origin/main` 81010a4 from the
 
 | Quantity | Count | Source |
 | :--- | ---: | :--- |
-| Catalog rules | 230 | every `[[rule]]` in the 21 files `rules/*.toml`, 230 distinct ids (measured on the merge of main into the alias-merge branch, 2026-11-15; RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005, REL-003 and TYP-003 are aliases; the rows below were not re-counted there) |
+| Catalog rules | 229 | every `[[rule]]` in the 21 files `rules/*.toml`, 229 distinct ids (230 on main at 8a189f1, before DOC-001 became an alias; measured on the merge of main into the alias-merge branch, 2026-11-15; RDB-010, API-010, EVO-003, SEC-008, TST-010, AIH-005, REL-003 and TYP-003 are aliases, and DOC-001 became an alias of MOD-001 on 2026-11-15 (the other-languages and non-library case stays a note on MOD-001); the rows below were not re-counted there) |
 | `BuiltinCheck::ALL` | 26 | rows of the `builtin_checks!` table in `src/builtin.rs` |
 | Covered by an in-process module check | 29 | `rule_ids()` of `src/module/neutral/` (8 are opt-in) |
 | Covered by a delegated tool | 11 | `RULES` of `src/module/delegate/mod.rs` (osv-scanner claims two ids, SUP-002 and SEC-006) |
@@ -112,7 +112,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | DOC-003 | Components carry a purpose and an owner in the spec | DOC | source only | `src/module/neutral/wsp001.rs` | S | yes | unswept, guess: low | low/high | needs declared components ([architecture]); each needs purpose and owner fields |
 | OPS-003 | Structured logging, no raw printing in libraries | OPS | source only | `src/module/neutral/ops012.rs` | S | yes | unswept, guess: low | low/high | Rust library source: println!, eprintln!, dbg! outside bins and tests; mirror of ops012.rs, which selects binaries |
 | COR-002 | Invariant types enforce invariants in code | COR | source only | `src/checks/architecture/invariants.rs` | M | yes | unswept, guess: low | medium/low | overlaps MOD-010 (built, idea 37) (TYP-003 is its alias) |
-| DOC-001 | Public items are documented | DOC | source only | `src/checks/architecture/public_surface.rs` | M | yes | unswept, guess: low | low/high | Rust library items are partly covered by MOD-001 (undocumented public items); this row is the other languages and the non-library case |
 | PRF-003 | Algorithmic red flags in code | PRF | source only | `src/module/neutral/sec004.rs` | M | yes | unswept, guess: low | medium/low | Rust: .clone() in loops, .contains() on a Vec inside a loop, String += in loops; low confidence |
 | PRF-005 | Caches and collections lacking growth bounds | PRF | source only | `src/checks/architecture/owns_data.rs` | M | yes | unswept, guess: low | medium/low | a static or field named cache with no eviction; collections fed by input with no bound; low confidence |
 | RDB-001 | Code matches the project formatter | RDB | source only | `src/module/delegate/semver.rs` | M | yes | unswept, guess: low | low/high | delegated formatter (rustfmt --check, prettier): a new tools.lock row; the delegated-tool framework is idea 5 |
@@ -152,7 +151,6 @@ policy, not another repository; most are properties the tool either has or lacks
 | REL-011 | Breakers and bulkheads where required | REL | source only | `src/checks/architecture/volatile.rs` | L | yes | unswept, guess: low | low/low | needs declared dependencies requiring isolation |
 | WSP-006 | Copied code across repositories | WSP | source only | `src/checks/size_coupling/metrics.rs` | L | yes | unswept, guess: high | low/low | cross-repository clone detection; see RDB-005 |
 | OPS-010 | Build and version information is exposed | OPS | source only | `src/checks/cli_basics/mod.rs` | S | yes | unswept, guess: low | info/medium | build-time version or revision embedded (build.rs, vergen); OPS-011 already runs --version |
-| EFX-005 | Methods that both change state and answer queries | EFX | source only | `src/checks/architecture/passthrough.rs` | S | yes | unswept, guess: low | info/low | Rust: &mut self method returning non-(); very noisy (info, low confidence), opt-in |
 | OPS-009 | Alerts are tied to objectives and have runbooks | OPS | source only | `src/module/neutral/sup011.rs` | S | yes | unswept, guess: low | info/low | Prometheus alert rule files: an alert without a runbook_url annotation; applies only where such files exist |
 | PRF-006 | Performance exceptions documented with benchmark link | PRF | source only | `src/module/neutral/rdb008.rs` | S | yes | unswept, guess: low | info/low | a marker comment linking a benchmark; needs a declared marker |
 | RDB-007 | Magic literals get names | RDB | source only | `src/module/neutral/sec004.rs` | S | yes | unswept, guess: low | info/low | magic literals; info, low confidence, very noisy |
