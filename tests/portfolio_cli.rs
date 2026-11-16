@@ -500,9 +500,7 @@ fn the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_r
     let repo = repo_on_main();
     portfolio(&repo, &[])
         .assert()
-        .stderr(predicate::str::contains(
-            "GOV-010: ratchet not applicable",
-        ))
+        .stderr(predicate::str::contains("GOV-010: ratchet not applicable"))
         .stderr(predicate::str::contains("a run on the default branch"))
         .stderr(predicate::str::contains("GOV-010: ratchet not run").not());
     // the control: the same repository on a branch that adds a suppression compares against the base and runs the ratchet
