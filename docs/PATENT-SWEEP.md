@@ -1840,6 +1840,7 @@ Version line covered by this addendum: **0.46** (0.46.0). No check is added; fou
 | # | Idea | Query (2026-11-16) |
 |---|---|---|
 | Q221 | 110 | patent method rewriting configuration files to migrate renamed rule identifiers in a static analysis tool when rule names change (Google Patents, one search) |
+| Q222 | 111 | patent method static analysis source code detecting method that both modifies object state and returns a value command-query separation violation (Google Patents, one search) |
 
 **Positive control:** Q221 returned patents on configuration migration and renaming (US 7,251,668 on a configuration-management file rename utility that keeps the link to the previous name, US 7,337,435 on migrating configuration data to a replacement executable, US 7,028,079 on migrating an application with its configuration files), so the engine reaches the neighbourhood. **A patent claiming that a static-analysis rule's old name is accepted with a warning and the configuration is rewritten to the new rule id was not found; that absence is a statement about one query only.**
 
@@ -1858,3 +1859,17 @@ Version line covered by this addendum: **0.47** (0.47.0). No check is added; one
 **Result: no new hit; no new search. Watch: US 8,527,446, US 2017/0315903 (unread, still owed a claim read before publication).**
 
 **Limits:** no new search, no claims read, no status checked. A due-diligence read, not legal advice.
+
+### 0.47.1 (0.47 line) - 2026-11-15
+
+Version line covered by this addendum: **0.47** (0.47.1). One rule is added, read from `src/module/neutral/efx005.rs`: `EFX-005` (opt-in; a Rust method with a `&mut self` receiver that returns a value). Swept by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 111 (`EFX-005`).** From the source of a Rust package, report each method of an inherent `impl` that takes `&mut self` and returns a value other than unit, `Self`, a mutable borrow or a bare error signal, except accepted idioms by name; one Info finding per method, advisory.
+
+**Query Q222 (see the row above).** **Positive control:** it returned static-analysis patents on the neighbouring ground (EP1410167B1, mutability analysis in Java: which methods may change an object's state; US8646087B2, static answering of security queries through returned values), so the engine reaches the neighbourhood. **A patent claiming that a method which both mutates state and returns a value is detected and reported as a command-query-separation finding was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. EP1410167B1 is the nearest (it finds methods that may change an object's state, the "changes state" half); it is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; EP1410167B1 is named and unread. Watch: EP1410167B1.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
