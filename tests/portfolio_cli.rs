@@ -293,7 +293,7 @@ fn a_member_that_cannot_be_built_is_named_as_not_judged_and_docs_rs_lets_it_be_r
         .env_remove("DOCS_RS")
         .assert()
         .code(3)
-        .stderr(predicate::str::contains("c: reachability failed to run"))
+        .stderr(predicate::str::contains("c: MOD-011 failed to run"))
         .stderr(predicate::str::contains("not judged"));
     // with `DOCS_RS=1` the build script skips its toolchain, the member is analysed, and nothing is reported as not judged
     sweep_portfolio(&repo, &["--workspace", skip[0], skip[1]])
@@ -501,10 +501,10 @@ fn the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_r
     portfolio(&repo, &[])
         .assert()
         .stderr(predicate::str::contains(
-            "lint-suppression: ratchet not applicable",
+            "GOV-010: ratchet not applicable",
         ))
         .stderr(predicate::str::contains("a run on the default branch"))
-        .stderr(predicate::str::contains("lint-suppression: ratchet not run").not());
+        .stderr(predicate::str::contains("GOV-010: ratchet not run").not());
     // the control: the same repository on a branch that adds a suppression compares against the base and runs the ratchet
     run_git(repo.path(), &["checkout", "-q", "-b", "feature"]);
     std::fs::write(
@@ -516,7 +516,7 @@ fn the_ratchet_on_the_default_branch_is_not_applicable_not_a_rule_that_did_not_r
     run_git(repo.path(), &["commit", "-q", "-m", "add a suppression"]);
     portfolio(&repo, &[])
         .assert()
-        .stderr(predicate::str::contains("lint-suppression: ratchet not applicable").not())
-        .stderr(predicate::str::contains("lint-suppression: ratchet not run").not())
-        .stdout(predicate::str::contains("(lint-suppression)"));
+        .stderr(predicate::str::contains("GOV-010: ratchet not applicable").not())
+        .stderr(predicate::str::contains("GOV-010: ratchet not run").not())
+        .stdout(predicate::str::contains("(GOV-010)"));
 }
