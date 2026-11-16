@@ -35,12 +35,12 @@ fn a_bare_invocation_runs_the_fast_checks_in_the_current_directory() {
     as_cargo_runs_it(repo.path())
         .assert()
         .code(1)
-        .stdout(predicates::str::contains("(unused-return-values)"));
+        .stdout(predicates::str::contains("(ERR-012)"));
     as_cargo_runs_it(repo.path())
         .args(["--deny", "none"])
         .assert()
         .code(0)
-        .stdout(predicates::str::contains("(unused-return-values)"));
+        .stdout(predicates::str::contains("(ERR-012)"));
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn workspace_and_message_format_are_accepted() {
 fn an_explicit_subcommand_is_still_honoured() {
     let repo = project_with_a_medium_finding();
     as_cargo_runs_it(repo.path())
-        .args(["check", "unused-return-values", "--deny", "medium"])
+        .args(["check", "ERR-012", "--deny", "medium"])
         .assert()
         .code(1);
 }
@@ -98,7 +98,7 @@ fn it_also_runs_without_the_subcommand_name_cargo_adds() {
         .current_dir(repo.path())
         .assert()
         .code(1)
-        .stdout(predicates::str::contains("(unused-return-values)"));
+        .stdout(predicates::str::contains("(ERR-012)"));
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn manifest_path_names_the_project_as_cargo_does() {
         .arg(repo.path().join("Cargo.toml"))
         .assert()
         .code(1)
-        .stdout(predicates::str::contains("(unused-return-values)"));
+        .stdout(predicates::str::contains("(ERR-012)"));
     as_cargo_runs_it(elsewhere.path())
         .arg("--manifest-path")
         .arg(repo.path().join("src/main.rs"))
@@ -220,17 +220,17 @@ fn package_judges_only_the_named_member() {
 fn check_as_a_flag_runs_exactly_that_check() {
     let repo = project_with_a_medium_finding();
     as_cargo_runs_it(repo.path())
-        .args(["--check", "unused-return-values", "--deny", "medium"])
+        .args(["--check", "ERR-012", "--deny", "medium"])
         .assert()
         .code(1)
-        .stdout(predicates::str::contains("(unused-return-values)"));
+        .stdout(predicates::str::contains("(ERR-012)"));
     // a check that is not the one with the finding: the run is clean, so the flag really selected one check
     as_cargo_runs_it(repo.path())
-        .args(["--check=version-consistency", "--deny", "medium"])
+        .args(["--check=WSP-010", "--deny", "medium"])
         .assert()
         .code(0);
     as_cargo_runs_it(repo.path())
-        .args(["--sweep", "--check", "unused-return-values"])
+        .args(["--sweep", "--check", "ERR-012"])
         .assert()
         .code(2);
 }
@@ -246,7 +246,7 @@ fn the_short_format_is_one_editor_line_per_finding_and_nothing_else_on_stdout() 
     let stdout = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 1, "stdout: {stdout}");
-    assert!(lines[0].ends_with("[unused-return-values]"), "{}", lines[0]);
+    assert!(lines[0].ends_with("[ERR-012]"), "{}", lines[0]);
     assert!(lines[0].contains(": medium: "), "{}", lines[0]);
     // the place leads the line: `src/main.rs:<line>: ...`
     assert!(lines[0].starts_with("src/main.rs:"), "{}", lines[0]);

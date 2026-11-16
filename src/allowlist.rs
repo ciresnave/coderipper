@@ -184,7 +184,7 @@ impl ReachabilitySettings {
 impl PublicApiCrate {
     fn as_entry(&self, source: Option<String>) -> AllowEntry {
         AllowEntry {
-            check: "reachability".to_string(),
+            check: "MOD-011".to_string(),
             file: "**".to_string(),
             symbol: None,
             lines: None,
@@ -202,7 +202,7 @@ impl PublicApiEntry {
     /// The suppression entry this declaration is applied as.
     fn as_entry(&self, source: Option<String>) -> AllowEntry {
         AllowEntry {
-            check: "reachability".to_string(),
+            check: "MOD-011".to_string(),
             file: self.file.clone(),
             symbol: self.symbol.clone(),
             lines: None,
@@ -487,7 +487,7 @@ mod tests {
     fn missing_allowlist_file_allows_nothing_not_an_error() {
         let tmp = tempfile::tempdir().unwrap();
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(!allowed(&al, "reachability", "src/lib.rs", "anything"));
+        assert!(!allowed(&al, "MOD-011", "src/lib.rs", "anything"));
     }
 
     #[test]
@@ -497,7 +497,7 @@ mod tests {
             tmp.path().join(".coderipper.toml"),
             r#"
 [[allow]]
-check = "reachability"
+check = "MOD-011"
 file = "src/api.rs"
 symbol = "public_entry_point"
 reason = "published crate API, consumed outside this portfolio"
@@ -506,17 +506,12 @@ reason = "published crate API, consumed outside this portfolio"
         .unwrap();
 
         let al = Allowlist::load(tmp.path()).unwrap();
-        assert!(allowed(
-            &al,
-            "reachability",
-            "src/api.rs",
-            "public_entry_point"
-        ));
+        assert!(allowed(&al, "MOD-011", "src/api.rs", "public_entry_point"));
         // Review Focus: must match by identity, not loose path containment.
-        assert!(!allowed(&al, "reachability", "src/api.rs", "some_other_fn"));
+        assert!(!allowed(&al, "MOD-011", "src/api.rs", "some_other_fn"));
         assert!(!allowed(
             &al,
-            "reachability",
+            "MOD-011",
             "src/api_v2.rs",
             "public_entry_point"
         ));
@@ -753,7 +748,7 @@ reason = \"r\"
             tmp.path().join(".coderipper.toml"),
             r#"
 [[allow]]
-check = "reachability"
+check = "MOD-011"
 file = "src/api.rs"
 symbol = "x"
 "#,

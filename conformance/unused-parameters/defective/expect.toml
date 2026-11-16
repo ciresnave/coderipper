@@ -1,4 +1,0 @@
-[[expect]]
-rule = "unused-parameters"
-file = "src/lib.rs"
-line = 1

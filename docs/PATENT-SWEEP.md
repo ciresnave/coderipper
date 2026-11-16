@@ -1830,3 +1830,21 @@ Version line covered by this addendum: **0.45** (0.45.0). No check is added; sev
 **Result: no hit on the one query; US 8,527,446 is named and unread. Watch: US 8,527,446, US 2017/0315903.**
 
 **Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.46 line (2026-11-16, 0.46.0)
+
+Version line covered by this addendum: **0.46** (0.46.0). No check is added; fourteen rules known by a slug name (`unused-return-values`, `lint-suppression`, `conflict-marker`, `reachability`, `unused-parameters`, `patent-index-match`, `dependency-freshness`, `licence`, `ci-security`, `version-consistency`, `ci-protection-presence`, `version-and-changelog`, `patent-sweep-record`, `security-support-statement`) are known by a numbered id, read from `rules/*.toml`, `src/catalog.rs` and `tools/migrate-rule-ids.py`. Swept 2026-11-16 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 110 (a renamed rule keeps working for one release, and a script migrates the configuration).** The old slug name is accepted wherever a rule name is read, resolves to the numbered id, and prints one warning per name per run that names the new id and the script; a script rewrites the project's `.coderipper.toml`, replacing each old rule name with the new one.
+
+| # | Idea | Query (2026-11-16) |
+|---|---|---|
+| Q221 | 110 | patent method rewriting configuration files to migrate renamed rule identifiers in a static analysis tool when rule names change (Google Patents, one search) |
+
+**Positive control:** Q221 returned patents on configuration migration and renaming (US 7,251,668 on a configuration-management file rename utility that keeps the link to the previous name, US 7,337,435 on migrating configuration data to a replacement executable, US 7,028,079 on migrating an application with its configuration files), so the engine reaches the neighbourhood. **A patent claiming that a static-analysis rule's old name is accepted with a warning and the configuration is rewritten to the new rule id was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 7,251,668 (a renamed item keeps a link to its previous name) and US 7,337,435 are the nearest; neither concerns rule identifiers, and each is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; US 7,251,668 and US 7,337,435 are named and unread. Watch: US 7,251,668, US 7,337,435.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.

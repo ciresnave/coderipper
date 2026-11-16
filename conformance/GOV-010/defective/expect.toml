@@ -1,0 +1,17 @@
+# The seeded defect: the rule must report exactly these places.
+
+[[expect]]
+rule = "GOV-010"
+file = "src/lib.rs"
+line = 3
+
+[[expect]]
+rule = "GOV-010"
+file = "src/lib.rs"
+line = 7
+
+# the same file one commit earlier had one `allow` (line 3), so the second one, line 10, is the surplus
+[[expect]]
+rule = "GOV-010"
+file = "src/lib.rs"
+line = 10

@@ -70,7 +70,7 @@ fn no_rust_is_counted_as_not_run_here_in_the_coverage_line() {
 #[test]
 fn a_rule_named_on_a_repository_with_no_rust_is_a_gap_not_a_failure() {
     let repo = common::git_repo_with(&[("README.md", "# a site\n")]);
-    let out = run(&["check", "reachability"], repo.path()).code(0);
+    let out = run(&["check", "MOD-011"], repo.path()).code(0);
     assert!(stderr_of(&out).contains("no Rust crate at this path"));
 }
 
@@ -104,7 +104,7 @@ fn a_crate_below_the_root_is_found_and_checked() {
     ]);
     let out = run(&["fast"], repo.path()).code(1);
     let text = stdout_of(&out);
-    assert!(text.contains("(unused-return-values)"), "{text}");
+    assert!(text.contains("(ERR-012)"), "{text}");
     // the finding leads with the package, as a `--workspace` finding does
     assert!(text.contains("backendcrate"), "{text}");
     let err = stderr_of(&out);
@@ -123,7 +123,7 @@ fn deny_none_prints_a_discovered_crates_finding_and_exits_0() {
     ]);
     run(&["fast", "--deny", "none"], repo.path())
         .code(0)
-        .stdout(predicate::str::contains("(unused-return-values)"));
+        .stdout(predicate::str::contains("(ERR-012)"));
 }
 
 #[test]
@@ -185,7 +185,7 @@ fn a_nested_virtual_workspace_is_checked_member_by_member() {
     let out = run(&["fast", "--deny", "none"], repo.path()).code(0);
     let text = stdout_of(&out);
     assert!(text.contains("apicrate"), "{text}");
-    assert!(text.contains("(unused-return-values)"), "{text}");
+    assert!(text.contains("(ERR-012)"), "{text}");
     assert!(!stderr_of(&out).contains("check error"));
 }
 
@@ -195,10 +195,10 @@ fn a_named_check_on_a_nested_crate_runs_only_that_check() {
         ("backend/Cargo.toml", &manifest("backendcrate")),
         ("backend/src/main.rs", DEFECTIVE_MAIN),
     ]);
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(1)
-        .stdout(predicate::str::contains("(unused-return-values)"));
-    run(&["check", "version-consistency"], repo.path()).code(0);
+        .stdout(predicate::str::contains("(ERR-012)"));
+    run(&["check", "WSP-010"], repo.path()).code(0);
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn workspace_mode_without_a_root_crate_discovers_too() {
         ("backend/src/main.rs", DEFECTIVE_MAIN),
     ]);
     let out = run(&["fast", "--workspace", "--deny", "none"], repo.path()).code(0);
-    assert!(stdout_of(&out).contains("(unused-return-values)"));
+    assert!(stdout_of(&out).contains("(ERR-012)"));
     assert!(!stderr_of(&out).contains("check error"));
 }
 
@@ -242,8 +242,8 @@ fn a_rule_that_is_not_about_rust_still_runs_where_there_is_no_crate() {
     // ci-protection-presence reads the forge, not a crate: it must not be skipped with the Rust rules. With no origin it
     // reports an ERROR, which proves it ran (a skip would have been silent).
     let repo = common::git_repo_with(&[("README.md", "# a site\n")]);
-    let out = run(&["check", "ci-protection-presence"], repo.path()).code(3);
-    assert!(stderr_of(&out).contains("ci-protection-presence"));
+    let out = run(&["check", "WSP-011"], repo.path()).code(3);
+    assert!(stderr_of(&out).contains("WSP-011"));
 }
 
 #[test]
@@ -300,7 +300,7 @@ fn a_crates_own_waiver_file_applies_to_its_findings() {
         ("backend/src/main.rs", DEFECTIVE_MAIN),
         (
             "backend/.coderipper.toml",
-            "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"fixture: discarded on purpose\"\n",
+            "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"fixture: discarded on purpose\"\n",
         ),
     ]);
     let out = run(&["fast"], repo.path()).code(0);
@@ -319,14 +319,10 @@ fn only_the_named_check_runs_on_a_nested_crate() {
             "fn f() -> i32 { 1 }\npub fn g(unused: i32) {}\nfn main() { f(); g(1); }\n",
         ),
     ]);
-    let out = run(
-        &["check", "unused-return-values", "--deny", "none"],
-        repo.path(),
-    )
-    .code(0);
+    let out = run(&["check", "ERR-012", "--deny", "none"], repo.path()).code(0);
     let text = stdout_of(&out);
-    assert!(text.contains("(unused-return-values)"), "{text}");
-    assert!(!text.contains("(unused-parameters)"), "{text}");
+    assert!(text.contains("(ERR-012)"), "{text}");
+    assert!(!text.contains("(RDB-014)"), "{text}");
 }
 
 #[test]
@@ -358,7 +354,7 @@ fn extended_profile_runs_the_neutral_rules_once_and_the_crates_beside_them() {
             .count()
     };
     assert_eq!(count("WSP-001"), 1, "the repository rule runs once: {text}");
-    assert_eq!(count("unused-return-values"), 1, "{text}");
+    assert_eq!(count("ERR-012"), 1, "{text}");
 }
 
 #[test]
@@ -373,13 +369,13 @@ fn the_coverage_list_does_not_call_an_implemented_rule_not_yet_implemented() {
         .take_while(|l| !l.starts_with("Implemented"))
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(!not_built.contains("ci-protection-presence"), "{text}");
+    assert!(!not_built.contains("WSP-011"), "{text}");
     let proven_later = text
         .lines()
         .skip_while(|l| !l.starts_with("Implemented, not yet proven"))
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(proven_later.contains("ci-protection-presence"), "{text}");
+    assert!(proven_later.contains("WSP-011"), "{text}");
 }
 
 #[test]
@@ -391,12 +387,12 @@ fn a_waiver_at_the_root_is_not_applied_to_a_nested_crate_and_that_errs_toward_mo
         ("backend/src/main.rs", DEFECTIVE_MAIN),
         (
             ".coderipper.toml",
-            "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"written at the root\"\n",
+            "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"written at the root\"\n",
         ),
     ]);
     let out = run(&["fast"], repo.path()).code(1);
     let text = stdout_of(&out);
-    assert!(text.contains("(unused-return-values)"), "{text}");
+    assert!(text.contains("(ERR-012)"), "{text}");
     assert!(!text.contains("[waived/"), "{text}");
     assert!(!text.contains("(allowlist)"), "{text}");
 }
