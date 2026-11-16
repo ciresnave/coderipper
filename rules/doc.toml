@@ -1,29 +1,6 @@
 # Rule records, domain DOC (Documentation, Intent and Decision Records). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "DOC-001"
-title = "Public items are documented"
-domain = "DOC"
-statement = "Every item that is part of the public interface has a documentation comment."
-rationale = "Callers cannot see intent from a signature alone, and the public surface is where misunderstanding costs the most."
-evidence_tiers = ["V0"]
-evidence_strength = "C"
-contested = false
-scope = "project"
-network = "local"
-unit = "package"
-executes_project_code = false
-default_severity = "low"
-confidence_class = "high"
-kb_refs = []
-remediation = "Write a short doc comment for each public item stating its purpose, and enable the compiler or linter warning for missing documentation."
-lifecycle = "experimental"
-
-[rule.applicability]
-languages = ["any"]
-scopes = ["first_party"]
-
-[[rule]]
 id = "DOC-002"
 title = "Documentation examples build and run"
 domain = "DOC"

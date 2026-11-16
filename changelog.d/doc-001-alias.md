@@ -1,0 +1,3 @@
+kind: Breaking: DOC-001 is an alias of MOD-001
+---
+**DOC-001 ("Public items are documented") becomes an alias of MOD-001** (CireSnave's ruling 1, the pattern of the seven pairs merged in 0.45.0). The catalog keeps one record, MOD-001, which answers to both ids in `--skip-rule`, the allowlist and blocking; a record named `DOC-001` no longer exists, so a tool that listed the catalog by id sees one fewer rule (229). MOD-001 already reports undocumented public items for Rust; DOC-001's other-languages case stays a note in `docs/rules/REMAINING.md`. To keep the old behaviour of a `DOC-001` allowlist entry, change nothing: it resolves to MOD-001.

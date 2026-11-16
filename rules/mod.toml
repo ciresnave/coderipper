@@ -45,6 +45,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Narrow the visibility of items that are not part of the intended interface, and write docs for the ones that remain public."
 related = ["MOD-003", "MOD-010"]
+aliases = ["DOC-001"]
 checked_today = "The committed (HEAD) Rust library package's public surface, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): public declarations reachable through pub modules and pub use leaves, plus the public inherent functions of public types, counted with the number of members (fields, variants, trait items) of the public types. One finding per package when any of those declarations or functions has no documentation (a /// comment, or a #[doc = ..] or #[doc(..)] attribute other than hidden; #[doc(hidden)] items are left out): Info (Medium confidence) for any gap, Low from 50% of at least 20 documentable items undocumented. The finding names counts and the first eight places and offers no change. The check runs in the extended and portfolio profiles, not classic. Not judged: whether an item should be public at all (the size of the surface is stated, not judged; a declared ceiling is ARC-006), unused public items (the reachability check), macro-generated items and doc comments, #[path] modules, cfg-gated items, undocumented trait items and enum variants, a binary-only package (no library API, noted), TypeScript and Python."
 lifecycle = "experimental"
 
