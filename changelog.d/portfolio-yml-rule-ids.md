@@ -1,0 +1,3 @@
+kind: Fix
+---
+The shared `portfolio.yml` (and this repository's own `ci.yml` and `scheduled-audits.yml`) named rules by their pre-0.46.0 kebab-case names: `--skip-rule "ci-protection-presence=..."` and `check dependency-freshness`. They now use `WSP-011` and `SUP-015`, so a caller that moves its workflow SHA no longer prints "the old name is accepted for this release only" on every run. The old names are aliases for one release; once they are removed, an unknown `--skip-rule` name is an error (`cannot skip "<name>": it is no built-in check`, exit 3), which would fail every caller still on the old workflow.
