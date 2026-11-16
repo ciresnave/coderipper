@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """OCR a scanned two-column patent PDF page range (used for the US12645455B2 check, 2026-11-16).
 
 Setup (Python 3.14 venv; 3.15 has no onnxruntime wheel):
@@ -7,6 +8,10 @@ Usage: python ocr-scanned-pdf.py <pdf> <first-page> <last-page> <out.txt>
 Renders each page at 3x, OCRs left and right columns separately, and saves the page
 crops next to <out.txt> so the claim text can be checked against the images by eye.
 Never trust OCR alone: read the saved images for any claim you quote.
+Third-party tools imported (licences from their installed package metadata, 2026-11-16):
+    pypdfium2 (BSD-3-Clause OR Apache-2.0; bundles PDFium, BSD-3-Clause)
+    rapidocr-onnxruntime (Apache-2.0; pulls in onnxruntime, MIT)
+    pillow (MIT-CMU)
 Windows' built-in OCR via powershell.exe 5.1 hung on this box; do not retry it.
 """
 import sys, pypdfium2 as pdfium
