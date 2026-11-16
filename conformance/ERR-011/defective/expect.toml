@@ -1,0 +1,6 @@
+# The seeded defect: a malformed port is turned into 0 on the spot, with no reason given (line 2).
+
+[[expect]]
+rule = "ERR-011"
+file = "src/lib.rs"
+line = 2
