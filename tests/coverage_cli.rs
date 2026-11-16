@@ -411,3 +411,72 @@ fn min_coverage_outside_zero_to_one_hundred_is_a_usage_error() {
             .code(2);
     }
 }
+
+/// The numbers in the report's headline and the lists under it count the same sets (the ruling of 2026-11-16: a claim means one
+/// thing everywhere). With no tool installed the delegated rules are their own labelled group, not part of "not yet implemented".
+#[test]
+fn the_headline_counts_equal_the_lists_with_no_tools_installed() {
+    let out = fast(&clean_project())
+        .args(["--profile", "extended", "--coverage=full"])
+        .assert()
+        .code(0)
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(out).unwrap();
+    let rust_line = text
+        .lines()
+        .find(|l| l.starts_with("coverage: rust"))
+        .expect("a rust coverage line");
+    let number_before = |line: &str, what: &str| -> usize {
+        let head = line.split(what).next().unwrap();
+        head.rsplit(", ")
+            .next()
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap_or_else(|_| panic!("a number before {what:?} in {line:?}"))
+    };
+    let not_implemented = number_before(rust_line, " not yet implemented");
+    let unproven = number_before(rust_line, " claimed but not yet proven");
+    let ids_of = |section: &str| -> Vec<String> {
+        let mut lines = text.lines().skip_while(|l| !l.starts_with(section));
+        lines.next().expect("the section heading");
+        lines
+            .find(|l| l.starts_with("  rust: "))
+            .map(|l| {
+                l["  rust: ".len()..]
+                    .split(", ")
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let gaps = ids_of("Not yet implemented:");
+    let proofless = ids_of("Implemented, not yet proven:");
+    let delegated = ids_of("Delegated, tool not installed:");
+    assert_eq!(
+        gaps.len(),
+        not_implemented,
+        "the not-implemented list is as long as its heading number"
+    );
+    assert_eq!(
+        proofless.len() + delegated.len(),
+        unproven,
+        "implemented-unproven plus delegated is the claimed-but-not-proven number"
+    );
+    assert_eq!(
+        delegated.len() as u64,
+        delegated_count(),
+        "every delegated rule is listed, with its tool, in its own group"
+    );
+    assert!(
+        delegated.iter().all(|d| d.contains("(needs ")),
+        "each delegated id names its tool: {delegated:?}"
+    );
+    assert!(
+        gaps.iter()
+            .all(|g| !delegated.iter().any(|d| d.starts_with(g.as_str()))),
+        "no id is in both lists"
+    );
+}

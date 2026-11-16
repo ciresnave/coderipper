@@ -5,6 +5,23 @@
 checks for all rules for Rust under CodeRipper. Lets get all of those languages plus completing our checks for rules for Rust code on the roadmap if they aren't already.
 The checks that require a model's judgement, those can wait until we have more of our ML stack ready").
 
+## Re-measured 2026-11-16 (headline counts only; the tables below are the 2026-11-14 reading and have drifted)
+
+Measured at `origin/main` ec83b55 (0.46.0) **plus the coverage-report split of this change**, a release build, `coderipper fast --profile extended --coverage=full` with `CODERIPPER_TOOLS_DIR` pointing at an empty directory (no delegated tool installed), on a one-file Rust repository and on a repository holding a `package.json` and a `.ts` file:
+
+| | 2026-11-14 (091b28e) | 2026-11-16 (ec83b55 + split) |
+| :--- | ---: | ---: |
+| Rust: rules that apply | 232 | **229** (the catalog lost seven aliases in 0.45.0 and gained rules since) |
+| Rust: covered | 99 with no tools | **105** with no tools |
+| Rust: not yet implemented | 120 | **111** |
+| Rust: claimed but not yet proven | 13 with no tools | **13** (2 implemented without a fixture: `SUP-015`, `WSP-011`; 11 delegated) |
+| Rust: built (applicable minus not yet implemented) | 112 | **118** |
+| TypeScript: covered / not yet implemented | 32 / 189 | **25 of 215 covered** / 179 not yet implemented, 11 claimed but not yet proven |
+
+The three groups the report prints now each have the length of their own headline number: **Not yet implemented 111**, **Implemented, not yet proven 2**, **Delegated, tool not installed 11** (each id names its tool: `API-001` cargo-semver-checks, `API-006` buf, `API-007` squawk, `DOC-010` lychee, `OPS-006` and `SEC-002` gitleaks, `REL-005` and `SEC-009` checkov, `SEC-006` and `SUP-002` osv-scanner, `SUP-008` zizmor). The partition is covered 105 + claimed-but-unproven 13 + not yet implemented 111 = 229, the catalog total for Rust. **The 131-versus-120 discrepancy reported to the PM is resolved**: the 11 extra ids were the delegated rules, which the old list put under "not yet implemented"; the heading was right and the list wrongly merged two categories. This binary still has `DOC-001` as its own record (the alias merge is a separate change), so it is in the unbuilt list here.
+
+**Not re-measured:** the "all 8 tools installed" state (the tools are not installed on this machine; a test covers it with a delegated claim that carries its proof, which moves it from the delegated group to covered), the language-neutral rule count, JavaScript, C and C++, and the per-domain table and the unbuilt list below.
+
 ## Method (so it can be repeated)
 
 1. **Denominator:** every `[[rule]]` in `rules/*.toml` at that ref: **235 rules**. Each record names the languages it applies to (`[rule.applicability] languages`):
@@ -13,7 +30,7 @@ The checks that require a model's judgement, those can wait until we have more o
    `package.json` and a `.ts` file. **Tool setup: all 8 delegated tools installed** (`buf`, `cargo-semver-checks`, `checkov`, `gitleaks`, `lychee`, `osv-scanner`, `squawk`, `zizmor`, as pinned by the binary's embedded tool lock at that ref).
    The covered figure depends on it, the built figure does not: re-run at `091b28e` (0.43.86, release build) with `CODERIPPER_TOOLS_DIR` pointing at an empty directory, Rust reads **99 covered,
    13 claimed but not proven** (the 11 delegated rules move from covered to unproven) against **110 covered, 2 claimed but not proven** with the tools; the 120 not yet implemented in the report's heading is the same in both, and so is
-   built = 112. **One discrepancy, reported to the PM:** with no tools the report's list of not-yet-implemented Rust ids holds 131 ids (the 120 plus the 11 delegated rules) while its heading says 120; with the tools the list and the heading agree at 120. To reproduce the table, install the 8 tools first (`--install-tools`). The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
+   built = 112. **One discrepancy, reported to the PM and resolved 2026-11-16 (see the section above):** with no tools the report's list of not-yet-implemented Rust ids holds 131 ids (the 120 plus the 11 delegated rules) while its heading says 120; with the tools the list and the heading agree at 120. To reproduce the table, install the 8 tools first (`--install-tools`). The report counts a rule as covered only when a conformance fixture proves it, and lists the ids that are "not yet implemented"
    and those "implemented, not yet proven". **built = applicable - not yet implemented** (an unproven rule runs, so it is built).
 3. **MECHANICAL or MODEL, per unbuilt Rust rule:** the "input needed" column of `docs/rules/REMAINING.md` (2026-11-07, the lane's per-rule judgment, not a measurement):
    `a model` is MODEL; every other input (source, history, network, a runtime) is MECHANICAL. All 128 unbuilt Rust ids have a row there (checked by script: 0 unclassified).
