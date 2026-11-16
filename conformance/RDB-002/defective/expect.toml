@@ -1,0 +1,6 @@
+# The seeded defect: a function whose name is not snake_case (line 2).
+
+[[expect]]
+rule = "RDB-002"
+file = "src/lib.rs"
+line = 2
