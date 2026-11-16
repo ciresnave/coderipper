@@ -92,9 +92,7 @@ fn verdict(swap: bool) -> Verdict {
     let module = RustModule::new(&checks);
     let conformance = run(
         &module,
-        &Options::new(fixtures)
-            .rule("ci-protection-presence")
-            .network(true),
+        &Options::new(fixtures).rule("WSP-011").network(true),
     )
     .unwrap();
     assert_eq!(conformance.rules.len(), 1, "{conformance:?}");
@@ -121,11 +119,11 @@ fn a_fixture_without_an_origin_is_an_error_not_a_pass() {
     // The check cannot see which repository it is in, so it errors; the runner reports that as Errored, never Proven.
     let fixtures = tempfile::tempdir().unwrap();
     for kind in ["defective", "clean"] {
-        let dir = fixtures.path().join("ci-protection-presence").join(kind);
+        let dir = fixtures.path().join("WSP-011").join(kind);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("README.md"), "x\n").unwrap();
         let expect = if kind == "defective" {
-            "needs_network = true\n[[expect]]\nrule = \"ci-protection-presence\"\nfile = \"github:branch-protection\"\n"
+            "needs_network = true\n[[expect]]\nrule = \"WSP-011\"\nfile = \"github:branch-protection\"\n"
         } else {
             "needs_network = true\n"
         };
@@ -137,9 +135,7 @@ fn a_fixture_without_an_origin_is_an_error_not_a_pass() {
     let module = RustModule::new(&checks);
     let result = run(
         &module,
-        &Options::new(fixtures.path())
-            .rule("ci-protection-presence")
-            .network(true),
+        &Options::new(fixtures.path()).rule("WSP-011").network(true),
     )
     .unwrap();
     assert!(

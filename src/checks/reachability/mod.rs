@@ -409,7 +409,7 @@ impl Check for ReachabilityCheck {
                     ""
                 };
                 Finding {
-                    check_id: "reachability".into(),
+                    check_id: "MOD-011".into(),
                     claim: crate::finding::Claim::Absence,
                     severity: match class {
                         classify::Class::Plain => Severity::Medium,

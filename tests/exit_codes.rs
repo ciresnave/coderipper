@@ -51,51 +51,37 @@ fn run(args: &[&str], project: &std::path::Path) -> assert_cmd::assert::Assert {
 #[test]
 fn a_finding_without_deny_fails_the_run_and_is_printed() {
     let repo = project_with_a_medium_finding();
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(1)
-        .stdout(predicate::str::contains("(unused-return-values)"));
+        .stdout(predicate::str::contains("(ERR-012)"));
 }
 
 #[test]
 fn deny_none_prints_the_finding_and_exits_0() {
     let repo = project_with_a_medium_finding();
-    run(
-        &["check", "unused-return-values", "--deny", "none"],
-        repo.path(),
-    )
-    .code(0)
-    .stdout(predicate::str::contains("(unused-return-values)"));
+    run(&["check", "ERR-012", "--deny", "none"], repo.path())
+        .code(0)
+        .stdout(predicate::str::contains("(ERR-012)"));
 }
 
 #[test]
 fn a_finding_at_the_deny_level_exits_1_and_is_still_printed() {
     let repo = project_with_a_medium_finding();
-    run(
-        &["check", "unused-return-values", "--deny", "medium"],
-        repo.path(),
-    )
-    .code(1)
-    .stdout(predicate::str::contains("(unused-return-values)"));
+    run(&["check", "ERR-012", "--deny", "medium"], repo.path())
+        .code(1)
+        .stdout(predicate::str::contains("(ERR-012)"));
 }
 
 #[test]
 fn a_finding_below_the_deny_level_exits_0() {
     let repo = project_with_a_medium_finding();
-    run(
-        &["check", "unused-return-values", "--deny", "high"],
-        repo.path(),
-    )
-    .code(0);
+    run(&["check", "ERR-012", "--deny", "high"], repo.path()).code(0);
 }
 
 #[test]
 fn a_finding_above_the_deny_level_exits_1() {
     let repo = project_with_a_medium_finding();
-    run(
-        &["check", "unused-return-values", "--deny", "info"],
-        repo.path(),
-    )
-    .code(1);
+    run(&["check", "ERR-012", "--deny", "info"], repo.path()).code(1);
 }
 
 #[test]
@@ -129,11 +115,7 @@ fn an_error_wins_over_a_finding() {
         ("src/main.rs", "fn f() -> i32 { 1 }\nfn main() { f(); }\n"),
         (".coderipper.toml", "[[allow]]\ncheck = \"x\"\n"),
     ]);
-    run(
-        &["check", "unused-return-values", "--deny", "info"],
-        repo.path(),
-    )
-    .code(3);
+    run(&["check", "ERR-012", "--deny", "info"], repo.path()).code(3);
 }
 
 #[test]
@@ -163,29 +145,13 @@ fn a_project_path_that_does_not_exist_is_a_usage_error_and_exits_2() {
 fn the_workspace_run_uses_the_same_codes() {
     let repo = project_with_a_medium_finding();
     run(
-        &[
-            "check",
-            "unused-return-values",
-            "--workspace",
-            "--deny",
-            "medium",
-        ],
+        &["check", "ERR-012", "--workspace", "--deny", "medium"],
         repo.path(),
     )
     .code(1);
+    run(&["check", "ERR-012", "--workspace"], repo.path()).code(1);
     run(
-        &["check", "unused-return-values", "--workspace"],
-        repo.path(),
-    )
-    .code(1);
-    run(
-        &[
-            "check",
-            "unused-return-values",
-            "--workspace",
-            "--deny",
-            "none",
-        ],
+        &["check", "ERR-012", "--workspace", "--deny", "none"],
         repo.path(),
     )
     .code(0);
@@ -200,7 +166,7 @@ fn a_check_id_that_does_not_exist_is_a_usage_error_and_exits_2() {
         .stderr(predicate::str::contains(
             "no check named \"unused-return-valuse\"",
         ))
-        .stderr(predicate::str::contains("unused-return-values"))
+        .stderr(predicate::str::contains("ERR-012"))
         .stdout(predicate::str::contains("no issues found").not());
 }
 
@@ -219,7 +185,7 @@ fn project_with_allow(allow: &str) -> tempfile::TempDir {
 
 fn entry(extra: &str) -> String {
     format!(
-        "[[allow]]\ncheck = \"unused-return-values\"\nfile = \"src/main.rs\"\nreason = \"kept on purpose, see issue 7\"\n{extra}"
+        "[[allow]]\ncheck = \"ERR-012\"\nfile = \"src/main.rs\"\nreason = \"kept on purpose, see issue 7\"\n{extra}"
     )
 }
 
@@ -227,7 +193,7 @@ fn entry(extra: &str) -> String {
 fn reported_line() -> u64 {
     let repo = project_with_a_medium_finding();
     let out = coderipper()
-        .args(["check", "unused-return-values", "--deny", "none"])
+        .args(["check", "ERR-012", "--deny", "none"])
         .args(["--message-format", "json", "--project"])
         .arg(repo.path())
         .output()
@@ -245,47 +211,46 @@ fn reported_line() -> u64 {
 #[test]
 fn a_waived_finding_passes_and_shows_its_reason() {
     let repo = project_with_allow(&entry(""));
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(0)
         .stdout(predicate::str::contains("[waived"))
         .stdout(predicate::str::contains("kept on purpose, see issue 7"))
-        .stdout(predicate::str::contains("(unused-return-values)"));
+        .stdout(predicate::str::contains("(ERR-012)"));
 }
 
 #[test]
 fn a_waiver_with_a_symbol_still_has_to_name_that_symbol() {
     // `f` is the discarded function; `main` is not what the finding is about.
     let right = project_with_allow(&entry("symbol = \"f\"\n"));
-    run(&["check", "unused-return-values"], right.path()).code(0);
+    run(&["check", "ERR-012"], right.path()).code(0);
     let wrong = project_with_allow(&entry("symbol = \"main\"\n"));
-    run(&["check", "unused-return-values"], wrong.path()).code(1);
+    run(&["check", "ERR-012"], wrong.path()).code(1);
 }
 
 #[test]
 fn a_waiver_for_a_line_range_waives_only_findings_inside_it() {
     let line = reported_line();
     let inside = project_with_allow(&entry(&format!("lines = \"{line}\"\n")));
-    run(&["check", "unused-return-values"], inside.path()).code(0);
+    run(&["check", "ERR-012"], inside.path()).code(0);
     let range = project_with_allow(&entry(&format!("lines = \"1-{}\"\n", line + 10)));
-    run(&["check", "unused-return-values"], range.path()).code(0);
+    run(&["check", "ERR-012"], range.path()).code(0);
     let outside = project_with_allow(&entry(&format!("lines = \"{}-{}\"\n", line + 1, line + 9)));
-    run(&["check", "unused-return-values"], outside.path()).code(1);
+    run(&["check", "ERR-012"], outside.path()).code(1);
 }
 
 #[test]
 fn a_waiver_for_another_file_or_check_waives_nothing() {
     let other_file = project_with_allow(&entry("").replace("src/main.rs", "src/lib.rs"));
-    run(&["check", "unused-return-values"], other_file.path()).code(1);
-    let other_check =
-        project_with_allow(&entry("").replace("unused-return-values", "reachability"));
-    run(&["check", "unused-return-values"], other_check.path()).code(1);
+    run(&["check", "ERR-012"], other_file.path()).code(1);
+    let other_check = project_with_allow(&entry("").replace("ERR-012", "MOD-011"));
+    run(&["check", "ERR-012"], other_check.path()).code(1);
 }
 
 #[test]
 fn a_waiver_that_matches_nothing_is_reported_and_fails_the_run() {
     // A stale waiver is a finding of the check `allowlist`: under the default it fails like any other.
     let repo = project_with_allow(&entry("symbol = \"long_gone\"\n"));
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(1)
         .stdout(predicate::str::contains("(allowlist)"));
 }
@@ -293,7 +258,7 @@ fn a_waiver_that_matches_nothing_is_reported_and_fails_the_run() {
 #[test]
 fn a_malformed_lines_value_is_an_error_not_a_wider_waiver() {
     let repo = project_with_allow(&entry("lines = \"20-10\"\n"));
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(3)
         .stderr(predicate::str::contains("lines"));
 }
@@ -302,7 +267,7 @@ fn a_malformed_lines_value_is_an_error_not_a_wider_waiver() {
 fn json_shows_a_waived_finding_with_its_reason_and_counts_it() {
     let repo = project_with_allow(&entry(""));
     let out = coderipper()
-        .args(["check", "unused-return-values"])
+        .args(["check", "ERR-012"])
         .args(["--message-format", "json", "--project"])
         .arg(repo.path())
         .output()
@@ -319,7 +284,7 @@ fn json_shows_a_waived_finding_with_its_reason_and_counts_it() {
         .collect();
     assert_eq!(waived.len(), 1, "{lines:?}");
     assert_eq!(waived[0]["waiver_reason"], "kept on purpose, see issue 7");
-    assert_eq!(waived[0]["check_id"], "unused-return-values");
+    assert_eq!(waived[0]["check_id"], "ERR-012");
     assert!(
         lines.iter().all(|v| v["reason"] != "coderipper-finding"),
         "a waived finding is not also a finding: {lines:?}"
@@ -348,18 +313,15 @@ fn a_clean_run_reports_no_waivers() {
 fn the_workspace_run_shows_a_waiver_under_its_member() {
     let repo = project_with_allow(&entry(""));
     // the member is the cargo package (`fixture`), not the temporary directory the project sits in
-    run(
-        &["check", "unused-return-values", "--workspace"],
-        repo.path(),
-    )
-    .code(0)
-    .stdout(predicate::str::contains("[waived/Medium] fixture "));
+    run(&["check", "ERR-012", "--workspace"], repo.path())
+        .code(0)
+        .stdout(predicate::str::contains("[waived/Medium] fixture "));
 }
 
 #[test]
 fn a_run_whose_only_findings_are_waived_does_not_say_no_issues_found() {
     let repo = project_with_allow(&entry(""));
-    run(&["check", "unused-return-values"], repo.path())
+    run(&["check", "ERR-012"], repo.path())
         .code(0)
         .stdout(predicate::str::contains("no findings (1 waived"))
         .stdout(predicate::str::contains("no issues found").not());
@@ -371,7 +333,7 @@ fn a_waiver_reason_with_a_newline_stays_on_one_line() {
         &entry("").replace("kept on purpose, see issue 7", "first line\\nsecond line"),
     );
     let out = coderipper()
-        .args(["check", "unused-return-values", "--project"])
+        .args(["check", "ERR-012", "--project"])
         .arg(repo.path())
         .output()
         .unwrap();
@@ -404,11 +366,11 @@ fn project_whose_only_news_is_a_set_aside_count() -> tempfile::TempDir {
 fn a_set_aside_count_is_a_note_that_does_not_fail_the_default_run() {
     // 0.6.3: it was an Info finding, so the 0.5.0 default (any finding fails) exited 1 on a crate with nothing wrong
     let repo = project_whose_only_news_is_a_set_aside_count();
-    let out = run(&["check", "reachability"], repo.path()).code(0);
+    let out = run(&["check", "MOD-011"], repo.path()).code(0);
     let err = String::from_utf8_lossy(&out.get_output().stderr).into_owned();
     assert!(err.contains("set aside"), "the count stays visible: {err}");
     assert!(
-        !String::from_utf8_lossy(&out.get_output().stdout).contains("(reachability)"),
+        !String::from_utf8_lossy(&out.get_output().stdout).contains("(MOD-011)"),
         "it is not a finding line"
     );
 }
@@ -416,7 +378,7 @@ fn a_set_aside_count_is_a_note_that_does_not_fail_the_default_run() {
 #[test]
 fn the_clean_run_line_points_at_the_notes() {
     let repo = project_whose_only_news_is_a_set_aside_count();
-    let out = run(&["check", "reachability"], repo.path()).code(0);
+    let out = run(&["check", "MOD-011"], repo.path()).code(0);
     let text = String::from_utf8_lossy(&out.get_output().stdout).into_owned();
     assert!(
         text.contains("no issues found by the rules that ran (see the 1 note(s) on stderr)"),

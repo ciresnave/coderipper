@@ -8,7 +8,7 @@
 //! **What it judges.** The component graph `ARC-001` reads: an edge between two workspace crates (normal and build dependencies by
 //! `path`, `cargo metadata --no-deps`) and an edge between two module groups of a crate (the module graph, `modgraph.rs`), each mapped to
 //! the component that holds its end. Two components in one **strongly connected set** (each reaches the other) are a cycle: they cannot
-//! be built, tested or replaced apart. One **Low** finding per set, with the number of components it spans, the edges between them and
+//! be built, tested or replaced apart. One **Medium** finding per set, with the number of components it spans, the edges between them and
 //! the edges whose removal dissolves it: every single edge that does when one is enough, otherwise a set found by a depth-first walk in
 //! name order, which dissolves the cycle but is not necessarily the smallest.
 //!
@@ -292,7 +292,7 @@ pub(crate) fn judge(
         findings.push(Finding {
             check_id: CHECK_ID.into(),
             claim: Claim::Presence,
-            severity: Severity::Low,
+            severity: Severity::Medium,
             confidence: if modular { Confidence::Medium } else { Confidence::High },
             project: project.into(),
             location: manifest.map(|file| Location { file, line: None }),

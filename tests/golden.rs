@@ -17,7 +17,7 @@ const GOLDEN_ALLOWLIST: &str = include_str!("golden/coderipper.toml");
 
 fn the_finding() -> Finding {
     Finding::new(
-        "unused-return-values",
+        "ERR-012",
         Severity::Medium,
         Confidence::High,
         "widgets",

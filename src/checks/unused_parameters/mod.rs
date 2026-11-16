@@ -120,7 +120,7 @@ impl Check for UnusedParametersCheck {
             }
             anyhow::ensure!(
                 false,
-                "unused-parameters' own per-run positive control (an unused parameter injected into \
+                "RDB-014' own per-run positive control (an unused parameter injected into \
                  {file}) was not reported by rustc even though the build reported no errors -- \
                  `unused_variables` is suppressed crate-wide in that target (e.g. #![allow(unused)] \
                  or #![allow(unused_variables)]), so this run's result can't be trusted."
@@ -129,7 +129,7 @@ impl Check for UnusedParametersCheck {
 
         anyhow::ensure!(
             proven > 0,
-            "unused-parameters built none of this package's target roots ({}), so there is nothing to \
+            "RDB-014 built none of this package's target roots ({}), so there is nothing to \
              check and no positive control",
             not_built.join(", ")
         );

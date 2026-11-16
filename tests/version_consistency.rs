@@ -283,11 +283,11 @@ fn an_allowlist_entry_silences_one_package_and_goes_stale_when_the_versions_agre
     let ws = workspace(&[("a", "0.4.2"), ("b", "0.4.2"), ("c", "0.4.1")], "");
     std::fs::write(
         ws.path().join(".coderipper.toml"),
-        "[[allow]]\ncheck = \"version-consistency\"\nfile = \"c/Cargo.toml\"\nsymbol = \"c\"\nreason = \"c is frozen for a release\"\n",
+        "[[allow]]\ncheck = \"WSP-010\"\nfile = \"c/Cargo.toml\"\nsymbol = \"c\"\nreason = \"c is frozen for a release\"\n",
     )
     .unwrap();
     let ctx = || CheckContext::new(ws.path().to_path_buf());
-    let quiet = coderipper::run_checks(&ctx(), Tier::Fast, Some("version-consistency"));
+    let quiet = coderipper::run_checks(&ctx(), Tier::Fast, Some("WSP-010"));
     assert!(quiet.errors.is_empty(), "{:?}", quiet.errors);
     assert!(quiet.findings.is_empty(), "{:?}", quiet.findings);
 
@@ -297,7 +297,7 @@ fn an_allowlist_entry_silences_one_package_and_goes_stale_when_the_versions_agre
         "[package]\nname = \"c\"\nversion = \"0.4.2\"\nedition = \"2021\"\n",
     )
     .unwrap();
-    let stale = coderipper::run_checks(&ctx(), Tier::Fast, Some("version-consistency"));
+    let stale = coderipper::run_checks(&ctx(), Tier::Fast, Some("WSP-010"));
     assert_eq!(stale.findings.len(), 1, "{:?}", stale.findings);
     assert_eq!(stale.findings[0].check_id, "allowlist");
 }

@@ -68,5 +68,5 @@ These pages serve two outputs: coding guidelines that developers apply, each wit
 6. A record's `evidence_tiers` use the V0 to V5 scale explained in the verification model page.
 7. `default_severity` and `confidence_class` map to the severity and confidence axes described there.
 8. `related` lists rule ids that belong with this one; look them up in their own domain files.
-9. Older records with kebab-case ids (for example `reachability`) name a check that runs today; their `kb_refs` point to the numbered rules.
+9. Older records with kebab-case ids (for example `MOD-011`) name a check that runs today; their `kb_refs` point to the numbered rules.
 10. Every number on the pages is a default to configure per project, not a law.

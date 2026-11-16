@@ -1,0 +1,6 @@
+needs_network = true
+origin = "https://github.com/acme/unprotected"
+
+[[expect]]
+rule = "WSP-011"
+file = "github:branch-protection"

@@ -12,7 +12,7 @@ mod manifest;
 use common::git_repo_with;
 use manifest::MANIFEST;
 
-const URV: &str = "unused-return-values";
+const URV: &str = "ERR-012";
 
 fn run_with(config: &str) -> RunResult {
     let repo = git_repo_with(&[

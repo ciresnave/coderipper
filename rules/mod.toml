@@ -1,7 +1,7 @@
 # Rule records, domain MOD (modules and public surface). Informed by the owner's knowledge base v2; written in CodeRipper's own words.
 
 [[rule]]
-id = "reachability"
+id = "MOD-011"
 title = "Code nothing calls"
 domain = "MOD"
 statement = "Every function is reachable from somewhere that is not itself dead, including public items, which the compiler's own dead-code lint exempts."
@@ -16,9 +16,9 @@ executes_project_code = true
 default_severity = "medium"
 confidence_class = "medium"
 kb_refs = ["RDB-006", "MOD-001"]
-aliases = []
+aliases = ["reachability"]
 remediation = "Delete the item, or give it a caller; if it is public API on purpose, allowlist it with the reason."
-related = ["unused-parameters"]
+related = ["RDB-014"]
 lifecycle = "advisory"
 
 checked_today = "Rust packages, from the committed (HEAD) tree built in a throwaway worktree: every top-level `pub` item is narrowed to `pub(crate)` so rustc's `dead_code` lint can see it, and each item the lint reports is a finding at the item (an absence claim, Medium confidence). A package with a library builds only the library (its bins, tests, examples and benches, and workspace members that depend on it by path, count as callers by identifier). Grading: an item written `pub`, reachable through `pub` modules or a `pub use` and documented is library API (Info), reachable but undocumented is exported (Info), named only in the crate's own tests or doc examples is test-only (Info); everything else is Medium. A documented API item is treated as live when working out what else is dead, so one unused entry point does not report everything only it reaches. A `[reachability] public_api` entry declares an item API on purpose. Matching is by bare identifier, so a dead item sharing a name with something live is hidden or graded down. Not judged: items inside bin targets of a package that also has a library, a custom `[lib] path`, TypeScript and Python. It builds the package (executes build scripts and proc-macros)."
@@ -45,6 +45,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Narrow the visibility of items that are not part of the intended interface, and write docs for the ones that remain public."
 related = ["MOD-003", "MOD-010"]
+aliases = ["DOC-001"]
 checked_today = "The committed (HEAD) Rust library package's public surface, read with syn from tracked .rs files under src/ (test-named files and cfg(test) items skipped): public declarations reachable through pub modules and pub use leaves, plus the public inherent functions of public types, counted with the number of members (fields, variants, trait items) of the public types. One finding per package when any of those declarations or functions has no documentation (a /// comment, or a #[doc = ..] or #[doc(..)] attribute other than hidden; #[doc(hidden)] items are left out): Info (Medium confidence) for any gap, Low from 50% of at least 20 documentable items undocumented. The finding names counts and the first eight places and offers no change. The check runs in the extended and portfolio profiles, not classic. Not judged: whether an item should be public at all (the size of the surface is stated, not judged; a declared ceiling is ARC-006), unused public items (the reachability check), macro-generated items and doc comments, #[path] modules, cfg-gated items, undocumented trait items and enum variants, a binary-only package (no library API, noted), TypeScript and Python."
 lifecycle = "experimental"
 

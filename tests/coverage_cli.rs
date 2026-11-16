@@ -165,7 +165,7 @@ fn a_real_finding_still_fails_the_run_under_deny_gaps_or_no_gaps() {
         .args(["--profile", "extended", "--deny", "medium"])
         .assert()
         .code(1)
-        .stdout(predicate::str::contains("unused-return-values"))
+        .stdout(predicate::str::contains("ERR-012"))
         .stdout(predicate::str::contains("coverage: rust"));
 }
 
@@ -186,7 +186,7 @@ fn coverage_full_lists_the_gaps_by_rule_id() {
         .assert()
         .code(0)
         .stdout(predicate::str::contains("CON-001"))
-        .stdout(predicate::str::contains("ci-protection-presence"));
+        .stdout(predicate::str::contains("WSP-011"));
 }
 
 #[test]

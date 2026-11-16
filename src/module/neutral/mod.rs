@@ -145,7 +145,7 @@ const RULES: &[Rule] = &[
         judge: wsp001::judge,
     },
     Rule {
-        id: "lint-suppression",
+        id: "GOV-010",
         judge: lint_suppression::judge,
     },
     Rule {
@@ -157,27 +157,27 @@ const RULES: &[Rule] = &[
         judge: architecture_ratchet::judge,
     },
     Rule {
-        id: "conflict-marker",
+        id: "GOV-011",
         judge: conflict_marker::judge,
     },
     Rule {
-        id: "patent-index-match",
+        id: "SUP-014",
         judge: patent_index::judge,
     },
     Rule {
-        id: "licence",
+        id: "SUP-016",
         judge: licence::judge,
     },
     Rule {
-        id: "ci-security",
+        id: "SUP-017",
         judge: ci_security::judge,
     },
     Rule {
-        id: "version-and-changelog",
+        id: "WSP-012",
         judge: version_changelog::judge,
     },
     Rule {
-        id: "patent-sweep-record",
+        id: "WSP-013",
         judge: patent_sweep::judge,
     },
     Rule {
@@ -193,7 +193,7 @@ const RULES: &[Rule] = &[
         judge: ops010::judge,
     },
     Rule {
-        id: "security-support-statement",
+        id: "WSP-014",
         judge: support_statement::judge,
     },
     Rule {
@@ -796,7 +796,7 @@ impl NeutralModule {
 /// JavaScript family); Python, Go and the rest are not read.
 const READS_ONLY: &[(&str, &[&str])] = &[
     ("SUP-001", &["rust", "typescript"]),
-    ("patent-index-match", &["rust", "typescript", "python"]),
+    ("SUP-014", &["rust", "typescript", "python"]),
     ("CON-006", &["rust"]),
     ("OPS-012", &["rust"]),
     ("OPS-010", &["rust"]),
@@ -862,19 +862,19 @@ const PROVEN: &[&str] = &[
     "MOD-007",
     "DOC-009",
     "WSP-001",
-    "lint-suppression",
+    "GOV-010",
     "test-artifact-path",
     "architecture-ratchet",
-    "conflict-marker",
-    "patent-index-match",
-    "licence",
-    "ci-security",
-    "version-and-changelog",
-    "patent-sweep-record",
+    "GOV-011",
+    "SUP-014",
+    "SUP-016",
+    "SUP-017",
+    "WSP-012",
+    "WSP-013",
     "CON-006",
     "OPS-012",
     "OPS-010",
-    "security-support-statement",
+    "WSP-014",
     "RDB-008",
     "EFX-003",
     "SEC-004",

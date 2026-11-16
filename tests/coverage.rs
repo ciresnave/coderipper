@@ -248,8 +248,8 @@ fn the_builtin_rust_module_claims_every_builtin_check_and_proves_all_but_two() {
         c.claimed_unproven, 2,
         "ci-protection-presence and dependency-freshness have no proof yet"
     );
-    assert!(c.gaps.contains(&"ci-protection-presence".to_string()));
-    assert!(c.gaps.contains(&"dependency-freshness".to_string()));
+    assert!(c.gaps.contains(&"WSP-011".to_string()));
+    assert!(c.gaps.contains(&"SUP-015".to_string()));
     assert!(c.problems.is_empty(), "{:?}", c.problems);
 }
 
