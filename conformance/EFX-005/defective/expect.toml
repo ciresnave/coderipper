@@ -1,0 +1,6 @@
+# The seeded defect: `bump` takes `&mut self` and returns the new count (reported at the method name, line 5).
+
+[[expect]]
+rule = "EFX-005"
+file = "src/lib.rs"
+line = 5
