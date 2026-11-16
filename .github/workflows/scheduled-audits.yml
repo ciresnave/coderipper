@@ -1,7 +1,7 @@
 name: Scheduled audits
 
 # The checks whose answer changes without a push (docs/portfolio-ci-coverage.md section 2, "Scheduled workflow"): a dependency that has
-# a newer release (`dependency-freshness`, CireSnave's latest-versions rule), an advisory or a yanked or unmaintained crate (SUP-002,
+# a newer release (`SUP-015`, CireSnave's latest-versions rule), an advisory or a yanked or unmaintained crate (SUP-002,
 # SEC-006) and a link that has rotted (DOC-010). Not a pull-request gate: none of them depends on the diff, and a gate would turn red
 # whenever a dependency published a release. This repository runs CodeRipper built from its own source, so it needs no published release.
 # The shared `portfolio.yml` installs a published release that has these checks only from 0.9.28, so the portfolio-wide schedule waits
@@ -32,7 +32,7 @@ jobs:
       - name: Run the four checks
         run: |
           code=0
-          for id in dependency-freshness SUP-002 SEC-006 DOC-010; do
+          for id in SUP-015 SUP-002 SEC-006 DOC-010; do
             ./target/debug/coderipper check "$id" --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/audits.stderr" || code=$?
           done
           cat "$RUNNER_TEMP/audits.stderr" >&2

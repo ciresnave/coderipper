@@ -78,7 +78,7 @@ jobs:
   # severity failing the job (`--deny info`). It is the run the portfolio PM measures, so it stays green. The history is fetched
   # (SEC-002 reads it, and says "not run" on a shallow clone); the tools are downloaded because without `--install-tools` a rule
   # whose tool is missing is a gap and the job would pass without having looked. Not a required check (yet).
-  # `ci-protection-presence` is the one check left out: it reads branch protection, which the workflow token (`contents: read`) cannot
+  # `WSP-011` is the one check left out: it reads branch protection, which the workflow token (`contents: read`) cannot
   # see and which a personal access token must not be given for. It runs in the PM's sweep, under an admin account (ROADMAP item 7).
   coderipper-sweep:
     name: CodeRipper sweep (extended, --deny info) on its own repository
@@ -91,7 +91,7 @@ jobs:
       - name: coderipper sweep --profile extended --all-features --deny info
         run: |
           code=0
-          cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          cargo run --locked --quiet --bin coderipper -- sweep --profile extended --all-features --deny info --install-tools --skip-rule "WSP-011=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
           cat "$RUNNER_TEMP/sweep.stderr" >&2
           # A rule whose tool is unavailable is a note, never an exit code: fail the job on any whose tool is not available. Other notes stay notes: API-006 has no baseline without a changed .proto, and the fixtures note is information.
           if grep '^coderipper: note:.* not run:.* is not available' "$RUNNER_TEMP/sweep.stderr"; then echo "::error::a rule did not run (see the notes above)"; exit 1; fi
