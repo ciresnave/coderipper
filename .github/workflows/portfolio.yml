@@ -190,7 +190,7 @@ jobs:
           key: coderipper-bin-${{ runner.os }}-${{ runner.arch }}-${{ env.CODERIPPER_VERSION }}
       # `--no-config`: the runner's own configuration files do not decide the result; the repository's `.coderipper.toml` still does
       # (`[[allow]]` entries carry a reason and an owner and are reviewed in the pull request that adds them).
-      # `ci-protection-presence` reads branch protection, which this job's token cannot see; the PM's sweep runs it.
+      # `WSP-011` reads branch protection, which this job's token cannot see; the PM's sweep runs it.
       # The `portfolio` profile holds the language-neutral rules only, so the secrets scan (SEC-002, delegated to gitleaks) is its own
       # step, with the tool downloaded: without `--install-tools` a missing tool is a gap and the job would pass without having looked.
       # The analysis builds the caller's crate (and every member of a workspace) in CodeRipper's own build cache. A GitHub-hosted runner
@@ -230,7 +230,7 @@ jobs:
           # errors, "not a package directory"), and on a root package that also has members it skips the members.
           ws=""
           if [ -f Cargo.toml ] && grep -q '^[[]workspace]' Cargo.toml; then ws=--workspace; fi
-          coderipper sweep --profile portfolio --deny medium --no-config $ws --skip-rule "ci-protection-presence=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
+          coderipper sweep --profile portfolio --deny medium --no-config $ws --skip-rule "WSP-011=needs repository-admin read, which this job's token lacks; the PM sweep runs it" --project . 2> "$RUNNER_TEMP/sweep.stderr" || code=$?
           coderipper check SEC-002 --profile extended --install-tools --deny medium --no-config --project . 2>> "$RUNNER_TEMP/sweep.stderr" || secrets_code=$?
           if [ "$secrets_code" -gt "$code" ]; then code="$secrets_code"; fi
           cat "$RUNNER_TEMP/sweep.stderr" >&2

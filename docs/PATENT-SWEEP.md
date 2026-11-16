@@ -1873,3 +1873,22 @@ Version line covered by this addendum: **0.47** (0.47.1). One rule is added, rea
 **Result: no hit on the one query; EP1410167B1 is named and unread. Watch: EP1410167B1.**
 
 **Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+### 0.47.8 (0.47 line) - 2026-11-16
+
+One rule is added, read from `src/module/neutral/err011.rs`: `ERR-011` (a parse whose failure is replaced by a default on the spot, Rust). Swept 2026-11-16 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 112 (`ERR-011`).** Parse the Rust source files outside test code and report `x.parse()` or `T::from_str(x)`, through `.ok()` or not, whose failure is replaced by `.unwrap_or_default()`, `.unwrap_or(..)` or `.unwrap_or_else(..)`, unless a comment beside it says why. Microsoft's CA1806 (a `TryParse` whose result is ignored), Klocwork's CS.BANNED.PARSE and Clippy-style lints for unused results are published prior art.
+
+| # | Idea | Query (2026-11-16) |
+|---|---|---|
+| Q223 | 112 | patent static analysis detect parse result default value unchecked failure silently replaced source code analyzer (restricted to patents.google.com) |
+| Q224 | 112 | static analysis rule try-parse return value not checked before use flag unchecked TryParse result |
+
+**Positive controls:** Q224 returned the CA1806 analyzer source and a SonarSource discussion (the idea itself, published as prior art, not patents), so the engine reaches it; Q223 returned US10241892B2 (row 119, claims read for `EXT-001`) and CN101017458A, so it reaches the neighbourhood. **A patent that reports a parse whose failure is replaced by a default, found by analysing source text, was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search).
+
+**Read:** nothing new in full. CN101017458A (an unchecked return value as an API-misuse category), US7856624B2, US8504997B2 and US20100223599A1 were seen by title and snippet only and carry no verdict.
+
+**Result: no hit reads on `ERR-011` as read.** **Watch:** read the claims of CN101017458A before `ERR-011` reports an unchecked return value of a different kind or adds a catalogue of API misuses.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, and no claims read. A due-diligence read, not legal advice.
