@@ -245,7 +245,8 @@ fn segments(name: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether a field name says it holds a secret.
+/// Whether a field name says it holds a secret (the production path is `secret_name_in`, which also knows a vocabulary context).
+#[cfg(test)]
 pub(super) fn secret_name(name: &str) -> bool {
     secret_name_in(name, false)
 }
