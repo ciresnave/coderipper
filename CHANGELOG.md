@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.7 - 2026-11-16 (proposed, Fix)
+
+The shared `portfolio.yml` (and this repository's own `ci.yml` and `scheduled-audits.yml`) named rules by their pre-0.46.0 kebab-case names: `--skip-rule "ci-protection-presence=..."` and `check dependency-freshness`. They now use `WSP-011` and `SUP-015`, so a caller that moves its workflow SHA no longer prints "the old name is accepted for this release only" on every run. The old names are aliases for one release; once they are removed, an unknown `--skip-rule` name is an error (`cannot skip "<name>": it is no built-in check`, exit 3), which would fail every caller still on the old workflow.
+
 ## 0.47.6 - 2026-11-16 (proposed, Fix)
 
 portfolio.yml now installs the published 0.47.5 (`CODERIPPER_VERSION` was 0.43.77): the change the file asks for after each publish, so a caller that moves its workflow SHA gets every fix since 0.43.77.
