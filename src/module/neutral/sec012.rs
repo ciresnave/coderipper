@@ -365,7 +365,9 @@ fn numeric_collection(ty: &Type) -> bool {
     };
     let name = seg.ident.to_string();
     match (name.as_str(), args.as_slice()) {
-        ("Option" | "Box" | "Arc" | "Rc" | "Mutex" | "RwLock", [inner]) => numeric_collection(inner),
+        ("Option" | "Box" | "Arc" | "Rc" | "Mutex" | "RwLock", [inner]) => {
+            numeric_collection(inner)
+        }
         ("Vec" | "VecDeque" | "HashSet" | "BTreeSet" | "BinaryHeap" | "IndexSet", [el]) => {
             (is_scalar_type(el) && !is_u8(el)) || numeric_collection(el)
         }
@@ -752,7 +754,8 @@ mod tests {
         let src = "#[derive(Debug)]\npub struct Member { pub token: String, pub class: String }";
         assert!(one_at("crates/baracuda-cuda-vocab/src/manifest.rs", src).is_empty());
         // ... but only the word `token` is neutralised there, never a password
-        let both = "#[derive(Debug)]\npub struct Member { pub token: String, pub password: String }";
+        let both =
+            "#[derive(Debug)]\npub struct Member { pub token: String, pub password: String }";
         let hits = one_at("crates/baracuda-cuda-vocab/src/manifest.rs", both);
         assert_eq!(hits[0].fields, vec!["password"]);
     }
@@ -763,16 +766,24 @@ mod tests {
     fn a_string_token_or_key_still_reports_outside_a_vocabulary_context() {
         // mlmf `HubRangedFile.token`, surfaceant `Config.token`, synapse `KeyPair.private_key`
         let hub = "#[derive(Debug, Clone)]\npub struct HubRangedFile { pub repo: String, pub token: Option<String> }";
-        assert_eq!(one_at("crates/mlmf-source-hub/src/ranged.rs", hub)[0].fields, vec!["token"]);
-        let config = "#[derive(Debug)]\npub struct Config { pub base_url: String, pub token: String }";
-        assert_eq!(one_at("crates/surfaceant-client/src/lib.rs", config)[0].fields, vec!["token"]);
+        assert_eq!(
+            one_at("crates/mlmf-source-hub/src/ranged.rs", hub)[0].fields,
+            vec!["token"]
+        );
+        let config =
+            "#[derive(Debug)]\npub struct Config { pub base_url: String, pub token: String }";
+        assert_eq!(
+            one_at("crates/surfaceant-client/src/lib.rs", config)[0].fields,
+            vec!["token"]
+        );
         let pair = "#[derive(Debug)]\npub struct KeyPair { pub public_key: Vec<u8>, pub private_key: Vec<u8> }";
         assert_eq!(one(pair)[0].fields, vec!["private_key"]);
     }
 
     #[test]
     fn access_and_refresh_tokens_and_lists_of_strings_still_report() {
-        let src = "#[derive(Debug)]\nstruct S { access_token: Option<String>, refresh_token: String }";
+        let src =
+            "#[derive(Debug)]\nstruct S { access_token: Option<String>, refresh_token: String }";
         assert_eq!(one(src)[0].fields, vec!["access_token", "refresh_token"]);
         // a list or a map of strings can still hold credentials; only a list or map of NUMBERS is read as ids and counters
         let list = "#[derive(Debug)]\nstruct L { token: Vec<String> }\n#[derive(Debug)]\nstruct M { token: HashMap<String, String> }\n#[derive(Debug)]\nstruct B { token: Vec<u8> }";
