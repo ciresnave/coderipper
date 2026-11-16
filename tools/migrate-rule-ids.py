@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """Rewrite the old kebab-case rule names in a project's CodeRipper configuration to their numbered ids.
 
-CodeRipper 0.44.0 renamed its fourteen slug-named rules to numbered ids in their domains (`reachability` is `MOD-011`, ...). The old
+CodeRipper 0.46.0 renamed its fourteen slug-named rules to numbered ids in their domains (`reachability` is `MOD-011`, ...). The old
 names are accepted for one release, with a warning, so nothing breaks the day you upgrade; this tool moves a project over:
 
     python tools/migrate-rule-ids.py [--dry-run] [PATH ...]

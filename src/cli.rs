@@ -1550,6 +1550,7 @@ fn print_coverage_human(reports: &[crate::coverage::LanguageCoverage], full: boo
         r.gaps
             .iter()
             .filter(|g| !r.claimed_unproven_ids.contains(g))
+            .filter(|g| !r.delegated_unproven.iter().any(|(id, _)| id == *g))
             .cloned()
             .collect()
     };
@@ -1579,6 +1580,29 @@ fn print_coverage_human(reports: &[crate::coverage::LanguageCoverage], full: boo
                     report.language,
                     report.claimed_unproven_ids.join(", ")
                 );
+            }
+        } else {
+            println!("  (use --coverage=full to list them)");
+        }
+    }
+    if reports.iter().any(|r| !r.delegated_unproven.is_empty()) {
+        println!(
+            "Delegated, tool not installed: these rules are implemented by an outside tool that is not installed here, so they did not run. This says nothing about your code and never fails a run."
+        );
+        if full {
+            for report in reports.iter().filter(|r| !r.delegated_unproven.is_empty()) {
+                let each: Vec<String> = report
+                    .delegated_unproven
+                    .iter()
+                    .map(|(id, tool)| {
+                        if tool.is_empty() {
+                            id.clone()
+                        } else {
+                            format!("{id} (needs {tool})")
+                        }
+                    })
+                    .collect();
+                println!("  {}: {}", report.language, each.join(", "));
             }
         } else {
             println!("  (use --coverage=full to list them)");

@@ -369,3 +369,63 @@ fn one_source_file_is_singular() {
     let line = for_missing_module(&catalog(), "python", 2).human_line();
     assert!(line.contains("2 source files not checked"), "{line}");
 }
+
+/// The counts partition the rules, and the three gap lists (not implemented, implemented but not proven, delegated with the
+/// tool missing) together are exactly `gaps`: each heading number equals the length of its own list.
+fn assert_partition(c: &coderipper::coverage::LanguageCoverage) {
+    assert_eq!(
+        c.covered + c.claimed_unproven + c.not_applicable + c.not_covered,
+        c.rules_total,
+        "covered + claimed-unproven + not-applicable + not-covered is the catalog total"
+    );
+    assert_eq!(
+        c.claimed_unproven,
+        c.claimed_unproven_ids.len() + c.delegated_unproven.len(),
+        "claimed but not proven = implemented-unproven + delegated"
+    );
+    let not_implemented: Vec<&String> = c
+        .gaps
+        .iter()
+        .filter(|g| !c.claimed_unproven_ids.contains(g))
+        .filter(|g| !c.delegated_unproven.iter().any(|(id, _)| id == *g))
+        .collect();
+    assert_eq!(
+        not_implemented.len(),
+        c.not_covered,
+        "the not-implemented list is as long as its heading number: {not_implemented:?}"
+    );
+    assert_eq!(c.gaps.len(), c.not_covered + c.claimed_unproven);
+}
+
+#[test]
+fn a_delegated_rule_without_its_tool_is_its_own_group_and_names_the_tool() {
+    // state 1: the tool is not installed, so the delegated claim has no proof
+    let mut missing = claim("WSP-903", "delegated", None);
+    missing.tool = Some("lychee".into());
+    let h = hello(vec![
+        claim("WSP-901", "implemented-native", Some("conformance/WSP-901")),
+        claim("WSP-902", "implemented-native", None),
+        missing,
+    ]);
+    let c = for_module(&catalog(), &h, "rust", None);
+    assert_partition(&c);
+    assert_eq!(
+        c.delegated_unproven,
+        vec![("WSP-903".to_string(), "lychee".to_string())]
+    );
+    assert_eq!(c.claimed_unproven_ids, vec!["WSP-902".to_string()]);
+    assert_eq!(c.not_covered, 1, "WSP-904 is the one rule nothing claims");
+
+    // state 2: the tool is installed, so the delegated claim has its proof and is covered
+    let mut installed = claim("WSP-903", "delegated", Some("conformance/WSP-903"));
+    installed.tool = Some("lychee".into());
+    let h = hello(vec![
+        claim("WSP-901", "implemented-native", Some("conformance/WSP-901")),
+        claim("WSP-902", "implemented-native", None),
+        installed,
+    ]);
+    let c = for_module(&catalog(), &h, "rust", None);
+    assert_partition(&c);
+    assert!(c.delegated_unproven.is_empty());
+    assert_eq!(c.covered, 2);
+}
