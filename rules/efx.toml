@@ -118,6 +118,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Split the method into a command and a query unless it is an accepted idiom such as pop or compare-and-swap."
 related = ["RDB-009"]
+checked_today = "Rust, from the source with syn (opt-in; check EFX-005): tracked .rs files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs), items under cfg(test) and test functions skipped. A method of an inherent impl block whose receiver is &mut self and whose return type is written and is not (), Self, &mut T, ! or Result<(), E> is reported, once at its name: Info severity, Low confidence. Accepted idioms are not reported: a name that is, or starts with word and underscore, pop, take, remove, swap, replace, insert, next, drain, split_off, truncate, get_or_insert, entry, compare_exchange, fetch, push, poll, read, recv, send, write, advance or consume, and a name ending in _mut. Not judged: the methods of impl Trait for Type and trait declarations (the trait dictates the signature), a &self method that mutates through interior mutability (EFX-007), whether the body really changes state (a &mut self receiver is the proxy), a return type behind an alias, macro-generated methods, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
