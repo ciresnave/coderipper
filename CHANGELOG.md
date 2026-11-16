@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.3 - 2026-11-15 (proposed, Documentation)
+
+`tools/migrate-rule-ids.py` now says the slug-to-numbered-id rename shipped in 0.46.0 (its docstring said 0.44.0).
+
 ## 0.47.2 - 2026-11-15 (proposed, Fix: the coverage report's headline and lists count the same sets)
 
 **The coverage report no longer mixes two categories under "not yet implemented"** (PM ruling 2026-11-16, CireSnave: a claim means one thing in every project). With no tool installed the Rust list under "Not yet implemented" held 131 ids while the headline said 120: the extra 11 are delegated rules that exist but did not run because their tool is missing. The list is now split in three, each as long as its headline number: **Not yet implemented** (the headline's `not yet implemented`), **Implemented, not yet proven** (built, no conformance fixture), and the new **Delegated, tool not installed** (each id names the tool it needs, e.g. `SEC-006 (needs osv-scanner)`); `claimed but not yet proven` is the sum of the last two. The JSON coverage line gains `delegated_unproven` (`[{"id", "tool"}]`); `gaps` and `claimed_unproven_ids` are unchanged apart from `claimed_unproven_ids` no longer being the only unproven list. Tests: the headline number equals its list in both states (no tool installed, and tool installed so the claim has its proof) and covered + claimed-but-unproven + not applicable + not covered equals the catalog total.
