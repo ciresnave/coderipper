@@ -69,6 +69,7 @@ Only five checks exist today (none for this domain), so no rule below is run by 
 | COR-008 | Critical protocols modelled and code traced to model | A | catalog record; no check yet, needs a declared specification and model artifacts |
 | COR-009 | Critical functions have proof harnesses in CI | X | catalog record; no check yet, which functions are critical comes from the spec |
 | COR-010 | Idempotency and ordering claims tested with replay | X | catalog record; no check yet, needs a fault and replay harness |
+| COR-012 | `Send` and `Sync` impls are sound | P | built in part, opt-in (Rust, `syn`, outside tests: an `unsafe impl Send` or `Sync` for a type with an `Rc` field, a `Sync` impl for a type with a `Cell` or `RefCell` field, or an impl type parameter with no trait bound at all that a non-`PhantomData` field uses (a bound on a project trait is not read, it may imply `Send`); Medium; a raw pointer field is not reported, `SEC-005` asks for the `SAFETY` comment; types from other packages or macros are not seen) |
 
 ## Further reading
 

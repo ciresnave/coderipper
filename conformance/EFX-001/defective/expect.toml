@@ -1,0 +1,16 @@
+# The seeded defects: a component tagged pure reads the environment (std::env::var) and the clock (the SystemTime return type and SystemTime::now).
+
+[[expect]]
+rule = "EFX-001"
+file = "pricing/src/lib.rs"
+line = 5
+
+[[expect]]
+rule = "EFX-001"
+file = "pricing/src/lib.rs"
+line = 8
+
+[[expect]]
+rule = "EFX-001"
+file = "pricing/src/lib.rs"
+line = 9

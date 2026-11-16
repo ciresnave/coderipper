@@ -1,0 +1,6 @@
+# The seeded defect: the second component has a purpose and no owner (its header, line 9).
+
+[[expect]]
+rule = "DOC-003"
+file = ".coderipper.toml"
+line = 9

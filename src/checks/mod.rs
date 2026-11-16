@@ -30,6 +30,7 @@ pub use architecture::{
     ModuleCyclesCheck,
     PassThroughCheck,
     PublicSurfaceCheck,
+    PureEffectsCheck,
     ReachThroughCheck,
     StabilityCheck,
     TransportErrorCheck,

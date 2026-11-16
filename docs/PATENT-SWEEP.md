@@ -1681,6 +1681,25 @@ Version line covered by this addendum: **0.43** (0.43.87). One rule is added, re
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims (except the one patent read), and the status shown is Google Patents', not the official record. A due-diligence read, not legal advice.
 
+### 0.43.95 (0.43 line) - 2026-11-14
+
+Version line covered by this addendum: **0.43** (0.43.95). One rule is added, read from `src/checks/architecture/pure_effects.rs`: `EFX-001` (a component the declaration tags pure that names a file, network, environment, process, clock, randomness or thread API). Swept 2026-11-14 by the coderipper-b lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 104 (`EFX-001`).** Read an architecture declaration that tags components as pure, parse the Rust source of those components, and report each path the source names that resolves, through the file's own `use` declarations, to an entry of an effect list (file, network, environment, process, clock, randomness, thread namespaces). Matching a declared component, a resolved path and a list entry is the whole mechanism; nothing is executed, no function is classified from its body, and no effect is propagated through calls.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q211 | 104 | patent static analysis source code detect module declared pure side effects file network clock random API usage architecture annotation |
+| Q212 | 104 | patent.google.com determining function purity side-effect free source code analysis flag component calls input output system calls computer-implemented method |
+
+**Positive controls:** Q211 returned an academic effect scanner for Rust crates (Cargo Scan, arXiv 2602.06466, not a patent) and US10783245 (feedback-directed static analysis of side effects), so the engine reaches the neighbourhood. Q212 returned US9594754B2 (purity analysis using white list/black list analysis), US8826254B2 (memoizing with read only side effects) and US8839204B2 (determination of function purity for memoization), so it reaches the purity-analysis family. **A patent that reports a component declared pure for naming an effect namespace, from source code and a declared architecture, was not found; that absence is a statement about these two queries only** (one engine, no Espacenet or WIPO search).
+
+**Read:** none of the claims. Only the search engine's summaries of US9594754B2, US8826254B2, US8839204B2 and US10783245 were read (`tools/patent-claims.py` is not in this checkout). The three purity patents classify a function's side effects by static analysis, with a white list or black list, to decide whether the function can be memoized; the rule decides nothing about memoization and classifies no function from its body. **Not read in full, so no clearance claimed:** all four.
+
+**Result: no hit read in full, and none is known to read on `EFX-001` from the summaries.** The rule memoizes nothing and propagates no effect through calls; it compares resolved path names with a list for components a person tagged. **Watch:** read the independent claims of US9594754B2 and US8826254B2 before the rule classifies functions from their bodies or suggests memoization.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, snippets not claims, no claim read, and the status is the search engine's, not the official record. A due-diligence read, not legal advice.
+
 ## Addendum: the 0.43 line (2026-11-14, 0.43.91)
 
 Version line covered by this addendum: **0.43** (0.43.91). One rule is added, read from `src/module/neutral/con012.rs`: `CON-012` (a public Rust `async fn` whose future is not `Send`, read from a parameter typed `Rc`, a raw pointer or a shared `&Cell`/`&RefCell`, or from a local `Rc` or raw pointer declared before the function's last `.await`). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
@@ -1699,3 +1718,115 @@ Version line covered by this addendum: **0.43** (0.43.91). One rule is added, re
 **Result: no hit found for `CON-012`, from two queries that did not reach any patent database page.** The thin evidence is stated, not hidden: this is weaker than the sweeps that read a claim. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
 
 **Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, and the status of nothing was checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-14, 0.43.94)
+
+Version line covered by this addendum: **0.43** (0.43.94). One rule is added, read from `src/module/neutral/cor012.rs`: `COR-012` (an `unsafe impl Send` or `unsafe impl Sync` contradicted by the type's own fields: an `Rc` field, a `Cell` or `RefCell` field behind `Sync`, or an impl type parameter with no trait bound at all that a field uses). Swept 2026-11-14 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 104 (`COR-012`).** Parse each Rust file with `syn`, match each `unsafe impl Send`/`Sync` to the struct, enum or union of the same name in the package, and report the three field and bound patterns above. Nothing is type-checked, executed or proved; the impl and the field types are read as text.
+
+| # | Idea | Query (2026-11-14) |
+|---|---|---|
+| Q211 | 104 | patent static analysis detect unsound manual Send Sync implementation unsafe impl thread safety type fields Rust claims |
+| Q212 | 104 | patents.google.com method for detecting thread-unsafe type marked as thread-safe by programmer annotation, source code analysis of unsafe trait implementation |
+
+**Positive controls:** Q211 returned the practice itself (Rudra, a research static analyzer that has a send/sync variance checker for generic types that implement `Send` or `Sync` without bounds on their parameters, with its paper; Fuchsia's `rust-unsafe-analyzer`), so the engine reaches the neighbourhood. Q212 returned a 2025 paper on thread-safety analysis of annotated Java classes with CodeQL. **A patent that reports an unsound `Send` or `Sync` implementation from a type's source was not found; that absence is a statement about these two queries only** (one engine, which returned no patent page for either query, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** Rudra's send/sync variance checker (the unbounded-parameter pattern is the one it describes; this rule is our own text reading, written without its code), the Rustonomicon's chapter on `Send` and `Sync`, clippy's `non_send_fields_in_send_ty`.
+
+**Read:** no patent claim was read. **Not read in full:** every result named above, by title and snippet only.
+
+**Result: no hit found for `COR-012`, from two queries that reached no patent page.** The evidence is thin and is stated as thin, not hidden. **Watch: none named.** A claim-level read of a patent database is owed before this rule leaves opt-in.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.96)
+
+Version line covered by this addendum: **0.43** (0.43.96). One rule is added, read from `src/module/neutral/doc003.rs`: `DOC-003` (a component of the repository's own `[architecture]` declaration that lacks a `purpose` or an `owner`, once any component carries either). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 105 (`DOC-003`).** Read the repository's `.coderipper.toml`, and report each declared component whose `purpose` or `owner` key is absent or blank, in a declaration where some component carries one. Nothing about the components' code is read; the check is that two text fields are present.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q213 | 105 | patent software architecture specification validation each component must have purpose and owner field, check configuration file completeness of component ownership |
+| Q214 | 105 | patents.google.com method verifying software component catalog entries include owner and description metadata, service catalog ownership validation claims |
+
+**Positive controls:** Q213 returned the practice itself (an architecture-diagram tool's "deployment-ownership" profile that requires a non-empty owner tag on every non-external component, and architecture-conformance tools such as Teamscale's), so the engine reaches the neighbourhood. Q214 returned patent documents on software-component catalogs and metadata: US8495621 (catalog-based software component management, admits an identifier to a catalog after validation), US2008/0172403 (categorisation and review of software identifiers, a dependent claim naming an owner among the entities), US9489687 and US2008/0154965 (owner and licence metadata of software components), US6564377B1 and Oracle's US11775285B2 (ledger-based component catalogs). **A patent that validates that each component of a project's own architecture specification carries a purpose and an owner was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the tool above; ownership fields in service catalogs and `CODEOWNERS` files.
+
+**Read:** no claim of any patent above was read; each is known by title and a search-engine snippet only. They concern catalogs of third-party software components or identifiers, not a project's own declaration of its components, which is why they are not read as hits, but that is a judgement from snippets and is **owed a claim read** before this rule leaves opt-in.
+
+**Result: no hit found for `DOC-003` on the two queries; five related catalog patents are named and unread.** **Watch: US8495621 and US2008/0172403** (claims to be read: validation before a component enters a catalog; owner as a verified entity). The rule validates a file the project writes about itself, with no catalog, signature or third-party identifier.
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.97)
+
+Version line covered by this addendum: **0.43** (0.43.97). One rule is added, read from `src/module/neutral/prf006.rs`: `PRF-006` (a source comment that begins `PERF-EXCEPTION:` with no benchmark reference on its line or the next two). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 106 (`PRF-006`).** Read source comments for a marker the repository chooses to write (`PERF-EXCEPTION:`) and report a marker whose line or next two comment lines hold no link, `benches/`-style path or `bench::` name. Nothing is measured, run or compared; the rule reads comment text.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q215 | 106 | patent method detect performance optimization exception in source code comment marker requiring benchmark reference static analysis claims |
+| Q216 | 106 | patents.google.com linking code annotation to performance benchmark result, verify source code comment references benchmark evidence for optimization |
+
+**Positive controls:** Q215 returned related work on source-level performance analysis (a 2007 IEEE paper on linking static pattern detection to performance measurement, the CARAMEL loop-bug paper, a CommentSense project that gates changes on running a benchmark suite) and one patent, **US 8,875,100** ("Pattern analysis and performance accounting"), so the engine reaches the neighbourhood. Q216 returned code-comment research and a CodSpeed benchmark dashboard, and no patent. **A patent that checks a source comment for a benchmark reference was not found; that absence is a statement about these two queries only** (one engine, no USPTO or Espacenet search of our own). **Prior art for the practice, not patents:** the benchmark-gated review rules of open-source projects, `TODO(owner)` conventions (`RDB-008`), and Rust's own `// SAFETY:` comment convention, which this marker copies in form.
+
+**Read:** no claim was read. US 8,875,100 is known from a search-engine excerpt only: it describes comments or annotations that mark code sections for evaluation, and flow-graph static analysis compared with prior regression patterns, which runs and compares tests; `PRF-006` runs nothing. That is a judgement from an excerpt, not a claim read. **Not read in full:** every result named above.
+
+**Result: no hit found for `PRF-006` on the two queries; one related patent is named and unread.** **Watch: US 8,875,100** (read its independent claims before this rule leaves opt-in; re-read them if `PRF-006` ever runs a benchmark or compares results).
+
+**Limits:** two queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.43 line (2026-11-15, 0.43.98)
+
+Version line covered by this addendum: **0.43** (0.43.98). One rule is added, read from `src/module/neutral/mod007.rs`: `MOD-007`, mechanical half only (a component that declares a `purpose` whose root file has no `//!` module documentation). Swept 2026-11-15 by the coderipper-c lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 107 (`MOD-007`).** Read the project's own architecture declaration and, for each component with a declared purpose, test that its root source file carries a non-blank inner doc comment. No text is compared with another; the check is that module documentation exists.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q217 | 107 | patent method comparing module documentation comment with declared component purpose to check software module has stated responsibility |
+| Q218 | 107 | (not run) a second query on "docstring" and "declared responsibility" is owed |
+
+**Positive control:** Q217 returned patent documents on comparing source code with feature documentation (US 11,836,069, validating software components by comparing summaries of the code and of its documentation) and a family titled "Document analysis method and apparatus", so the engine reaches the neighbourhood; it also returned non-patent work on comment-code inconsistency (@tComment, CoDAT). **A patent claiming that a component with a declared purpose has a root file with a module doc was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 11,836,069 compares *summaries* of code and documentation, which is the judgement half this rule does not build; it is owed a claim read **before that half is built, and before this rule leaves opt-in**.
+
+**Result: no hit on the one query; US 11,836,069 is named and unread. Watch: US 11,836,069.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.44 line (2026-11-15, 0.44.0)
+
+Version line covered by this addendum: **0.44** (0.44.0). No new rule is added; two existing rules change what they do with a tool's own ignore files, read from `src/module/delegate/zizmor.rs` and `src/module/delegate/buf.rs` (`SUP-008`, `API-006`). Swept 2026-11-15 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 108 (a tool's own ignores are honoured and each is said).** Read the delegated tool's own tracked configuration (`zizmor.yml`, `buf.yaml`) and carry its ignores into the run instead of switching them off; report each such ignore as a finding of its own (Medium when no comment gives a reason, Info when one does), and a `# zizmor: ignore[...]` comment at Info instead of its real severity. This replaces idea 9 for these two tools (the repository could not silence a delegated rule); the repository's `[[allow]]` entry is still the place that carries a reason, an owner and an expiry.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q219 | 108 | patent method static analysis tool honoring a project's own ignore configuration file and reporting each suppression at reduced severity requiring a stated reason (Google Patents, one search) |
+
+**Positive control:** Q219 returned static-analysis patents (US 7,340,726 on a user-supplied configuration file, US 10,241,892 on suppression directives that a tool follows and on a complaint issued when an expected one is absent, US 8,806,441 on recording a user's remark on a defect they will ignore), so the engine reaches the neighbourhood. **A patent claiming that a tool's own ignore file is read and each ignore is reported at a lower severity with a needs-reason note was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 10,241,892 and US 8,806,441 are the nearest (suppression directives followed by a tool; a stated reason recorded against an ignored defect); each is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; US 10,241,892 and US 8,806,441 are named and unread. Watch: US 10,241,892, US 8,806,441.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.
+
+## Addendum: the 0.45 line (2026-11-15, 0.45.0)
+
+Version line covered by this addendum: **0.45** (0.45.0). No check is added; seven rule ids that duplicated another become aliases of it (`RDB-010`, `API-010`, `EVO-003`, `SEC-008`, `TST-010`, `AIH-005` and `REL-003` of `DOC-006`, `DOC-002`, `MOD-006`, `ERR-009`, `WSP-007`, `TST-013` and `CON-004`), read from the `alias` fields of `rules/*.toml` and from `src/module/neutral/sensitive_output.rs`. Swept 2026-11-15 by the coderipper lane (Claude Sonnet 5.5), same method and limits as above.
+
+**Idea 109 (a duplicate rule id is an alias of the rule it duplicated).** A rule catalogue entry carries the id of the rule it duplicates; the check runs once, under the canonical id, and a finding, a waiver or a request to run the rule by the alias id resolves to the canonical rule. The one check that absorbs two (`ERR-009`, which now judges both an error message and a log record) keeps a severity per kind of site.
+
+| # | Idea | Query (2026-11-15) |
+|---|---|---|
+| Q220 | 109 | patent method code analysis tool rule identifier alias mapping duplicate rules to one canonical rule so findings and suppressions under either identifier are the same (Google Patents, one search) |
+
+**Positive control:** Q220 returned patents on coding-rule checkers and rule suppression (US 5,860,011 on suppressing a rule globally, US 2017/0315903 on labelling a violation with the identity of the rule violated, US 8,527,446 on mapping a native rule to a canonical rule), so the engine reaches the neighbourhood. **A patent claiming that a duplicate rule id in a code-analysis catalogue resolves to a canonical rule for findings and waivers was not found; that absence is a statement about one query only.**
+
+**Read:** no claim was read; each document is known by title and a search-engine snippet. US 8,527,446 is the nearest (it maps a native rule to a canonical rule after checking that the native rule is unique) but concerns business-rule enforcement, not source-code analysis; it is owed a claim read **before this change is published**.
+
+**Result: no hit on the one query; US 8,527,446 is named and unread. Watch: US 8,527,446, US 2017/0315903.**
+
+**Limits:** one query, one search engine, no USPTO, Espacenet or WIPO full-text search, no citation chasing, no claims read, no status checked. A due-diligence read, not legal advice.

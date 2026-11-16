@@ -21,16 +21,16 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 
 const ID: &str = crate::rule_id::RDB_008;
 
-const MAX_BYTES: usize = 2 * 1024 * 1024;
+pub(super) const MAX_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Family {
+pub(super) enum Family {
     C,
     Hash,
     Dash,
 }
 
-fn family(path: &str) -> Option<Family> {
+pub(super) fn family(path: &str) -> Option<Family> {
     let ext = path.rsplit_once('.')?.1.to_ascii_lowercase();
     Some(match ext.as_str() {
         "rs" | "c" | "h" | "cc" | "cpp" | "cxx" | "hpp" | "java" | "js" | "jsx" | "mjs" | "cjs"
@@ -43,7 +43,7 @@ fn family(path: &str) -> Option<Family> {
     })
 }
 
-fn skipped(path: &str) -> bool {
+pub(super) fn skipped(path: &str) -> bool {
     let segments: Vec<&str> = path.split('/').collect();
     segments[..segments.len() - 1]
         .iter()
@@ -52,7 +52,7 @@ fn skipped(path: &str) -> bool {
 
 /// The comment text of `line`, given whether a block comment is open at its start; and whether one is open at its end. A marker inside a
 /// string literal on the same line is not a comment.
-fn comment_of(line: &str, family: Family, in_block: bool) -> (Option<&str>, bool) {
+pub(super) fn comment_of(line: &str, family: Family, in_block: bool) -> (Option<&str>, bool) {
     if family == Family::C && in_block {
         return match line.find("*/") {
             Some(i) => (Some(&line[..i]), false),
