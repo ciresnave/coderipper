@@ -213,6 +213,11 @@ pub(crate) struct Totals {
     pub reexport_sites: std::collections::BTreeSet<(String, usize)>,
     /// The documented ones among `reexport_sites`.
     pub reexport_documented_sites: std::collections::BTreeSet<(String, usize)>,
+    /// `(file, line)` of each `pub` function, static and type an `extern` block declares, in a module reachable through `pub` modules:
+    /// the symbols a `-sys` crate exists to export. Kept apart from `public_sites`, which the budget counts, so a budget does not change.
+    pub foreign_sites: std::collections::BTreeSet<(String, usize)>,
+    /// The documented ones among `foreign_sites`.
+    pub foreign_documented_sites: std::collections::BTreeSet<(String, usize)>,
     /// Every identifier written in the body of a documented public inherent function of a public type (reached through `pub` modules or
     /// a `pub use`): what the interface calls. `rustc` does not report the methods of a type nothing constructs, only what they call,
     /// so those methods are never candidates and their callees would look called by nothing.
@@ -249,6 +254,9 @@ impl Totals {
         self.reexport_sites.extend(o.reexport_sites);
         self.reexport_documented_sites
             .extend(o.reexport_documented_sites);
+        self.foreign_sites.extend(o.foreign_sites);
+        self.foreign_documented_sites
+            .extend(o.foreign_documented_sites);
         self.api_method_idents.extend(o.api_method_idents);
     }
 }
@@ -279,6 +287,8 @@ struct Collect {
     documented: usize,
     documented_sites: Vec<(String, usize)>,
     public_sites: Vec<(String, usize)>,
+    foreign_sites: Vec<(String, usize)>,
+    foreign_documented_sites: Vec<(String, usize)>,
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
     methods: BTreeMap<String, Vec<MethodFact>>,
@@ -401,6 +411,8 @@ pub(crate) fn surface(
     totals.documented = col.documented;
     totals.documented_sites = col.documented_sites.iter().cloned().collect();
     totals.public_sites = col.public_sites.iter().cloned().collect();
+    totals.foreign_sites = col.foreign_sites.iter().cloned().collect();
+    totals.foreign_documented_sites = col.foreign_documented_sites.iter().cloned().collect();
     totals.public_names = public_types.clone();
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
@@ -707,6 +719,26 @@ impl Walker<'_> {
                         self.col.decls.push((c.ident.to_string(), "static"));
                         let n = c.ident.to_string();
                         self.doc(&c.attrs, &n, "static", c.ident.span().start().line, shown);
+                    }
+                }
+                syn::Item::ForeignMod(fm) => {
+                    if reachable {
+                        for fi in &fm.items {
+                            let (vis, attrs, ident) = match fi {
+                                syn::ForeignItem::Fn(x) => (&x.vis, &x.attrs, &x.sig.ident),
+                                syn::ForeignItem::Static(x) => (&x.vis, &x.attrs, &x.ident),
+                                syn::ForeignItem::Type(x) => (&x.vis, &x.attrs, &x.ident),
+                                _ => continue,
+                            };
+                            if !is_pub(vis) || is_hidden(attrs) {
+                                continue;
+                            }
+                            let site = (shown.to_string(), ident.span().start().line);
+                            if is_documented(attrs) {
+                                self.col.foreign_documented_sites.push(site.clone());
+                            }
+                            self.col.foreign_sites.push(site);
+                        }
                     }
                 }
                 syn::Item::Macro(m) => {

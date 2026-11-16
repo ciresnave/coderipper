@@ -127,6 +127,9 @@ pub(super) fn read_facts(root: &Path, has_lib: bool) -> anyhow::Result<Facts> {
         facts.api.extend(totals.reexport_documented_sites);
         facts.exported = totals.public_sites;
         facts.exported.extend(totals.reexport_sites);
+        // an `extern` block's `pub` symbols are what a `-sys` crate exports: interface for whoever links it
+        facts.api.extend(totals.foreign_documented_sites);
+        facts.exported.extend(totals.foreign_sites);
         facts.api_idents = totals.api_method_idents;
     }
     for f in &files {
