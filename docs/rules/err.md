@@ -71,7 +71,7 @@ Only five checks exist today, and none of the rules below is run by the current 
 | ERR-008 | Error branches covered by tests | X | catalog record; no check yet, needs executed tests with fault injection or error-arm coverage |
 | ERR-009 | Errors and logs leak no sensitive data | P | built in part (Rust, `syn`, outside tests; error-message macros and `Display` impls of error types that name a password, token, secret, credential, cookie or key by variable, field or inline capture, High severity, Low confidence; opt-in (`check ERR-009`); a name-only reading, no data flow: values behind other names, `{:?}` of a struct and other languages are not read) |
 | ERR-010 | Compound state changes say whether they are all-or-nothing | L | catalog record; no check yet, needs an LLM reading to find multi-write sequences |
-| ERR-011 | Non-throwing parse results are checked | P | catalog record; partial overlap with the legacy check `ERR-012`; otherwise no check yet. Planned: rustc `unused_must_use` (Rust), native check on `parseInt`, `Number`, `JSON.parse` (TypeScript), pyright `reportOptionalMemberAccess` (Python) |
+| ERR-011 | Non-throwing parse results are checked | P | built in part (Rust, `syn`, outside tests; a `.parse()` or `T::from_str(..)`, through `.ok()` or not, whose failure is replaced on the spot by `.unwrap_or_default()`, `.unwrap_or(..)` or `.unwrap_or_else(..)`, with no comment saying why, Medium; opt-in (`coderipper check ERR-011`); types, a late check, wrappers and other languages not read). Planned for the rest: rustc `unused_must_use` (Rust), native check on `parseInt`, `Number`, `JSON.parse` (TypeScript), pyright `reportOptionalMemberAccess` (Python) |
 
 ## Further reading
 

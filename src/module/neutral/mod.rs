@@ -30,6 +30,7 @@ mod efx003;
 mod efx005;
 mod efx007;
 mod err001;
+mod err011;
 mod ext001;
 mod ext002;
 mod ext003;
@@ -401,6 +402,10 @@ const RULES: &[Rule] = &[
         judge: deadline::judge_rel001,
     },
     Rule {
+        id: "ERR-011",
+        judge: err011::judge,
+    },
+    Rule {
         id: "CON-005",
         judge: con005::judge,
     },
@@ -441,10 +446,10 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
     &[
         "EFX-003", "CON-003", "CON-004", "SEC-005", "API-009", "COR-001", "ERR-004", "SEC-007",
         "REL-007", "ERR-001", "TYP-006", "EXT-002", "TYP-005", "RDB-004", "RDB-007", "PRF-003",
-        "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "CON-008", "REL-001", "EFX-002",
-        "CON-011", "OPS-003", "ERR-009", "TST-006", "TST-004", "TST-009", "SUP-010", "EFX-007",
-        "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008", "CON-012", "RDB-003",
-        "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007", "EFX-005",
+        "PRF-005", "COR-007", "COR-003", "EXT-001", "CON-005", "ERR-011", "CON-008", "REL-001",
+        "EFX-002", "CON-011", "OPS-003", "ERR-009", "TST-006", "TST-004", "TST-009", "SUP-010",
+        "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008", "CON-012",
+        "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007", "EFX-005",
     ]
 }
 
@@ -845,6 +850,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("EXT-004", &["rust"]),
     ("CON-008", &["rust"]),
     ("REL-001", &["rust"]),
+    ("ERR-011", &["rust"]),
     ("CON-005", &["rust"]),
     ("EXT-001", &["rust"]),
     ("COR-003", &["rust"]),
@@ -913,6 +919,7 @@ const PROVEN: &[&str] = &[
     "TST-009",
     "EXT-002",
     "OPS-003",
+    "ERR-011",
     "CON-005",
     "EXT-001",
     "COR-003",
