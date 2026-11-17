@@ -40,6 +40,7 @@ default_severity = "low"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Produce an inventory of keys from code and from config files, then document the missing ones and delete the unused ones."
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: each named read of the process environment (a call of env::var or env::var_os, std::env included, with a string literal, and a clap arg or clap attribute env = \"NAME\") whose name looks like an environment key (upper-case letters, digits and underscore, three characters or more), is not one the platform or toolchain provides (HOME, PATH, USER, USERPROFILE, SHELL, TMP, TEMP, TERM, LANG, CI, NO_COLOR and the like, and any name starting CARGO_, RUST_, XDG_, LC_, GITHUB_ or RUNNER_) and appears as a whole word in no tracked documentation file (.md, .markdown, .txt, .rst, .adoc, a file named .env*, *.example or *.sample, outside vendored, test, fixture and conformance directories, a CHANGELOG excluded). One Low finding with Medium confidence per name at its first read; opt-in (check OPS-002). Not judged: a name built at run time, a read through a wrapper or configuration crate, a clap builder env call, that a key has a default and is used, documentation outside the repository, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

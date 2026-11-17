@@ -1,0 +1,6 @@
+# The seeded defect: the code reads FIXTURE_PORT (line 2) and no tracked document mentions it.
+
+[[expect]]
+rule = "OPS-002"
+file = "src/lib.rs"
+line = 2

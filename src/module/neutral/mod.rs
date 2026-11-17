@@ -43,6 +43,7 @@ mod licence;
 mod lint_suppression;
 mod lock_order;
 mod mod007;
+mod ops002;
 mod ops003;
 mod ops007;
 mod ops009;
@@ -420,6 +421,10 @@ const RULES: &[Rule] = &[
         judge: rdb002::judge,
     },
     Rule {
+        id: "OPS-002",
+        judge: ops002::judge,
+    },
+    Rule {
         id: "TYP-004",
         judge: typ004::judge,
     },
@@ -480,7 +485,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "TST-006", "TST-004", "TST-009", "SUP-010",
         "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008", "CON-012",
         "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007", "EFX-005", "RDB-002",
-        "TYP-004", "ERR-007", "OPS-007", "ERR-002", "REL-002",
+        "OPS-002", "TYP-004", "ERR-007", "OPS-007", "ERR-002", "REL-002",
     ]
 }
 
@@ -884,6 +889,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-011", &["rust"]),
     ("CON-005", &["rust"]),
     ("RDB-002", &["rust"]),
+    ("OPS-002", &["rust"]),
     ("TYP-004", &["rust"]),
     ("ERR-007", &["rust"]),
     ("ERR-002", &["rust"]),
@@ -958,6 +964,7 @@ const PROVEN: &[&str] = &[
     "ERR-011",
     "CON-005",
     "RDB-002",
+    "OPS-002",
     "TYP-004",
     "ERR-007",
     "OPS-007",
