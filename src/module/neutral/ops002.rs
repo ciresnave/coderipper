@@ -70,6 +70,9 @@ const PROVIDED: &[&str] = &[
     "PROGRAMFILES",
     "OS",
     "PROCESSOR_ARCHITECTURE",
+    "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL",
+    "PROCESSOR_REVISION",
     "NUMBER_OF_PROCESSORS",
     "TZ",
     "HTTP_PROXY",
@@ -345,6 +348,7 @@ pub struct Args { #[arg(long, env = \"APP_MODE\")] mode: String }
         let src = "pub fn f(n: &str) {
     let _ = std::env::var(\"HOME\");
     let _ = std::env::var(\"PATHEXT\");
+    let _ = std::env::var(\"PROCESSOR_IDENTIFIER\");
     let _ = std::env::var(\"CARGO_MANIFEST_DIR\");
     let _ = std::env::var(\"lower_case\");
     let _ = std::env::var(n);
