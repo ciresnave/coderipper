@@ -210,6 +210,31 @@ pub(super) struct StructDecl {
     pub derives_debug: bool,
     /// The secret fields that are not redacted by their type.
     pub exposed: Vec<String>,
+    /// For each exposed field, the identifiers of its type: a repo type among them with a redacting `Debug` clears it.
+    pub field_types: Vec<(String, Vec<String>)>,
+    /// Every `// sec012: public` marker on a field of the struct.
+    pub markers: Vec<FieldMarker>,
+}
+
+/// A `// sec012: public - <reason>` comment on a field line or directly above it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct FieldMarker {
+    pub field: String,
+    pub line: u32,
+    /// The reason after the dash; `None` when it is missing or empty.
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Kind {
+    /// A secret field that `Debug` prints.
+    Leak,
+    /// A flagged field carrying a marker with a reason: reported as Info, never dropped.
+    Waived,
+    /// A marker with no reason: a finding of its own, and it waives nothing.
+    MarkerWithoutReason,
+    /// A marker on a field that is not flagged.
+    Stale,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,6 +252,43 @@ pub(super) struct Hit {
     pub fields: Vec<String>,
     /// `derived` or `hand-written`.
     pub how: &'static str,
+    pub kind: Kind,
+    /// The marker's reason, for a waived field.
+    pub reason: String,
+}
+
+/// The marker on a field, read from the field's own line (a trailing comment) or the comment and attribute lines directly above it.
+fn marker_for(lines: &[&str], field_line: u32) -> Option<Option<String>> {
+    let idx = (field_line as usize).checked_sub(1)?;
+    let parse = |comment: &str| -> Option<Option<String>> {
+        let rest = comment.trim_start().strip_prefix("sec012: public")?;
+        let reason = rest
+            .trim()
+            .strip_prefix('-')
+            .map(|r| r.trim().to_string())
+            .filter(|r| !r.is_empty());
+        Some(reason)
+    };
+    if let Some(m) = lines
+        .get(idx)
+        .and_then(|l| l.find("//").map(|c| &l[c + 2..]))
+        .and_then(parse)
+    {
+        return Some(m);
+    }
+    let mut i = idx;
+    while i > 0 {
+        i -= 1;
+        let t = lines.get(i)?.trim();
+        if let Some(c) = t.strip_prefix("//") {
+            if let Some(m) = parse(c) {
+                return Some(m);
+            }
+        } else if !t.starts_with("#[") {
+            break;
+        }
+    }
+    None
 }
 
 struct Scan<'a> {
@@ -422,13 +484,26 @@ impl<'ast> Visit<'ast> for Scan<'_> {
             return;
         }
         let mut exposed = Vec::new();
+        let mut field_types = Vec::new();
+        let mut markers = Vec::new();
         let vocabulary = self.vocabulary_path || vocabulary_context(&s.ident.to_string());
         match &s.fields {
             Fields::Named(n) => {
                 for f in &n.named {
                     if let Some(id) = &f.ident {
+                        let line = line_of(id.span());
+                        if let Some(reason) = marker_for(&self.lines, line) {
+                            markers.push(FieldMarker {
+                                field: id.to_string(),
+                                line,
+                                reason,
+                            });
+                        }
                         if exposed_secret(&id.to_string(), &f.ty, vocabulary) {
                             exposed.push(id.to_string());
+                            let mut words = Vec::new();
+                            type_words(&f.ty, &mut words);
+                            field_types.push((id.to_string(), words));
                         }
                     }
                 }
@@ -438,6 +513,9 @@ impl<'ast> Visit<'ast> for Scan<'_> {
                     // a tuple field has no name: only a `Zeroizing` type says it is a secret
                     if exposed_secret("", &f.ty, vocabulary) {
                         exposed.push(i.to_string());
+                        let mut words = Vec::new();
+                        type_words(&f.ty, &mut words);
+                        field_types.push((i.to_string(), words));
                     }
                 }
             }
@@ -448,6 +526,8 @@ impl<'ast> Visit<'ast> for Scan<'_> {
             line: line_of(s.ident.span()),
             derives_debug: derives_debug(&s.attrs),
             exposed,
+            field_types,
+            markers,
         });
     }
 
@@ -520,43 +600,98 @@ pub(super) fn analyse(files: &[(String, String)]) -> (Vec<Hit>, Vec<String>) {
         }
         impls.extend(is);
     }
+    // A repo type whose every declaration hand-writes a masking `Debug` (one impl per declaration, none without a sign of masking): a
+    // field of it prints a mask. A name declared twice is trusted only when all its impls mask; one derive or one leaking impl spoils it.
+    let redacting: std::collections::HashSet<&str> = structs
+        .iter()
+        .filter_map(|(name, list)| {
+            if list.iter().any(|(_, s)| s.derives_debug) {
+                return None;
+            }
+            let mine: Vec<&DebugImpl> = impls.iter().filter(|i| &i.type_name == name).collect();
+            (mine.len() >= list.len()
+                && mine
+                    .iter()
+                    .all(|i| REDACTION_MARKS.iter().any(|m| i.body.contains(m))))
+            .then_some(name.as_str())
+        })
+        .collect();
     let mut out = Vec::new();
     for (name, list) in &structs {
         let [(path, s)] = list.as_slice() else {
             continue;
         };
-        if s.exposed.is_empty() {
-            continue;
-        }
-        let (how, fields): (&'static str, Vec<String>) = if s.derives_debug {
-            ("derived", s.exposed.clone())
+        let exposed: Vec<String> = s
+            .exposed
+            .iter()
+            .filter(|f| {
+                !s.field_types.iter().any(|(n, words)| {
+                    &n == f
+                        && words
+                            .iter()
+                            .any(|w| w != name && redacting.contains(w.as_str()))
+                })
+            })
+            .cloned()
+            .collect();
+        let (how, mut fields): (&'static str, Vec<String>) = if s.derives_debug {
+            ("derived", exposed.clone())
         } else {
             let leaked: Vec<String> = impls
                 .iter()
                 .filter(|i| &i.type_name == name)
                 .flat_map(|i| {
-                    s.exposed
+                    exposed
                         .iter()
                         .filter(|f| leaks(&i.body, f))
                         .cloned()
                         .collect::<Vec<_>>()
                 })
                 .collect();
-            if leaked.is_empty() {
-                continue;
-            }
             ("hand-written", leaked)
         };
-        out.push(Hit {
-            path: path.clone(),
-            line: s.line,
-            name: name.clone(),
-            fields,
-            how,
-        });
+        for m in &s.markers {
+            let flagged = fields.contains(&m.field);
+            let (kind, reason) = match (&m.reason, flagged) {
+                (Some(r), true) => (Kind::Waived, r.clone()),
+                (None, true) => (Kind::MarkerWithoutReason, String::new()),
+                (_, false) => (Kind::Stale, m.reason.clone().unwrap_or_default()),
+            };
+            if kind == Kind::Waived {
+                fields.retain(|f| f != &m.field);
+            }
+            out.push(Hit {
+                path: path.clone(),
+                line: m.line,
+                name: name.clone(),
+                fields: vec![m.field.clone()],
+                how,
+                kind,
+                reason,
+            });
+        }
+        if !fields.is_empty() {
+            out.push(Hit {
+                path: path.clone(),
+                line: s.line,
+                name: name.clone(),
+                fields,
+                how,
+                kind: Kind::Leak,
+                reason: String::new(),
+            });
+        }
     }
     out.sort_by(|a, b| (&a.path, a.line).cmp(&(&b.path, b.line)));
     (out, unparsed)
+}
+
+/// The explanation of a leaking struct.
+fn leak_detail(h: &Hit, list: &str) -> String {
+    format!(
+        "`{}` in `{}` has the field(s) {list}, and its {} `Debug` prints them. Debug output reaches logs, panic messages and traces, so          the secret goes wherever the value is formatted. Wrap the field in a type whose `Debug` prints a mask (`secrecy::Secret`, a          redacting newtype), or write `Debug` by hand and print a placeholder for it. A field that is public by design takes a comment          `// sec012: public - <reason>` (the finding then stays as an Info). Read from the syntax only: that a field named          `token` holds a secret is a guess from its name, and a type alias that hides a masking wrapper is not seen.",
+        h.name, h.path, h.how
+    )
 }
 
 pub(super) fn judge(view: &RepoView) -> Verdict {
@@ -591,25 +726,47 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 .map(|f| format!("`{f}`"))
                 .collect::<Vec<_>>()
                 .join(", ");
-            Finding::new(
-                id,
-                Severity::Medium,
-                Confidence::Medium,
-                view.name(),
-                format!(
-                    "`{}` prints its secret field(s) {list} through a {} `Debug`",
-                    h.name, h.how
+            let (severity, summary, detail) = match h.kind {
+                Kind::Leak => (
+                    Severity::Medium,
+                    format!(
+                        "`{}` prints its secret field(s) {list} through a {} `Debug`",
+                        h.name, h.how
+                    ),
+                    leak_detail(h, &list),
                 ),
-                format!(
-                    "`{}` in `{}` has the field(s) {list}, and its {} `Debug` prints them. Debug output reaches logs, panic messages and traces, so \
-                     the secret goes wherever the value is formatted. Wrap the field in a type whose `Debug` prints a mask (`secrecy::Secret`, a \
-                     redacting newtype), or write `Debug` by hand and print a placeholder for it. Read from the syntax only: that a field named \
-                     `token` holds a secret is a guess from its name, and a type alias that hides a masking wrapper is not seen.",
-                    h.name, h.path, h.how
+                Kind::Waived => (
+                    Severity::Info,
+                    format!("`{}` field {list} waived: {}", h.name, h.reason),
+                    format!(
+                        "`{}` in `{}` marks {list} `// sec012: public - {}`, so SEC-012 does not report it as a secret. The waiver is kept in the report, \
+                         not dropped: review the reason, and remove the marker if the field is ever not public.",
+                        h.name, h.path, h.reason
+                    ),
                 ),
-            )
+                Kind::MarkerWithoutReason => (
+                    Severity::Medium,
+                    format!("`{}` field {list} has a `sec012: public` marker with no reason", h.name),
+                    format!(
+                        "`{}` in `{}` marks {list} `// sec012: public` without a reason, which waives nothing. Write `// sec012: public - <why this is not a secret>`.",
+                        h.name, h.path
+                    ),
+                ),
+                Kind::Stale => (
+                    Severity::Info,
+                    format!("`{}` field {list} has a stale `sec012: public` marker", h.name),
+                    format!(
+                        "`{}` in `{}` marks {list} `// sec012: public`, but SEC-012 does not flag that field (it is not named like a secret, is masked, or `Debug` does not print it). Remove the marker.",
+                        h.name, h.path
+                    ),
+                ),
+            };
+            Finding::new(id, severity, Confidence::Medium, view.name(), summary, detail)
             .location(Location::new(h.path.as_str(), Some(h.line)))
-            .subject(format!("{}:{}", h.path, h.name))
+            .subject(match h.kind {
+                Kind::Leak => format!("{}:{}", h.path, h.name),
+                _ => format!("{}:{}:{}", h.path, h.name, h.line),
+            })
             .positive_control(format!(
                 "{read} Rust file(s) parsed with syn; the struct was read at {}:{}",
                 h.path, h.line
@@ -796,5 +953,99 @@ mod tests {
         // `bos_token` is a special token; `bearer_token` and `refresh_token` are credentials
         let src = "#[derive(Debug)]\nstruct S { bos_token: String, bearer_token: String, refresh_token: String }";
         assert_eq!(one(src)[0].fields, vec!["bearer_token", "refresh_token"]);
+    }
+
+    const REDACTING_TYPE: &str = "pub struct Inner { pub value: String }\nimpl fmt::Debug for Inner {\n    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {\n        f.write_str(\"Inner([REDACTED])\")\n    }\n}\n";
+
+    #[test]
+    fn a_field_of_a_repo_type_with_a_redacting_hand_written_debug_is_not_reported() {
+        let src = format!("{REDACTING_TYPE}#[derive(Debug)]\nstruct Outer {{ token: Inner, access_token: Option<Inner>, tokens: Vec<Inner> }}");
+        assert!(one(&src).is_empty());
+    }
+
+    #[test]
+    fn a_nested_type_that_derives_debug_or_does_not_redact_still_leaks() {
+        let derived = "#[derive(Debug)]\npub struct Inner { pub value: String }\n#[derive(Debug)]\nstruct Outer { token: Inner }";
+        assert_eq!(one(derived)[0].name, "Outer");
+        let plain = "pub struct Inner { pub value: String }\nimpl fmt::Debug for Inner {\n    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {\n        write!(f, \"{}\", self.value)\n    }\n}\n#[derive(Debug)]\nstruct Outer { token: Inner }";
+        assert_eq!(one(plain)[0].name, "Outer");
+        let unknown = "#[derive(Debug)]\nstruct Outer { token: Elsewhere }";
+        assert_eq!(one(unknown)[0].name, "Outer");
+    }
+
+    #[test]
+    fn a_nested_type_declared_twice_is_trusted_only_when_every_declaration_masks() {
+        let src = format!("{REDACTING_TYPE}mod m {{ #[derive(Debug)] pub struct Inner {{ pub value: String }} }}\n#[derive(Debug)]\nstruct Outer {{ token: Inner }}");
+        assert_eq!(one(&src)[0].name, "Outer");
+        let both = format!(
+            "{REDACTING_TYPE}mod m {{
+{REDACTING_TYPE}}}
+#[derive(Debug)]
+struct Outer {{ token: Inner }}"
+        );
+        assert!(one(&both).is_empty());
+    }
+
+    #[test]
+    fn a_marker_with_a_reason_waives_the_field_as_an_info_and_never_drops_it() {
+        let src = "#[derive(Debug)]\nstruct Acme {\n    // sec012: public - ACME challenge tokens are served in the clear by design\n    token: String,\n    password: String,\n}";
+        let hits = one(src);
+        let leak = hits.iter().find(|h| h.kind == Kind::Leak).unwrap();
+        assert_eq!(leak.fields, vec!["password"]);
+        let waived = hits.iter().find(|h| h.kind == Kind::Waived).unwrap();
+        assert_eq!(waived.fields, vec!["token"]);
+        assert_eq!(
+            waived.reason,
+            "ACME challenge tokens are served in the clear by design"
+        );
+        assert_eq!(waived.line, 4);
+    }
+
+    #[test]
+    fn a_trailing_marker_on_the_field_line_counts_too() {
+        let src = "#[derive(Debug)]\nstruct A {\n    token: String, // sec012: public - published in the DNS record\n}";
+        let hits = one(src);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].kind, Kind::Waived);
+    }
+
+    #[test]
+    fn a_marker_without_a_reason_is_a_finding_and_waives_nothing() {
+        for marker in [
+            "// sec012: public",
+            "// sec012: public -",
+            "// sec012: public -   ",
+        ] {
+            let src =
+                format!("#[derive(Debug)]\nstruct A {{\n    {marker}\n    token: String,\n}}");
+            let hits = one(&src);
+            assert!(hits.iter().any(|h| h.kind == Kind::Leak), "{marker}");
+            assert!(
+                hits.iter().any(|h| h.kind == Kind::MarkerWithoutReason),
+                "{marker}"
+            );
+            assert!(!hits.iter().any(|h| h.kind == Kind::Waived), "{marker}");
+        }
+    }
+
+    #[test]
+    fn a_marker_on_a_field_that_is_not_flagged_is_a_stale_info() {
+        let src = "#[derive(Debug)]\nstruct A {\n    // sec012: public - was a token once\n    count: u32,\n}";
+        let hits = one(src);
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].kind, Kind::Stale);
+        assert_eq!(hits[0].fields, vec!["count"]);
+    }
+
+    #[test]
+    fn a_marker_two_lines_above_or_in_prose_is_not_a_marker() {
+        let src = "#[derive(Debug)]\nstruct A {\n    // sec012: public - reason\n    other: u32,\n    token: String,\n}";
+        let hits = one(src);
+        assert!(hits
+            .iter()
+            .any(|h| h.kind == Kind::Leak && h.fields == vec!["token"]));
+        let prose = "#[derive(Debug)]\nstruct A {\n    // we do not use sec012: public anywhere\n    token: String,\n}";
+        assert_eq!(one(prose).len(), 1);
+        assert_eq!(one(prose)[0].kind, Kind::Leak);
     }
 }

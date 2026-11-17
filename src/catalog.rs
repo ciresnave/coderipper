@@ -497,14 +497,14 @@ impl Catalog {
 /// still fails where it always did. Findings carry the canonical id, so an entry written with an old name keeps matching.
 pub(crate) fn canonical_name(name: &str) -> String {
     let id = Catalog::builtin().canonical_id(name).unwrap_or(name);
-    // a legacy kebab-case name is accepted for one release, with one warning per name per run
+    // a legacy kebab-case name keeps working for good (CireSnave 2026-11-16: rule ids are permanent), with one note per name per run
     if id != name && name.starts_with(|c: char| c.is_ascii_lowercase()) {
         static WARNED: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         if let Ok(mut warned) = WARNED.lock() {
             if !warned.iter().any(|w| w == name) {
                 warned.push(name.to_string());
                 eprintln!(
-                    "coderipper: warning: the rule name `{name}` is now `{id}`; the old name is accepted for this release only (`python tools/migrate-rule-ids.py` rewrites a .coderipper.toml)"
+                    "coderipper: warning: the rule name `{name}` is now `{id}`; the old name keeps working and is never removed; `python tools/migrate-rule-ids.py` rewrites a .coderipper.toml to the new id if you want to"
                 );
             }
         }
