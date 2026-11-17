@@ -158,6 +158,7 @@ default_severity = "low"
 confidence_class = "medium"
 kb_refs = []
 remediation = "Keep a flag registry with owner and expiry, review it regularly, and remove the flag and its dead branch when the rollout completes."
+checked_today = "Tracked flag registry files (any language): a file named flags, feature-flags, feature_flags, featureflags, feature-toggles, feature_toggles or toggles with the extension yml, yaml, json or toml, outside vendored, test, fixture and example directories. Its entries are the items of the list or map under a top-level flags, feature_flags, features or toggles key, or else of the file's own top-level list or map (a map entry that is not itself a map is a flag with nothing recorded). An entry with no non-empty owner key (owner, owners, maintainer, team, responsible, contact, assignee) or no non-empty sunset key (sunset, expires, expiry, expiration, expire, remove_by, removal_date, end_date, retire_by, delete_by, remove_after) is one Low finding with Medium confidence at the line that names the flag; opt-in (check OPS-007). A registry that does not parse is named in a note; a repository with no registry file is not applicable. Not judged: flags declared in code or a flag service, registries under other names, whether the owner is real or the date still ahead (needs a clock), whether a finished flag was deleted."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -68,6 +68,7 @@ confidence_class = "low"
 kb_refs = []
 remediation = "Add a parsing step at the point of entry that returns a validated domain type, and pass that type inward."
 related = ["MOD-010", "TYP-008"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped; a deliberately narrow syntactic approximation of a data-flow rule: a pub function or inherent pub method (not a trait-impl method) with a parameter that is a bare string (String, &str, &String, Cow<str>, impl AsRef<str>, impl Into<String>) whose name has a domain word among its underscore-separated words (email, url, uri, hostname, uuid, ip, phone, iban, currency, locale, timezone, isbn, postcode, zipcode), unless the function's own name has an entry word (parse, from, try, new, validate, is, check, verify, normalize, sanitize, deserialize, decode, read, load, lookup, find, get, with, set). One Medium finding with Low confidence per parameter, at the function; opt-in (check TYP-004). The rule is contested: a finding is a prompt, not a proof. Not judged: where the data really enters the program, a domain type that is itself a String alias, other parameter shapes (a bare integer id, a byte-vector token), names outside the word list, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

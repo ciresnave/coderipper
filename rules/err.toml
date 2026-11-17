@@ -72,6 +72,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Narrow the handler to the failures it can truly deal with, or move the catch-all up to a declared boundary function."
 related = ["ERR-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a call of catch_unwind (std::panic::catch_unwind, panic::catch_unwind, a bare catch_unwind) or a .catch_unwind() method, the one handler Rust has that catches every kind of failure, in a function that is not a boundary. A boundary is main, any function of a binary target (src/main.rs, src/bin/), a function with a boundary word among its underscore-separated words (run, serve, handle, handler, dispatch, worker, listener, supervise, supervisor, boundary, entry, entrypoint, extern, ffi, callback, trampoline), or a call with a comment on its line or in the three lines above that says why (boundary, outermost, top-level, ffi, isolate, supervis, must not unwind, across the). One Medium finding with Medium confidence per call; opt-in (check ERR-002). Not judged: a catch-all that is not a panic catcher (a swallowing Err arm is ERR-001), a boundary declared elsewhere, whether the function is really the outermost of its task, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
@@ -195,6 +196,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Tie release to scope exit with RAII, defer, finally, a context manager or using, rather than to the happy path of the code."
 related = ["ERR-010"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: in one block, a let binding x, a later statement that releases it by hand (x.close(), x.unlock(), x.release(), x.free(), x.disconnect(), or a call of close, fclose, free, dealloc, CloseHandle, unlock or release with x, &x or &mut x as an argument, optionally unwrapped, question-marked or awaited), and between them a statement holding a question mark or a return outside a nested closure, which can skip the release. One Medium finding with Low confidence per release, at the release call; opt-in (check ERR-007). Not judged: whether the type already releases on drop (the reason for Low confidence), guards and defer-style crates, a release in another block or function, break and continue, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

@@ -71,7 +71,7 @@ Toxiproxy for REL-008).
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | REL-001 | Outbound calls have deadlines | P | built in part (Rust, `syn`, outside tests; an HTTP client built without a timeout, an awaited or blocking `TcpStream::connect` with no deadline, Medium; opt-in (`check REL-001`); database and RPC clients, wrappers and other languages are not read) |
-| REL-002 | Retries follow a safe policy | P | catalog record; no check yet (needs a parser; judging idempotency needs a model) |
+| REL-002 | Retries follow a safe policy | P | built in part (Rust, `syn`, outside tests; a loop that sleeps and looks at a failure, reported for no cap on its attempts and for a fixed delay with no backoff, Medium severity at Low confidence; opt-in (`check REL-002`); idempotency, jitter, shared budgets, stacked layers and retry crates not read; judging idempotency needs a model) |
 | REL-003 | Bounded channels with overflow policy | P | alias of CON-004 (2026-11-07): one finding, under `CON-004`; `check REL-003` and an allowlist entry naming `REL-003` still work |
 | REL-004 | Idempotent message handlers | L | catalog record; no check yet (needs a human decision or a model, plus replay tests) |
 | REL-005 | Probes and resource limits in manifests | N | built: delegated to checkov, asked for four checks (`CKV_K8S_8` liveness probe, `_9` readiness probe, `_11` CPU limits, `_13` memory limits), Medium, one finding per failed check at the resource; requests (`_10`, `_12`) are not this rule's; Helm templates are not rendered; needs checkov installed |

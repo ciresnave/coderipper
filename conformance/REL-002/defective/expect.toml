@@ -1,0 +1,6 @@
+# The seeded defect: a retry loop with no cap on its attempts and the same fixed delay every time (line 4).
+
+[[expect]]
+rule = "REL-002"
+file = "src/lib.rs"
+line = 4

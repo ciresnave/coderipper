@@ -189,3 +189,27 @@ fn what_a_pub_use_reaches_out_of_a_private_module_is_library_api_and_the_rest_of
         );
     }
 }
+
+#[test]
+fn a_pub_symbol_of_an_extern_block_is_exported_and_a_private_one_is_not() {
+    // a `-sys` crate's shape: the declarations in a `pub mod` are what it exists to export
+    let repo = git_repo(&[
+        ("src/lib.rs", "pub mod ffi;\n"),
+        (
+            "src/ffi.rs",
+            "extern \"C\" {\n    /// Documented.\n    pub fn lib_open() -> i32;\n    pub fn lib_close();\n    fn private_helper();\n    pub static lib_version: i32;\n}\n",
+        ),
+    ]);
+    let f = read_facts(repo.path(), true).unwrap();
+    let has = |set: &std::collections::BTreeSet<(String, usize)>, l: usize| {
+        set.contains(&("src/ffi.rs".to_string(), l))
+    };
+    // documented `lib_open` (3) is library API and also exported; undocumented `lib_close` (4) and `lib_version` (6) are exported only
+    assert!(has(&f.api, 3), "{:?}", f.api);
+    for l in [3, 4, 6] {
+        assert!(has(&f.exported, l), "{l}: {:?}", f.exported);
+    }
+    assert!(!has(&f.api, 4), "{:?}", f.api);
+    // positive control: the private declaration (5) is neither
+    assert!(!has(&f.exported, 5), "{:?}", f.exported);
+}

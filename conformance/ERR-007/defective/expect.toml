@@ -1,0 +1,6 @@
+# The seeded defect: the send can fail with a question mark (line 3) and skip the close on line 4.
+
+[[expect]]
+rule = "ERR-007"
+file = "src/lib.rs"
+line = 4

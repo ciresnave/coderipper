@@ -1,0 +1,6 @@
+# The seeded defect: a panic catcher in an ordinary function, hiding what the parse could say (line 2).
+
+[[expect]]
+rule = "ERR-002"
+file = "src/lib.rs"
+line = 2

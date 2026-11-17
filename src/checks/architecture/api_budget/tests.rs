@@ -211,3 +211,16 @@ fn a_stated_none_lets_the_rule_run_with_nothing_to_compare() {
     // and no declaration at all is still a gap
     assert!(missing_declaration(None).is_some());
 }
+
+#[test]
+fn extern_block_symbols_are_kept_apart_from_the_budget() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "pub fn a() {}\nextern \"C\" {\n    /// Doc.\n    pub fn open();\n    pub fn close();\n    fn private();\n}\n",
+    )]);
+    let lines = |s: &BTreeSet<(String, usize)>| s.iter().map(|(_, l)| *l).collect::<Vec<_>>();
+    assert_eq!(lines(&t.foreign_sites), [4, 5], "{t:?}");
+    assert_eq!(lines(&t.foreign_documented_sites), [4], "{t:?}");
+    // the budget does not change: only `a` is counted
+    assert_eq!(t.item_count(), 1, "{t:?}");
+}
