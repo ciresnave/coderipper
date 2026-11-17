@@ -20,6 +20,7 @@
 mod buf;
 mod checkov;
 mod gitleaks;
+mod gitleaks_waivers;
 mod lychee;
 mod osv;
 mod semver;

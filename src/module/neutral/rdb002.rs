@@ -8,8 +8,8 @@
 //! `__`, and no `_` beside a letter); a `const` and a `static` must be `SCREAMING_SNAKE_CASE` (no lower-case letter). A leading `_`
 //! and a raw-identifier prefix (`r#`) are ignored. One **Low**-severity, High-confidence finding per offending name, at the name.
 //!
-//! **Not reported:** an item under `#[allow(non_snake_case)]`, `non_camel_case_types` or `non_upper_case_globals` (also as an inner
-//! attribute of the module or file), an item with `#[no_mangle]` or `#[export_name]`, anything inside an `extern` block, a method of
+//! **Not reported:** an item under `#[allow(non_snake_case)]`, `non_camel_case_types`, `non_upper_case_globals` or `nonstandard_style`, a
+//! module or file under an inner `#![allow(nonstandard_style)]` (an inner allow of one of the other three lints is **not** read yet), an item with `#[no_mangle]` or `#[export_name]`, anything inside an `extern` block, a method of
 //! a trait implementation (its name is the trait's), and anything written inside a macro invocation (`syn` does not expand it).
 //!
 //! **What it cannot see:** the conventions of a project that differ from the language's, an acronym rule (`HTTPServer` is reported

@@ -16,7 +16,9 @@
 //! until this module's own fixtures say more (design section 7), and is `Low` for the generic rule, which matches by entropy
 //! near a name and is the one that fires on non-secrets.
 
+use super::gitleaks_waivers::{self, Waiver};
 use super::{resolve, run_tool_with_env, Resolved, Verdict};
+use crate::architecture::Date;
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::module::{ErrorKind, Request};
 use crate::tools::ToolEnv;
@@ -38,16 +40,29 @@ const DEFAULT_CONFIDENCE: Confidence = Confidence::Medium;
 /// One entry of gitleaks' JSON report (only the fields used; the redacted `Secret` and `Match` are deliberately not read).
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-struct Leak {
+pub(super) struct Leak {
     #[serde(rename = "RuleID")]
-    rule_id: String,
+    pub(super) rule_id: String,
     #[serde(default)]
-    description: String,
-    file: String,
+    pub(super) description: String,
+    pub(super) file: String,
     #[serde(default)]
-    start_line: u32,
+    pub(super) start_line: u32,
     #[serde(default)]
-    commit: String,
+    pub(super) commit: String,
+}
+
+#[cfg(test)]
+impl Leak {
+    pub(super) fn for_test(commit: &str, file: &str, rule: &str, line: u32) -> Self {
+        Self {
+            rule_id: rule.into(),
+            description: String::new(),
+            file: file.into(),
+            start_line: line,
+            commit: commit.into(),
+        }
+    }
 }
 
 /// Reads gitleaks' JSON report. Anything but a JSON array of leaks is unreadable; an empty array is a clean scan.
@@ -101,6 +116,103 @@ fn to_finding(leak: &Leak, project: &str) -> Finding {
             leak.rule_id
         )),
     }
+}
+
+/// Finishes a finding built from a rule id or a waiver's text: the summary could in principle contain a whole word the host reads as an
+/// absence claim, and such a finding carries a control rather than being dropped.
+fn finish(finding: Finding, control: String) -> Finding {
+    match finding.clone().validate() {
+        Ok(f) => f,
+        Err(_) => finding.positive_control(control),
+    }
+}
+
+/// A leak a live reviewed waiver names: `Info`, visible, never gating (the scan found it; a review judged it not a secret).
+fn waived_finding(leak: &Leak, waiver: &Waiver, project: &str) -> Finding {
+    let file = leak.file.replace('\\', "/");
+    let line = (leak.start_line > 0).then_some(leak.start_line);
+    let finding = Finding::new(
+        RULE,
+        Severity::Info,
+        Confidence::High,
+        project,
+        format!("a secret-scan finding waived after review (gitleaks rule {})", leak.rule_id),
+        format!(
+            "gitleaks rule {} matched at {file}:{} in commit {}, and CodeRipper's own waiver list names that exact finding ({}). It is \
+             reported so the run says what it accepted; it does not gate.",
+            leak.rule_id,
+            leak.start_line,
+            waiver.commit.chars().take(8).collect::<String>(),
+            waiver.reason(),
+        ),
+    )
+    .location(Location::new(file.clone(), line))
+    .subject(file.clone());
+    finish(
+        finding,
+        format!(
+            "gitleaks reported rule {} at {file} and a waiver names it",
+            leak.rule_id
+        ),
+    )
+}
+
+/// A leak whose waiver has expired: `Medium`, and the message says so. History cannot change, so the way out is a new reviewed entry.
+fn expired_finding(leak: &Leak, waiver: &Waiver, project: &str) -> Finding {
+    let file = leak.file.replace('\\', "/");
+    let line = (leak.start_line > 0).then_some(leak.start_line);
+    let finding = Finding::new(
+        RULE,
+        Severity::Medium,
+        Confidence::High,
+        project,
+        format!("waiver expired for a secret-scan finding (gitleaks rule {})", leak.rule_id),
+        format!(
+            "gitleaks rule {} matched at {file}:{} in commit {}. The waiver for it expired on {} ({}). It needs a new review: a \
+             change to `waivers/secrets.toml` in CodeRipper that renews `reviewed` and `evidence`.",
+            leak.rule_id,
+            leak.start_line,
+            waiver.commit.chars().take(8).collect::<String>(),
+            waiver.expires,
+            waiver.reason(),
+        ),
+    )
+    .location(Location::new(file.clone(), line))
+    .subject(file.clone());
+    finish(
+        finding,
+        format!(
+            "gitleaks reported rule {} at {file} and its waiver has expired",
+            leak.rule_id
+        ),
+    )
+}
+
+/// A live waiver whose commit is in the history but which names no finding any more: `Medium`, so the list cannot rot silently.
+fn stale_finding(waiver: &Waiver, project: &str) -> Finding {
+    let line = (waiver.line > 0).then_some(waiver.line);
+    let finding = Finding::new(
+        RULE,
+        Severity::Medium,
+        Confidence::High,
+        project,
+        format!("a secret-scan waiver names a finding that no longer exists (gitleaks rule {})", waiver.rule),
+        format!(
+            "the waiver {} ({}) names a commit that is in this history, but gitleaks no longer reports that finding. Remove the entry \
+             from `waivers/secrets.toml` in CodeRipper (or update it if the rule or line moved after a gitleaks upgrade).",
+            waiver.fingerprint(),
+            waiver.reason(),
+        ),
+    )
+    .location(Location::new(waiver.file.clone(), line))
+    .subject(waiver.file.clone());
+    finish(
+        finding,
+        format!(
+            "the scan read the history that holds commit {} and found nothing at {}",
+            waiver.commit, waiver.file
+        ),
+    )
 }
 
 /// The configuration gitleaks is run with, written to the scratch directory: its default rules and nothing the analysed repository
@@ -205,7 +317,9 @@ pub(super) fn run_config(env: &ToolEnv, request: &Request) -> Verdict {
                 .filter(|f| f.location.as_ref().is_some_and(|l| is_config_file(&l.file)))
                 .map(|mut f| {
                     f.check_id = OPS_RULE.to_string();
-                    f.severity = Severity::High;
+                    if f.severity == Severity::Critical {
+                        f.severity = Severity::High;
+                    }
                     f.summary = f.summary.replacen(
                         "a committed secret",
                         "a committed secret in a configuration file",
@@ -308,7 +422,7 @@ pub(super) fn scan_with(
             )
         }
     };
-    let mut leaks = match parse_report(&text) {
+    let leaks = match parse_report(&text) {
         Ok(leaks) => leaks,
         Err(why) => {
             return Verdict::Failed(ErrorKind::ToolOutputUnreadable, format!("{TOOL}: {why}"))
@@ -333,16 +447,50 @@ pub(super) fn scan_with(
             ),
         );
     }
+    // CodeRipper's own reviewed waivers, matched on the file as gitleaks names it (from the repository root), before the project's
+    // prefix is applied.
+    let waivers = match gitleaks_waivers::load() {
+        Ok(w) => w,
+        Err(why) => return Verdict::Failed(ErrorKind::ToolFailed, format!("{TOOL}: {why}")),
+    };
+    let repo_id = crate::github::origin_url(&repo)
+        .ok()
+        .and_then(|url| crate::github::parse_github_remote(&url))
+        .map(|r| format!("{}/{}", r.owner, r.name));
+    let mut applied =
+        gitleaks_waivers::apply(&waivers, repo_id.as_deref(), leaks, Date::today(), |sha| {
+            git_output(&repo, &["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_some()
+        });
     // gitleaks scans the whole repository whatever directory it is given, and names files from the repository root. A project in a
     // subdirectory keeps the leaks under it, named relative to it, so a finding's location and the allowlist agree with the project.
     let prefix = git_output(&repo, &["rev-parse", "--show-prefix"]).unwrap_or_default();
     if !prefix.is_empty() {
-        leaks = leaks
+        let under = |file: &str| {
+            file.replace('\\', "/")
+                .strip_prefix(prefix.as_str())
+                .map(str::to_string)
+        };
+        let rebase = |mut leak: Leak| {
+            leak.file = under(&leak.file)?;
+            Some(leak)
+        };
+        applied.open = applied.open.into_iter().filter_map(rebase).collect();
+        applied.waived = applied
+            .waived
             .into_iter()
-            .filter_map(|mut leak| {
-                let file = leak.file.replace('\\', "/");
-                leak.file = file.strip_prefix(prefix.as_str())?.to_string();
-                Some(leak)
+            .filter_map(|(l, w)| Some((rebase(l)?, w)))
+            .collect();
+        applied.expired = applied
+            .expired
+            .into_iter()
+            .filter_map(|(l, w)| Some((rebase(l)?, w)))
+            .collect();
+        applied.stale = applied
+            .stale
+            .into_iter()
+            .filter_map(|mut w| {
+                w.file = under(&w.file)?;
+                Some(w)
             })
             .collect();
     }
@@ -350,9 +498,13 @@ pub(super) fn scan_with(
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_default();
+    let nothing = applied.open.is_empty()
+        && applied.waived.is_empty()
+        && applied.expired.is_empty()
+        && applied.stale.is_empty();
     // A shallow clone (CI's default checkout) holds only the commits it fetched: an empty report there is about those commits, not
     // about the history, so it must not read as a clean rule. Findings, if there are any, are true whatever else is hidden.
-    if leaks.is_empty()
+    if nothing
         && git_output(&repo, &["rev-parse", "--is-shallow-repository"]).as_deref() == Some("true")
     {
         return Verdict::Unavailable(
@@ -361,7 +513,25 @@ pub(super) fn scan_with(
                 .into(),
         );
     }
-    Verdict::Findings(leaks.iter().map(|l| to_finding(l, &project)).collect())
+    let mut findings: Vec<Finding> = applied
+        .open
+        .iter()
+        .map(|l| to_finding(l, &project))
+        .collect();
+    findings.extend(
+        applied
+            .waived
+            .iter()
+            .map(|(l, w)| waived_finding(l, w, &project)),
+    );
+    findings.extend(
+        applied
+            .expired
+            .iter()
+            .map(|(l, w)| expired_finding(l, w, &project)),
+    );
+    findings.extend(applied.stale.iter().map(|w| stale_finding(w, &project)));
+    Verdict::Findings(findings)
 }
 
 #[cfg(test)]
