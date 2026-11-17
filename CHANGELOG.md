@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.10 - 2026-11-16 (proposed, Changed)
+
+**Rule ids and aliases are permanent (CireSnave 2026-11-16).** The old rule names (`reachability`, `version-consistency`, ...) and the merged-duplicate ids keep working for good: the "accepted for this release only" warning now says they are never removed, `tools/migrate-rule-ids.py` is optional, and CONTRIBUTING states the rule (never rename a rule, never reuse an id, never remove an alias). `tests/catalog.rs` pins all 23 aliases that ever shipped and fails when one stops resolving (checked by removing `TYP-003`) or when a new alias is not added to the pin.
+
+— lane: coderipper
+
+**SEC-012 clears a field whose type already masks its `Debug`, and takes a reasoned marker for a field that is public by design.** A field whose type is a type of the repository with a hand-written masking `Debug` (one impl per declaration, none deriving `Debug`, every declaration masking when the name is declared twice) is no longer reported. `// sec012: public - <reason>` on the field's line or directly above it turns its finding into an Info `waived: <reason>` that stays in the report; a marker with no reason is a Medium finding and waives nothing; a marker on a field SEC-012 does not flag is an Info (stale). Measured on auth-framework main `1c9758d` with the #359 binary against this one: 21 findings to 17 (PendingAuth, GnapManage, UsernameToken, TimestampedToken cleared, and EnhancedTokenStorage.authorization_codes). Names declared twice were skipped for the struct being judged and still are; as a nested type a twice-declared name is now trusted when all its declarations mask (CibaTokenResponse).
+
+— lane: coderipper
+
 ## 0.47.9 - 2026-11-16 (proposed, Fix)
 
 **SEC-012 reads the field's type as well as its name.** A numeric field or collection (a `Vec`/set of non-byte numbers, a map with numeric values), the companions `names`/`num`/`number`, and a lexer `token` (a vocabulary-prefixed name such as `bos_token`, or a `token` in a struct or file whose name says vocab, tokeniz or lexer) are no longer reported as secrets. `Vec<u8>`, `Vec<String>` and string maps still are, and a `password` beside a vocabulary `token` is still reported. Measured with the new binary on checkouts of `main`: baracuda 2 findings to 0; auth-framework 79 findings, unchanged (those are `String` tokens a type cannot clear); the other repos are listed in the PR. A `String` that holds a secret's name (a field called `secret`) is still flagged: rename it `secret_name`.

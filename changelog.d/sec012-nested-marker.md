@@ -1,5 +1,0 @@
-kind: Fix
----
-**SEC-012 clears a field whose type already masks its `Debug`, and takes a reasoned marker for a field that is public by design.** A field whose type is a type of the repository with a hand-written masking `Debug` (one impl per declaration, none deriving `Debug`, every declaration masking when the name is declared twice) is no longer reported. `// sec012: public - <reason>` on the field's line or directly above it turns its finding into an Info `waived: <reason>` that stays in the report; a marker with no reason is a Medium finding and waives nothing; a marker on a field SEC-012 does not flag is an Info (stale). Measured on auth-framework main `1c9758d` with the #359 binary against this one: 21 findings to 17 (PendingAuth, GnapManage, UsernameToken, TimestampedToken cleared, and EnhancedTokenStorage.authorization_codes). Names declared twice were skipped for the struct being judged and still are; as a nested type a twice-declared name is now trusted when all its declarations mask (CibaTokenResponse).
-
-— lane: coderipper
