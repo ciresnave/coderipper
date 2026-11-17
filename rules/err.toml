@@ -72,6 +72,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Narrow the handler to the failures it can truly deal with, or move the catch-all up to a declared boundary function."
 related = ["ERR-001"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: a call of catch_unwind (std::panic::catch_unwind, panic::catch_unwind, a bare catch_unwind) or a .catch_unwind() method, the one handler Rust has that catches every kind of failure, in a function that is not a boundary. A boundary is main, any function of a binary target (src/main.rs, src/bin/), a function with a boundary word among its underscore-separated words (run, serve, handle, handler, dispatch, worker, listener, supervise, supervisor, boundary, entry, entrypoint, extern, ffi, callback, trampoline), or a call with a comment on its line or in the three lines above that says why (boundary, outermost, top-level, ffi, isolate, supervis, must not unwind, across the). One Medium finding with Medium confidence per call; opt-in (check ERR-002). Not judged: a catch-all that is not a panic catcher (a swallowing Err arm is ERR-001), a boundary declared elsewhere, whether the function is really the outermost of its task, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]
