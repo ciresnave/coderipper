@@ -193,9 +193,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
@@ -303,5 +301,118 @@ impl std::str::FromStr for S { type Err = (); fn from_str(email: &str) -> Result
         for f in found("pub fn f(email: &str) {}\n") {
             f.validate().unwrap();
         }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found(src: &str) -> Vec<Finding> {
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            ("src/lib.rs", src),
+        ])) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    #[test]
+    fn every_documented_bare_string_type_is_one_and_other_shapes_are_not() {
+        for ty in [
+            "String",
+            "&str",
+            "&String",
+            "std::borrow::Cow<'_, str>",
+            "impl AsRef<str>",
+            "impl Into<String>",
+        ] {
+            let src = format!("pub fn send(email: {ty}) {{}}");
+            assert_eq!(found(&src).len(), 1, "{ty}");
+        }
+        for ty in ["Option<&str>", "u64", "Vec<u8>", "Email", "&[u8]"] {
+            let src = format!("pub fn send(email: {ty}) {{}}");
+            assert!(found(&src).is_empty(), "{ty}: {:?}", found(&src));
+        }
+    }
+
+    #[test]
+    fn every_documented_domain_word_is_read_as_a_whole_underscore_word() {
+        for word in [
+            "email", "url", "uri", "hostname", "uuid", "ip", "phone", "iban", "currency", "locale",
+            "timezone", "isbn", "postcode", "zipcode",
+        ] {
+            let src = format!("pub fn send({word}: &str, user_{word}: &str) {{}}");
+            assert_eq!(found(&src).len(), 2, "{word}");
+        }
+        for name in ["curl", "ipv6", "emailer", "skip", "tripod"] {
+            let src = format!("pub fn send({name}: &str) {{}}");
+            assert!(
+                found(&src).is_empty(),
+                "{name} holds a domain word but is not one: {:?}",
+                found(&src)
+            );
+        }
+    }
+
+    #[test]
+    fn every_documented_entry_word_in_the_function_name_clears_it() {
+        for word in [
+            "parse",
+            "from",
+            "try",
+            "new",
+            "validate",
+            "is",
+            "check",
+            "verify",
+            "normalize",
+            "sanitize",
+            "deserialize",
+            "decode",
+            "read",
+            "load",
+            "lookup",
+            "find",
+            "get",
+            "with",
+            "set",
+        ] {
+            let src =
+                format!("pub fn {word}_it(email: &str) {{}}\npub fn it_{word}(email: &str) {{}}");
+            assert!(found(&src).is_empty(), "{word}: {:?}", found(&src));
+        }
+        assert_eq!(
+            found("pub fn deliver(email: &str) {}").len(),
+            1,
+            "positive control"
+        );
+    }
+
+    #[test]
+    fn only_pub_functions_and_pub_inherent_methods_outside_trait_impls_are_read() {
+        assert!(found("fn f(email: &str) {}").is_empty());
+        assert!(found("pub(crate) fn f(email: &str) {}").is_empty());
+        assert!(found("pub struct S;\nimpl S { fn f(&self, email: &str) {} }").is_empty());
+        assert!(found("pub trait T { fn f(&self, email: &str); }").is_empty());
+        assert_eq!(
+            found("pub struct S;\nimpl S { pub fn f(&self, email: &str) {} }").len(),
+            1
+        );
+        assert_eq!(found("pub mod m { pub fn f(email: &str) {} }").len(), 1);
+    }
+
+    #[test]
+    fn a_finding_is_medium_severity_low_confidence_at_the_function() {
+        let f = found("\npub fn deliver(email: &str) {}\n");
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Medium, Confidence::Low)
+        );
+        assert_eq!(f[0].location.as_ref().unwrap().line, Some(2));
     }
 }

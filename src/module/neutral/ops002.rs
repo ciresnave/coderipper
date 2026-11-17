@@ -227,9 +227,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let docs: Vec<String> = view
         .paths()
@@ -364,5 +362,182 @@ mod t { fn g() { let _ = std::env::var(\"ONLY_IN_TESTS\"); } }
         for f in found("pub fn f() { let _ = std::env::var(\"APP_X\"); }\n", &[]) {
             f.validate().unwrap();
         }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found(src: &str, docs: &[(&str, &str)]) -> Vec<Finding> {
+        let mut files = vec![("Cargo.toml", MANIFEST), ("src/lib.rs", src)];
+        files.extend_from_slice(docs);
+        match judge(&RepoView::from_files(&files)) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    fn read(name: &str) -> String {
+        format!("pub fn f() {{ let _ = std::env::var(\"{name}\"); }}")
+    }
+
+    #[test]
+    fn the_documented_read_forms_are_collected_and_the_undocumented_ones_are_not() {
+        for form in [
+            "std::env::var(\"APP_X\")",
+            "env::var(\"APP_X\")",
+            "std::env::var_os(\"APP_X\")",
+            "env::var_os(\"APP_X\")",
+        ] {
+            let src = format!("pub fn f() {{ let _ = {form}; }}");
+            assert_eq!(found(&src, &[]).len(), 1, "{form}");
+        }
+        let clap = "#[derive(clap::Parser)]\npub struct A {\n #[arg(long, short = 'p', default_value_t = 8080, env = \"APP_PORT_X\")]\n p: u16,\n #[clap(env = \"APP_OTHER_X\", long)]\n o: String,\n #[arg(value_parser = parse_it, env = \"APP_THIRD_X\")]\n t: String,\n}\n";
+        let names: Vec<String> = found(clap, &[])
+            .into_iter()
+            .map(|f| f.subject.unwrap())
+            .collect();
+        for want in ["APP_PORT_X", "APP_OTHER_X", "APP_THIRD_X"] {
+            assert!(names.iter().any(|n| n == want), "{want} in {names:?}");
+        }
+        // not read: a run-time name, a variable that is not a literal, a builder's `.env("X")`, `env!`
+        let unread = "pub fn f(n: &str) { let _ = std::env::var(n); let _ = cmd.env(\"APP_BUILDER\", \"1\"); let _ = env!(\"APP_COMPILE\"); }";
+        assert!(found(unread, &[]).is_empty(), "{:?}", found(unread, &[]));
+    }
+
+    #[test]
+    fn a_name_must_look_like_a_key_and_no_platform_or_toolchain_name_is_configuration() {
+        for n in ["AB", "lower_case", "Mixed_Case", "1ABC"] {
+            assert!(
+                found(&read(n), &[]).is_empty(),
+                "{n} is not shaped like an environment key"
+            );
+        }
+        for n in [
+            "HOME",
+            "PATH",
+            "USER",
+            "USERNAME",
+            "USERPROFILE",
+            "LOGNAME",
+            "SHELL",
+            "PWD",
+            "OLDPWD",
+            "TMP",
+            "TEMP",
+            "TMPDIR",
+            "TERM",
+            "COLORTERM",
+            "LANG",
+            "EDITOR",
+            "VISUAL",
+            "PAGER",
+            "DISPLAY",
+            "HOSTNAME",
+            "COMPUTERNAME",
+            "APPDATA",
+            "LOCALAPPDATA",
+            "PROGRAMDATA",
+            "SYSTEMROOT",
+            "WINDIR",
+            "CI",
+            "NO_COLOR",
+            "CLICOLOR",
+            "CLICOLOR_FORCE",
+            "FORCE_COLOR",
+            "COLUMNS",
+            "LINES",
+            "SSH_AUTH_SOCK",
+            "PATHEXT",
+            "COMSPEC",
+            "SYSTEMDRIVE",
+            "USERDOMAIN",
+            "PROGRAMFILES",
+            "OS",
+            "PROCESSOR_ARCHITECTURE",
+            "PROCESSOR_IDENTIFIER",
+            "PROCESSOR_LEVEL",
+            "PROCESSOR_REVISION",
+            "NUMBER_OF_PROCESSORS",
+            "TZ",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "NO_PROXY",
+            "ALL_PROXY",
+            "CARGO_HOME",
+            "RUST_LOG",
+            "XDG_STATE_HOME",
+            "LC_ALL",
+            "GITHUB_TOKEN",
+            "RUNNER_TEMP",
+        ] {
+            assert!(found(&read(n), &[]).is_empty(), "{n}");
+        }
+        assert_eq!(found(&read("APP_TOKEN"), &[]).len(), 1, "positive control");
+    }
+
+    #[test]
+    fn every_documented_documentation_file_kind_documents_and_the_excluded_ones_do_not() {
+        for doc in [
+            "README.md",
+            "a.markdown",
+            "notes.txt",
+            "guide.rst",
+            "guide.adoc",
+            ".env",
+            ".env.local",
+            "config.example",
+            "settings.sample",
+            "docs/sub/page.md",
+        ] {
+            assert!(
+                found(&read("APP_KEY"), &[(doc, "APP_KEY is the key\n")]).is_empty(),
+                "{doc}"
+            );
+        }
+        for doc in [
+            "CHANGELOG.md",
+            "changelog.txt",
+            "vendor/x.md",
+            "node_modules/x.md",
+            "target/x.md",
+            "third_party/x.md",
+            "tests/x.md",
+            "test/x.md",
+            "__tests__/x.md",
+            "fixtures/x.md",
+            "fixture/x.md",
+            "testdata/x.md",
+            "conformance/x.md",
+            "src/lib.toml",
+        ] {
+            assert_eq!(
+                found(&read("APP_KEY"), &[(doc, "APP_KEY is the key\n")]).len(),
+                1,
+                "{doc} is not documentation"
+            );
+        }
+    }
+
+    #[test]
+    fn a_name_read_twice_is_one_finding_at_its_first_read() {
+        let src = "pub fn a() { let _ = std::env::var(\"APP_K\"); }\npub fn b() { let _ = std::env::var(\"APP_K\"); }\n";
+        let f = found(src, &[]);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].location.as_ref().unwrap().line, Some(1));
+        assert_eq!(f[0].subject.as_deref(), Some("APP_K"));
+    }
+
+    #[test]
+    fn a_finding_is_low_severity_medium_confidence() {
+        let f = found(&read("APP_KEY"), &[]);
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Low, Confidence::Medium)
+        );
     }
 }

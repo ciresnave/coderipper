@@ -196,9 +196,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
@@ -324,5 +322,116 @@ pub fn h() -> Result<(), E> {
         for f in found(src) {
             f.validate().unwrap();
         }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found(src: &str) -> Vec<Finding> {
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            ("src/lib.rs", src),
+        ])) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    fn body(release: &str) -> String {
+        format!("pub fn f() -> Result<(), E> {{\n    let x = open();\n    step()?;\n    {release}\n    Ok(())\n}}\n")
+    }
+
+    #[test]
+    fn every_documented_release_method_and_function_form_is_read() {
+        for m in ["close", "unlock", "release", "free", "disconnect"] {
+            assert_eq!(found(&body(&format!("x.{m}();"))).len(), 1, "method {m}");
+        }
+        for func in [
+            "close",
+            "fclose",
+            "free",
+            "dealloc",
+            "CloseHandle",
+            "unlock",
+            "release",
+        ] {
+            for arg in ["x", "&x", "&mut x"] {
+                assert_eq!(
+                    found(&body(&format!("{func}({arg});"))).len(),
+                    1,
+                    "{func}({arg})"
+                );
+            }
+        }
+        assert!(
+            found(&body("x.send();")).is_empty(),
+            "positive control: another method is not a release"
+        );
+    }
+
+    #[test]
+    fn a_release_may_be_unwrapped_question_marked_awaited_or_in_an_unsafe_block() {
+        for r in [
+            "x.close().unwrap();",
+            "x.close().expect(\"c\");",
+            "x.close()?;",
+            "x.close().await;",
+            "let _ = x.close();",
+            "unsafe { free(x) };",
+            "x.close().ok();",
+        ] {
+            assert_eq!(found(&body(r)).len(), 1, "{r}");
+        }
+    }
+
+    #[test]
+    fn the_binding_may_be_mutable_or_typed_and_only_the_same_block_counts() {
+        let typed =
+            "pub fn f() -> Result<(), E> { let mut x: Conn = open(); step()?; x.close(); Ok(()) }";
+        assert_eq!(found(typed).len(), 1);
+        let inner =
+            "pub fn f() -> Result<(), E> { let x = open(); step()?; { x.close(); } Ok(()) }";
+        assert!(
+            found(inner).is_empty(),
+            "a release in an inner block is another block: {:?}",
+            found(inner)
+        );
+        let other = "pub fn f() -> Result<(), E> { let y = open(); step()?; x.close(); Ok(()) }";
+        assert!(
+            found(other).is_empty(),
+            "a release of something this block did not bind"
+        );
+    }
+
+    #[test]
+    fn a_return_or_question_mark_between_skips_and_a_closure_or_item_between_does_not() {
+        assert_eq!(
+            found("pub fn f() { let x = open(); if bad() { return; } x.close(); }").len(),
+            1
+        );
+        assert!(found(
+            "pub fn f() { let x = open(); let c = || -> R { step()?; Ok(()) }; x.close(); }"
+        )
+        .is_empty());
+        assert!(
+            found("pub fn f() { let x = open(); fn g() -> R { step()?; Ok(()) } x.close(); }")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_finding_is_medium_severity_low_confidence_at_the_release_call() {
+        let f = found(&body("x.close();"));
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Medium, Confidence::Low)
+        );
+        assert_eq!(f[0].location.as_ref().unwrap().line, Some(4));
+        assert!(f[0].subject.as_deref().unwrap().ends_with(":f:x"));
     }
 }

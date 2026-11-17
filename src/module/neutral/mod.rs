@@ -1099,6 +1099,67 @@ impl Module for NeutralModule {
 mod tests {
     use super::*;
 
+    /// Claims audit (2026-11-17): the claims every rule of this batch makes in its documentation, catalog entry and changelog entry.
+    const BATCH: &[&str] = &[
+        "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002", "OPS-007",
+    ];
+
+    #[test]
+    fn every_rule_of_the_batch_is_opt_in_and_registered() {
+        for id in BATCH {
+            assert!(opt_in_rule_ids().contains(id), "{id} is opt-in");
+            assert!(rule_ids().contains(id), "{id} is registered");
+            assert!(RULES.iter().any(|r| r.id == *id), "{id} has a judge");
+            assert!(PROVEN.contains(id), "{id} is claimed proven by a fixture");
+        }
+    }
+
+    #[test]
+    fn the_rust_rules_of_the_batch_read_rust_only_and_the_registry_rule_reads_any_language() {
+        for id in [
+            "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002",
+        ] {
+            let langs = READS_ONLY.iter().find(|(i, _)| i == &id).map(|(_, l)| *l);
+            assert_eq!(langs, Some(&["rust"][..]), "{id}");
+        }
+        assert!(
+            READS_ONLY.iter().all(|(i, _)| *i != "OPS-007"),
+            "OPS-007 reads any language"
+        );
+    }
+
+    #[test]
+    fn a_repository_whose_only_rust_file_does_not_parse_gets_a_note_naming_it_from_every_rust_rule_of_the_batch(
+    ) {
+        let view = RepoView::from_files(&[
+            (
+                "Cargo.toml",
+                "[package]
+name = \"p\"
+version = \"0.1.0\"
+",
+            ),
+            ("src/lib.rs", "pub fn ("),
+        ]);
+        for id in [
+            "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002",
+        ] {
+            let rule = RULES.iter().find(|r| r.id == id).unwrap();
+            match (rule.judge)(&view) {
+                Verdict::Noted(f, notes) => {
+                    assert!(f.is_empty(), "{id}");
+                    assert!(
+                        notes
+                            .iter()
+                            .any(|n| n.contains("src/lib.rs") && n.contains("could not be parsed")),
+                        "{id}: {notes:?}"
+                    );
+                }
+                _ => panic!("{id}: expected a note naming the file"),
+            }
+        }
+    }
+
     #[test]
     fn paths_split_into_directory_and_name() {
         assert_eq!(dir_of("a/b/c.md"), "a/b");

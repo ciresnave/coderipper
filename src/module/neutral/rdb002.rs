@@ -122,10 +122,28 @@ fn allows(attrs: &[syn::Attribute], lint: &str) -> bool {
     })
 }
 
+/// `#[no_mangle]` and `#[export_name = ..]`, also in the edition-2024 form `#[unsafe(no_mangle)]` and `#[unsafe(export_name = ..)]`.
 fn is_foreign_name(attrs: &[syn::Attribute]) -> bool {
-    attrs
-        .iter()
-        .any(|a| a.path().is_ident("no_mangle") || a.path().is_ident("export_name"))
+    attrs.iter().any(|a| {
+        let p = a.path();
+        if p.is_ident("no_mangle") || p.is_ident("export_name") {
+            return true;
+        }
+        let mut hit = false;
+        if p.is_ident("unsafe") {
+            let _ = a.parse_nested_meta(|m| {
+                if m.path.is_ident("no_mangle") || m.path.is_ident("export_name") {
+                    hit = true;
+                }
+                // consume `= "name"` so the walk does not stop on it
+                if m.input.peek(syn::Token![=]) {
+                    let _ = m.value().and_then(|v| v.parse::<syn::Expr>());
+                }
+                Ok(())
+            });
+        }
+        hit
+    })
 }
 
 fn has_test_attr(attrs: &[syn::Attribute]) -> bool {
@@ -269,9 +287,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
@@ -444,6 +460,142 @@ pub fn Outside() {}
     fn every_finding_validates() {
         for f in found("pub fn BadName() {}\n") {
             f.validate().unwrap();
+        }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found(src: &str) -> Vec<Finding> {
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            ("src/lib.rs", src),
+        ])) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    fn kinds(src: &str) -> Vec<String> {
+        found(src)
+            .into_iter()
+            .map(|f| f.subject.unwrap().split_once(':').unwrap().1.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn every_documented_kind_of_name_is_read_including_methods_unions_and_parameters() {
+        let src = "pub struct S;\nimpl S { pub fn Bad(&self, Arg: u8) {} }\npub union Un_ion { a: u8 }\npub enum E { Ok_v }\n";
+        let k = kinds(src);
+        for want in ["method:Bad", "binding:Arg", "union:Un_ion", "variant:Ok_v"] {
+            assert!(k.iter().any(|x| x == want), "{want} in {k:?}");
+        }
+    }
+
+    #[test]
+    fn the_camel_case_rule_is_start_not_lower_no_double_underscore_and_no_underscore_beside_a_letter(
+    ) {
+        for bad in [
+            "lower",
+            "Bad__Name",
+            "Snake_Case",
+            "snake_case",
+            "Point_2D",
+            "Ab_c",
+        ] {
+            assert_eq!(found(&format!("pub struct {bad};")).len(), 1, "{bad}");
+        }
+        for ok in ["Point2D", "HTTPServer", "A", "_Leading", "Trailing_", "X1"] {
+            assert!(found(&format!("pub struct {ok};")).is_empty(), "{ok}");
+        }
+    }
+
+    #[test]
+    fn the_snake_and_screaming_rules_are_no_upper_case_and_no_lower_case_letter() {
+        for bad in ["camelCase", "Pascal", "x1Y"] {
+            assert_eq!(found(&format!("pub fn {bad}() {{}}")).len(), 1, "{bad}");
+        }
+        for ok in ["snake_case", "x1", "_private", "__dunder__", "r#type"] {
+            assert!(found(&format!("pub fn {ok}() {{}}")).is_empty(), "{ok}");
+        }
+        for bad in ["Max", "max_size", "MAX_size"] {
+            assert_eq!(
+                found(&format!("pub const {bad}: u8 = 1;")).len(),
+                1,
+                "{bad}"
+            );
+            assert_eq!(
+                found(&format!("pub static {bad}: u8 = 1;")).len(),
+                1,
+                "{bad}"
+            );
+        }
+        for ok in ["MAX", "MAX_SIZE", "_MAX", "M1"] {
+            assert!(
+                found(&format!("pub const {ok}: u8 = 1;")).is_empty(),
+                "{ok}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_mangle_export_name_extern_blocks_trait_impl_methods_and_macro_bodies_are_not_read() {
+        for src in [
+            "#[no_mangle]\npub extern \"C\" fn CExport() {}",
+            "#[export_name = \"x\"]\npub fn CExport2() {}",
+            "#[unsafe(no_mangle)]\npub extern \"C\" fn CExport3() {}",
+            "extern \"C\" { fn CImport(); static Cstat: u8; }",
+            "pub struct S;\nimpl std::fmt::Display for S { fn fmt(&self, Fm: &mut std::fmt::Formatter) -> std::fmt::Result { Ok(()) } }",
+            "macro_rules! m { () => { pub fn BadInMacro() {} } }",
+            "my_macro! { pub fn BadInInvocation() {} }",
+        ] {
+            assert!(found(src).is_empty(), "{src}: {:?}", kinds(src));
+        }
+    }
+
+    #[test]
+    fn an_allow_of_the_matching_lint_or_nonstandard_style_clears_an_item_and_another_lint_does_not()
+    {
+        assert!(found("#[allow(non_camel_case_types)]\npub struct lower;").is_empty());
+        assert!(found("#[allow(nonstandard_style)]\npub struct lower;").is_empty());
+        assert_eq!(
+            found("#[allow(non_snake_case)]\npub struct lower;").len(),
+            1,
+            "another lint's allow does not clear a type name"
+        );
+        assert!(found("#[allow(non_upper_case_globals)]\npub const low: u8 = 1;").is_empty());
+    }
+
+    #[test]
+    fn a_finding_is_low_severity_high_confidence_at_the_name_and_an_unparsable_file_is_noted() {
+        let f = found("\npub fn BadName() {}\n");
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Low, Confidence::High)
+        );
+        assert_eq!(f[0].location.as_ref().unwrap().line, Some(2));
+        // one file that parses and one that does not: the bad one is named
+        for files in [
+            vec![
+                ("Cargo.toml", MANIFEST),
+                ("src/lib.rs", "pub fn ok() {}"),
+                ("src/bad.rs", "pub fn ("),
+            ],
+            // the only source file does not parse: still a note naming it, not "no Rust source"
+            vec![("Cargo.toml", MANIFEST), ("src/lib.rs", "pub fn (")],
+        ] {
+            match judge(&RepoView::from_files(&files)) {
+                Verdict::Noted(_, notes) => assert!(
+                    notes.iter().any(|n| n.contains("could not be parsed")),
+                    "{notes:?}"
+                ),
+                _ => panic!("an unparsable file is a note, not a clean read: {files:?}"),
+            }
         }
     }
 }
