@@ -456,3 +456,58 @@ fn the_migration_tool_renames_exactly_the_slug_aliases() {
     );
     assert_eq!(tool, catalog);
 }
+
+/// Every alias that ever shipped, with the rule it names. CireSnave 2026-11-16: rule ids are permanent and an alias is never
+/// removed, so a consumer's `--skip-rule`, `[[allow]]` entry or workflow written with an old name keeps working. Adding an alias
+/// means adding it here; removing one fails `every_alias_that_ever_shipped_still_resolves`.
+const SHIPPED_ALIASES: &[(&str, &str)] = &[
+    ("REL-003", "CON-004"),
+    ("API-010", "DOC-002"),
+    ("RDB-010", "DOC-006"),
+    ("unused-return-values", "ERR-012"),
+    ("SEC-008", "ERR-009"),
+    ("lint-suppression", "GOV-010"),
+    ("conflict-marker", "GOV-011"),
+    ("reachability", "MOD-011"),
+    ("DOC-001", "MOD-001"),
+    ("EVO-003", "MOD-006"),
+    ("TYP-003", "MOD-010"),
+    ("unused-parameters", "RDB-014"),
+    ("patent-index-match", "SUP-014"),
+    ("dependency-freshness", "SUP-015"),
+    ("licence", "SUP-016"),
+    ("ci-security", "SUP-017"),
+    ("AIH-005", "TST-013"),
+    ("version-consistency", "WSP-010"),
+    ("ci-protection-presence", "WSP-011"),
+    ("TST-010", "WSP-007"),
+    ("version-and-changelog", "WSP-012"),
+    ("patent-sweep-record", "WSP-013"),
+    ("security-support-statement", "WSP-014"),
+];
+
+#[test]
+fn every_alias_that_ever_shipped_still_resolves() {
+    let catalog = Catalog::builtin();
+    for (alias, canonical) in SHIPPED_ALIASES {
+        assert_eq!(
+            catalog.canonical_id(alias),
+            Some(*canonical),
+            "the alias {alias} must keep naming {canonical}: rule ids are permanent"
+        );
+    }
+    // positive control: the pin is not empty and the catalog really has aliases
+    assert_eq!(SHIPPED_ALIASES.len(), 23);
+    // the other direction: an alias added to a record is added to the pin, so it cannot be dropped later without this test failing
+    for rule in catalog.rules() {
+        for alias in rule.aliases() {
+            assert!(
+                SHIPPED_ALIASES
+                    .iter()
+                    .any(|(a, c)| a == alias && *c == rule.id()),
+                "alias {alias} of {} is not in SHIPPED_ALIASES",
+                rule.id()
+            );
+        }
+    }
+}

@@ -6,6 +6,26 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.11 - 2026-11-16 (proposed, Docs)
+
+**Patent sweep: CN101017458A is read to claim level.** The 0.47.8 `ERR-011` addendum in `docs/PATENT-SWEEP.md` named it as seen by snippet only. Its independent claims 1 and 5 need a five-module analyzer with data-flow and control-flow analysis and an XML rule base; `ERR-011` matches one syntactic shape. Result: outside as read, with the limits (Google Patents' machine translation of a Chinese text, not checked against the original or the official record). Two older mentions are updated to point at the read.
+
+## 0.47.10 - 2026-11-16 (proposed, Changed)
+
+**Rule ids and aliases are permanent (CireSnave 2026-11-16).** The old rule names (`reachability`, `version-consistency`, ...) and the merged-duplicate ids keep working for good: the "accepted for this release only" warning now says they are never removed, `tools/migrate-rule-ids.py` is optional, and CONTRIBUTING states the rule (never rename a rule, never reuse an id, never remove an alias). `tests/catalog.rs` pins all 23 aliases that ever shipped and fails when one stops resolving (checked by removing `TYP-003`) or when a new alias is not added to the pin.
+
+— lane: coderipper
+
+**SEC-012 clears a field whose type already masks its `Debug`, and takes a reasoned marker for a field that is public by design.** A field whose type is a type of the repository with a hand-written masking `Debug` (one impl per declaration, none deriving `Debug`, every declaration masking when the name is declared twice) is no longer reported. `// sec012: public - <reason>` on the field's line or directly above it turns its finding into an Info `waived: <reason>` that stays in the report; a marker with no reason is a Medium finding and waives nothing; a marker on a field SEC-012 does not flag is an Info (stale). Measured on auth-framework main `1c9758d` with the #359 binary against this one: 21 findings to 17 (PendingAuth, GnapManage, UsernameToken, TimestampedToken cleared, and EnhancedTokenStorage.authorization_codes). Names declared twice were skipped for the struct being judged and still are; as a nested type a twice-declared name is now trusted when all its declarations mask (CibaTokenResponse).
+
+— lane: coderipper
+
+## 0.47.9 - 2026-11-16 (proposed, Fix)
+
+**SEC-012 reads the field's type as well as its name.** A numeric field or collection (a `Vec`/set of non-byte numbers, a map with numeric values), the companions `names`/`num`/`number`, and a lexer `token` (a vocabulary-prefixed name such as `bos_token`, or a `token` in a struct or file whose name says vocab, tokeniz or lexer) are no longer reported as secrets. `Vec<u8>`, `Vec<String>` and string maps still are, and a `password` beside a vocabulary `token` is still reported. Measured with the new binary on checkouts of `main`: baracuda 2 findings to 0; auth-framework 79 findings, unchanged (those are `String` tokens a type cannot clear); the other repos are listed in the PR. A `String` that holds a secret's name (a field called `secret`) is still flagged: rename it `secret_name`.
+
+— lane: coderipper
+
 ## 0.47.8 - 2026-11-16 (proposed, Feature: a new opt-in rule)
 
 **ERR-011 is built: no parse whose failure is silently replaced by a default (Rust, opt-in).** The rule reads the tracked `.rs` files outside tests with `syn` and reports `text.parse()` (any turbofish, no arguments) or `T::from_str(text)`, with or without `.ok()` after it, whose failure is replaced on the spot by `.unwrap_or_default()`, `.unwrap_or(..)` or `.unwrap_or_else(..)`: the failure signal is thrown away, so a malformed input flows onward as if it were real data. A comment on the line, or in the comment block directly above it, that says why (`default`, `fall back`, `fallback`, `lenient`, `best effort`, `on purpose`, `deliberate`, `intentional`) silences the site, and functions under `#[cfg(test)]` or any `#[..::test]` attribute are skipped. One finding per site at Medium severity and confidence, subject `<file>:<function>:<parse or from_str>`. It is opt-in (`coderipper check ERR-011`): `syn` has no types, so a zero-argument `.parse()` is read as `str::parse`, a parse that is `.ok()`-ed and tested later, one wrapped in a function of the project, and a default that is the right answer for an optional setting are not told apart. Fixtures `conformance/ERR-011/{defective,clean}`. Measured on committed trees of eight of our repositories (2026-11-16, `main@c72a6e0` plus this change; the same run of `ERR-001` on coderipper reads its recorded 22 sites): 18 sites in 4 repositories (auth-framework 13, configurant 2, PersistAnt 2, synapse 1; the other four read clean). Sampled sites are mostly optional settings and permission-string parses that fall back to a default without a reason written beside them, which is what the rule asks to be written; how many of the 18 are defects was not measured, so the rule's precision is not claimed.

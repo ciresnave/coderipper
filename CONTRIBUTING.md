@@ -19,6 +19,7 @@ multi-language projects.
 - **A coverage gap never fails a run.** If your check can't run somewhere
   (unsupported language, missing tool), report "not run here." That is
   CodeRipper's incomplete coverage, not a defect in the checked code.
+- **A rule id is permanent (CireSnave 2026-11-16).** Rule changes are rare and usually additive: a consumer never has to edit an existing rule name, `--skip-rule` or `[[allow]]` entry when CodeRipper publishes something new, only decide whether to adopt the new rules. Never rename a rule, never reuse an id, and never remove an alias (`aliases =` in `rules/*.toml`): a duplicate becomes an alias, a rule that must go is marked no longer included (its record stays, its id is never reused; no marker field exists yet, so ask the PM before retiring one). `tests/catalog.rs` pins every alias that ever shipped and fails when one stops resolving or a new alias is not added to the pin.
 - **No finding is waived silently.** Every `[[allow]]` entry needs a reason,
   an owner, and the condition under which it can be removed.
 

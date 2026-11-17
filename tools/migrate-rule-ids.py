@@ -3,7 +3,7 @@
 """Rewrite the old kebab-case rule names in a project's CodeRipper configuration to their numbered ids.
 
 CodeRipper 0.46.0 renamed its fourteen slug-named rules to numbered ids in their domains (`reachability` is `MOD-011`, ...). The old
-names are accepted for one release, with a warning, so nothing breaks the day you upgrade; this tool moves a project over:
+names keep working for good (a rule id or alias is never removed: CireSnave 2026-11-16), with a note, so nothing breaks on an upgrade; this tool is optional and moves a project over to the new ids:
 
     python tools/migrate-rule-ids.py [--dry-run] [PATH ...]
 
