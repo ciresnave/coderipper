@@ -82,6 +82,27 @@ struct Site {
 struct Walk {
     sites: Vec<Site>,
     in_trait_impl: u32,
+    /// The naming lints an enclosing module or the file allows (`#![allow(non_snake_case)]` and the like).
+    allowed: Vec<&'static str>,
+}
+
+const LINTS: [&str; 3] = [
+    "non_snake_case",
+    "non_camel_case_types",
+    "non_upper_case_globals",
+];
+
+impl Walk {
+    /// Push the lints that `attrs` allow for everything below; returns how many were pushed.
+    fn allow_scope(&mut self, attrs: &[syn::Attribute]) -> usize {
+        let before = self.allowed.len();
+        for lint in LINTS {
+            if allows(attrs, lint) {
+                self.allowed.push(lint);
+            }
+        }
+        self.allowed.len() - before
+    }
 }
 
 fn allows(attrs: &[syn::Attribute], lint: &str) -> bool {
@@ -122,7 +143,8 @@ impl Walk {
         attrs: &[syn::Attribute],
     ) {
         let name = ident.to_string();
-        if style.holds(&name) || allows(attrs, style.lint()) {
+        if style.holds(&name) || allows(attrs, style.lint()) || self.allowed.contains(&style.lint())
+        {
             return;
         }
         self.sites.push(Site {
@@ -148,10 +170,12 @@ impl Walk {
 
 impl<'ast> Visit<'ast> for Walk {
     fn visit_item_mod(&mut self, i: &'ast syn::ItemMod) {
-        if is_cfg_test(&i.attrs) || allows(&i.attrs, "nonstandard_style") {
+        if is_cfg_test(&i.attrs) {
             return;
         }
+        let pushed = self.allow_scope(&i.attrs);
         syn::visit::visit_item_mod(self, i);
+        self.allowed.truncate(self.allowed.len() - pushed);
     }
 
     fn visit_item_foreign_mod(&mut self, _: &'ast syn::ItemForeignMod) {}
@@ -253,13 +277,12 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
     for p in &loaded.packages {
         let files = p.sources.len();
         for s in &p.sources {
-            if allows(&s.file.attrs, "nonstandard_style") {
-                continue;
-            }
             let mut walk = Walk {
                 sites: Vec::new(),
                 in_trait_impl: 0,
+                allowed: Vec::new(),
             };
+            walk.allow_scope(&s.file.attrs);
             walk.visit_file(&s.file);
             for site in walk.sites {
                 findings.push(
@@ -383,6 +406,32 @@ extern \"C\" { fn CImport(); }
             subjects("pub struct S;\nimpl S { pub fn Odd(&self) {} }\n"),
             vec!["method:Odd".to_string()]
         );
+    }
+
+    #[test]
+    fn an_inner_allow_of_a_file_or_module_covers_only_its_own_lint_and_its_scope() {
+        // the file allows snake case only: a camel-case violation is still reported, a snake-case one is not
+        let file = "#![allow(non_snake_case)]
+pub fn DoThing() {}
+pub struct lower_type;
+";
+        assert_eq!(subjects(file), vec!["struct:lower_type".to_string()]);
+        // `nonstandard_style` covers all three
+        assert!(found(
+            "#![allow(nonstandard_style)]
+pub fn A() {}
+pub struct b;
+"
+        )
+        .is_empty());
+        // a module's inner allow covers the module and not the code after it
+        let module = "pub mod m {
+    #![allow(non_snake_case)]
+    pub fn Inside() {}
+}
+pub fn Outside() {}
+";
+        assert_eq!(subjects(module), vec!["function:Outside".to_string()]);
     }
 
     #[test]
