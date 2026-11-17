@@ -1,0 +1,6 @@
+# The seeded defect: a flag in the registry with no owner and no sunset date (line 2).
+
+[[expect]]
+rule = "OPS-007"
+file = "flags.yml"
+line = 2

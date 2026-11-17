@@ -196,6 +196,7 @@ confidence_class = "medium"
 kb_refs = []
 remediation = "Tie release to scope exit with RAII, defer, finally, a context manager or using, rather than to the happy path of the code."
 related = ["ERR-010"]
+checked_today = "Tracked Rust files outside vendored, fixture and development directories (tests, benches, examples, tools, scripts, build.rs, tests.rs-style files), parsed with syn, items under cfg(test) and test functions skipped: in one block, a let binding x, a later statement that releases it by hand (x.close(), x.unlock(), x.release(), x.free(), x.disconnect(), or a call of close, fclose, free, dealloc, CloseHandle, unlock or release with x, &x or &mut x as an argument, optionally unwrapped, question-marked or awaited), and between them a statement holding a question mark or a return outside a nested closure, which can skip the release. One Medium finding with Low confidence per release, at the release call; opt-in (check ERR-007). Not judged: whether the type already releases on drop (the reason for Low confidence), guards and defer-style crates, a release in another block or function, break and continue, other languages."
 lifecycle = "experimental"
 
 [rule.applicability]

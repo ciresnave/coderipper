@@ -1,0 +1,6 @@
+# The seeded defect: a public function takes an email address as a bare string (line 1).
+
+[[expect]]
+rule = "TYP-004"
+file = "src/lib.rs"
+line = 1

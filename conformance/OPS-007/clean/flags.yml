@@ -1,0 +1,4 @@
+flags:
+  - name: new_checkout
+    owner: payments
+    expires: 2027-01-31
