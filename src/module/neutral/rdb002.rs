@@ -9,14 +9,14 @@
 //! and a raw-identifier prefix (`r#`) are ignored. One **Low**-severity, High-confidence finding per offending name, at the name.
 //!
 //! **Not reported:** an item under `#[allow(non_snake_case)]`, `non_camel_case_types`, `non_upper_case_globals` or `nonstandard_style`, a
-//! module or file under an inner `#![allow(nonstandard_style)]` (an inner allow of one of the other three lints is **not** read yet), an item with `#[no_mangle]` or `#[export_name]`, anything inside an `extern` block, a method of
+//! module or file under an inner `#![allow(nonstandard_style)]` (an inner allow of one of the other three lints is **not** read yet), an item with `#[no_mangle]` or `#[export_name]` (not in the edition-2024 `#[unsafe(no_mangle)]` spelling: 0.47.12 reports those, fixed in 0.47.14), anything inside an `extern` block, a method of
 //! a trait implementation (its name is the trait's), and anything written inside a macro invocation (`syn` does not expand it).
 //!
 //! **What it cannot see:** the conventions of a project that differ from the language's, an acronym rule (`HTTPServer` is reported
 //! only if it breaks the rule above, which it does not), a name made by a macro, and the other languages. rustc has the same three
 //! lints (`non_snake_case`, `non_camel_case_types`, `non_upper_case_globals`) at type-checker precision and warns by default; this
 //! rule reads a tree without building it and reports a repository that has silenced them. A file `syn` cannot parse is named in a
-//! note, never read as clean.
+//! note, never read as clean. Exception in 0.47.12: when it is the repository's only Rust file the run says `not applicable` and does not name it (fixed in 0.47.14).
 
 use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};

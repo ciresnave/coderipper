@@ -11,12 +11,12 @@
 //!   attempt counter or a limit (an identifier holding `attempt`, `retr`, `tries`, `try`, `count`, `max`, `limit`, `budget`, `deadline`,
 //!   `elapsed` or `timeout`);
 //! * **no backoff:** every sleep in the loop waits a fixed time written out in the call (`sleep(Duration::from_millis(100))`, a
-//!   `SCREAMING_CASE` constant), so the delay never grows with the attempts.
+//!   `SCREAMING_CASE` constant), so the delay never grows with the attempts. In 0.47.12 a call with no arguments (`sleep(next_delay())`) was read as fixed too, a false finding on a computed delay (fixed in 0.47.14).
 //!
 //! **What it cannot see:** whether the operation is safe to repeat (idempotent), jitter, a retry budget shared across callers, retries
 //! stacked across layers, a retry helper of a crate (`backoff`, `tokio-retry`, `again`, which is the better form and is not read), a
 //! delay held in a variable (read as growing, so a fixed delay held in `let delay = ..` is missed), and the other languages. A file
-//! `syn` cannot parse is named in a note, never read as clean.
+//! `syn` cannot parse is named in a note, never read as clean. Exception in 0.47.12: when it is the repository's only Rust file the run says `not applicable` and does not name it (fixed in 0.47.14).
 
 use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};

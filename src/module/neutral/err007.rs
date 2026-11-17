@@ -13,7 +13,7 @@
 //! **What it cannot see:** whether the type of `x` already releases itself on drop (most Rust types do, and then the manual call is
 //! redundant rather than missing, which is why the confidence is Low), a release through a guard, `defer`-style crates or a `finally`
 //! of another language, a release in a different block or function, and a `break` or `continue` that skips it. A file `syn` cannot
-//! parse is named in a note, never read as clean.
+//! parse is named in a note, never read as clean. Exception in 0.47.12: when it is the repository's only Rust file the run says `not applicable` and does not name it (fixed in 0.47.14).
 
 use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};
