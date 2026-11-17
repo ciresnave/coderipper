@@ -93,14 +93,19 @@ const LINTS: [&str; 3] = [
 ];
 
 impl Walk {
-    /// Push the lints that `attrs` allow for everything below; returns how many were pushed.
-    fn allow_scope(&mut self, attrs: &[syn::Attribute]) -> usize {
-        let before = self.allowed.len();
+    /// Push the lints that `attrs` allow for everything below (the file's inner attributes, which are never popped).
+    fn allow_lints(&mut self, attrs: &[syn::Attribute]) {
         for lint in LINTS {
             if allows(attrs, lint) {
                 self.allowed.push(lint);
             }
         }
+    }
+
+    /// Push the lints a module's `attrs` allow, and say how many, so the caller can pop them when the module ends.
+    fn allow_scope(&mut self, attrs: &[syn::Attribute]) -> usize {
+        let before = self.allowed.len();
+        self.allow_lints(attrs);
         self.allowed.len() - before
     }
 }
@@ -298,7 +303,7 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
                 in_trait_impl: 0,
                 allowed: Vec::new(),
             };
-            walk.allow_scope(&s.file.attrs);
+            walk.allow_lints(&s.file.attrs);
             walk.visit_file(&s.file);
             for site in walk.sites {
                 findings.push(
