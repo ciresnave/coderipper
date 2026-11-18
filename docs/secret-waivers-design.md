@@ -1,6 +1,6 @@
 # SEC-002 reviewed waivers: design note
 
-**Status:** proposed (design only; no code in this PR). **Ask:** the PM, 2026-11-11. **Rows:** SEC-002, OPS-006.
+**Status:** built (2026-11-17, PM task; `src/module/delegate/gitleaks_waivers.rs`, `waivers/secrets.toml`). **Ask:** the PM, 2026-11-11. **Rows:** SEC-002, OPS-006.
 
 ## Problem
 
@@ -64,7 +64,13 @@ review: the PR must change `reviewed` and `evidence`, which a unit test checks a
 - **Other tools** (osv-scanner, zizmor, buf): their own waiver paths exist (#276, ruling 8).
 - **A per-repo opt-in.** There is none; that is the point.
 
-## Tests (when built)
+## Built as designed, plus one check (PM 2026-11-17)
+
+All of the above, and a **stale-entry check**: an unexpired entry of the scanned repository whose commit is in the scanned history but which names no
+finding any more is a `Medium` finding ("a secret-scan waiver names a finding that no longer exists"), so the list cannot silently rot (a
+shallow clone that lacks the commit applies nothing and is not stale). `reviewer` is validated to be `pm`.
+
+## Tests
 
 1. exact fingerprint match waives and emits the Info finding; changing any one of repo, commit, file, rule, line leaves the leak Critical; a planted key on the line next to a waived fingerprint is still caught;
 2. a waiver whose commit is absent from the scanned history applies to nothing;
@@ -72,13 +78,24 @@ review: the PR must change `reviewed` and `evidence`, which a unit test checks a
 4. malformed list (short SHA, missing field, `expires` > `reviewed` + 365 days, duplicate fingerprint) fails a unit test;
 5. `.gitleaksignore` in the scanned repository still has no effect (existing test).
 
-## First entries (to be added with the code)
+## First entries (added, ruled by the PM 2026-11-17, `expires` 2027-02-15)
 
 Both from `gitleaks git` over `ThinkersJournal/secretant` main, `generic-api-key`, `CHANGELOG.md`, line 5 (gitleaks fingerprints, read
 back from a local scan, entropy 3.7254806 on each):
 
 - `6e944684ca91408834c7f0d8b8d317cd2076e35e:CHANGELOG.md:generic-api-key:5`
 - `f1cc76b01a0e9afd3f1d00c95ba3dd3602fff4a1:CHANGELOG.md:generic-api-key:5`
+
+## Tuning of the delegated config: measured, not shipped (2026-11-17)
+
+An additive allowlist on `generic-api-key` (`regexTarget = "secret"`, anchored `^...$` over the names of ciphers, hashes and signature schemes) clears the prose without touching the rule otherwise. Findings before/after over full history (gitleaks 8.30.1, `--redact`, the
+production base config vs base + the allowlist): secretant (121 commits) 3/0, coderipper (452) 5/5, lightbulb (863) 15/15; the three removed are the same prose
+line (a cipher name written in prose after the word key: two CHANGELOG commits and a lane-branch HANDOFF commit); a toy repository with a seeded
+value that merely begins with a cipher name, and a random api key, still reported both. **Not shipped in this change** because it
+makes the two waivers above stale (secretant would go `Medium` on the stale check): adopt it as its own change that removes those two entries. The
+three-repo sample is small. The regex measured (a TOML literal string, in `[[rules]] id = "generic-api-key"` / `[[rules.allowlists]]`):
+
+    (?i)^(x?chacha\d+-poly\d+|aes-?\d{3}-(gcm|cbc|ctr|ccm|siv)|sha-?(1|224|256|384|512)|sha3-\d+|hmac-sha-?\d+|ed25519|rsa-\d+|ecdsa-p\d+|argon2(id|i|d)|blake[23][a-z0-9]*)$
 
 ## Decided (PM, 2026-11-11)
 
