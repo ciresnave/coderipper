@@ -20,6 +20,11 @@
 //! the workspace or a `.cargo/config.toml` is not seen. What it cannot see: items used only by proc-macro or derive output that never spells their name.
 //!
 //! **Known limitations, found and confirmed during implementation and review:**
+//! - **A group rustc does not name:** when rustc reports many unused items at once it writes one warning ("multiple methods are never
+//!   used", also associated items, functions, constants, variants, fields) that names none of them; each item's name is then read from
+//!   the text rustc highlights at its span. Before 0.47.14 the names were read from the message alone, so every item of such a group
+//!   was dropped and the check reported nothing for it (a large `impl` looked clean). An item whose span lies in macro-expanded code
+//!   and which rustc does not name cannot be read: the run says how many in a note.
 //! - **`pub` items inside bin targets are not analyzed** when the package also has a library: rustc
 //!   exempts them unless downgraded, and downgrading a bin against an unmodified lib is a separate
 //!   pass. A package with no library is analyzed as before (all targets).
@@ -193,6 +198,7 @@ impl Check for ReachabilityCheck {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_default();
 
+        let unnamed = result.unnamed;
         let candidates: Vec<_> = result
             .hits
             .into_iter()
@@ -441,6 +447,11 @@ impl Check for ReachabilityCheck {
         // crate with nothing dead. Say what happened, as a NOTE: it is bookkeeping about what was not reported, not a
         // defect, so it must not fail a run (it was an Info finding before 0.6.3, and Info fails a run by default).
         let mut notes = Vec::new();
+        if unnamed > 0 {
+            notes.push(format!(
+                "reachability: {unnamed} dead-code item(s) that rustc reported could not be named (their spans lie in macro-expanded \n                 code and rustc named none) and are not reported"
+            ));
+        }
         if findings.is_empty() && set_aside > 0 {
             notes.push(format!(
                 "reachability: {set_aside} dead-code candidate(s) were set aside because a bin, test, example or bench of this \

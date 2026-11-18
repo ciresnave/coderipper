@@ -170,6 +170,7 @@ mod tests {
                 line,
                 column: col,
                 is_primary: true,
+                highlight: None,
             }],
         }
     }
@@ -185,6 +186,7 @@ mod tests {
                 line,
                 column: col,
                 is_primary: true,
+                highlight: None,
             }],
         }
     }
