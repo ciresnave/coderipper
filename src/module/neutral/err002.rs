@@ -13,7 +13,7 @@
 //!
 //! **What it cannot see:** a catch-all that is not a panic catcher (a `match` arm `Err(_) => ..` that swallows is `ERR-001`'s), a
 //! boundary the project declares elsewhere, and whether the function is in fact the outermost one of its task. A file `syn` cannot
-//! parse is named in a note, never read as clean.
+//! parse is named in a note, never read as clean. Exception in 0.47.12: when it is the repository's only Rust file the run says `not applicable` and does not name it (fixed in 0.47.14).
 
 use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};
