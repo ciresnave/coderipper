@@ -40,8 +40,27 @@ SAW only, not read: SPDX 3.0, ClearlyDefined, ScanCode "add a rule" and CLI page
 1. **No tool detects undeclared origin wording** ("Origin:", "derived", "ported", "vendored"), and none checks that a source's required notice files are present. Those two checks (the task's phase 1) are ours, whatever the manifest format.
 2. **REUSE fits the per-file part, and extends cleanly:** a valid `REUSE.toml` may carry extra keys, so a manifest that is a *superset* of REUSE.toml keeps `reuse lint` working unchanged. It lacks origin, required companion files, and line ranges.
 3. **Line ranges have two precedents** (SPDX `SnippetLineRange` `a:b` and ORT's `start_lines` + `line_count`); REUSE has none outside the file. A separate table (for example `[[snippet]]`) would be ignored by `reuse lint`, whereas an `[[annotations]]` entry with a range key would be read by it as a whole-file entry: a hazard to design around.
-3. **Compatibility is nobody's built-in feature**; a table of our own (phase 2) is unavoidable.
+4. **Compatibility is nobody's built-in feature**; a table of our own (phase 2) is unavoidable.
 
-(Schema proposal, the Baracuda test set, the limit statement and the `[ASK]`s for CireSnave follow in the next revision.)
+## 3. Schema: comparison with licence-tools' draft 1 (2026-11-19, `lane/manifest-schema` @299b237)
+
+licence-tools (read in full: `docs/MANIFEST-SCHEMA.md`) chose what the survey pointed to: `LICENCE-MANIFEST.toml`, a REUSE.toml superset,
+`[[annotations]]` per file or glob (REUSE keys `path`, `precedence`, `SPDX-FileCopyrightText`, `SPDX-License-Identifier`; ours `origin-url`, `origin-ref`,
+`origin-licence`, `relation` = an SPDX relationship name, `requires` = tracked files that must ship), and a **separate `[[snippet]]` table** with `lines = "a:b"`
+for ranges. **CodeRipper adopts this as the one schema.** Where it agrees, nothing more to say. Divergences and gaps, each for the two lanes to settle:
+
+1. **Obligation by licence, not only by `requires`.** The positive control (a missing RIKEN MIT notice) is missed if the entry lists no `requires`:
+   the author who forgot the notice also forgot to list it. The check should derive the obligation from `origin-licence`: for any licence that
+   requires attribution (MIT, BSD-*, ISC, Apache-2.0, ...; not CC0-1.0, Unlicense, 0BSD) the entry must carry **`origin-copyright`** (the holder line at
+   the source) and the source's copyright notice must appear in a tracked file (the entry's `requires`, a NOTICE, or this file's own header), not only the generic
+   `LICENSES/MIT.txt` text, which names no holder. Proposed new key: `origin-copyright`.
+2. **Line range inclusivity.** The draft says "1-based, inclusive". SPDX 2.3.1 says 1-based but does not state inclusive for lines (and the byte range wins on conflict).
+   Define it in the schema, since neither standard does.
+3. **Entry coverage and precedence** must be stated for LM-003 ("no entry covers it"): follow REUSE (`closest` default, last matching table wins, `aggregate`/`override`), and say whether a `[[snippet]]` also counts as covering its file for the marker check.
+4. **Check ids.** `LM-001..004` are the licence-tools validator's. The CodeRipper rules take permanent ids in CodeRipper's own families (candidates: `SUP-020..`, next to SUP-014..019 of the 2026-10-24 provenance plan); a crosswalk LM-00x to SUP-0xx belongs in the design.
+5. **Strict unknown keys** (a typo is an error) is right for the validator; CodeRipper must apply it too, or the two tools will disagree about the same file.
+6. **`relation`** is an SPDX name but the survey found no "ported from"; allow `DESCENDANT_OF`, `FILE_MODIFIED`, `COPY_OF`, `VARIANT_OF`, and `OTHER` plus `relation-comment`.
+
+Not yet done: the Baracuda run (67 files, ATTRIBUTION.md and NOTICE files), the compatibility table (phase 2), the limit statement in final form, the `[ASK]`s for CireSnave.
 
 — lane: coderipper
