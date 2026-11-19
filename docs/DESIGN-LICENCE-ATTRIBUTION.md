@@ -75,3 +75,15 @@ LM-001 = **SUP-022** (manifest does not parse or breaks the schema), LM-002 = **
 LM-004 = **SUP-025** (stale entry). licence-tools' proposed SUP-020..023 would have collided with SUP-021.
 
 — lane: coderipper
+
+## 5. Baracuda control run (2026-11-19, Baracuda `origin/main` @1440128, schema `lane/manifest-schema` @9011b5d)
+
+Read by hand (git ls-tree / git show / git grep on the ref, 2506 tracked files); the check itself is not written yet, so this is the predicted result, not a tool run.
+
+- **Positive control (LM-002, RIKEN MIT notice): CONFIRMED missing.** `crates/baracuda-ozimmu-sys` ports `RIKEN-RCCS/accelerator_for_ozIMMU` (MIT; ATTRIBUTION.md lines 32-33, `split.hpp:38`, `split.cu:330`, `gemm.cu:255`). Tracked lines naming RIKEN: 11, none carries `copyright`, `(c)` or the copyright sign (0 of them across the whole tree); its `LICENSE-MIT` line 3 is `Copyright (c) 2026 Eric Evans`. So rule 2 (holder on a copyright line) is unmet, and prose "RIKEN-RCCS" in ATTRIBUTION.md correctly does not satisfy it. Same query on a present thing: `LICENSE-MIT` does match `copyright` (lines 3, 12, 18).
+- **LM-003 in this crate under rule 7:** code markers (findings): `ozimmu.hpp:12` ("vendored"), `split.hpp:38` ("ported from"), `src/lib.rs:30` ("vendored"); ATTRIBUTION.md is prose (info). No `LICENCE-MANIFEST.toml` or `REUSE.toml` exists in Baracuda, so all three are undeclared until an entry covers `crates/baracuda-ozimmu-sys/**`.
+- Not yet done: the full 67-file set, phase-2 compat table, `[ASK]`s for CireSnave, docs PR on a later day.
+
+Rule 7 (LM-003 scope, pm-platform ruling) is adopted for SUP-024: licence-text files are never scanned; markers in `.md/.markdown/.rst/.txt/.tsv` are info and never change the exit code; other files are findings.
+
+— lane: coderipper
