@@ -49,6 +49,70 @@ pub(crate) fn run_worktree_add(mut command: Command) -> anyhow::Result<()> {
     anyhow::bail!("git worktree add failed ({}): {why}", output.status);
 }
 
+/// Cargo looks for a workspace root by walking UP from a package, past the checkout, into the temp directory and beyond. A stray
+/// `Cargo.toml` there (an orphan `[workspace]` whose member is missing) made `cargo metadata` fail for every package of a
+/// checkout that is not itself a workspace root, so rules that read it reported "failed to run" (humboldt, 2026-11-19).
+/// This writes `<scratch>/Cargo.toml`, a `[workspace]` whose members are the checkout's tracked packages, so the search ends
+/// there. Nothing is written when the checkout's own root is a workspace (the search never gets past it), and a package
+/// below another workspace root is left to that root.
+pub(crate) fn isolate_from_enclosing_workspace(
+    scratch: &Path,
+    checkout: &Path,
+) -> anyhow::Result<()> {
+    let listed = Command::new("git")
+        .args(["ls-files", "-z", "--", "Cargo.toml", ":(glob)**/Cargo.toml"])
+        .current_dir(checkout)
+        .output()?;
+    anyhow::ensure!(
+        listed.status.success(),
+        "git ls-files failed in the checkout: {}",
+        String::from_utf8_lossy(&listed.stderr).trim()
+    );
+    let mut dirs: Vec<String> = Vec::new();
+    for entry in String::from_utf8_lossy(&listed.stdout).split('\0') {
+        if let Some(dir) = entry.strip_suffix("Cargo.toml") {
+            dirs.push(dir.trim_end_matches('/').to_string());
+        }
+    }
+    dirs.sort();
+    dirs.dedup();
+    let is_root = |dir: &str| {
+        let manifest = if dir.is_empty() {
+            checkout.join("Cargo.toml")
+        } else {
+            checkout.join(dir).join("Cargo.toml")
+        };
+        std::fs::read_to_string(manifest)
+            .map(|t| t.lines().any(|l| l.trim() == "[workspace]"))
+            .unwrap_or(false)
+    };
+    let roots: Vec<&String> = dirs.iter().filter(|d| is_root(d)).collect();
+    if roots.iter().any(|r| r.is_empty()) {
+        return Ok(());
+    }
+    let under = |dir: &str, root: &str| dir == root || dir.starts_with(&format!("{root}/"));
+    let members: Vec<String> = dirs
+        .iter()
+        .filter(|d| !roots.iter().any(|r| under(d, r)))
+        .map(|d| {
+            if d.is_empty() {
+                "wt".to_string()
+            } else {
+                format!("wt/{d}")
+            }
+        })
+        .collect();
+    if members.is_empty() {
+        return Ok(());
+    }
+    let list: Vec<String> = members.iter().map(|m| format!("{m:?}")).collect();
+    std::fs::write(
+        scratch.join("Cargo.toml"),
+        format!("[workspace]\nmembers = [{}]\n", list.join(", ")),
+    )?;
+    Ok(())
+}
+
 impl RewrittenWorktree {
     /// The source repository (the project directory given to [`Self::create_with`]) this checkout was made
     /// from, as opposed to the throwaway checkout itself. The build cache is keyed by it.
@@ -81,6 +145,7 @@ impl RewrittenWorktree {
             .arg("HEAD")
             .current_dir(project_root);
         run_worktree_add(add)?;
+        isolate_from_enclosing_workspace(scratch.path(), &wt_path)?;
 
         // Build the guard BEFORE rewriting: if a rewrite fails, `Drop` still unregisters the
         // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
@@ -284,6 +349,98 @@ edition = \"2021\"
             err.to_lowercase().contains("fatal") || err.contains("HEAD"),
             "git's own message is missing: {err}"
         );
+    }
+
+    fn metadata_ok(package_dir: &std::path::Path) -> Result<(), String> {
+        let out = Command::new("cargo")
+            .args(["metadata", "--no-deps", "--format-version", "1"])
+            .current_dir(package_dir)
+            .output()
+            .unwrap();
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(String::from_utf8_lossy(&out.stderr).into_owned())
+        }
+    }
+
+    // humboldt, 2026-11-19: a stray `Cargo.toml` (an orphan `[workspace]` with a missing member) in the parent of the temp root
+    // made `cargo metadata` fail in the throwaway checkout, and MOD-011, ERR-012, RDB-014 and OPS-011 reported "failed to run".
+    #[test]
+    fn a_stray_workspace_manifest_above_the_temp_root_no_longer_breaks_cargo_in_the_checkout() {
+        let parent = tempfile::tempdir().unwrap();
+        std::fs::write(
+            parent.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"missing\"]\n",
+        )
+        .unwrap();
+        for nested in [false, true] {
+            let scratch = parent.path().join(if nested { "nested" } else { "root" });
+            let checkout = scratch.join("wt");
+            std::fs::create_dir_all(&checkout).unwrap();
+            let package = if nested {
+                checkout.join("backend")
+            } else {
+                checkout.clone()
+            };
+            init_fixture_repo(&checkout);
+            if nested {
+                std::fs::create_dir_all(package.join("src")).unwrap();
+                std::fs::write(
+                    package.join("Cargo.toml"),
+                    "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+                )
+                .unwrap();
+                std::fs::write(package.join("src/lib.rs"), "pub fn x() {}\n").unwrap();
+                Command::new("git")
+                    .args(["add", "-A"])
+                    .current_dir(&checkout)
+                    .status()
+                    .unwrap();
+                Command::new("git")
+                    .args([
+                        "-c",
+                        "user.email=t@t",
+                        "-c",
+                        "user.name=t",
+                        "commit",
+                        "-q",
+                        "-m",
+                        "n",
+                    ])
+                    .current_dir(&checkout)
+                    .status()
+                    .unwrap();
+            }
+            // control: without the manifest the decoy breaks cargo, so the test can fail
+            let before = metadata_ok(&package);
+            assert!(
+                before.is_err(),
+                "the decoy must break cargo first (nested={nested})"
+            );
+            super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
+            assert_eq!(metadata_ok(&package), Ok(()), "nested={nested}");
+        }
+    }
+
+    #[test]
+    fn a_checkout_whose_root_is_a_workspace_gets_no_isolation_manifest() {
+        let scratch = tempfile::tempdir().unwrap();
+        let checkout = scratch.path().join("wt");
+        std::fs::create_dir_all(&checkout).unwrap();
+        init_fixture_repo(&checkout);
+        std::fs::write(
+            checkout.join("Cargo.toml"),
+            "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[workspace]\n",
+        )
+        .unwrap();
+        Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(&checkout)
+            .status()
+            .unwrap();
+        super::isolate_from_enclosing_workspace(scratch.path(), &checkout).unwrap();
+        assert!(!scratch.path().join("Cargo.toml").exists());
     }
 
     fn init_fixture_repo(dir: &std::path::Path) {
