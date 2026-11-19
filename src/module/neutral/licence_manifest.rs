@@ -41,7 +41,6 @@ const KEYS: &[&str] = &[
 ];
 /// Keys that must hold a string (the other two required keys take any TOML value, as REUSE lets them hold a list).
 const STRING_KEYS: &[&str] = &[
-    "path",
     "precedence",
     "origin-url",
     "origin-ref",
@@ -267,6 +266,20 @@ fn parse_lines(s: &str) -> Option<(u64, u64)> {
     Some((a.parse().ok()?, b.parse().ok()?))
 }
 
+/// `path` as REUSE 3.3 defines it: a string or a list of strings. `None` when absent or of another type.
+fn paths_of(e: &toml::Table) -> Option<Vec<String>> {
+    match e.get("path") {
+        Some(toml::Value::String(s)) => Some(vec![s.clone()]),
+        Some(toml::Value::Array(a)) if !a.is_empty() && a.iter().all(toml::Value::is_str) => Some(
+            a.iter()
+                .filter_map(toml::Value::as_str)
+                .map(str::to_string)
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
 fn str_of<'a>(e: &'a toml::Table, key: &str) -> Option<&'a str> {
     e.get(key).and_then(toml::Value::as_str)
 }
@@ -274,7 +287,9 @@ fn str_of<'a>(e: &'a toml::Table, key: &str) -> Option<&'a str> {
 /// One `[[annotations]]` or `[[snippet]]` entry: LM-001, LM-004, LM-002 and LM-005 for it. Returns the tracked files it covers.
 fn check_entry(run: &mut Run, kind: &str, i: usize, e: &toml::Table) -> Vec<String> {
     let line = run.header_line(kind, i);
-    let path = str_of(e, "path").unwrap_or("?");
+    let paths = paths_of(e);
+    let path_label = paths.as_ref().map_or("?".to_string(), |p| p.join(", "));
+    let path = path_label.as_str();
     let tag = format!("[[{kind}]] #{} ({path})", i + 1);
     let snippet = kind == "snippet";
     let bad = |run: &mut Run, text: String| {
@@ -296,6 +311,12 @@ fn check_entry(run: &mut Run, kind: &str, i: usize, e: &toml::Table) -> Vec<Stri
         if !e.contains_key(*k) {
             bad(run, format!("`{k}` is required here and absent"));
         }
+    }
+    if e.contains_key("path") && paths.is_none() {
+        bad(
+            run,
+            "`path` must be a string or a non-empty list of strings".into(),
+        );
     }
     for k in STRING_KEYS {
         if e.get(*k).is_some_and(|v| !v.is_str()) {
@@ -347,17 +368,18 @@ fn check_entry(run: &mut Run, kind: &str, i: usize, e: &toml::Table) -> Vec<Stri
         bad(run, "`relation-comment` without `relation`".into());
     }
 
-    let hits: Vec<String> = match str_of(e, "path") {
-        Some(p) => run
+    // a list covers the union of its elements' matches (REUSE: any element matching covers the file)
+    let hits: Vec<String> = match &paths {
+        Some(ps) => run
             .view
             .paths()
             .iter()
-            .filter(|f| glob_match(p, f))
+            .filter(|f| ps.iter().any(|p| glob_match(p, f)))
             .cloned()
             .collect(),
         None => Vec::new(),
     };
-    if str_of(e, "path").is_some() && hits.is_empty() {
+    if paths.is_some() && hits.is_empty() {
         run.push(
             Lm::Stale,
             line,
@@ -573,11 +595,13 @@ fn analyse(view: &RepoView, which: Lm) -> Option<Vec<Hit>> {
             let hits = check_entry(&mut run, kind, i, table);
             if kind == "annotations" {
                 covered.extend(hits);
-            } else if let (Some(p), Some((a, b))) = (
-                str_of(table, "path"),
+            } else if let (Some(ps), Some((a, b))) = (
+                paths_of(table),
                 str_of(table, "lines").and_then(parse_lines),
             ) {
-                spans.push((p.to_string(), a, b));
+                for p in ps {
+                    spans.push((p, a, b));
+                }
             }
         }
     }

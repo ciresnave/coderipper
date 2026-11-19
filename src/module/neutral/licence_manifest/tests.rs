@@ -747,3 +747,92 @@ fn a_wrong_typed_precedence_list_is_a_parse_finding_not_a_panic() {
     let body = format!("{HEAD}path = \"a.c\"\nprecedence = [\"x\"]\n");
     assert!(!found(Lm::Parse, &[(MANIFEST, &body), ("a.c", "x\n")]).is_empty());
 }
+
+#[test]
+fn a_path_list_covers_the_union_and_is_stale_only_when_no_element_matches() {
+    let live = HEAD.to_string()
+        + "path = [\"a.c\", \"b/**\"]
+";
+    let files = [
+        (MANIFEST, live.as_str()),
+        (
+            "a.c", "x
+",
+        ),
+        (
+            "b/y.c", "x
+",
+        ),
+        (
+            "c.c", "x
+",
+        ),
+    ];
+    assert!(
+        found(Lm::Stale, &files).is_empty(),
+        "a list with live elements is not stale"
+    );
+    let stale_beside_live = HEAD.to_string()
+        + "path = [\"a.c\", \"gone/**\"]
+";
+    assert!(found(
+        Lm::Stale,
+        &[
+            (MANIFEST, stale_beside_live.as_str()),
+            (
+                "a.c", "x
+"
+            )
+        ]
+    )
+    .is_empty());
+    let all_stale = HEAD.to_string()
+        + "path = [\"x/**\", \"y/**\"]
+";
+    assert_eq!(
+        found(
+            Lm::Stale,
+            &[
+                (MANIFEST, all_stale.as_str()),
+                (
+                    "a.c", "x
+"
+                )
+            ]
+        )
+        .len(),
+        1
+    );
+    let bad = HEAD.to_string()
+        + "path = [\"a.c\", 3]
+";
+    assert!(!found(
+        Lm::Parse,
+        &[
+            (MANIFEST, bad.as_str()),
+            (
+                "a.c", "x
+"
+            )
+        ]
+    )
+    .is_empty());
+    let covered = HEAD.to_string()
+        + "path = [\"a.c\"]
+";
+    let marked = [
+        (MANIFEST, covered.as_str()),
+        (
+            "a.c",
+            "// Origin: elsewhere
+",
+        ),
+        (
+            "c.c",
+            "// Origin: elsewhere
+",
+        ),
+    ];
+    let m = found(Lm::Marker, &marked);
+    assert_eq!(m.len(), 1, "only c.c is uncovered: {m:?}");
+}
