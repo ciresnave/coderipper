@@ -14,7 +14,7 @@
 //!
 //! **What it cannot see:** where the data really enters the program, a domain type that is itself a `String` alias, parameters of another
 //! shape (a bare `u64` that is an id, a `Vec<u8>` that is a token), a name outside the word list, and the other languages. A file `syn`
-//! cannot parse is named in a note, never read as clean.
+//! cannot parse is named in a note, never read as clean. Exception in 0.47.12: when it is the repository's only Rust file the run says `not applicable` and does not name it (fixed in 0.47.14).
 
 use super::rust_package::{load, unparsed_note};
 use super::{RepoView, Verdict};

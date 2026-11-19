@@ -413,6 +413,11 @@ The repository cannot silence the rule: a committed `.gitleaksignore`, `.gitleak
 project's own way to suppress a finding is the `.coderipper.toml` allowlist). A project in a subdirectory gets the leaks under it, with
 paths relative to it; a path that is not a git repository with a commit is an error, not a clean run.
 
+A verified false positive in history, which no commit can fix, is waived from outside the repository: `waivers/secrets.toml` in CodeRipper's own repository lists
+the exact finding (repo, commit, file, rule, line), who reviewed it and why, and when the review ends. A waived finding is reported as `Info`, not dropped; an
+expired entry, or one whose finding no longer exists in a history that holds its commit, is `Medium`. A repository cannot add to the list (design:
+`docs/secret-waivers-design.md`).
+
 A shallow clone (CI's default checkout) holds only the commits it fetched, so a scan that finds nothing there is reported as not run
 (`git fetch --unshallow`), not as clean; what it does find is reported.
 
