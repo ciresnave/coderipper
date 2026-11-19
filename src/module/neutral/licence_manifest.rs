@@ -367,7 +367,19 @@ fn check_entry(run: &mut Run, kind: &str, i: usize, e: &toml::Table) -> Vec<Stri
         );
     }
     let lic = str_of(e, "origin-licence").filter(|l| !l.is_empty());
-    if let (Some(lic), Some(ours)) = (lic, str_of(e, "SPDX-License-Identifier")) {
+    // REUSE.toml lets the identifier be a string or a list of strings; a list is checked element-wise (joined with AND), so an
+    // incompatible licence cannot hide inside it (settled with licence-tools and pm-platform, 2026-11-19)
+    let ours_joined: Option<String> = match e.get("SPDX-License-Identifier") {
+        Some(toml::Value::String(s)) => Some(s.clone()),
+        Some(toml::Value::Array(a)) if !a.is_empty() && a.iter().all(toml::Value::is_str) => Some(
+            a.iter()
+                .filter_map(toml::Value::as_str)
+                .collect::<Vec<_>>()
+                .join(" AND "),
+        ),
+        _ => None,
+    };
+    if let (Some(lic), Some(ours)) = (lic, ours_joined.as_deref()) {
         let (conflicts, unjudged) = compat::conflicts(lic, ours);
         for b in conflicts {
             run.push(

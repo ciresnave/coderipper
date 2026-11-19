@@ -727,3 +727,23 @@ fn a_list_of_licence_identifiers_is_valid_reuse_and_not_a_parse_finding() {
     let body = format!("{}path = \"a.c\"\n", HEAD.replace("\"MIT\"", "[\"MIT\"]"));
     assert!(found(Lm::Parse, &[(MANIFEST, &body), ("a.c", "x\n")]).is_empty());
 }
+
+#[test]
+fn a_list_of_licence_identifiers_is_checked_element_wise_against_the_origin_licence() {
+    let body = format!(
+        "{}path = \"a.c\"\norigin-url = \"u\"\norigin-licence = \"GPL-3.0-only\"\norigin-copyright = \"x\"\nrequires = [\"N\"]\n",
+        HEAD.replace("\"MIT\"", "[\"GPL-3.0-only\", \"MIT\"]")
+    );
+    let f = found(
+        Lm::Compat,
+        &[(MANIFEST, &body), ("a.c", "x\n"), ("N", "Copyright x\n")],
+    );
+    assert_eq!(f.len(), 1, "{f:?}");
+    assert!(f[0].summary.contains("`MIT`"), "{}", f[0].summary);
+}
+
+#[test]
+fn a_wrong_typed_precedence_list_is_a_parse_finding_not_a_panic() {
+    let body = format!("{HEAD}path = \"a.c\"\nprecedence = [\"x\"]\n");
+    assert!(!found(Lm::Parse, &[(MANIFEST, &body), ("a.c", "x\n")]).is_empty());
+}
