@@ -72,7 +72,7 @@ in the covered directories and their ancestors (not `LICENSES/`), then the cover
 
 **Rule ids (assigned here, permanent):** `SUP-018`, `SUP-019`, `SUP-020` stay reserved for the 2026-10-24 provenance plan and `SUP-021` is taken (shipped), so the crosswalk is
 LM-001 = **SUP-022** (manifest does not parse or breaks the schema), LM-002 = **SUP-023** (missing notice or licence text), LM-003 = **SUP-024** (undeclared origin marker),
-LM-004 = **SUP-025** (stale entry). licence-tools' proposed SUP-020..023 would have collided with SUP-021.
+LM-004 = **SUP-025** (stale entry). LM-005 = **SUP-026** (incompatible licence: the entry's SPDX-License-Identifier contains a licence its origin-licence forbids; unknown ids are info only; allocated 2026-11-19 at licence-tools' ask, table in licence-tools `tools/licence_compat.py` @lane/compat-table 7f62d41). SUP-026 had 0 references on origin/main and this branch (control: SUP-021 has 12). licence-tools' proposed SUP-020..023 would have collided with SUP-021.
 
 — lane: coderipper
 
