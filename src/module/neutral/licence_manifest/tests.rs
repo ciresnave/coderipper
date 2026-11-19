@@ -670,3 +670,60 @@ fn a_snippet_is_checked_for_compatibility_too() {
     )
     .is_empty());
 }
+
+// Divergences settled with licence-tools 2026-11-19: the same fixtures as `class Divergences` in its tests/test_licence_manifest.py.
+const HEAD: &str = "version = 1\n[[annotations]]\nSPDX-FileCopyrightText = \"x\"\nSPDX-License-Identifier = \"MIT\"\n";
+
+#[test]
+fn a_wrong_typed_value_is_a_parse_finding_never_a_panic_and_nothing_else_fires() {
+    let cases: Vec<(&str, String)> = vec![
+        ("path int", "version = 1\n[[annotations]]\npath = 5\nSPDX-FileCopyrightText = \"x\"\nSPDX-License-Identifier = \"MIT\"\n".into()),
+        ("requires string", format!("{HEAD}path = \"a.c\"\nrequires = \"NOTICE\"\n")),
+        ("origin-licence int", format!("{HEAD}path = \"a.c\"\norigin-url = \"u\"\norigin-licence = 3\n")),
+        ("annotations not an array", "version = 1\nannotations = \"x\"\n".into()),
+        ("entry not a table", "version = 1\nannotations = [1]\n".into()),
+        ("snippet lines int", format!("{}path = \"a.c\"\nlines = 5\n", HEAD.replace("annotations", "snippet"))),
+    ];
+    for (name, body) in cases {
+        let counts = all_rules(&[(MANIFEST, &body), ("a.c", "x\n")]);
+        for (l, n) in counts {
+            if l == Lm::Parse {
+                assert!(n > 0, "{name}: no parse finding");
+            } else {
+                assert_eq!(n, 0, "{name}: {l:?} fired on a skipped entry");
+            }
+        }
+    }
+}
+
+#[test]
+fn lm002_is_once_per_entry_and_missing_requires_file_naming_both() {
+    let body = format!(
+        "{HEAD}path = \"a/**\"\nrequires = [\"N1\", \"N2\"]\n[[annotations]]\nSPDX-FileCopyrightText = \"y\"\nSPDX-License-Identifier = \"MIT\"\npath = \"b/**\"\nrequires = [\"N1\"]\n"
+    );
+    let f = found(
+        Lm::Notice,
+        &[(MANIFEST, &body), ("a/x", "x\n"), ("b/x", "x\n")],
+    );
+    assert_eq!(f.len(), 3, "{f:?}");
+    assert_eq!(
+        f.iter()
+            .filter(|x| x.summary.contains("`N1`") && x.summary.contains("#2"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        f.iter()
+            .filter(|x| x.summary.contains("`N2`") && x.summary.contains("#1"))
+            .count(),
+        1
+    );
+}
+
+/// NOT adopted from licence-tools' Divergences (their "licence list" case): REUSE.toml lets `SPDX-License-Identifier` hold a list, and the
+/// schema is a superset of REUSE.toml, so a list is valid here and only skipped by the compatibility check. Open with licence-tools.
+#[test]
+fn a_list_of_licence_identifiers_is_valid_reuse_and_not_a_parse_finding() {
+    let body = format!("{}path = \"a.c\"\n", HEAD.replace("\"MIT\"", "[\"MIT\"]"));
+    assert!(found(Lm::Parse, &[(MANIFEST, &body), ("a.c", "x\n")]).is_empty());
+}
