@@ -63,4 +63,15 @@ for ranges. **CodeRipper adopts this as the one schema.** Where it agrees, nothi
 
 Not yet done: the Baracuda run (67 files, ATTRIBUTION.md and NOTICE files), the compatibility table (phase 2), the limit statement in final form, the `[ASK]`s for CireSnave.
 
+## 4. Settled with licence-tools (2026-11-19, `lane/manifest-schema` @13f5c5c)
+
+All six gaps of section 3 were adopted. Two additions to mirror in the check: (a) a credit is not a notice (the holder must sit on a line with
+`copyright`, `(c)` or the copyright sign, so prose such as "RIKEN-RCCS" in an ATTRIBUTION.md does not satisfy the RIKEN control); (b) a `[[snippet]]` does not
+cover its file for the undeclared-origin check, only marker lines inside its range. Notice search: `requires`, then `NOTICE*`/`ATTRIBUTION*`/`COPYING*`/`LICENSE*`/`THIRD*`
+in the covered directories and their ancestors (not `LICENSES/`), then the covered files' first 60 lines.
+
+**Rule ids (assigned here, permanent):** `SUP-018`, `SUP-019`, `SUP-020` stay reserved for the 2026-10-24 provenance plan and `SUP-021` is taken (shipped), so the crosswalk is
+LM-001 = **SUP-022** (manifest does not parse or breaks the schema), LM-002 = **SUP-023** (missing notice or licence text), LM-003 = **SUP-024** (undeclared origin marker),
+LM-004 = **SUP-025** (stale entry). licence-tools' proposed SUP-020..023 would have collided with SUP-021.
+
 — lane: coderipper
