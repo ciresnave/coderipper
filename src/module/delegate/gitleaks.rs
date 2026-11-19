@@ -336,6 +336,19 @@ pub(super) fn run_config(env: &ToolEnv, request: &Request) -> Verdict {
 }
 
 /// `git <args>` in `dir`: its output when it succeeded (only the line ending is trimmed: a path may begin with a space).
+/// Whether `sha` is a commit the history scan reads: reachable from a ref (what `gitleaks git` walks, `git log --all`) or from `HEAD`.
+/// An object that is merely present (left over after a branch was pruned, not yet collected) is not scanned, so a waiver for it is not
+/// stale.
+fn commit_is_scanned(repo: &Path, sha: &str) -> bool {
+    let commit = format!("{sha}^{{commit}}");
+    if git_output(repo, &["cat-file", "-e", &commit]).is_none() {
+        return false;
+    }
+    let on_a_ref = git_output(repo, &["for-each-ref", "--count=1", "--contains", sha])
+        .is_some_and(|refs| !refs.is_empty());
+    on_a_ref || git_output(repo, &["merge-base", "--is-ancestor", sha, "HEAD"]).is_some()
+}
+
 fn git_output(dir: &Path, args: &[&str]) -> Option<String> {
     crate::conformance::git_command(dir)
         .args(args)
@@ -461,7 +474,7 @@ pub(super) fn scan_with(
         .map(|r| format!("{}/{}", r.owner, r.name));
     let mut applied =
         gitleaks_waivers::apply(&waivers, repo_id.as_deref(), leaks, Date::today(), |sha| {
-            git_output(&repo, &["cat-file", "-e", &format!("{sha}^{{commit}}")]).is_some()
+            commit_is_scanned(&repo, sha)
         });
     // gitleaks scans the whole repository whatever directory it is given, and names files from the repository root. A project in a
     // subdirectory keeps the leaks under it, named relative to it, so a finding's location and the allowlist agree with the project.
@@ -539,6 +552,53 @@ pub(super) fn scan_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn git(dir: &Path, args: &[&str]) -> String {
+        let out = std::process::Command::new("git")
+            .current_dir(dir)
+            .args([
+                "-c",
+                "user.name=t",
+                "-c",
+                "user.email=t@example.com",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "git {args:?}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    #[test]
+    fn a_commit_left_over_after_its_branch_was_deleted_is_not_scanned() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = dir.path();
+        git(d, &["init", "-q", "-b", "main"]);
+        git(d, &["commit", "-q", "--allow-empty", "-m", "on main"]);
+        let on_main = git(d, &["rev-parse", "HEAD"]);
+        git(d, &["checkout", "-q", "-b", "side"]);
+        git(d, &["commit", "-q", "--allow-empty", "-m", "on side"]);
+        let on_side = git(d, &["rev-parse", "HEAD"]);
+        git(d, &["checkout", "-q", "main"]);
+        // control: both are scanned while the branch exists
+        assert!(commit_is_scanned(d, &on_main));
+        assert!(commit_is_scanned(d, &on_side));
+        git(d, &["branch", "-D", "side"]);
+        // the object is still in the store, but no ref reaches it, so gitleaks does not read it
+        git(d, &["cat-file", "-e", &on_side]);
+        assert!(commit_is_scanned(d, &on_main));
+        assert!(!commit_is_scanned(d, &on_side));
+        assert!(!commit_is_scanned(
+            d,
+            "0000000000000000000000000000000000000000"
+        ));
+    }
 
     #[test]
     fn only_configuration_files_are_this_rules() {
