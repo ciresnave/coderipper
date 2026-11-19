@@ -21,6 +21,8 @@
 //! **Redacted by construction, so not reported:** a field whose type is `Secret`, `SecretString`, `SecretBox`, `SecretVec`, `SecretSlice`
 //! or `SecretValue` (these print a mask), and a hand-written `Debug` impl that never reads the field, or that carries `redact`,
 //! `REDACTED`, `<hidden>`, `***` or `finish_non_exhaustive` in its body.
+//! A hand-written `Debug` that only asks whether the field is set (`self.credentials.is_some()`, also `is_none`, `is_empty`, `is_ok`,
+//! `is_err`) and prints `<set>` or `<none>` does not read the value, so it is not reported; one more read that prints the value is.
 //!
 //! **Read as not a secret, though the name matches (the false positives of the 0.47.5 pin-move round):**
 //!
@@ -573,12 +575,31 @@ fn scan(path: &str, text: &str) -> Option<(Vec<StructDecl>, Vec<DebugImpl>)> {
     Some((s.structs, s.impls))
 }
 
-/// Whether a hand-written `Debug` body reads the field (`self.name`) and shows no sign of redaction.
+/// Calls that ask whether a secret is there and never show it: `self.credentials.is_some()` printed as `<set>` or `<none>`.
+const PRESENCE_TESTS: &[&str] = &[
+    ".is_some()",
+    ".is_none()",
+    ".is_empty()",
+    ".is_ok()",
+    ".is_err()",
+];
+
+/// Whether a hand-written `Debug` body reads the field's value (`self.name`, as that whole name, not as the start of `self.name_x`) and
+/// shows no sign of redaction. A field used only in a presence test (`self.name.is_some()`) is not read: the output says whether it is
+/// set, never what it is.
 fn leaks(body: &str, field: &str) -> bool {
     if REDACTION_MARKS.iter().any(|m| body.contains(m)) {
         return false;
     }
-    body.contains(&format!("self.{field}"))
+    let needle = format!("self.{field}");
+    body.match_indices(&needle).any(|(at, _)| {
+        let rest = &body[at + needle.len()..];
+        let same_name = !rest
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+        same_name && !PRESENCE_TESTS.iter().any(|p| rest.starts_with(p))
+    })
 }
 
 /// The structs of a repository that print a secret field through `Debug`, over `(path, text)` pairs. The second value is the paths
@@ -840,6 +861,70 @@ mod tests {
         assert!(one(masked).is_empty());
         let silent = "struct A { token: String, n: u8 }\nimpl Debug for A {\n    fn fmt(&self, f: &mut Formatter) -> Result {\n        write!(f, \"A {}\", self.n)\n    }\n}";
         assert!(one(silent).is_empty());
+    }
+
+    // The two shapes of the humboldt finding (HumboldtUnifiedKidTracker@b257fa4): a hand-written `Debug` that prints only whether the
+    // credentials are set, and a field whose type is a newtype whose `Debug` prints a hidden marker.
+    const HUMBOLDT_SMTP: &str = "pub struct SmtpConfig { pub host: String, credentials: Option<(String, String)> }
+impl std::fmt::Debug for SmtpConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(\"SmtpConfig\")
+            .field(\"host\", &self.host)
+            .field(\"credentials\", &if self.credentials.is_some() { \"<set>\" } else { \"<none>\" })
+            .finish()
+    }
+}";
+    const HUMBOLDT_PASSPHRASE: &str = "#[derive(Clone)]
+pub struct Passphrase(SecretString);
+impl std::fmt::Debug for Passphrase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(\"Passphrase(<hidden>)\")
+    }
+}
+#[derive(Debug, Clone, Default)]
+pub struct Options { pub execute: bool, pub passphrase: Option<Passphrase> }";
+
+    #[test]
+    fn a_hand_written_debug_that_only_tests_whether_the_secret_is_set_is_not_a_leak() {
+        assert!(one(HUMBOLDT_SMTP).is_empty());
+        for test in [".is_none()", ".is_empty()", ".is_ok()", ".is_err()"] {
+            let src = HUMBOLDT_SMTP.replace(".is_some()", test);
+            assert!(one(&src).is_empty(), "{test}");
+        }
+    }
+
+    #[test]
+    fn a_presence_test_does_not_hide_a_second_read_that_prints_the_value() {
+        // control: the same struct and the same impl, but the value is printed beside the presence test
+        let both = HUMBOLDT_SMTP.replace(
+            ".finish()",
+            ".field(\"debug_copy\", &self.credentials).finish()",
+        );
+        assert_eq!(one(&both).len(), 1);
+        let plain = "struct A { token: String }
+impl fmt::Debug for A {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, \"{}\", self.token)
+    }
+}";
+        assert_eq!(one(plain).len(), 1);
+        // a longer field name that starts with the secret's name is another field and reads nothing of it
+        let other = "struct A { token: String, token_type: String }
+impl fmt::Debug for A {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, \"{}\", self.token_type)
+    }
+}";
+        assert!(one(other).is_empty());
+    }
+
+    #[test]
+    fn a_field_whose_type_prints_a_hidden_marker_is_not_reported_and_a_plain_string_secret_still_is(
+    ) {
+        assert!(one(HUMBOLDT_PASSPHRASE).is_empty());
+        let plain = "#[derive(Debug, Clone, Default)]
+pub struct Options { pub execute: bool, pub passphrase: Option<String> }";
+        assert_eq!(one(plain)[0].fields, vec!["passphrase"]);
     }
 
     #[test]
