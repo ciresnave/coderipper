@@ -196,7 +196,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return super::rust_package::nothing_to_read(ID, &loaded);
+        return super::rust_package::nothing_to_read(ID, &loaded, "the repository tracks no Rust package source outside tests, examples, tools and vendored trees");
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
