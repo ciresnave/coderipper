@@ -92,6 +92,6 @@ Rule 7 (LM-003 scope, pm-platform ruling) is adopted for SUP-024: licence-text f
 
 Implementation: `src/module/neutral/licence_manifest.rs` (the five rules, one analysis), `licence_compat.rs` (the table, ported from licence-tools `tools/licence_compat.py` @7f62d41), fixtures `conformance/SUP-02{2..6}/{defective,clean}`. Default on in `extended` and `portfolio`; not applicable when `LICENCE-MANIFEST.toml` is not tracked. Findings are Low; the info lines of the schema (prose markers of rule 7, unchecked licences of LM-005) are run notes, which never change the verdict.
 
-**Command:** `coderipper check SUP-023 --project <repo-root>` (any of SUP-022..SUP-026; it reads `HEAD` of that git repository, so commit the manifest first; a plain `coderipper fast`/`portfolio` run includes all five).
+**Command:** `coderipper check SUP-023 --project <repo-root>` (any of SUP-022..SUP-026; it reads `HEAD` of that git repository, so commit the manifest first).
 
 **Reference validator:** the licence-tools validator (`lane/manifest-schema` @27dc254, `lane/compat-table` @0dfd055) agrees on all ten conformance fixtures and on the Baracuda export (same 110 files for LM-003, same single LM-002). Known differences: a wrong-typed value (`path = 3`) is an LM-001 finding here and a Python exception there; a REUSE list for `SPDX-FileCopyrightText` is accepted by both; the findings carry the line of the entry header or the marker; one LM-002 finding per missing `requires` file (the validator's code, not the schema's wording "one per entry").
