@@ -224,3 +224,57 @@ fn extern_block_symbols_are_kept_apart_from_the_budget() {
     // the budget does not change: only `a` is counted
     assert_eq!(t.item_count(), 1, "{t:?}");
 }
+
+// Claims audit (2026-11-17): the claims of the MOD-011 extern-block change (changelog.d/mod-011-extern-symbols.md).
+#[test]
+fn extern_block_functions_statics_and_types_are_all_recorded_when_pub() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "extern \"C\" {\n    pub fn open();\n    pub static VERSION: i32;\n    pub type Handle;\n    fn private();\n    static PRIVATE: i32;\n}\n",
+    )]);
+    let lines: Vec<usize> = t.foreign_sites.iter().map(|(_, l)| *l).collect();
+    assert_eq!(lines, [2, 3, 4], "{t:?}");
+}
+
+#[test]
+fn an_extern_block_in_a_module_not_reachable_through_pub_modules_is_not_recorded() {
+    let (t, _) = run(&[
+        file("src/lib.rs", "mod hidden;\npub mod open;\n"),
+        file(
+            "src/hidden.rs",
+            "extern \"C\" {\n    pub fn not_reachable();\n}\n",
+        ),
+        file(
+            "src/open.rs",
+            "extern \"C\" {\n    pub fn reachable();\n}\n",
+        ),
+    ]);
+    let sites: Vec<(&str, usize)> = t
+        .foreign_sites
+        .iter()
+        .map(|(f, l)| (f.as_str(), *l))
+        .collect();
+    assert_eq!(sites, [("src/open.rs", 2)], "{t:?}");
+}
+
+#[test]
+fn a_doc_hidden_extern_symbol_is_not_recorded() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "extern \"C\" {\n    #[doc(hidden)]\n    pub fn internal();\n    pub fn shown();\n}\n",
+    )]);
+    let lines: Vec<usize> = t.foreign_sites.iter().map(|(_, l)| *l).collect();
+    assert_eq!(lines, [4], "{t:?}");
+}
+
+#[test]
+fn the_foreign_sets_stay_apart_from_the_budget_counts_for_every_symbol_kind() {
+    let (with, _) = run(&[file(
+        "src/lib.rs",
+        "pub fn a() {}\nextern \"C\" {\n    pub fn open();\n    pub static VERSION: i32;\n    pub type Handle;\n}\n",
+    )]);
+    let (without, _) = run(&[file("src/lib.rs", "pub fn a() {}\n")]);
+    assert_eq!(with.item_count(), without.item_count(), "{with:?}");
+    assert_eq!(with.public_sites, without.public_sites);
+    assert_eq!(with.documented, without.documented);
+}

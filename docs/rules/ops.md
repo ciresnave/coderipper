@@ -57,7 +57,7 @@ Two rules in this domain are run by the current release (OPS-011 and OPS-012, Ru
 | Rule | Title | Class | Checked by |
 | :--- | :--- | :--- | :--- |
 | OPS-001 | One typed, validated configuration entry point | P | catalog record; no check yet (needs a parser) |
-| OPS-002 | Config keys are documented, defaulted and used | P | catalog record; no check yet (needs a parser) |
+| OPS-002 | Config keys are documented, defaulted and used | P | built in part (Rust and the tracked documentation; each named environment read, `env::var("X")`, `env::var_os("X")` or a clap `env = "X"`, whose name appears in no tracked documentation file, platform and toolchain names left out, Low severity at Medium confidence; opt-in (`check OPS-002`); the defaulted and used halves, run-time names, wrappers and configuration crates, other languages not read) |
 | OPS-003 | Structured logging, no raw printing in libraries | P | built in part (Rust, `syn`, library packages outside tests and binaries; `println!`, `print!`, `eprintln!`, `eprint!` and `dbg!` calls, Low; opt-in (`check OPS-003`); hand-written stdout writes, macro-wrapped prints and other languages are not read) |
 | OPS-004 | Trace context follows outbound calls | P | catalog record; no check yet (needs a parser and runtime tests that assert propagation) |
 | OPS-005 | Golden-signal metrics for endpoints and dependencies | P | catalog record; no check yet (needs a parser and a running service) |

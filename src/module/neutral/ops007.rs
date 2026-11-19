@@ -289,3 +289,154 @@ mod tests {
         }
     }
 }
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    fn run(path: &str, text: &str) -> Verdict {
+        judge(&RepoView::from_files(&[(path, text)]))
+    }
+
+    fn found(path: &str, text: &str) -> Vec<Finding> {
+        match run(path, text) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    #[test]
+    fn every_documented_file_name_and_extension_is_a_registry() {
+        for stem in [
+            "flags",
+            "feature-flags",
+            "feature_flags",
+            "featureflags",
+            "feature-toggles",
+            "feature_toggles",
+            "toggles",
+        ] {
+            for ext in ["yml", "yaml", "json", "toml"] {
+                let path = format!("cfg/{stem}.{ext}");
+                let text = match ext {
+                    "json" => "{\"a\": true}",
+                    "toml" => "a = true\n",
+                    _ => "a: true\n",
+                };
+                assert_eq!(found(&path, text).len(), 1, "{path}");
+            }
+        }
+        for path in ["flags.txt", "myflags.yml", "flags.yml.bak"] {
+            assert!(
+                matches!(run(path, "a: true\n"), Verdict::NotApplicable(_)),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_excluded_directory_hides_a_registry() {
+        for dir in [
+            "vendor",
+            "node_modules",
+            "target",
+            "third_party",
+            "tests",
+            "test",
+            "__tests__",
+            "fixtures",
+            "fixture",
+            "testdata",
+            "examples",
+        ] {
+            let path = format!("{dir}/flags.yml");
+            assert!(
+                matches!(run(&path, "a: true\n"), Verdict::NotApplicable(_)),
+                "{dir}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_documented_list_key_and_every_name_key_is_read() {
+        for key in ["flags", "feature_flags", "features", "toggles"] {
+            let yaml = format!("{key}:\n  - name: x\n");
+            assert_eq!(found("flags.yml", &yaml).len(), 1, "{key}");
+        }
+        for name_key in ["name", "key", "id", "flag"] {
+            let yaml = format!("- {name_key}: alpha\n");
+            assert_eq!(
+                found("flags.yml", &yaml)[0].subject.as_deref(),
+                Some("flags.yml:alpha"),
+                "{name_key}"
+            );
+        }
+        assert_eq!(
+            found("flags.yml", "- owner: a\n")[0].subject.as_deref(),
+            Some("flags.yml:#1"),
+            "an entry with no name is numbered"
+        );
+    }
+
+    #[test]
+    fn every_owner_key_and_every_sunset_key_satisfies_its_half_in_any_case_with_dashes() {
+        for k in [
+            "owner",
+            "owners",
+            "maintainer",
+            "team",
+            "responsible",
+            "contact",
+            "assignee",
+            "Owner",
+            "TEAM",
+        ] {
+            let yaml = format!("- name: x\n  {k}: someone\n  sunset: 2027-01-01\n");
+            assert!(found("flags.yml", &yaml).is_empty(), "owner key {k}");
+        }
+        for k in [
+            "sunset",
+            "expires",
+            "expiry",
+            "expiration",
+            "expire",
+            "remove_by",
+            "removal_date",
+            "end_date",
+            "retire_by",
+            "delete_by",
+            "remove_after",
+            "remove-by",
+            "End-Date",
+            "REMOVE_AFTER",
+        ] {
+            let yaml = format!("- name: x\n  owner: someone\n  {k}: 2027-01-01\n");
+            assert!(found("flags.yml", &yaml).is_empty(), "sunset key {k}");
+        }
+    }
+
+    #[test]
+    fn an_empty_null_or_blank_value_records_nothing() {
+        for v in ["\"\"", "\"  \"", "null", "[]"] {
+            let yaml = format!("- name: x\n  owner: {v}\n  sunset: 2027-01-01\n");
+            let f = found("flags.yml", &yaml);
+            assert_eq!(f.len(), 1, "owner {v}");
+            assert!(
+                f[0].summary.contains("an owner") && !f[0].summary.contains("sunset"),
+                "{}",
+                f[0].summary
+            );
+        }
+    }
+
+    #[test]
+    fn a_finding_is_low_severity_medium_confidence_at_the_line_that_names_the_flag() {
+        let f = found("flags.yml", "# header\nflags:\n  - name: alpha\n");
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Low, Confidence::Medium)
+        );
+        assert_eq!(f[0].location.as_ref().unwrap().line, Some(3));
+    }
+}

@@ -213,3 +213,31 @@ fn a_pub_symbol_of_an_extern_block_is_exported_and_a_private_one_is_not() {
     // positive control: the private declaration (5) is neither
     assert!(!has(&f.exported, 5), "{:?}", f.exported);
 }
+
+// Claims audit (2026-11-17): a documented extern symbol is library API and an undocumented one is exported only; an extern block in a
+// private module that no `pub use` names is neither (changelog.d/mod-011-extern-symbols.md).
+#[test]
+fn an_extern_block_in_a_private_module_is_neither_api_nor_exported_until_a_pub_use_names_it() {
+    let hidden = git_repo(&[
+        ("src/lib.rs", "mod ffi;\n"),
+        ("src/ffi.rs", "extern \"C\" {\n    pub fn lib_open();\n}\n"),
+    ]);
+    let f = read_facts(hidden.path(), true).unwrap();
+    assert!(
+        f.exported.is_empty() && f.api.is_empty(),
+        "{:?} {:?}",
+        f.exported,
+        f.api
+    );
+    // positive control: the same block in a `pub mod` is exported
+    let open = git_repo(&[
+        ("src/lib.rs", "pub mod ffi;\n"),
+        ("src/ffi.rs", "extern \"C\" {\n    pub fn lib_open();\n}\n"),
+    ]);
+    let f = read_facts(open.path(), true).unwrap();
+    assert!(
+        f.exported.contains(&("src/ffi.rs".to_string(), 2)),
+        "{:?}",
+        f.exported
+    );
+}

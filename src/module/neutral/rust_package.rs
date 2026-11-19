@@ -6,7 +6,7 @@
 //! or sits in a vendored directory is not read; a file `syn` cannot parse is listed in `unparsed`, never read as clean.
 
 use super::efx003::is_dev_path;
-use super::{dir_and_ancestors, dir_of, join, RepoView};
+use super::{dir_and_ancestors, dir_of, join, RepoView, Verdict};
 use std::collections::BTreeMap;
 
 /// Directories that hold somebody else's code.
@@ -97,4 +97,16 @@ pub(super) fn unparsed_note(rule: &str, unparsed: &[String]) -> Option<String> {
             ""
         }
     ))
+}
+
+/// The verdict for a repository whose `load` found no package to read: not applicable when there is no Rust source, but a note that
+/// names the files when there is Rust source that `syn` could not parse (a repository whose only source file does not parse has not been
+/// read, and "tracks no Rust package source" would be false).
+pub(super) fn nothing_to_read(rule: &str, loaded: &Packages) -> Verdict {
+    match unparsed_note(rule, &loaded.unparsed) {
+        Some(note) => Verdict::Noted(Vec::new(), vec![note]),
+        None => Verdict::NotApplicable(
+            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
+        ),
+    }
 }

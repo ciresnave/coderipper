@@ -4,7 +4,7 @@
 //! **What this judges (Rust, from the source alone):** every tracked `.rs` file of a package (outside vendored directories, tests,
 //! examples, tools and `build.rs`, and outside `#[cfg(test)]` items) is parsed with `syn`. The one handler Rust has that catches every
 //! kind of failure is the panic catcher: a call of `catch_unwind` (`std::panic::catch_unwind`, `panic::catch_unwind`, a bare
-//! `catch_unwind` the file imports) or a `.catch_unwind()` method (`futures::FutureExt`). It is reported when it is in a function that is
+//! `catch_unwind`, whether or not the file imports it: any call whose path ends in `catch_unwind`) or a `.catch_unwind()` method (`futures::FutureExt`). It is reported when it is in a function that is
 //! not a *boundary*: a boundary is `main`, any function of a binary target (`src/main.rs`, `src/bin/..`), and a function whose name says
 //! it is an outermost one (one of its `_`-separated words is `run`, `serve`, `handle`, `handler`, `dispatch`, `worker`, `listener`, `supervise`,
 //! `supervisor`, `boundary`, `entry`, `entrypoint`, `extern`, `ffi`, `callback` or `trampoline`: `run_server` is one, `truncate` is not). A `//` comment on the line or in the three lines above that says why
@@ -186,9 +186,7 @@ impl<'ast> Visit<'ast> for Walk<'_> {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
@@ -305,5 +303,131 @@ pub async fn fetch() { let _ = work().catch_unwind().await; }
         for f in found("pub fn f() { let _ = std::panic::catch_unwind(|| 1); }\n") {
             f.validate().unwrap();
         }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found_in(path: &str, src: &str) -> Vec<Finding> {
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            (path, src),
+        ])) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    fn found(src: &str) -> Vec<Finding> {
+        found_in("src/lib.rs", src)
+    }
+
+    #[test]
+    fn every_documented_call_form_is_a_panic_catcher() {
+        for call in [
+            "std::panic::catch_unwind(|| 1)",
+            "panic::catch_unwind(|| 1)",
+            "catch_unwind(|| 1)",
+            "fut.catch_unwind()",
+        ] {
+            let src = format!("pub fn parse() {{ let _ = {call}; }}");
+            assert_eq!(found(&src).len(), 1, "{call}");
+        }
+    }
+
+    #[test]
+    fn every_boundary_word_makes_a_function_a_boundary_and_a_word_inside_another_word_does_not() {
+        for word in [
+            "main",
+            "run",
+            "serve",
+            "handle",
+            "handler",
+            "dispatch",
+            "worker",
+            "listener",
+            "supervise",
+            "supervisor",
+            "boundary",
+            "entry",
+            "entrypoint",
+            "extern",
+            "ffi",
+            "callback",
+            "trampoline",
+        ] {
+            let src =
+                format!("pub fn do_{word}_now() {{ let _ = std::panic::catch_unwind(|| 1); }}");
+            assert!(found(&src).is_empty(), "{word}: {:?}", found(&src));
+        }
+        for name in ["truncate", "prune", "reentry", "mainly"] {
+            let src = format!("pub fn {name}() {{ let _ = std::panic::catch_unwind(|| 1); }}");
+            assert_eq!(found(&src).len(), 1, "{name} is not a boundary word");
+        }
+    }
+
+    #[test]
+    fn a_method_of_a_boundary_named_function_and_a_nested_call_in_a_boundary_are_boundaries() {
+        let method = "pub struct S;\nimpl S { pub fn handle_request(&self) { let _ = std::panic::catch_unwind(|| 1); } }\n";
+        assert!(found(method).is_empty(), "{:?}", found(method));
+    }
+
+    #[test]
+    fn binary_targets_are_boundaries_by_path() {
+        let src = "fn helper() { let _ = std::panic::catch_unwind(|| 1); }\n";
+        assert!(found_in("src/main.rs", src).is_empty());
+        assert!(found_in("src/bin/tool.rs", src).is_empty());
+        assert_eq!(
+            found_in("src/util.rs", src).len(),
+            1,
+            "positive control: an ordinary module is read"
+        );
+    }
+
+    #[test]
+    fn a_justifying_comment_counts_on_the_line_and_up_to_three_lines_above_and_not_four() {
+        let same =
+            "pub fn f() { let _ = std::panic::catch_unwind(|| 1); // the outermost function\n}\n";
+        assert!(found(same).is_empty(), "{:?}", found(same));
+        let three = "pub fn f() {\n    // isolate the plugin\n    //\n    //\n    let _ = std::panic::catch_unwind(|| 1);\n}\n";
+        assert!(found(three).is_empty(), "{:?}", found(three));
+        let four = "pub fn f() {\n    // isolate the plugin\n    let a = 1;\n    let b = 2;\n    let _ = std::panic::catch_unwind(|| a + b);\n}\n";
+        assert_eq!(
+            found(four).len(),
+            1,
+            "a comment above other code is not this call's"
+        );
+        for word in [
+            "boundary",
+            "outermost",
+            "top-level",
+            "top level",
+            "ffi",
+            "isolate",
+            "supervis",
+            "must not unwind",
+            "across the",
+        ] {
+            let src = format!(
+                "pub fn f() {{\n    // {word}\n    let _ = std::panic::catch_unwind(|| 1);\n}}\n"
+            );
+            assert!(found(&src).is_empty(), "{word}");
+        }
+    }
+
+    #[test]
+    fn a_swallowing_err_arm_is_not_this_rules_and_the_finding_is_medium_medium() {
+        let swallow = "pub fn f() { match g() { Ok(_) => {}, Err(_) => {} } }\n";
+        assert!(found(swallow).is_empty(), "{:?}", found(swallow));
+        let f = found("pub fn f() { let _ = std::panic::catch_unwind(|| 1); }\n");
+        assert_eq!(
+            (f[0].severity, f[0].confidence),
+            (Severity::Medium, Confidence::Medium)
+        );
     }
 }

@@ -43,6 +43,7 @@ mod licence;
 mod lint_suppression;
 mod lock_order;
 mod mod007;
+mod ops002;
 mod ops003;
 mod ops007;
 mod ops009;
@@ -420,6 +421,10 @@ const RULES: &[Rule] = &[
         judge: rdb002::judge,
     },
     Rule {
+        id: "OPS-002",
+        judge: ops002::judge,
+    },
+    Rule {
         id: "TYP-004",
         judge: typ004::judge,
     },
@@ -480,7 +485,7 @@ pub fn opt_in_rule_ids() -> &'static [&'static str] {
         "EFX-002", "CON-011", "OPS-003", "ERR-009", "TST-006", "TST-004", "TST-009", "SUP-010",
         "EFX-007", "CON-010", "REL-009", "TYP-002", "EXT-004", "COR-006", "API-008", "CON-012",
         "RDB-003", "SUP-021", "COR-012", "DOC-003", "PRF-006", "MOD-007", "EFX-005", "RDB-002",
-        "TYP-004", "ERR-007", "OPS-007", "ERR-002", "REL-002",
+        "OPS-002", "TYP-004", "ERR-007", "OPS-007", "ERR-002", "REL-002",
     ]
 }
 
@@ -884,6 +889,7 @@ const READS_ONLY: &[(&str, &[&str])] = &[
     ("ERR-011", &["rust"]),
     ("CON-005", &["rust"]),
     ("RDB-002", &["rust"]),
+    ("OPS-002", &["rust"]),
     ("TYP-004", &["rust"]),
     ("ERR-007", &["rust"]),
     ("ERR-002", &["rust"]),
@@ -958,6 +964,7 @@ const PROVEN: &[&str] = &[
     "ERR-011",
     "CON-005",
     "RDB-002",
+    "OPS-002",
     "TYP-004",
     "ERR-007",
     "OPS-007",
@@ -1091,6 +1098,67 @@ impl Module for NeutralModule {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Claims audit (2026-11-17): the claims every rule of this batch makes in its documentation, catalog entry and changelog entry.
+    const BATCH: &[&str] = &[
+        "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002", "OPS-007",
+    ];
+
+    #[test]
+    fn every_rule_of_the_batch_is_opt_in_and_registered() {
+        for id in BATCH {
+            assert!(opt_in_rule_ids().contains(id), "{id} is opt-in");
+            assert!(rule_ids().contains(id), "{id} is registered");
+            assert!(RULES.iter().any(|r| r.id == *id), "{id} has a judge");
+            assert!(PROVEN.contains(id), "{id} is claimed proven by a fixture");
+        }
+    }
+
+    #[test]
+    fn the_rust_rules_of_the_batch_read_rust_only_and_the_registry_rule_reads_any_language() {
+        for id in [
+            "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002",
+        ] {
+            let langs = READS_ONLY.iter().find(|(i, _)| i == &id).map(|(_, l)| *l);
+            assert_eq!(langs, Some(&["rust"][..]), "{id}");
+        }
+        assert!(
+            READS_ONLY.iter().all(|(i, _)| *i != "OPS-007"),
+            "OPS-007 reads any language"
+        );
+    }
+
+    #[test]
+    fn a_repository_whose_only_rust_file_does_not_parse_gets_a_note_naming_it_from_every_rust_rule_of_the_batch(
+    ) {
+        let view = RepoView::from_files(&[
+            (
+                "Cargo.toml",
+                "[package]
+name = \"p\"
+version = \"0.1.0\"
+",
+            ),
+            ("src/lib.rs", "pub fn ("),
+        ]);
+        for id in [
+            "RDB-002", "REL-002", "ERR-002", "TYP-004", "ERR-007", "OPS-002",
+        ] {
+            let rule = RULES.iter().find(|r| r.id == id).unwrap();
+            match (rule.judge)(&view) {
+                Verdict::Noted(f, notes) => {
+                    assert!(f.is_empty(), "{id}");
+                    assert!(
+                        notes
+                            .iter()
+                            .any(|n| n.contains("src/lib.rs") && n.contains("could not be parsed")),
+                        "{id}: {notes:?}"
+                    );
+                }
+                _ => panic!("{id}: expected a note naming the file"),
+            }
+        }
+    }
 
     #[test]
     fn paths_split_into_directory_and_name() {

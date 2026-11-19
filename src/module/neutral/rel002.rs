@@ -69,7 +69,22 @@ fn is_fixed(e: &syn::Expr) -> bool {
             let n = s.ident.to_string();
             n.chars().any(char::is_uppercase) && !n.chars().any(char::is_lowercase)
         }),
-        syn::Expr::Call(c) => matches!(&*c.func, syn::Expr::Path(_)) && c.args.iter().all(is_fixed),
+        // a constructor written out (`Duration::from_millis(100)`, `time::Duration::from_secs(1)`): a path whose second-to-last
+        // segment is a type name. A call of a function (`delay()`, `backoff(n)`) computes its time and is not read as fixed.
+        syn::Expr::Call(c) => {
+            let syn::Expr::Path(p) = &*c.func else {
+                return false;
+            };
+            let segs: Vec<String> = p
+                .path
+                .segments
+                .iter()
+                .map(|s| s.ident.to_string())
+                .collect();
+            segs.len() >= 2
+                && segs[segs.len() - 2].starts_with(|c: char| c.is_ascii_uppercase())
+                && c.args.iter().all(is_fixed)
+        }
         syn::Expr::MethodCall(m) => {
             // `Duration::from_millis(100).max(..)` style chains: fixed when the receiver and the arguments are
             is_fixed(&m.receiver) && m.args.iter().all(is_fixed)
@@ -250,9 +265,7 @@ impl<'ast> Visit<'ast> for Walk {
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(ID, &loaded);
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {
@@ -394,5 +407,112 @@ mod tests {
         for f in found(src) {
             f.validate().unwrap();
         }
+    }
+}
+
+/// Claims audit (2026-11-17): one test per claim of the module documentation, the catalog `checked_today` and the changelog entry.
+#[cfg(test)]
+mod claims {
+    use super::*;
+
+    const MANIFEST: &str = "[package]\nname = \"p\"\nversion = \"0.1.0\"\n";
+
+    fn found(src: &str) -> Vec<Finding> {
+        match judge(&RepoView::from_files(&[
+            ("Cargo.toml", MANIFEST),
+            ("src/lib.rs", src),
+        ])) {
+            Verdict::Findings(f) | Verdict::Noted(f, _) => f,
+            Verdict::NotApplicable(r) => panic!("not applicable: {r}"),
+        }
+    }
+
+    #[test]
+    fn a_function_call_is_a_computed_delay_and_a_screaming_constant_is_a_fixed_one() {
+        // `delay()` computes its time: with a cap in the condition nothing is reported
+        let computed = "pub fn f() { let mut attempts = 0; while attempts < 5 { if g().is_err() { attempts += 1; sleep(delay()); } } }";
+        assert!(found(computed).is_empty(), "{:?}", found(computed));
+        let constant = "pub fn f() { for _ in 0..3 { if g().is_err() { sleep(RETRY_DELAY); } } }";
+        let f = found(constant);
+        assert_eq!(f.len(), 1, "{f:?}");
+        assert!(f[0].summary.contains("no backoff"), "{}", f[0].summary);
+    }
+
+    #[test]
+    fn a_while_condition_that_names_a_counter_is_a_cap() {
+        let src = "pub fn f() { let mut attempts = 0; while attempts < 5 { if g().is_err() { attempts += 1; sleep(grow(attempts)); } } }";
+        assert!(found(src).is_empty(), "{:?}", found(src));
+        let no_cap = "pub fn f() { while !done() { if g().is_err() { sleep(grow(1)); } } }";
+        assert_eq!(found(no_cap).len(), 1, "a while with no counter has no cap");
+    }
+
+    #[test]
+    fn a_for_over_an_endless_iterator_is_uncapped() {
+        for head in ["0..", "std::iter::repeat(1)", "v.iter().cycle()"] {
+            let src = format!(
+                "pub fn f() {{ for _ in {head} {{ if g().is_err() {{ sleep(grow()); }} }} }}"
+            );
+            let f = found(&src);
+            assert_eq!(f.len(), 1, "{head}: {f:?}");
+            assert!(f[0].summary.contains("no cap"), "{head}: {}", f[0].summary);
+        }
+        // positive control: the same body over a bounded range is capped
+        assert!(
+            found("pub fn f() { for i in 0..5 { if g().is_err() { sleep(grow(i)); } } }")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_sleep_in_a_nested_loop_closure_or_function_belongs_to_that_unit() {
+        let nested =
+            "pub fn f() { loop { for i in 0..3 { if g().is_err() { sleep(grow(i)); } } } }";
+        assert!(found(nested).is_empty(), "{:?}", found(nested));
+        let closure =
+            "pub fn f() { loop { let c = || { sleep(grow()); }; if g().is_err() { c(); } } }";
+        assert!(found(closure).is_empty(), "{:?}", found(closure));
+    }
+
+    #[test]
+    fn the_three_failure_forms_and_a_path_ending_in_sleep_make_a_retry() {
+        for failure in [
+            "match g() { Ok(_) => {}, Err(_) => sleep(FIXED) }",
+            "if let Err(_) = g() { sleep(FIXED); }",
+            "if g().is_err() { sleep(FIXED); }",
+        ] {
+            let src = format!("pub fn f() {{ loop {{ {failure} }} }}");
+            assert_eq!(found(&src).len(), 1, "{failure}");
+        }
+        for sleep in [
+            "std::thread::sleep(FIXED)",
+            "tokio::time::sleep(FIXED).await",
+            "async_std::task::sleep(FIXED).await",
+        ] {
+            let src = format!("pub async fn f() {{ loop {{ if g().is_err() {{ {sleep}; }} }} }}");
+            assert_eq!(found(&src).len(), 1, "{sleep}");
+        }
+    }
+
+    #[test]
+    fn a_delay_held_in_a_variable_is_read_as_growing_which_the_documentation_says() {
+        let src = "pub fn f() { let d = Duration::from_millis(5); for _ in 0..3 { if g().is_err() { sleep(d); } } }";
+        assert!(
+            found(src).is_empty(),
+            "documented limitation: {:?}",
+            found(src)
+        );
+    }
+
+    #[test]
+    fn a_finding_is_medium_severity_low_confidence_one_per_loop_with_both_faults_in_it() {
+        let f = found("pub fn f() { loop { if g().is_err() { sleep(Duration::from_secs(1)); } } }");
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, Severity::Medium);
+        assert_eq!(f[0].confidence, Confidence::Low);
+        assert!(
+            f[0].summary.contains("no cap") && f[0].summary.contains("no backoff"),
+            "{}",
+            f[0].summary
+        );
     }
 }
