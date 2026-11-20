@@ -298,3 +298,17 @@ fn the_same_crate_with_core_clean_has_no_finding() {
         "{notes:?}"
     );
 }
+
+#[test]
+fn a_visibility_restriction_is_not_a_dependency() {
+    let g = module_graph(&[
+        file("src/lib.rs", "mod core;\nmod adapters;\n"),
+        file("src/core.rs", "pub fn plan() {}\n"),
+        file(
+            "src/adapters.rs",
+            "pub(crate) fn a() {}\npub(in crate::core) fn b() {}\npub(super) fn c() {}\n",
+        ),
+    ])
+    .unwrap();
+    assert!(g.edges.is_empty(), "{:?}", g.edges);
+}
