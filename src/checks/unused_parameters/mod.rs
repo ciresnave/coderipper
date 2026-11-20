@@ -317,6 +317,7 @@ mod tests {
                 line,
                 column,
                 is_primary: true,
+                highlight: None,
             }],
         }
     }

@@ -1096,3 +1096,24 @@ fn a_test_file_by_name_makes_the_same_item_test_only() {
     ]);
     assert_eq!(severities(&repo), vec![("helper".to_string(), Info)]);
 }
+
+/// The defect fixed in 0.47.14: rustc reports a big impl's unused methods as one "multiple methods are never used" warning that
+/// names none of them, and the check once read names from the message alone, so it reported nothing for the whole group and said
+/// no candidates had been set aside: a crate with ten dead methods looked clean.
+#[test]
+fn ten_unused_methods_in_one_impl_are_ten_findings_not_silence() {
+    let mut lib = String::from("pub struct S;\nimpl S {\n    pub fn new() -> Self { S }\n");
+    for i in 1..=10 {
+        lib.push_str(&format!("    fn unused_{i}(&self) -> u32 {{ {i} }}\n"));
+    }
+    lib.push_str("}\npub fn live() -> S { S::new() }\n");
+    let repo = git_repo_with(&[("Cargo.toml", MANIFEST), ("src/lib.rs", &lib)]);
+    let findings = run_reachability(&repo).unwrap();
+    let dead: Vec<String> = subjects(&findings)
+        .into_iter()
+        .filter(|s| s.contains("unused_"))
+        .collect();
+    let mut expected: Vec<String> = (1..=10).map(|i| format!("S::unused_{i}")).collect();
+    expected.sort();
+    assert_eq!(dead, expected, "{findings:?}");
+}
