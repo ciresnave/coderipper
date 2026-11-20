@@ -555,7 +555,7 @@ mod tests {
 
     /// Runs git in `dir`, panics when it fails.
     fn git(dir: &Path, args: &[&str]) {
-        git_out(dir, args);
+        let _stdout = git_out(dir, args);
     }
 
     /// Runs git in `dir` and returns its trimmed stdout, panics when it fails.
