@@ -553,7 +553,13 @@ pub(super) fn scan_with(
 mod tests {
     use super::*;
 
-    fn git(dir: &Path, args: &[&str]) -> String {
+    /// Runs git in `dir`, panics when it fails.
+    fn git(dir: &Path, args: &[&str]) {
+        git_out(dir, args);
+    }
+
+    /// Runs git in `dir` and returns its trimmed stdout, panics when it fails.
+    fn git_out(dir: &Path, args: &[&str]) -> String {
         let out = std::process::Command::new("git")
             .current_dir(dir)
             .args([
@@ -581,10 +587,10 @@ mod tests {
         let d = dir.path();
         git(d, &["init", "-q", "-b", "main"]);
         git(d, &["commit", "-q", "--allow-empty", "-m", "on main"]);
-        let on_main = git(d, &["rev-parse", "HEAD"]);
+        let on_main = git_out(d, &["rev-parse", "HEAD"]);
         git(d, &["checkout", "-q", "-b", "side"]);
         git(d, &["commit", "-q", "--allow-empty", "-m", "on side"]);
-        let on_side = git(d, &["rev-parse", "HEAD"]);
+        let on_side = git_out(d, &["rev-parse", "HEAD"]);
         git(d, &["checkout", "-q", "main"]);
         // control: both are scanned while the branch exists
         assert!(commit_is_scanned(d, &on_main));
