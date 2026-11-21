@@ -82,7 +82,8 @@ fn findings_name_both_ids() {
         assert!(!f.is_empty(), "{l:?}");
         let both = format!("{} ({})", l.rule(), l.lm());
         assert!(f.iter().all(|x| x.summary.contains(&both)), "{l:?}: {:?}", f[0].summary);
-        assert!(f.iter().all(|x| x.severity == Severity::Low));
+        let want = if l == Lm::Compat { Severity::Medium } else { Severity::Low };
+        assert!(f.iter().all(|x| x.severity == want));
         f.into_iter().for_each(|x| {
             x.validate().expect("no absence word in the summary");
         });

@@ -402,13 +402,37 @@ fn check_entry(run: &mut Run, kind: &str, i: usize, e: &toml::Table) -> Vec<Stri
         _ => None,
     };
     if let (Some(lic), Some(ours)) = (lic, ours_joined.as_deref()) {
-        let (conflicts, unjudged) = compat::conflicts(lic, ours);
+        let marked: Vec<&String> = if lic == "MPL-2.0" {
+            let mut files: Vec<&String> = hits.iter().collect();
+            files.extend(requires.iter());
+            files.sort();
+            files.dedup();
+            files
+                .into_iter()
+                .filter(|f| run.view.read(f).is_some_and(|t| compat::has_exhibit_b(&t)))
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let (conflicts, unjudged) = compat::conflicts(lic, ours, !marked.is_empty());
+        let why = if marked.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " (Exhibit B notice in {})",
+                marked
+                    .iter()
+                    .map(|m| format!("`{m}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        };
         for b in conflicts {
             run.push(
                 Lm::Compat,
                 line,
                 path,
-                format!("{tag}: origin-licence {lic} cannot be carried under `{b}`"),
+                format!("{tag}: origin-licence {lic} cannot be carried under `{b}`{why}"),
                 false,
             );
         }
@@ -634,7 +658,11 @@ fn judge(view: &RepoView, which: Lm) -> Verdict {
         findings.push(
             Finding::new(
                 which.rule(),
-                Severity::Low,
+                if h.lm == Lm::Compat {
+                    Severity::Medium
+                } else {
+                    Severity::Low
+                },
                 confidence,
                 view.name(),
                 format!("{tag} {}", h.text),

@@ -2,12 +2,13 @@
 //! The licence compatibility table behind SUP-026 (LM-005), from SPDX ids only.
 //!
 //! **Provenance:** the data and the decision logic are a port, not a copy, of licence-tools `tools/licence_compat.py`
-//! (branch `lane/compat-table`, commit 7f62d41, itself `MIT OR Apache-2.0`, the licence of this crate), whose own source is the
+//! (branch `lane/gate-migration`, CireSnave rulings of 2026-11-21, itself `MIT OR Apache-2.0`, the licence of this crate), whose own source is the
 //! FSF/SPDX compatibility notes and each licence's text. The table is ADVISORY data, not legal advice. An id that is not in it is
 //! reported as unchecked, never guessed.
 
 /// No attribution duty, any outbound licence.
-pub(super) const NO_ATTRIBUTION: &[&str] = &["CC0-1.0", "Unlicense", "0BSD", "MIT-0"];
+pub(super) const NO_ATTRIBUTION: &[&str] =
+    &["CC0-1.0", "Unlicense", "0BSD", "MIT-0", "BlueOak-1.0.0"];
 
 /// Attribution required, any outbound licence, except the pairs of [`deny`].
 const PERMISSIVE: &[&str] = &[
@@ -20,7 +21,6 @@ const PERMISSIVE: &[&str] = &[
     "BSL-1.0",
     "Unicode-3.0",
     "Unicode-DFS-2016",
-    "BlueOak-1.0.0",
 ];
 
 const GPL2: &[&str] = &["GPL-2.0-only", "GPL-2.0-or-later"];
@@ -29,10 +29,10 @@ const AGPL3: &[&str] = &["AGPL-3.0-only", "AGPL-3.0-or-later"];
 const LGPL21: &[&str] = &["LGPL-2.1-only", "LGPL-2.1-or-later"];
 const LGPL3: &[&str] = &["LGPL-3.0-only", "LGPL-3.0-or-later"];
 
-/// Pairs a permissive licence still cannot enter: Apache-2.0's patent terms clash with GPLv2-only and LGPL-2.1-only.
+/// Pairs a permissive licence still cannot enter: Apache-2.0's patent terms clash with GPLv2 (either form) and LGPL-2.1-only.
 fn deny(origin: &str) -> &'static [&'static str] {
     match origin {
-        "Apache-2.0" => &["GPL-2.0-only", "LGPL-2.1-only"],
+        "Apache-2.0" => &["GPL-2.0-only", "GPL-2.0-or-later", "LGPL-2.1-only"],
         _ => &[],
     }
 }
@@ -41,8 +41,8 @@ fn deny(origin: &str) -> &'static [&'static str] {
 fn copyleft(origin: &str) -> Option<Vec<&'static str>> {
     let join = |parts: &[&[&'static str]]| parts.iter().flat_map(|p| p.iter().copied()).collect();
     Some(match origin {
-        "MPL-2.0" => join(&[&["MPL-2.0"], GPL2, LGPL21, AGPL3]),
-        "LGPL-2.1-only" => join(&[&["LGPL-2.1-only"], GPL2]),
+        "MPL-2.0" => join(&[&["MPL-2.0"], GPL2, GPL3, LGPL21, LGPL3, AGPL3]),
+        "LGPL-2.1-only" => join(&[&["LGPL-2.1-only"], GPL2, GPL3, AGPL3]),
         "LGPL-2.1-or-later" => join(&[LGPL21, LGPL3, GPL2, GPL3, AGPL3]),
         "LGPL-3.0-only" => join(&[&["LGPL-3.0-only"], GPL3, AGPL3]),
         "LGPL-3.0-or-later" => join(&[LGPL3, GPL3, AGPL3]),
@@ -109,8 +109,23 @@ fn tokens(expr: &str) -> Vec<String> {
     found
 }
 
+/// Whether a text carries the MPL-2.0 Exhibit B notice "Incompatible With Secondary Licenses" (case and whitespace ignored).
+pub(super) fn has_exhibit_b(text: &str) -> bool {
+    let flat = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    flat.contains("incompatible with secondary licenses")
+}
+
 /// `(ids of outbound that origin forbids, ids that cannot be judged: an unknown origin or an unknown outbound id)`.
-pub(super) fn conflicts(origin: &str, outbound: &str) -> (Vec<String>, Vec<String>) {
+/// `exhibit_b`: the MPL-2.0 code carries the Exhibit B notice, so it may be carried under MPL-2.0 only.
+pub(super) fn conflicts(
+    origin: &str,
+    outbound: &str,
+    exhibit_b: bool,
+) -> (Vec<String>, Vec<String>) {
     let out = outbound_ids(outbound);
     if !known(origin) {
         return (Vec::new(), out);
@@ -125,7 +140,11 @@ pub(super) fn conflicts(origin: &str, outbound: &str) -> (Vec<String>, Vec<Strin
             .collect();
         return (bad, Vec::new());
     }
-    let allowed = copyleft(origin).unwrap_or_default();
+    let allowed = if exhibit_b && origin == "MPL-2.0" {
+        vec!["MPL-2.0"]
+    } else {
+        copyleft(origin).unwrap_or_default()
+    };
     let bad = out
         .iter()
         .filter(|o| known(o) && !allowed.contains(&o.as_str()))
@@ -141,26 +160,35 @@ mod tests {
 
     #[test]
     fn permissive_origin_allows_any_outbound_but_the_apache_pairs() {
-        assert_eq!(conflicts("MIT", "MIT OR Apache-2.0"), (vec![], vec![]));
         assert_eq!(
-            conflicts("Apache-2.0", "GPL-2.0-only").0,
+            conflicts("MIT", "MIT OR Apache-2.0", false),
+            (vec![], vec![])
+        );
+        assert_eq!(
+            conflicts("Apache-2.0", "GPL-2.0-only", false).0,
             vec!["GPL-2.0-only"]
         );
-        assert!(conflicts("Apache-2.0", "GPL-3.0-only").0.is_empty());
+        assert!(conflicts("Apache-2.0", "GPL-3.0-only", false).0.is_empty());
+        assert_eq!(
+            conflicts("Apache-2.0", "GPL-2.0-or-later", false).0,
+            vec!["GPL-2.0-or-later"]
+        );
     }
 
     #[test]
     fn copyleft_origin_forbids_what_its_table_does_not_list() {
-        assert_eq!(conflicts("GPL-3.0-only", "MIT").0, vec!["MIT"]);
-        assert!(conflicts("GPL-3.0-or-later", "AGPL-3.0-or-later")
+        assert_eq!(conflicts("GPL-3.0-only", "MIT", false).0, vec!["MIT"]);
+        assert!(conflicts("GPL-3.0-or-later", "AGPL-3.0-or-later", false)
             .0
             .is_empty());
         assert_eq!(
-            conflicts("GPL-3.0-only", "GPL-3.0-only OR MIT").0,
+            conflicts("GPL-3.0-only", "GPL-3.0-only OR MIT", false).0,
             vec!["MIT"]
         );
-        assert!(conflicts("MPL-2.0", "LGPL-2.1-or-later").0.is_empty());
-        assert_eq!(conflicts("MPL-2.0", "MIT").0, vec!["MIT"]);
+        assert!(conflicts("MPL-2.0", "LGPL-2.1-or-later", false)
+            .0
+            .is_empty());
+        assert_eq!(conflicts("MPL-2.0", "MIT", false).0, vec!["MIT"]);
     }
 
     #[test]
@@ -169,20 +197,50 @@ mod tests {
             outbound_ids("GPL-3.0-only WITH Classpath-exception-2.0"),
             vec!["GPL-3.0-only"]
         );
-        assert!(
-            conflicts("GPL-3.0-only", "GPL-3.0-only WITH Classpath-exception-2.0")
-                .0
-                .is_empty()
-        );
+        assert!(conflicts(
+            "GPL-3.0-only",
+            "GPL-3.0-only WITH Classpath-exception-2.0",
+            false
+        )
+        .0
+        .is_empty());
     }
 
     #[test]
     fn an_unknown_id_is_unjudged_not_guessed() {
-        assert_eq!(conflicts("Weird-1.0", "MIT"), (vec![], vec!["MIT".into()]));
-        let (bad, unknown) = conflicts("GPL-3.0-only", "LicenseRef-Proprietary");
+        assert_eq!(
+            conflicts("Weird-1.0", "MIT", false),
+            (vec![], vec!["MIT".into()])
+        );
+        let (bad, unknown) = conflicts("GPL-3.0-only", "LicenseRef-Proprietary", false);
         assert!(bad.is_empty());
         assert_eq!(unknown, vec!["LicenseRef-Proprietary"]);
         assert!(!known("Weird-1.0") && known("MIT-0") && !attribution_required("MIT-0"));
         assert!(attribution_required("Weird-1.0"));
+    }
+
+    #[test]
+    fn cire_snave_rulings_of_2026_11_21() {
+        assert!(conflicts("MPL-2.0", "GPL-3.0-only", false).0.is_empty());
+        assert!(conflicts("MPL-2.0", "LGPL-3.0-or-later", false)
+            .0
+            .is_empty());
+        assert!(conflicts("LGPL-2.1-only", "GPL-3.0-only", false)
+            .0
+            .is_empty());
+        assert!(conflicts("LGPL-2.1-only", "AGPL-3.0-only", false)
+            .0
+            .is_empty());
+        assert_eq!(
+            conflicts("MPL-2.0", "GPL-3.0-only", true).0,
+            vec!["GPL-3.0-only"]
+        );
+        assert!(conflicts("MPL-2.0", "MPL-2.0", true).0.is_empty());
+        assert!(has_exhibit_b(
+            "This Source Code Form is \"Incompatible
+  With Secondary Licenses\", as defined"
+        ));
+        assert!(!has_exhibit_b("Mozilla Public License"));
+        assert!(!attribution_required("BlueOak-1.0.0"));
     }
 }
