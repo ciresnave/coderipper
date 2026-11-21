@@ -58,6 +58,7 @@ pub(crate) fn run_worktree_add(mut command: Command) -> anyhow::Result<()> {
 pub(crate) fn isolate_from_enclosing_workspace(
     scratch: &Path,
     checkout: &Path,
+    package: Option<&str>,
 ) -> anyhow::Result<()> {
     let listed = Command::new("git")
         .args(["ls-files", "-z", "--", "Cargo.toml", ":(glob)**/Cargo.toml"])
@@ -91,38 +92,38 @@ pub(crate) fn isolate_from_enclosing_workspace(
         return Ok(());
     }
     let under = |dir: &str, root: &str| dir == root || dir.starts_with(&format!("{root}/"));
-    // Cargo loads every listed member and fails on one it cannot load, so a package whose path dependency has no
-    // manifest in the checkout (a conformance fixture that is defective on purpose) is left out: it never loaded anyway.
-    let loadable = |dir: &str| {
-        let base = checkout.join(dir);
-        let text = std::fs::read_to_string(base.join("Cargo.toml")).unwrap_or_default();
-        let has_target = base.join("src/lib.rs").is_file()
-            || base.join("src/main.rs").is_file()
-            || text.contains("[lib]")
-            || text.contains("[[bin]]");
-        has_target
-            && text
-                .split("path")
-                .skip(1)
-                .filter_map(|rest| {
-                    let rest = rest.trim_start().strip_prefix('=')?.trim_start();
-                    let rest = rest.strip_prefix('"')?;
-                    Some(&rest[..rest.find('"')?])
-                })
-                .all(|dep| base.join(dep).join("Cargo.toml").is_file())
-    };
-    let members: Vec<String> = dirs
-        .iter()
-        .filter(|d| !roots.iter().any(|r| under(d, r)))
-        .filter(|d| loadable(d))
-        .map(|d| {
-            if d.is_empty() {
-                "wt".to_string()
+    // Cargo loads every listed member and fails on one it cannot load or that clashes with another (a conformance fixture
+    // that is defective on purpose: a missing path dependency, no target, a duplicate package name). So the member is the
+    // package being analysed when it is known; otherwise (a session) the top-most manifests, which is what a checkout's
+    // own root is. Other packages below a member are loaded by cargo only when it is run from them.
+    let members: Vec<String> = match package {
+        Some(prefix) => {
+            let dir = prefix.trim_matches('/');
+            if roots.iter().any(|r| under(dir, r)) {
+                Vec::new()
+            } else if dir.is_empty() {
+                vec!["wt".to_string()]
             } else {
-                format!("wt/{d}")
+                vec![format!("wt/{dir}")]
             }
-        })
-        .collect();
+        }
+        None => dirs
+            .iter()
+            .filter(|d| !roots.iter().any(|r| under(d, r)))
+            .filter(|d| {
+                !dirs
+                    .iter()
+                    .any(|o| o != *d && (o.is_empty() || d.starts_with(&format!("{o}/"))))
+            })
+            .map(|d| {
+                if d.is_empty() {
+                    "wt".to_string()
+                } else {
+                    format!("wt/{d}")
+                }
+            })
+            .collect(),
+    };
     if members.is_empty() {
         return Ok(());
     }
@@ -171,7 +172,7 @@ impl RewrittenWorktree {
             .arg("HEAD")
             .current_dir(project_root);
         run_worktree_add(add)?;
-        isolate_from_enclosing_workspace(scratch.path(), &wt_path)?;
+        isolate_from_enclosing_workspace(scratch.path(), &wt_path, Some(&prefix))?;
 
         // Build the guard BEFORE rewriting: if a rewrite fails, `Drop` still unregisters the
         // worktree from the source repo instead of leaving a dangling `git worktree list` entry.
@@ -444,7 +445,12 @@ edition = \"2021\"
                 before.is_err(),
                 "the decoy must break cargo first (nested={nested})"
             );
-            super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
+            super::isolate_from_enclosing_workspace(
+                &scratch,
+                &checkout,
+                Some(if nested { "backend" } else { "" }),
+            )
+            .unwrap();
             assert_eq!(metadata_ok(&package), Ok(()), "nested={nested}");
         }
     }
@@ -472,7 +478,7 @@ edition = \"2021\"
         std::fs::write(
             bare.join("Cargo.toml"),
             "[package]
-name = \"w\"
+name = \"fixture\"
 version = \"0.2.0\"
 ",
         )
@@ -496,10 +502,13 @@ version = \"0.2.0\"
                 .status()
                 .unwrap();
         }
-        super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
+        super::isolate_from_enclosing_workspace(&scratch, &checkout, Some("")).unwrap();
         let manifest = std::fs::read_to_string(scratch.join("Cargo.toml")).unwrap();
         assert!(!manifest.contains("defective"), "{manifest}");
         assert!(!manifest.contains("conformance/Y"), "{manifest}");
+        assert_eq!(metadata_ok(&checkout), Ok(()));
+        // a session has no single package: the top-most manifests are listed
+        super::isolate_from_enclosing_workspace(&scratch, &checkout, None).unwrap();
         assert_eq!(metadata_ok(&checkout), Ok(()));
         // control: listing the fixture as a member is what broke cargo
         std::fs::write(
@@ -526,7 +535,7 @@ version = \"0.2.0\"
             .current_dir(&checkout)
             .status()
             .unwrap();
-        super::isolate_from_enclosing_workspace(scratch.path(), &checkout).unwrap();
+        super::isolate_from_enclosing_workspace(scratch.path(), &checkout, Some("")).unwrap();
         assert!(!scratch.path().join("Cargo.toml").exists());
     }
 

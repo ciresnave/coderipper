@@ -104,7 +104,7 @@ impl Session {
                 "HEAD",
             ],
         ))?;
-        crate::worktree::isolate_from_enclosing_workspace(scratch.path(), &checkout)?;
+        crate::worktree::isolate_from_enclosing_workspace(scratch.path(), &checkout, None)?;
 
         let lock_rel = workspace_lock_rel(source_repo)?;
         Ok(Session {
