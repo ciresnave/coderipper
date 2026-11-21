@@ -96,14 +96,20 @@ pub(crate) fn isolate_from_enclosing_workspace(
     let loadable = |dir: &str| {
         let base = checkout.join(dir);
         let text = std::fs::read_to_string(base.join("Cargo.toml")).unwrap_or_default();
-        text.split("path")
-            .skip(1)
-            .filter_map(|rest| {
-                let rest = rest.trim_start().strip_prefix('=')?.trim_start();
-                let rest = rest.strip_prefix('"')?;
-                Some(&rest[..rest.find('"')?])
-            })
-            .all(|dep| base.join(dep).join("Cargo.toml").is_file())
+        let has_target = base.join("src/lib.rs").is_file()
+            || base.join("src/main.rs").is_file()
+            || text.contains("[lib]")
+            || text.contains("[[bin]]");
+        has_target
+            && text
+                .split("path")
+                .skip(1)
+                .filter_map(|rest| {
+                    let rest = rest.trim_start().strip_prefix('=')?.trim_start();
+                    let rest = rest.strip_prefix('"')?;
+                    Some(&rest[..rest.find('"')?])
+                })
+                .all(|dep| base.join(dep).join("Cargo.toml").is_file())
     };
     let members: Vec<String> = dirs
         .iter()
@@ -460,6 +466,17 @@ edition = \"2021\"
         )
         .unwrap();
         std::fs::write(fixture.join("src/lib.rs"), "").unwrap();
+        // a manifest with no target at all cannot be loaded as a member either
+        let bare = checkout.join("conformance/Y/clean");
+        std::fs::create_dir_all(&bare).unwrap();
+        std::fs::write(
+            bare.join("Cargo.toml"),
+            "[package]
+name = \"w\"
+version = \"0.2.0\"
+",
+        )
+        .unwrap();
         for args in [
             vec!["add", "-A"],
             vec![
@@ -482,6 +499,7 @@ edition = \"2021\"
         super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
         let manifest = std::fs::read_to_string(scratch.join("Cargo.toml")).unwrap();
         assert!(!manifest.contains("defective"), "{manifest}");
+        assert!(!manifest.contains("conformance/Y"), "{manifest}");
         assert_eq!(metadata_ok(&checkout), Ok(()));
         // control: listing the fixture as a member is what broke cargo
         std::fs::write(
