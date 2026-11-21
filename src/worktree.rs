@@ -91,9 +91,24 @@ pub(crate) fn isolate_from_enclosing_workspace(
         return Ok(());
     }
     let under = |dir: &str, root: &str| dir == root || dir.starts_with(&format!("{root}/"));
+    // Cargo loads every listed member and fails on one it cannot load, so a package whose path dependency has no
+    // manifest in the checkout (a conformance fixture that is defective on purpose) is left out: it never loaded anyway.
+    let loadable = |dir: &str| {
+        let base = checkout.join(dir);
+        let text = std::fs::read_to_string(base.join("Cargo.toml")).unwrap_or_default();
+        text.split("path")
+            .skip(1)
+            .filter_map(|rest| {
+                let rest = rest.trim_start().strip_prefix('=')?.trim_start();
+                let rest = rest.strip_prefix('"')?;
+                Some(&rest[..rest.find('"')?])
+            })
+            .all(|dep| base.join(dep).join("Cargo.toml").is_file())
+    };
     let members: Vec<String> = dirs
         .iter()
         .filter(|d| !roots.iter().any(|r| under(d, r)))
+        .filter(|d| loadable(d))
         .map(|d| {
             if d.is_empty() {
                 "wt".to_string()
@@ -108,7 +123,12 @@ pub(crate) fn isolate_from_enclosing_workspace(
     let list: Vec<String> = members.iter().map(|m| format!("{m:?}")).collect();
     std::fs::write(
         scratch.join("Cargo.toml"),
-        format!("[workspace]\nmembers = [{}]\n", list.join(", ")),
+        format!(
+            "[workspace]
+members = [{}]
+",
+            list.join(", ")
+        ),
     )?;
     Ok(())
 }
@@ -421,6 +441,55 @@ edition = \"2021\"
             super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
             assert_eq!(metadata_ok(&package), Ok(()), "nested={nested}");
         }
+    }
+
+    // coderipper's own fast sweep, 2026-11-21: a tracked fixture package below the root whose path dependency is missing on purpose
+    // was listed as a member, and cargo then failed on it for every rule that reads `cargo metadata`.
+    #[test]
+    fn a_package_nested_below_the_root_package_is_not_listed_as_a_member() {
+        let parent = tempfile::tempdir().unwrap();
+        let scratch = parent.path().to_path_buf();
+        let checkout = scratch.join("wt");
+        std::fs::create_dir_all(&checkout).unwrap();
+        init_fixture_repo(&checkout);
+        let fixture = checkout.join("conformance/X/defective");
+        std::fs::create_dir_all(fixture.join("src")).unwrap();
+        std::fs::write(
+            fixture.join("Cargo.toml"),
+            "[package]\nname = \"d\"\nversion = \"0.1.0\"\nedition = \"2021\"\n[dependencies]\nsibling = { path = \"../sibling\" }\n",
+        )
+        .unwrap();
+        std::fs::write(fixture.join("src/lib.rs"), "").unwrap();
+        for args in [
+            vec!["add", "-A"],
+            vec![
+                "-c",
+                "user.email=t@t",
+                "-c",
+                "user.name=t",
+                "commit",
+                "-q",
+                "-m",
+                "f",
+            ],
+        ] {
+            Command::new("git")
+                .args(args)
+                .current_dir(&checkout)
+                .status()
+                .unwrap();
+        }
+        super::isolate_from_enclosing_workspace(&scratch, &checkout).unwrap();
+        let manifest = std::fs::read_to_string(scratch.join("Cargo.toml")).unwrap();
+        assert!(!manifest.contains("defective"), "{manifest}");
+        assert_eq!(metadata_ok(&checkout), Ok(()));
+        // control: listing the fixture as a member is what broke cargo
+        std::fs::write(
+            scratch.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"wt\", \"wt/conformance/X/defective\"]\n",
+        )
+        .unwrap();
+        assert!(metadata_ok(&checkout).is_err());
     }
 
     #[test]
