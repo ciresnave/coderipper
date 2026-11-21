@@ -14,6 +14,8 @@ mod external;
 mod neutral;
 mod protocol;
 mod rust;
+#[cfg(test)]
+mod ts_spike;
 
 use std::collections::{HashMap, HashSet};
 

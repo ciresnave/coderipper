@@ -52,6 +52,8 @@ yaml_serde = "0.10"
 syn = { version = "3.0.6", features = ["full", "visit"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 quote = "1.0.47"
+tree-sitter = "0.27.2"
+tree-sitter-typescript = "0.23.2"
 sha2 = "0.11.0"
 flate2 = "1"
 tar = { version = "0.4", default-features = false }
