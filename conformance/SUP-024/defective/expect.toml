@@ -1,0 +1,6 @@
+# The seeded defect: a code file that says it was ported from elsewhere and no entry covers it (line 2); the licence text that says 'derived from' is not scanned.
+
+[[expect]]
+rule = "SUP-024"
+file = "src/a.rs"
+line = 2
