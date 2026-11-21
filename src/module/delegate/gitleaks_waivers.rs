@@ -254,15 +254,107 @@ mod tests {
     }
 
     #[test]
-    fn the_embedded_list_is_valid_and_holds_the_two_secretant_fingerprints() {
+    fn the_embedded_list_is_valid_and_holds_exactly_the_reviewed_fingerprints() {
         let prints: Vec<String> = list().iter().map(Waiver::fingerprint).collect();
         assert_eq!(
             prints,
             [
                 "6e944684ca91408834c7f0d8b8d317cd2076e35e:CHANGELOG.md:generic-api-key:5",
                 "f1cc76b01a0e9afd3f1d00c95ba3dd3602fff4a1:CHANGELOG.md:generic-api-key:5",
+                "c6722fca07bfa11a53699b4e58778f0d03f6efe4:src/message.rs:generic-api-key:479",
+                "3946acc290567587b7b085cfad1a3a0d23cab34e:src/message.rs:generic-api-key:464",
+                "c17d127d8923ee7d29497d01735db0f1fc4b486b:src/examples_support.rs:private-key:142",
+                "80ab969ffc74280af4b49bd8fe95f21455c60384:src/examples_support.rs:private-key:145",
+                "4e7b7b09ff9b50d335ce2c7bff2c63bcca4849fc:src/message.rs:generic-api-key:479",
+                "debf24bb29d05560ac8da917547a4145d108fb0e:src/examples_support.rs:private-key:142",
+                "54422f2638b43c44d20d934ad130a72781524fc4:ROADMAP.md:generic-api-key:17",
             ]
         );
+    }
+
+    #[test]
+    fn the_commy_sdk_rust_waivers_match_those_seven_findings_and_nothing_else() {
+        const COMMY: &str = "ciresnave/commy-sdk-rust";
+        let l = list();
+        let today = date("2026-11-19");
+        let wanted = [
+            (
+                "c6722fca07bfa11a53699b4e58778f0d03f6efe4",
+                "src/message.rs",
+                "generic-api-key",
+                479,
+            ),
+            (
+                "3946acc290567587b7b085cfad1a3a0d23cab34e",
+                "src/message.rs",
+                "generic-api-key",
+                464,
+            ),
+            (
+                "c17d127d8923ee7d29497d01735db0f1fc4b486b",
+                "src/examples_support.rs",
+                "private-key",
+                142,
+            ),
+            (
+                "80ab969ffc74280af4b49bd8fe95f21455c60384",
+                "src/examples_support.rs",
+                "private-key",
+                145,
+            ),
+            (
+                "4e7b7b09ff9b50d335ce2c7bff2c63bcca4849fc",
+                "src/message.rs",
+                "generic-api-key",
+                479,
+            ),
+            (
+                "debf24bb29d05560ac8da917547a4145d108fb0e",
+                "src/examples_support.rs",
+                "private-key",
+                142,
+            ),
+            (
+                "54422f2638b43c44d20d934ad130a72781524fc4",
+                "ROADMAP.md",
+                "generic-api-key",
+                17,
+            ),
+        ];
+        let a = apply(
+            &l,
+            Some(COMMY),
+            wanted
+                .iter()
+                .map(|&(c, f, r, n)| leak(c, f, r, n))
+                .collect(),
+            today,
+            |_| true,
+        );
+        assert_eq!((a.waived.len(), a.open.len(), a.expired.len()), (7, 0, 0));
+        // sabotage: a different literal in the same file at the same commit sits on another line, and is still reported
+        // (the control above proves the same call waives the real four)
+        for (c, f, r, n) in wanted {
+            for changed in [
+                leak(c, f, r, n + 1),
+                leak(c, f, r, n - 1),
+                leak(c, "src/other.rs", r, n),
+                leak(c, f, "aws-access-token", n),
+                leak("0000000000000000000000000000000000000000", f, r, n),
+            ] {
+                let a = apply(&l, Some(COMMY), vec![changed], today, |_| true);
+                assert_eq!((a.waived.len(), a.open.len()), (0, 1), "{c} {f} {n}");
+            }
+        }
+        // another repository carrying the same commit gets nothing
+        let a = apply(
+            &l,
+            Some("someone/else"),
+            vec![leak(wanted[0].0, wanted[0].1, wanted[0].2, 479)],
+            today,
+            |_| true,
+        );
+        assert_eq!((a.waived.len(), a.open.len()), (0, 1));
     }
 
     #[test]

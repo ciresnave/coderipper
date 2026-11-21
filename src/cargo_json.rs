@@ -14,6 +14,9 @@ pub(crate) struct Span {
     pub line: u32,
     pub column: u32,
     pub is_primary: bool,
+    /// The source text rustc highlights for this span (for a dead-code item, its name), from the span's `text`; `None` when rustc gave
+    /// none or the span lies in macro-expanded code (its text is then the macro's, not the item's).
+    pub highlight: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -375,6 +378,16 @@ struct RawSpan {
     is_primary: bool,
     /// Present when the span is inside macro-expanded code; `span` is the macro CALL site.
     expansion: Option<Box<RawExpansion>>,
+    #[serde(default)]
+    text: Vec<RawText>,
+}
+
+/// One source line of a span, with the highlighted part as 1-based character columns, the end exclusive.
+#[derive(Deserialize)]
+struct RawText {
+    text: String,
+    highlight_start: usize,
+    highlight_end: usize,
 }
 
 #[derive(Deserialize)]
@@ -389,14 +402,30 @@ impl RawSpan {
     fn into_span(self) -> Span {
         let is_primary = self.is_primary;
         let mut cur = self;
+        let mut expanded = false;
         while let Some(exp) = cur.expansion.take() {
+            expanded = true;
             cur = exp.span;
         }
+        let highlight = if expanded {
+            None
+        } else {
+            cur.text.first().and_then(|t| {
+                let text: String = t
+                    .text
+                    .chars()
+                    .skip(t.highlight_start.saturating_sub(1))
+                    .take(t.highlight_end.saturating_sub(t.highlight_start))
+                    .collect();
+                (!text.is_empty()).then_some(text)
+            })
+        };
         Span {
             file: cur.file_name.replace('\\', "/"),
             line: cur.line_start,
             column: cur.column_start,
             is_primary,
+            highlight,
         }
     }
 }
@@ -794,6 +823,28 @@ mod tests {
             (span.file.as_str(), span.line, span.column),
             ("src/lib.rs", 7, 5)
         );
+    }
+
+    /// Captured from `cargo check --message-format=json` on a crate whose `impl S` has ten unused private methods: rustc writes ONE
+    /// warning, "multiple methods are never used", names none of them in the message, and gives each its own primary span (the first
+    /// span, `impl S {`, is a label and not primary).
+    const MULTIPLE_METHODS: &str =
+        include_str!("checks/reachability/fixtures/rustc-multiple-methods-never-used.json");
+
+    #[test]
+    fn a_span_keeps_the_text_rustc_highlights_and_a_group_names_none_in_its_message() {
+        let parsed = parse_messages(MULTIPLE_METHODS);
+        assert_eq!(parsed.len(), 1);
+        let d = &parsed[0];
+        assert_eq!(d.message, "multiple methods are never used");
+        assert!(!d.message.contains('`'), "the message names no item");
+        let primary: Vec<_> = d.spans.iter().filter(|s| s.is_primary).collect();
+        let names: Vec<_> = primary
+            .iter()
+            .map(|s| s.highlight.as_deref().unwrap_or("?"))
+            .collect();
+        let expected: Vec<String> = (1..=10).map(|i| format!("unused_{i}")).collect();
+        assert_eq!(names, expected);
     }
 
     #[test]

@@ -14,6 +14,9 @@ pub struct CollectResult {
     pub build_failed_for_other_reasons: bool,
     /// Why the build failed, in one line, when `build_failed_for_other_reasons` (empty otherwise).
     pub failure_cause: String,
+    /// Dead-code items rustc reported whose name could not be read (the span is inside macro-expanded code and the message names none):
+    /// they are not in `hits`, and the check says so.
+    pub unnamed: usize,
 }
 
 /// Which targets to build. `LibOnly` is for a package with a library: downgrading the lib's `pub`
@@ -39,21 +42,32 @@ pub fn collect_dead_code_in(
     };
 
     let mut hits = Vec::new();
+    let mut unnamed = 0;
     for d in &build.diagnostics {
         if d.code.as_deref() != Some("dead_code") {
             continue;
         }
-        // Grouped diagnostics ("methods `a`, `b`, and `c` are never used") carry one PRIMARY
-        // span per symbol, in the same order as the backtick-quoted names in the message text.
-        // Taking only the first silently loses every symbol after it.
+        // Grouped diagnostics carry one PRIMARY span per symbol. A small group names them in the message ("methods `a`, `b`, and
+        // `c` are never used"), in the order of the spans. A large one names none ("multiple methods are never used", also
+        // "multiple associated items|associated functions|associated constants|variants|fields"): the name is then the text rustc
+        // highlights at each span. Pairing names with spans alone dropped every item of a large group, silently.
         let names = extract_symbol_names(&d.message);
         let primary_spans: Vec<_> = d.spans.iter().filter(|s| s.is_primary).collect();
-        for (span, name) in primary_spans.iter().zip(names.iter()) {
-            hits.push(DeadCodeHit {
-                file: span.file.clone(),
-                line: span.line,
-                symbol: name.clone(),
-            });
+        let named_by_message = names.len() == primary_spans.len();
+        for (i, span) in primary_spans.iter().enumerate() {
+            let symbol = if named_by_message {
+                Some(names[i].clone())
+            } else {
+                span.highlight.clone().filter(|h| is_identifier(h))
+            };
+            match symbol {
+                Some(symbol) => hits.push(DeadCodeHit {
+                    file: span.file.clone(),
+                    line: span.line,
+                    symbol,
+                }),
+                None => unnamed += 1,
+            }
         }
     }
 
@@ -70,7 +84,16 @@ pub fn collect_dead_code_in(
         } else {
             String::new()
         },
+        unnamed,
     })
+}
+
+/// An identifier, as rustc highlights one: letters, digits and `_`, not starting with a digit, with an optional raw-identifier prefix.
+fn is_identifier(text: &str) -> bool {
+    let text = text.strip_prefix("r#").unwrap_or(text);
+    let mut chars = text.chars();
+    chars.next().is_some_and(|c| c.is_alphabetic() || c == '_')
+        && chars.all(|c| c.is_alphanumeric() || c == '_')
 }
 
 /// rustc's dead_code message is like: "function `dead` is never used", or, for a grouped
@@ -98,6 +121,54 @@ mod tests {
         .unwrap();
         std::fs::create_dir_all(dir.join("src")).unwrap();
         std::fs::write(dir.join("src/lib.rs"), lib_rs).unwrap();
+    }
+
+    /// The dropped-groups defect: rustc reports many unused methods as ONE "multiple methods are never used" warning that names none
+    /// of them, and the names were once read from the message alone, so every item of such a group was lost and the check said
+    /// nothing. Ten unused methods must be ten hits, each at its own line.
+    #[test]
+    fn ten_unused_methods_that_rustc_groups_without_names_are_all_reported() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut src = String::from(
+            "pub(crate) struct S;
+impl S {
+    pub(crate) fn new() -> Self { S }
+",
+        );
+        for i in 1..=10 {
+            src.push_str(&format!(
+                "    fn unused_{i}(&self) -> u32 {{ {i} }}
+"
+            ));
+        }
+        src.push_str(
+            "}
+pub fn live() -> S { S::new() }
+",
+        );
+        write_fixture(tmp.path(), &src);
+
+        let result =
+            collect_dead_code_in(tmp.path(), None, Targets::All, &Default::default()).unwrap();
+
+        assert!(!result.build_failed_for_other_reasons);
+        let symbols: Vec<&str> = result.hits.iter().map(|h| h.symbol.as_str()).collect();
+        let expected: Vec<String> = (1..=10).map(|i| format!("unused_{i}")).collect();
+        assert_eq!(symbols, expected);
+        assert_eq!(result.unnamed, 0);
+        // each at its own line: the first unused method is on line 4 of the fixture
+        assert_eq!(result.hits[0].line, 4);
+        assert_eq!(result.hits[9].line, 13);
+    }
+
+    #[test]
+    fn an_identifier_is_what_rustc_would_highlight_for_an_item() {
+        for ok in ["unused_1", "_x", "r#type", "Variant", "CONST_2"] {
+            assert!(super::is_identifier(ok), "{ok}");
+        }
+        for bad in ["", "1abc", "a b", "fn x()", "a::b", "impl S {"] {
+            assert!(!super::is_identifier(bad), "{bad}");
+        }
     }
 
     #[test]
