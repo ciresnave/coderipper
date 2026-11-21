@@ -281,9 +281,7 @@ impl<'ast> Visit<'ast> for Walk {
 fn sites_of(view: &RepoView, id: &str, wanted: &[Kind]) -> Verdict {
     let loaded = load(view);
     if loaded.packages.is_empty() {
-        return Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        );
+        return super::rust_package::nothing_to_read(id, &loaded, "the repository tracks no Rust package source outside tests, examples, tools and vendored trees");
     }
     let mut findings = Vec::new();
     for p in &loaded.packages {

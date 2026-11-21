@@ -101,12 +101,10 @@ pub(super) fn unparsed_note(rule: &str, unparsed: &[String]) -> Option<String> {
 
 /// The verdict for a repository whose `load` found no package to read: not applicable when there is no Rust source, but a note that
 /// names the files when there is Rust source that `syn` could not parse (a repository whose only source file does not parse has not been
-/// read, and "tracks no Rust package source" would be false).
-pub(super) fn nothing_to_read(rule: &str, loaded: &Packages) -> Verdict {
+/// read, and "tracks no Rust package source" would be false). `not_applicable` is the rule's own sentence for the no-Rust case.
+pub(super) fn nothing_to_read(rule: &str, loaded: &Packages, not_applicable: &str) -> Verdict {
     match unparsed_note(rule, &loaded.unparsed) {
         Some(note) => Verdict::Noted(Vec::new(), vec![note]),
-        None => Verdict::NotApplicable(
-            "the repository tracks no Rust package source outside tests, examples, tools and vendored trees".into(),
-        ),
+        None => Verdict::NotApplicable(not_applicable.into()),
     }
 }

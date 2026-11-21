@@ -1283,6 +1283,15 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 ),
                 None => "coderipper: rules passed: no rule ran to a verdict".to_string(),
             };
+            let line = match could_not_run_ids(&result.outcomes) {
+                ids if ids.is_empty() => line,
+                ids => format!(
+                    "{line}
+coderipper: {} rule(s) COULD NOT RUN, which is not \"no findings\": {}",
+                    ids.len(),
+                    ids.join(", ")
+                ),
+            };
             if reports.is_some() {
                 println!("{line}");
             } else {
@@ -1357,6 +1366,11 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
                 "rules_passed": ran.clean,
                 "rules_passed_percent": ran.passed_percent(),
             });
+            // Only when a rule could not run: it is named here, so a consumer cannot read the run as "no findings".
+            let could_not_run = could_not_run_ids(&result.outcomes);
+            if !could_not_run.is_empty() {
+                summary["rules_could_not_run"] = serde_json::json!(could_not_run);
+            }
             if shown.len() < result.findings.len() {
                 summary["findings_omitted"] = (result.findings.len() - shown.len()).into();
             }
@@ -1392,6 +1406,18 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
         );
     }
     Ok(code)
+}
+
+/// The ids of the rules that did not run to a verdict, sorted: a rule that failed is not a rule that found nothing.
+fn could_not_run_ids(outcomes: &[crate::coverage::RuleRun]) -> Vec<&str> {
+    let mut ids: Vec<&str> = outcomes
+        .iter()
+        .filter(|r| matches!(r.outcome, crate::coverage::RunOutcome::CouldNotRun))
+        .map(|r| r.rule.as_str())
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
 }
 
 /// `--message-format short`: `file:line: severity: summary [check id]`, the place first so an editor can jump to it. A finding
@@ -1702,7 +1728,22 @@ fn strip_verbatim_drive(path: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::strip_verbatim_drive;
+    use super::{could_not_run_ids, strip_verbatim_drive};
+    use crate::coverage::{RuleRun, RunOutcome};
+
+    #[test]
+    fn a_rule_that_could_not_run_is_named_and_a_clean_or_firing_one_is_not() {
+        let runs = vec![
+            RuleRun::new("OPS-011", RunOutcome::CouldNotRun),
+            RuleRun::new("SEC-001", RunOutcome::Clean),
+            RuleRun::new("MOD-011", RunOutcome::CouldNotRun),
+            RuleRun::new("ERR-001", RunOutcome::Findings(2)),
+            RuleRun::new("TST-001", RunOutcome::Skipped),
+        ];
+        assert_eq!(could_not_run_ids(&runs), ["MOD-011", "OPS-011"]);
+        // control: with none failing the list is empty, so the summary line and the JSON key are absent
+        assert!(could_not_run_ids(&runs[1..2]).is_empty());
+    }
 
     #[test]
     fn a_verbatim_drive_path_loses_its_prefix() {
