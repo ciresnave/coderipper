@@ -99,7 +99,9 @@ pub(crate) fn isolate_from_enclosing_workspace(
     let members: Vec<String> = match package {
         Some(prefix) => {
             let dir = prefix.trim_matches('/');
-            if roots.iter().any(|r| under(dir, r)) {
+            // No tracked manifest there (a directory that is not a package): listing it as a member would make cargo
+            // fail on it and the refusal would name the throwaway checkout instead of the user's directory.
+            if roots.iter().any(|r| under(dir, r)) || !dirs.iter().any(|d| d == dir) {
                 Vec::new()
             } else if dir.is_empty() {
                 vec!["wt".to_string()]
