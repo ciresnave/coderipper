@@ -76,3 +76,12 @@ Verdicts: PROVEN = a named test fails if the claim is false. WRONG->FIXED = the 
 | SEC-012 | derived Debug on secret field; field-name rules (bare key, password_hash, password_len, bool, secret_ttl, token_type not); token reported without vocab segment | probe of 18 structs, all as documented | PROVEN |
 | SEC-012 | hand-written Debug that prints the field is reported, a masked one is not | a_hand_written_debug_that_prints_the_field_is_reported_and_a_masked_one_is_not; probe (I reported, J not) | PROVEN (a probe struct with a trailing `// no redact` comment was not reported: comment text counts as the word, an acceptable limit, not claimed) |
 | REL-001 | opt-in (not in the portfolio profile) | - | skipped, not denied |
+
+## Batch 3 (delegated rules, wiring)
+| SUP-002, SEC-006 | osv-scanner: finding at the lockfile; SEC-006 narrowed to CVSS >= 7 or no score and says reachability is unchecked; no lockfile = gap; unreadable lockfile = error; subdir lockfile named relative; missing tool = gap, nothing installed | tests/delegated_osv.rs against the REAL pinned tool (the_claims_are_earned_..., sec_006_reports_only_the_serious_advisories..., etc.) | PROVEN (end to end; needs network/tool, skipped offline as unproven, not failed) |
+| SUP-008, API-006, API-007, API-001, DOC-010, SEC-002, SEC-009, REL-005 | zizmor / buf / squawk / semver-checks / lychee / gitleaks / checkov | tests/delegated_{zizmor,buf,squawk,semver,lychee,gitleaks,checkov}.rs (a file per tool; REL-005 via checkov) | file present; per-claim read NOT done in this batch |
+| SEC-001, SUP-003, RDB-001 | "source only" (no check built) | - | n/a |
+
+## Batch 4
+| MOD-009 | chain of >= 4 hops (method chain and field chain) is one Info/Low finding at the first hop; 3 hops not; a method taking an argument ends the run | probe of 4 chains on a scratch crate (f, h reported; g, i not) | PROVEN |
+| EXT-007 | non-pub trait with items, exactly one impl for a package type, no test double, no #[automock]; pub trait, two impls, impl for u32, blanket impl, empty trait not; pub(crate) counts; Low/Low | probe of 11 traits on a scratch crate (Only, Crate reported; the rest not) | PROVEN |
