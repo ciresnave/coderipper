@@ -62,7 +62,7 @@ No rule in this domain is run by the current release; every row below is a catal
 | DOC-006 | Docs and comments match current behaviour | L | catalog record; no check yet (needs a language-model judgement) |
 | DOC-007 | Diagrams that have drifted from the dependency graph | A | catalog record; no check yet (needs a declared architecture) |
 | DOC-008 | Changes users can see get changelog entries | N | catalog record; no check yet; planned: a native check that the changelog is touched when non-test source changes |
-| DOC-009 | A glossary exists and terms are used consistently | N | built: native; a repository with ten or more pages under `docs/` has a glossary, and no term is defined twice in it. Whether code and documents use the terms the same way is judgement and is not checked |
+| DOC-009 | A glossary exists and terms are used consistently | N | built: native; a repository with ten or more pages under `docs/` or `doc/` has a glossary, and no term is defined twice in it. Whether code and documents use the terms the same way is judgement and is not checked |
 | DOC-010 | Documentation links resolve | N | built: delegated to lychee (`--profile extended`); external links need the network, so they belong to the sweep tier |
 
 ## Further reading
