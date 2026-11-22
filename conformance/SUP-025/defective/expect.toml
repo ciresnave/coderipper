@@ -1,0 +1,6 @@
+# The seeded defect: an entry whose path matches no tracked file (line 3).
+
+[[expect]]
+rule = "SUP-025"
+file = "LICENCE-MANIFEST.toml"
+line = 3

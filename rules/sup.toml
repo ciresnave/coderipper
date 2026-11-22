@@ -347,6 +347,131 @@ languages = ["rust"]
 scopes = ["first_party"]
 
 [[rule]]
+id = "SUP-022"
+title = "The licence manifest parses and keeps to its schema"
+domain = "SUP"
+statement = "LICENCE-MANIFEST.toml parses as TOML, declares version 1, and every [[annotations]] and [[snippet]] entry uses only the schema's keys with the required ones present, so that the declared provenance can be read by every tool that shares the schema."
+rationale = "A manifest that a typo can break silently (an unknown key is an error, schema rule 5) declares nothing; the same file is read by the licence-tools validator and by this check, and both must reject the same files."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+checked_today = "Read from the tracked LICENCE-MANIFEST.toml at the repository root (not applicable when it is not tracked): a TOML syntax error; a version other than 1; an entry with an unknown key, without path, SPDX-License-Identifier or SPDX-FileCopyrightText (a snippet also lines), a key of the wrong type, a lines value that is not a:b with 1-based numbers and a <= b, a relation outside COPY_OF, DESCENDANT_OF, FILE_MODIFIED, VARIANT_OF, OTHER, OTHER without relation-comment, relation-comment without relation, a precedence outside closest, aggregate, override, an origin-* key without origin-url and origin-licence, an origin-licence that asks for attribution without origin-copyright. Not seen: whether the declared facts are true."
+remediation = "Fix the manifest to the shared schema (licence-tools docs/MANIFEST-SCHEMA.md)."
+related = ["SUP-016"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-023"
+title = "Declared origins carry their notice and licence text"
+domain = "SUP"
+statement = "Every manifest entry with an origin licence that asks for attribution has a tracked notice naming the origin's copyright holder on a line with a copyright marker, every file the entry requires is tracked, and the licence text is tracked."
+rationale = "A permissive licence such as MIT is granted on the condition that its copyright notice travels with the code; a credit in prose, or the generic licence text that names no holder, does not meet it."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+checked_today = "For each manifest entry with origin-licence (outside CC0-1.0, Unlicense, 0BSD, MIT-0): each requires file is tracked; a tracked text names origin-copyright (case and whitespace insensitive) on a line that also carries copyright, (c) or the copyright sign, searched in requires, in NOTICE, ATTRIBUTION, COPYING, LICENSE and THIRD files in the directory of a covered file or any ancestor (never under LICENSES/), and in the first 60 lines of each covered file; the licence text is LICENSES/<id>.txt or a requires file. One finding per missing required file, else one for the holder, else one for the licence text. Not seen: whether the notice's year or wording matches the origin's."
+remediation = "Track the origin's copyright line in a NOTICE or LICENSE file beside the covered files, and the licence text under LICENSES/."
+related = ["SUP-016"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-024"
+title = "Origin markers are declared in the manifest"
+domain = "SUP"
+statement = "A tracked file that says in its first 60 lines that it is derived from, ported from or vendored from somewhere, or names an Origin, is covered by a manifest entry."
+rationale = "A file that announces an origin and has no entry carries a provenance claim nothing else records, so its licence and notice are unchecked."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+checked_today = "In each tracked file other than licence texts (LICENSE*, COPYING*, anything under LICENSES/) and the manifest, a line among the first 60 with Origin:, derived from, ported from or vendored (any case) that no [[annotations]] path covers and no [[snippet]] lines range (1-based, inclusive) of that file contains. A marker in a .md, .markdown, .rst, .txt or .tsv file is an info note, never a finding. Not seen: copied code that carries no marker and no entry."
+remediation = "Add an entry (or a snippet for the lines) with the origin's URL, licence and holder, or reword the marker."
+related = ["SUP-016"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-025"
+title = "Manifest entries describe files that exist"
+domain = "SUP"
+statement = "Every manifest entry's path matches at least one tracked file."
+rationale = "An entry that matches nothing records provenance for files that moved or were deleted, and hides that the files now carrying the origin are undeclared."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "low"
+confidence_class = "medium"
+kb_refs = []
+checked_today = "Each [[annotations]] and [[snippet]] path is matched as a REUSE glob (* inside a directory, ** across directories) against the tracked files; an entry matching none is reported. Not seen: an entry that matches the wrong files."
+remediation = "Correct or remove the entry."
+related = ["SUP-016"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
+id = "SUP-026"
+title = "Declared origins allow the licence they are carried under"
+domain = "SUP"
+statement = "The licence a manifest entry declares for its files is one the origin licence allows code to be carried under."
+rationale = "Copyleft code carried under a more permissive licence breaks the origin's terms, and a declaration of it is a record of the breach."
+evidence_tiers = ["V0"]
+evidence_strength = "C"
+contested = false
+scope = "project"
+network = "local"
+unit = "repository"
+executes_project_code = false
+default_severity = "medium"
+confidence_class = "medium"
+kb_refs = []
+checked_today = "For each entry with origin-licence and an SPDX-License-Identifier string, every licence id of the expression (WITH exceptions dropped; A OR B offers both) is looked up in a table ported from licence-tools tools/licence_compat.py (permissive, no-attribution and copyleft origins; Apache-2.0 into GPL-2.0-only, GPL-2.0-or-later and LGPL-2.1-only denied; MPL-2.0 into GPL-3.0 and LGPL-3.0 allowed unless a covered or required file carries the Exhibit B 'Incompatible With Secondary Licenses' notice, which limits it to MPL-2.0; LGPL-2.1-only into GPL-3.0 and AGPL-3.0 allowed). A conflict blocks: Medium severity (CireSnave 2026-11-21). An id the table does not know is an info note, never a finding. The table is advisory data, not legal advice."
+remediation = "Relicense the covered files under a licence the origin allows, or obtain the origin's permission."
+related = ["SUP-016"]
+lifecycle = "experimental"
+
+[rule.applicability]
+languages = ["any"]
+scopes = ["first_party"]
+
+[[rule]]
 id = "SUP-014"
 title = "Dependencies checked against the patent-safety index"
 domain = "SUP"
