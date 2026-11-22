@@ -434,6 +434,18 @@ mod tests {
     }
 
     #[test]
+    fn an_int_array_key_and_unbound_key_are_found_and_a_const_key_is_not() {
+        // audit 2026-11-22: these claims were proven by a probe only; named here so every run checks them.
+        let arr = "fn f() { let k = EncodingKey::from_secret(&[1u8, 2, 3, 4]); }";
+        assert_eq!(found(arr).len(), 1);
+        let unbound = "fn f() { let k = UnboundKey::new(&AES_256_GCM, b\"0123456789abcdef0123456789abcdef\"); }";
+        assert_eq!(found(unbound).len(), 1);
+        let konst = "const K: &[u8] = b\"s3cret\";
+fn f() { let k = EncodingKey::from_secret(K); }";
+        assert!(found(konst).is_empty());
+    }
+
+    #[test]
     fn test_code_is_skipped() {
         let src = "#[cfg(test)] mod t { fn f() { EncodingKey::from_secret(b\"x\"); } }\n#[test] fn g() { EncodingKey::from_secret(b\"x\"); }\nfn h() { EncodingKey::from_secret(b\"x\"); }";
         assert_eq!(found(src).len(), 1);
