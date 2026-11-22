@@ -1183,7 +1183,14 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
 
     // The coverage report: computed from the catalog joined with what the Rust module claims and has proven, and with this run's
     // outcomes. A gap in it never touches `code` above.
-    let unchecked = crate::coverage::unchecked_languages(&ctx.project_root);
+    // a language with a module of its own is checked, not unchecked: it gets its own coverage line
+    let unchecked: Vec<_> = crate::coverage::unchecked_languages(&ctx.project_root)
+        .into_iter()
+        .filter(|u| u.language != "typescript")
+        .collect();
+    let typescript_present = crate::coverage::unchecked_languages(&ctx.project_root)
+        .iter()
+        .any(|u| u.language == "typescript");
     let summary_project = ctx
         .project_root
         .file_name()
@@ -1192,8 +1199,15 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
     let shown = ranked(&result.findings, top);
     let show_coverage =
         profile == Profile::Extended || coverage.is_some() || min_coverage.is_some();
-    let reports = show_coverage
-        .then(|| coverage_reports(&result, &unchecked, profile == Profile::Extended, &tools));
+    let reports = show_coverage.then(|| {
+        coverage_reports(
+            &result,
+            &unchecked,
+            typescript_present,
+            profile == Profile::Extended,
+            &tools,
+        )
+    });
     // The opt-in floor: the one way a coverage gap fails a run. It never lowers a worse code (3 over 1 over 0).
     if let (Some(floor), Some(reports)) = (min_coverage, &reports) {
         let covered: Vec<(&str, f64)> = reports
@@ -1526,11 +1540,14 @@ fn below_the_floor(floor: f64, covered: &[(&str, f64)]) -> Vec<String> {
 fn coverage_reports(
     result: &crate::RunResult,
     unchecked: &[crate::coverage::UncheckedLanguage],
+    typescript_present: bool,
     with_neutral: bool,
     tools: &crate::tools::ToolEnv,
 ) -> Vec<crate::coverage::LanguageCoverage> {
     use crate::coverage::{for_missing_module_with, for_module};
-    use crate::module::{Composite, DelegatedModule, Module, NeutralModule, RustModule};
+    use crate::module::{
+        Composite, DelegatedModule, Module, NeutralModule, RustModule, TypeScriptModule,
+    };
     let catalog = crate::catalog::Catalog::builtin();
     let checks = crate::registered_checks();
     let rust = RustModule::new(&checks);
@@ -1538,7 +1555,8 @@ fn coverage_reports(
     // Under `extended` the language-neutral rules are part of what runs, so they count for every language.
     // ... and so do the delegated rules, for the tools that are installed here (a claim without its tool is a gap, not coverage).
     let delegated = DelegatedModule::new(tools.clone());
-    let composite = Composite::new(vec![&rust, &neutral, &delegated]);
+    let typescript = TypeScriptModule::new();
+    let composite = Composite::new(vec![&rust, &typescript, &neutral, &delegated]);
     let serving: &dyn Module = if with_neutral { &composite } else { &rust };
     let mut reports = Vec::new();
     if let Ok(hello) = serving.describe() {
@@ -1553,6 +1571,19 @@ fn coverage_reports(
     } else {
         Vec::new()
     };
+    if typescript_present {
+        // the TypeScript module's own claims first, so its line counts what it checks; the neutral and delegated rules join under extended
+        let ts_view = Composite::new(vec![&typescript, &neutral, &delegated]);
+        let ts_serving: &dyn Module = if with_neutral { &ts_view } else { &typescript };
+        if let Ok(hello) = ts_serving.describe() {
+            reports.push(for_module(
+                catalog,
+                &hello,
+                "typescript",
+                Some(&result.outcomes),
+            ));
+        }
+    }
     for u in unchecked {
         reports.push(for_missing_module_with(
             catalog,

@@ -14,8 +14,7 @@ mod external;
 mod neutral;
 mod protocol;
 mod rust;
-#[cfg(test)]
-mod ts_spike;
+mod typescript;
 
 use std::collections::{HashMap, HashSet};
 
@@ -31,6 +30,7 @@ pub use protocol::{
     PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
+pub use typescript::TypeScriptModule;
 
 use crate::finding::Finding;
 

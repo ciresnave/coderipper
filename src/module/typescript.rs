@@ -1,0 +1,307 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+//! [`TypeScriptModule`]: the TypeScript checks behind the module interface (ROADMAP items 8 and 12), in process, on `tree-sitter`
+//! with the `tree-sitter-typescript` grammar (the PM's parser ruling of 2026-11-21: tree-sitter for every language module).
+//!
+//! It reads the files git tracks at `HEAD` (never the disk), parses each TypeScript file and judges it. A file the grammar cannot
+//! parse cleanly is never read as clean: its rule says so in a note. The first rule is `ERR-001` (errors are not swallowed): a `catch`
+//! clause whose block holds nothing at all. A block that holds only a comment is the "record in a comment why dropping is safe"
+//! the rule's remediation allows, so it is not reported.
+
+use tree_sitter::{Language, Node, Parser};
+
+use super::neutral::RepoView;
+use super::{
+    Capabilities, ErrorKind, Event, Hello, Module, ModuleOutput, ModuleSummary, Request, RuleClaim,
+    RuleResult,
+};
+use crate::finding::{Confidence, Finding, Location, Severity};
+
+/// The one rule this module answers so far.
+const ERR_001: &str = "ERR-001";
+
+/// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
+const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
+
+/// The TypeScript module: stateless, so it can be shared.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct TypeScriptModule;
+
+impl TypeScriptModule {
+    /// A module over the tracked files of whatever project it is asked about.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+/// A tracked path that is first-party TypeScript source: right extension, not a declaration file, not under a vendored or
+/// dependency directory, not a test file (the same carve-outs the Rust rule makes for tests and fixtures).
+fn is_source(path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    let ext = lower.rsplit('.').next().unwrap_or("");
+    if !EXTENSIONS.contains(&ext) || lower.ends_with(".d.ts") {
+        return false;
+    }
+    let skipped_dir = |seg: &str| {
+        matches!(
+            seg,
+            "node_modules"
+                | "vendor"
+                | "vendored"
+                | "third_party"
+                | "dist"
+                | "build"
+                | "tests"
+                | "test"
+                | "__tests__"
+                | "e2e"
+                | "fixtures"
+                | "conformance"
+        )
+    };
+    let mut parts = lower.split('/');
+    let file = parts.next_back().unwrap_or("");
+    if parts.any(skipped_dir) {
+        return false;
+    }
+    !(file.contains(".test.") || file.contains(".spec."))
+}
+
+fn language_for(path: &str) -> Language {
+    if path.to_ascii_lowercase().ends_with(".tsx") {
+        tree_sitter_typescript::LANGUAGE_TSX.into()
+    } else {
+        tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
+    }
+}
+
+/// The 1-based lines of every `catch` clause in `root` whose block holds no statement and no comment.
+fn empty_catches(root: Node<'_>) -> Vec<u32> {
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "catch_clause" {
+            if let Some(body) = node.child_by_field_name("body") {
+                if body.kind() == "statement_block" && body.named_child_count() == 0 {
+                    found.push(u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX));
+                }
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
+/// What reading one repository for `ERR-001` found.
+struct Read {
+    findings: Vec<Finding>,
+    files: usize,
+    /// Files tree-sitter could not parse without an error node: read as far as they parse, and said so.
+    unparsable: Vec<String>,
+}
+
+fn read_err_001(view: &RepoView) -> Read {
+    let mut out = Read {
+        findings: Vec::new(),
+        files: 0,
+        unparsable: Vec::new(),
+    };
+    for path in view.paths().iter().filter(|p| is_source(p)) {
+        let Some(text) = view.read(path) else {
+            continue;
+        };
+        out.files += 1;
+        let mut parser = Parser::new();
+        if parser.set_language(&language_for(path)).is_err() {
+            out.unparsable.push(path.clone());
+            continue;
+        }
+        let Some(tree) = parser.parse(&text, None) else {
+            out.unparsable.push(path.clone());
+            continue;
+        };
+        if tree.root_node().has_error() {
+            out.unparsable.push(path.clone());
+        }
+        for line in empty_catches(tree.root_node()) {
+            out.findings.push(
+                Finding::new(
+                    ERR_001,
+                    Severity::High,
+                    Confidence::High,
+                    view.name(),
+                    "a `catch` block whose body is only braces swallows the error",
+                    "Handle the failure, rethrow it, or write a comment in the block saying why dropping it is safe here.",
+                )
+                .location(Location::new(path.clone(), Some(line)))
+                .subject(path.clone()),
+            );
+        }
+    }
+    out
+}
+
+impl Module for TypeScriptModule {
+    fn describe(&self) -> anyhow::Result<Hello> {
+        Ok(Hello::new(
+            "typescript",
+            env!("CARGO_PKG_VERSION"),
+            vec!["typescript".into()],
+            vec!["package.json".into(), "tsconfig.json".into()],
+            // reads tracked files and runs nothing of the project's
+            Capabilities::new(false, false, false, false),
+            vec![RuleClaim::native(ERR_001).only_languages(&["typescript"])],
+        ))
+    }
+
+    fn check(&self, request: &Request) -> ModuleOutput {
+        let mut events = Vec::new();
+        let mut summary = ModuleSummary {
+            rules_requested: request.rules.len(),
+            ..ModuleSummary::default()
+        };
+        let view = RepoView::from_git(&request.project_root);
+        for rule in &request.rules {
+            if rule != ERR_001 {
+                events.push(Event::RuleResult(RuleResult::error(
+                    rule,
+                    ErrorKind::Internal,
+                    "the TypeScript module has no such rule",
+                )));
+                summary.rules_errored += 1;
+                continue;
+            }
+            let view = match &view {
+                Ok(view) => view,
+                Err(e) => {
+                    events.push(Event::RuleResult(RuleResult::error(
+                        rule,
+                        ErrorKind::Internal,
+                        e.to_string(),
+                    )));
+                    summary.rules_errored += 1;
+                    continue;
+                }
+            };
+            let read = read_err_001(view);
+            if read.files == 0 {
+                events.push(Event::RuleResult(RuleResult::not_applicable(
+                    rule,
+                    "the repository tracks no first-party TypeScript source file",
+                )));
+                summary.rules_skipped += 1;
+                continue;
+            }
+            let count = read.findings.len();
+            let mut notes = vec![format!(
+                "{} TypeScript file(s) read with tree-sitter",
+                read.files
+            )];
+            if !read.unparsable.is_empty() {
+                notes.push(format!(
+                    "{} file(s) did not parse cleanly and were read only as far as they parse: {}",
+                    read.unparsable.len(),
+                    read.unparsable.join(", ")
+                ));
+            }
+            summary.rules_ran += 1;
+            summary.findings += count;
+            events.extend(
+                read.findings
+                    .into_iter()
+                    .map(|f| Event::Finding(Box::new(f))),
+            );
+            events.push(Event::RuleResult(RuleResult::ran_noted(
+                rule, count, &notes,
+            )));
+        }
+        events.push(Event::Summary(summary));
+        ModuleOutput {
+            in_process: true,
+            ..ModuleOutput::from_events(events)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read(files: &[(&str, &str)]) -> Read {
+        read_err_001(&RepoView::from_files(files))
+    }
+
+    #[test]
+    fn an_empty_catch_is_reported_at_its_line() {
+        let r = read(&[(
+            "src/a.ts",
+            "function f() {\n  try {\n    g();\n  } catch (e) {\n  }\n}\n",
+        )]);
+        assert_eq!(r.findings.len(), 1);
+        assert_eq!(
+            r.findings[0].location.as_ref().and_then(|l| l.line),
+            Some(4)
+        );
+        r.findings[0].clone().validate().expect("a valid finding");
+    }
+
+    #[test]
+    fn a_catch_with_a_statement_or_only_a_comment_is_not_reported() {
+        let r = read(&[
+            ("src/handled.ts", "try { g(); } catch (e) { log(e); }\n"),
+            (
+                "src/said.ts",
+                "try { g(); } catch (e) { /* the cache is optional, a miss is fine */ }\n",
+            ),
+            (
+                "src/optional.ts",
+                "try { g(); } catch { throw new Error('x'); }\n",
+            ),
+        ]);
+        assert!(r.findings.is_empty());
+        assert_eq!(
+            r.files, 3,
+            "the three files were read, so the empty result is a verdict"
+        );
+    }
+
+    #[test]
+    fn a_tsx_file_and_a_nested_catch_are_read() {
+        let r = read(&[(
+            "ui/App.tsx",
+            "export const A = () => { try { f(); } catch (e) { try { g(); } catch (e2) {} } return <div/>; };\n",
+        )]);
+        assert_eq!(r.findings.len(), 1, "only the inner catch is empty");
+    }
+
+    #[test]
+    fn declaration_test_and_dependency_files_are_not_first_party_source() {
+        for skipped in [
+            "types/a.d.ts",
+            "node_modules/x/index.ts",
+            "src/a.test.ts",
+            "src/a.spec.tsx",
+            "tests/a.ts",
+            "src/__tests__/a.ts",
+            "src/a.js",
+        ] {
+            assert!(!is_source(skipped), "{skipped}");
+        }
+        assert!(is_source("src/a.ts") && is_source("src/a.mts") && is_source("web/B.tsx"));
+    }
+
+    #[test]
+    fn a_file_that_does_not_parse_is_named_not_read_as_clean() {
+        let r = read(&[("src/broken.ts", "function ( { try { } catch (e) {} \n")]);
+        assert_eq!(r.unparsable, vec!["src/broken.ts"]);
+    }
+
+    #[test]
+    fn the_module_claims_err_001_for_typescript_only() {
+        let hello = TypeScriptModule::new().describe().unwrap();
+        assert_eq!(hello.rules.len(), 1);
+        assert!(hello.rules[0].covers_language("typescript"));
+        assert!(!hello.rules[0].covers_language("rust"));
+    }
+}
