@@ -22,6 +22,11 @@ const ERR_001: &str = "ERR-001";
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
+/// The rules this module claims, by id.
+pub fn rule_ids() -> Vec<&'static str> {
+    vec![ERR_001]
+}
+
 /// The TypeScript module: stateless, so it can be shared.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct TypeScriptModule;
@@ -151,7 +156,12 @@ impl Module for TypeScriptModule {
             vec!["package.json".into(), "tsconfig.json".into()],
             // reads tracked files and runs nothing of the project's
             Capabilities::new(false, false, false, false),
-            vec![RuleClaim::native(ERR_001).only_languages(&["typescript"])],
+            vec![{
+                let mut claim = RuleClaim::native(ERR_001).only_languages(&["typescript"]);
+                // earned by `conformance-typescript/ERR-001` (tests/typescript_conformance.rs ties this string to it)
+                claim.proof = Some("conformance-typescript/ERR-001".into());
+                claim
+            }],
         ))
     }
 

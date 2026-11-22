@@ -30,7 +30,7 @@ pub use protocol::{
     PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
-pub use typescript::TypeScriptModule;
+pub use typescript::{rule_ids as typescript_rule_ids, TypeScriptModule};
 
 use crate::finding::Finding;
 

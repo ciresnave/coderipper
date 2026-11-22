@@ -271,8 +271,9 @@ enum Command {
     /// twin. Exits 1 when a fixture contradicts a claim, 3 when a rule could not run. Meant for a module's own CI.
     /// Fixtures are code that runs (the checks build them): use only fixtures you trust.
     Conformance {
-        /// The module to judge: the built-in `rust` module (the default), `neutral` (the language-neutral rules) or `delegated`
-        /// (the rules run by installed tools).
+        /// The module to judge: the built-in `rust` module (the default), `typescript` (its fixtures are in
+        /// `conformance-typescript`: pass `--fixtures`), `neutral` (the language-neutral rules) or `delegated` (the rules run by
+        /// installed tools).
         #[arg(long, default_value = "rust")]
         module: String,
         /// Judge only this rule.
@@ -672,9 +673,9 @@ fn conformance_command(
     message_format: MessageFormat,
 ) -> anyhow::Result<u8> {
     use crate::conformance::{run, Options, Verdict};
-    if !matches!(module, "rust" | "neutral" | "delegated") {
+    if !matches!(module, "rust" | "typescript" | "neutral" | "delegated") {
         return Err(UsageError(format!(
-            "no module named \"{module}\"; the built-in modules are \"rust\", \"neutral\" and \"delegated\""
+            "no module named \"{module}\"; the built-in modules are \"rust\", \"typescript\", \"neutral\" and \"delegated\""
         ))
         .into());
     }
@@ -682,6 +683,7 @@ fn conformance_command(
     let known: Vec<&str> = match module {
         "neutral" => crate::module::neutral_rule_ids(),
         "delegated" => crate::module::delegated_rule_ids(),
+        "typescript" => crate::module::typescript_rule_ids(),
         _ => checks.iter().map(|c| c.id()).collect(),
     };
     if let Some(wanted) = &rule {
@@ -703,7 +705,9 @@ fn conformance_command(
     let rust = crate::module::RustModule::new(&checks);
     let neutral = crate::module::NeutralModule::new();
     let delegated = crate::module::DelegatedModule::new(tools);
+    let typescript = crate::module::TypeScriptModule::new();
     let module: &dyn crate::module::Module = match module {
+        "typescript" => &typescript,
         "neutral" => &neutral,
         "delegated" => &delegated,
         _ => &rust,
