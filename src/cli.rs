@@ -1183,14 +1183,16 @@ fn run_and_report(args: RunArgs, conf: &Conf) -> anyhow::Result<u8> {
 
     // The coverage report: computed from the catalog joined with what the Rust module claims and has proven, and with this run's
     // outcomes. A gap in it never touches `code` above.
-    // a language with a module of its own is checked, not unchecked: it gets its own coverage line
-    let unchecked: Vec<_> = crate::coverage::unchecked_languages(&ctx.project_root)
+    // Under `extended` the TypeScript module is part of what runs, so TypeScript is checked, not unchecked: it gets its own coverage
+    // line. Under `classic` no module runs for it, and it stays an unchecked language (the stderr line and the `--coverage` gap).
+    let typescript_served = profile == Profile::Extended;
+    let found_languages = crate::coverage::unchecked_languages(&ctx.project_root);
+    let typescript_present =
+        typescript_served && found_languages.iter().any(|u| u.language == "typescript");
+    let unchecked: Vec<_> = found_languages
         .into_iter()
-        .filter(|u| u.language != "typescript")
+        .filter(|u| !(typescript_served && u.language == "typescript"))
         .collect();
-    let typescript_present = crate::coverage::unchecked_languages(&ctx.project_root)
-        .iter()
-        .any(|u| u.language == "typescript");
     let summary_project = ctx
         .project_root
         .file_name()
