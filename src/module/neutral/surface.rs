@@ -171,7 +171,7 @@ fn deprecation(attrs: &[Attribute], name: &str, out: &mut Vec<Site>) {
                 kind: Kind::Deprecation,
                 line: line_of(attr.pound_token.spans[0]),
                 name: name.to_string(),
-                detail: format!("carries no {}", missing.join(" and no ")),
+                detail: format!("lacks {}", missing.join(" and ")),
             });
         }
     }
@@ -631,6 +631,19 @@ pub fn whole() {}
         let found = run(src, Kind::Deprecation);
         let names: Vec<_> = found.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(names, ["bare", "note_only", "since_only"], "{found:?}");
+    }
+
+    #[test]
+    fn a_deprecation_sentence_reads_as_a_sentence() {
+        // audit 2026-11-21: it used to say "carries no the version it began in (`since`) and no a note".
+        let found = run(
+            "#[deprecated]
+pub fn bare() {}
+",
+            Kind::Deprecation,
+        );
+        let (what, _) = deprecation_text(&found[0]);
+        assert_eq!(what, "the deprecation of `bare` lacks the version it began in (`since`) and a note (what replaces it, when it goes)");
     }
 
     #[test]

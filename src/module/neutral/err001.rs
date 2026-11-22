@@ -10,7 +10,7 @@
 //! 3. `call().ok();` as a statement (the `Result` becomes an `Option` that is thrown away);
 //! 4. a match arm `Err(_) => {}` (or `=> ()`);
 //! 5. `if let Ok(..) = call` with **no `else`**, when the call is one of a short named list whose failure matters: file-system,
-//!    file, socket and `Command` calls and the read, write and flush methods.
+//!    file, socket and `Command` calls and the methods `read_to_string`, `read_to_end`, `write_all` and `flush` (a bare `read` or `write` is not listed: a lock has them too).
 //!
 //! **A comment is the stated reason the rule asks for.** A comment on the same line, on the lines up to the end of the statement, or
 //! alone on the line above silences the site. This is the opposite of `lint-suppression`, where a comment is deliberately not a
@@ -376,6 +376,17 @@ fn f() {
             .map(|x| x.location.as_ref().and_then(|l| l.line).unwrap())
             .collect();
         assert_eq!(lines, vec![2, 3, 4, 5, 6], "{f:?}");
+    }
+
+    #[test]
+    fn the_listed_io_methods_are_found_and_a_bare_read_or_write_is_not() {
+        // audit 2026-11-21: the text said "read, write and flush methods"; the list is read_to_string, read_to_end, write_all, flush.
+        let listed = "fn f(w: &mut W) { if let Ok(_) = w.read_to_string() { a(); } if let Ok(_) = w.read_to_end() { a(); } if let Ok(_) = w.write_all(b) { a(); } if let Ok(_) = w.flush() { a(); } }
+";
+        assert_eq!(run(listed).len(), 4);
+        let bare = "fn f(w: &mut W) { if let Ok(g) = w.read() { a(); } if let Ok(g) = w.write(b) { a(); } }
+";
+        assert!(run(bare).is_empty());
     }
 
     #[test]
