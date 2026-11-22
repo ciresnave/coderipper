@@ -1,0 +1,6 @@
+# The seeded defect: an entry with a key the schema does not have (a typo is an error), reported at the entry's header (line 3).
+
+[[expect]]
+rule = "SUP-022"
+file = "LICENCE-MANIFEST.toml"
+line = 3

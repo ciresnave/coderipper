@@ -40,6 +40,8 @@ mod ext004;
 mod ext007;
 mod global_state;
 mod licence;
+mod licence_compat;
+mod licence_manifest;
 mod lint_suppression;
 mod lock_order;
 mod mod007;
@@ -467,6 +469,26 @@ const RULES: &[Rule] = &[
     Rule {
         id: "SUP-010",
         judge: sup010::judge,
+    },
+    Rule {
+        id: "SUP-022",
+        judge: licence_manifest::judge_sup022,
+    },
+    Rule {
+        id: "SUP-023",
+        judge: licence_manifest::judge_sup023,
+    },
+    Rule {
+        id: "SUP-024",
+        judge: licence_manifest::judge_sup024,
+    },
+    Rule {
+        id: "SUP-025",
+        judge: licence_manifest::judge_sup025,
+    },
+    Rule {
+        id: "SUP-026",
+        judge: licence_manifest::judge_sup026,
     },
 ];
 
@@ -990,6 +1012,11 @@ const PROVEN: &[&str] = &[
     "SEC-008",
     "TST-004",
     "SUP-010",
+    "SUP-022",
+    "SUP-023",
+    "SUP-024",
+    "SUP-025",
+    "SUP-026",
 ];
 
 impl Module for NeutralModule {

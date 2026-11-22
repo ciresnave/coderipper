@@ -1,0 +1,6 @@
+# The seeded defect: GPL-3.0-only code declared under MIT (line 3).
+
+[[expect]]
+rule = "SUP-026"
+file = "LICENCE-MANIFEST.toml"
+line = 3

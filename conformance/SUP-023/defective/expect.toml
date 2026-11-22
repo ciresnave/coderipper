@@ -1,0 +1,6 @@
+# The seeded defect: an MIT origin whose holder, RIKEN, is named only in prose (a credit is not a notice), reported at the entry's header (line 3).
+
+[[expect]]
+rule = "SUP-023"
+file = "LICENCE-MANIFEST.toml"
+line = 3
