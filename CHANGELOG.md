@@ -14,6 +14,8 @@ recorded here as tagged on GitHub: the earlier ones are the versions of `main` a
 
 **SEC-009 and the claims audit:** SEC-009 now pins its 37 checkov checks (and REL-005 its 4) with a test; no text or behaviour change. The audit of 11 more rules (CON-002, CON-006, SEC-004, TYP-007, TST-003, SEC-012, MOD-009, EXT-007, TYP-001, MOD-001 and the delegated tools' wiring) found them proven; the table is `docs/rules/AUDIT-TABLE-0.47.17.md`.
 
+**OPS-012 text corrected (claims audit):** the stdin-without-`-` form is read only for a binary that takes arguments and only when stdin is read as data (a stdin that only feeds `read_line` is a prompt); the catalog text now says so. Behaviour unchanged, already pinned by a test. The other nine OPS-012 forms were probed on 20 scratch crates and behave as documented.
+
 ## 0.47.18 - 2026-11-21 (proposed, Fixed)
 
 ARC-002 no longer reads `pub(crate)`, `pub(super)` or `pub(in path)` as a reference to the module the path names: a visibility restriction is not a dependency, so it no longer closes a false cycle (reported from auditant, `pub(crate) fn check_hash`).
