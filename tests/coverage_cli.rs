@@ -310,9 +310,9 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // the TypeScript module's two rules (ERR-001, TYP-006) are proven by conformance-typescript, so it is covered on top of the
+    // the TypeScript module's three rules (ERR-001, TYP-006, ERR-011) are proven by conformance-typescript, so it is covered on top of the
     // language-neutral rules (the delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], neutral_covered("typescript") + 2);
+    assert_eq!(ts["covered"], neutral_covered("typescript") + 3);
     assert_eq!(ts["claimed_unproven"], delegated_count());
     assert_eq!(ts["module"], "typescript+neutral+delegated");
     assert!(

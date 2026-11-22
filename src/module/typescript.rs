@@ -20,13 +20,15 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 const ERR_001: &str = "ERR-001";
 /// The second rule: no non-null assertion (`x!`) on a production path without a written invariant. Opt-in, like its Rust twin.
 const TYP_006: &str = "TYP-006";
+/// The third rule: a number parse whose failure (`NaN`) is replaced on the spot by a literal (`parseInt(s) || 0`). Opt-in.
+const ERR_011: &str = "ERR-011";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001, TYP_006]
+    vec![ERR_001, TYP_006, ERR_011]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -139,6 +141,78 @@ fn unjustified_assertions(root: Node<'_>, text: &str) -> Vec<u32> {
     found
 }
 
+/// Words that, in a comment on the line or the line above, say a fallback is meant (the Rust rule's list).
+const FALLBACK_WORDS: &[&str] = &[
+    "default",
+    "fall back",
+    "fallback",
+    "lenient",
+    "best effort",
+    "on purpose",
+    "deliberate",
+    "intentional",
+];
+
+/// The 1-based lines of every `parseInt(..)`, `parseFloat(..)` or `Number(..)` call (also `Number.parseInt`/`parseFloat`) that is the
+/// left operand of `||` with a literal on the right, so a parse failure becomes that literal, unless a comment on the line or the
+/// line above says the fallback is meant.
+fn parse_fallbacks(root: Node<'_>, text: &str) -> Vec<u32> {
+    let lines: Vec<&str> = text.lines().collect();
+    let says_why = |row: usize| {
+        let comment = |l: &str| {
+            let l = l.to_ascii_lowercase();
+            let c = l
+                .find("//")
+                .or_else(|| l.find("/*"))
+                .map(|i| l[i..].to_string());
+            c.is_some_and(|c| FALLBACK_WORDS.iter().any(|w| c.contains(w)))
+        };
+        let own = lines.get(row).is_some_and(|l| comment(l));
+        let above = row > 0
+            && lines.get(row - 1).is_some_and(|l| {
+                let t = l.trim_start();
+                (t.starts_with("//") || t.starts_with("/*")) && comment(t)
+            });
+        own || above
+    };
+    let is_parse = |n: Node<'_>| {
+        if n.kind() != "call_expression" {
+            return false;
+        }
+        let Some(f) = n.child_by_field_name("function") else {
+            return false;
+        };
+        let name = &text[f.byte_range()];
+        matches!(
+            name,
+            "parseInt" | "parseFloat" | "Number" | "Number.parseInt" | "Number.parseFloat"
+        )
+    };
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "binary_expression" {
+            let op = node
+                .child_by_field_name("operator")
+                .map(|o| &text[o.byte_range()]);
+            let (l, r) = (
+                node.child_by_field_name("left"),
+                node.child_by_field_name("right"),
+            );
+            if let (Some("||"), Some(l), Some(r)) = (op, l, r) {
+                let literal = matches!(r.kind(), "number" | "string" | "true" | "false" | "null");
+                if is_parse(l) && literal && !says_why(node.start_position().row) {
+                    found.push(u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX));
+                }
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
 /// What reading one repository for one rule found.
 struct Read {
     findings: Vec<Finding>,
@@ -191,6 +265,23 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             }
             continue;
         }
+        if rule == ERR_011 {
+            for line in parse_fallbacks(tree.root_node(), &text) {
+                out.findings.push(
+                    Finding::new(
+                        ERR_011,
+                        Severity::Medium,
+                        Confidence::Medium,
+                        view.name(),
+                        "a number parse whose failure is replaced on the spot by a literal (`||`)",
+                        "Test the parse result with Number.isNaN and handle the failure, or write a comment saying the fallback is intended.",
+                    )
+                    .location(Location::new(path.clone(), Some(line)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
+        }
         for line in empty_catches(tree.root_node()) {
             out.findings.push(
                 Finding::new(
@@ -220,6 +311,11 @@ impl Module for TypeScriptModule {
             Capabilities::new(false, false, false, false),
             vec![
                 {
+                    let mut claim = RuleClaim::native(ERR_011).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/ERR-011".into());
+                    claim
+                },
+                {
                     let mut claim = RuleClaim::native(TYP_006).only_languages(&["typescript"]);
                     claim.proof = Some("conformance-typescript/TYP-006".into());
                     claim
@@ -242,7 +338,7 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if rule != ERR_001 && rule != TYP_006 {
+            if ![ERR_001, TYP_006, ERR_011].contains(&rule.as_str()) {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -416,10 +512,51 @@ const b = x!; // SAFETY: checked above
         assert_eq!(r.files, 1);
     }
 
+    fn read_parse(files: &[(&str, &str)]) -> Read {
+        read_rule(&RepoView::from_files(files), ERR_011)
+    }
+
+    #[test]
+    fn a_parse_replaced_by_a_literal_is_reported() {
+        let r = read_parse(&[(
+            "src/a.ts",
+            "const a = parseInt(s, 10) || 0;
+const b = Number(x) || 'n/a';
+const c = parseFloat(y) || 1.5;
+",
+        )]);
+        assert_eq!(r.findings.len(), 3);
+        r.findings[0].clone().validate().expect("valid");
+    }
+
+    #[test]
+    fn a_checked_parse_or_a_stated_fallback_or_a_non_parse_is_not_reported() {
+        let r = read_parse(&[(
+            "src/a.ts",
+            "const a = Number.isNaN(n) ? 0 : n;
+const b = parseInt(s) || 0; // default is intentional
+// lenient on purpose
+const c = Number(s) || 0;
+const d = count || 0;
+const e = parseInt(s) || other();
+const f = parseInt(s) ?? 0;
+",
+        )]);
+        assert!(
+            r.findings.is_empty(),
+            "{:?}",
+            r.findings
+                .iter()
+                .map(|f| f.location.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(r.files, 1);
+    }
+
     #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 2);
+        assert_eq!(hello.rules.len(), 3);
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
     }

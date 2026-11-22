@@ -1,0 +1,1 @@
+Seeded defects: two number parses whose failure (NaN) becomes a literal through `||`. The clean twin tests the parse with Number.isNaN, states the fallback in a comment, and uses `||` on a value that is not a parse.

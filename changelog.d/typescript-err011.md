@@ -1,0 +1,5 @@
+---
+kind: Added
+---
+
+**TypeScript `ERR-011`: a number parse whose failure is replaced on the spot by a literal** (ROADMAP items 8 and 12, third rule of the TypeScript module). `parseInt(..)`, `parseFloat(..)`, `Number(..)`, `Number.parseInt(..)` or `Number.parseFloat(..)` as the left operand of `||` with a literal on the right (`parseInt(s, 10) || 0`) is one Medium finding at Medium confidence per site, because a failed parse (`NaN`) quietly becomes the literal; a comment on the line or the line above saying the fallback is meant (default, fallback, lenient, best effort, on purpose, deliberate, intentional) silences it. Opt-in (named), as for Rust. Proven by a seeded defect and a clean twin in `conformance-typescript/ERR-011`. Measured at the commit that adds it on the committed trees of four of our own TypeScript repositories (295, 94, 24 and 3 files read): 1 site in all (a version-segment `parseInt(n, 10) || 0` in `fam`, a real parse fallback with no comment), 0 in the other three. No false-positive rate is claimed from one site.
