@@ -1,0 +1,3 @@
+kind: Fix
+---
+**Claims audit of 9 built rules (docs/rules/AUDIT-TABLE-0.47.17.md):** ERR-001 said its `if let Ok(..)` form covers "read, write and flush methods"; the list is `read_to_string`, `read_to_end`, `write_all` and `flush` (text corrected, test added; opt-in rule). The API-004 finding read "carries no the version it began in (`since`) and no a note"; it now reads "lacks the version it began in (`since`) and a note (...)". OPS-010 has always skipped binaries under fixtures, testdata, measure, xtask and bench directories; its catalog text now says so. SEC-009 pins its 37 checks with a test. Behaviour unchanged in all four, each pinned by a test.
