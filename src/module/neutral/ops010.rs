@@ -12,7 +12,7 @@
 //! - a build-information crate or a build script that sets build variables: `vergen`, `built`, `shadow-rs`, `git-version`, `git_version`,
 //!   `cargo:rustc-env=`.
 //!
-//! A package under a `fixtures`, `bench(es)`, `benchmarks`, `measure`, `xtask` or `testdata` directory, or named `*-bench`, is not read (nobody ships its binary).
+//! A package under a `fixtures`, `fixture`, `bench`, `benches`, `benchmarks`, `measure`, `xtask` or `testdata` directory, or named `*-bench` or `*_bench`, is not read (nobody ships its binary).
 //! A binary package with none of them is reported once, at its first binary source: Info severity, Medium confidence.
 //!
 //! **What it cannot see:** a version printed by a different package of the workspace that the binary calls into (the library crate's
@@ -169,10 +169,12 @@ mod tests {
         // audit 2026-11-21: the catalog text named only vendored, tests, examples and benches.
         for dir in [
             "fixtures/a",
+            "fixture/a",
             "testdata/a",
             "measure/a",
             "xtask",
             "bench/a",
+            "benches/a",
             "benchmarks/a",
             "x-bench",
             "x_bench",
