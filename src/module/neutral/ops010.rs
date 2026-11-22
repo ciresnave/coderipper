@@ -165,6 +165,18 @@ mod tests {
     }
 
     #[test]
+    fn a_binary_in_a_fixture_benchmark_or_xtask_directory_is_not_a_shipped_binary() {
+        // audit 2026-11-21: the catalog text named only vendored, tests, examples and benches.
+        for dir in ["fixtures/a", "testdata/a", "measure/a", "xtask", "bench/a", "benchmarks/a", "x-bench", "x_bench"] {
+            let v = judge(&RepoView::from_files(&[(&format!("{dir}/Cargo.toml"), "[package]
+name = \"a\"
+"), (&format!("{dir}/src/main.rs"), "fn main() {}
+")]));
+            assert!(!matches!(v, Verdict::Findings(_)), "{dir}");
+        }
+    }
+
+    #[test]
     fn a_binary_with_no_version_is_reported_once() {
         let f = found(&[
             ("Cargo.toml", MANIFEST),
