@@ -85,3 +85,7 @@ Verdicts: PROVEN = a named test fails if the claim is false. WRONG->FIXED = the 
 ## Batch 4
 | MOD-009 | chain of >= 4 hops (method chain and field chain) is one Info/Low finding at the first hop; 3 hops not; a method taking an argument ends the run | probe of 4 chains on a scratch crate (f, h reported; g, i not) | PROVEN |
 | EXT-007 | non-pub trait with items, exactly one impl for a package type, no test double, no #[automock]; pub trait, two impls, impl for u32, blanket impl, empty trait not; pub(crate) counts; Low/Low | probe of 11 traits on a scratch crate (Only, Crate reported; the rest not) | PROVEN |
+
+## Batch 5
+| TYP-001 | money/duration (alone) and identifier (two same-primitive ids) classes; unit-stating names, lone id, ids of different types, newtypes, Duration, private fn, impl Trait for Type, doc(hidden) not; pub trait methods read; Low/Low | probe of 17 signatures on a scratch crate (7 reported, all as documented) | PROVEN |
+| MOD-001 | undocumented public items counted (/// or #[doc]; doc(hidden) left out; pub use leaf counted; pub items in a private mod not), Info/Medium below 20 items; Low from 50% of >= 20 | probe (5 of 8, Info/Medium, first at the right line) + public_surface/tests.rs::most_of_a_large_surface_undocumented_is_low_and_a_small_one_never_is | PROVEN |
