@@ -190,6 +190,9 @@ impl<'ast> Visit<'ast> for RefVisitor<'_> {
         syn::visit::visit_path(self, p);
     }
 
+    /// `pub(crate)` and `pub(in crate::m)` restrict who may see an item; they name no dependency, so the path inside is not read.
+    fn visit_visibility(&mut self, _: &'ast syn::Visibility) {}
+
     fn visit_item_use(&mut self, u: &'ast syn::ItemUse) {
         let mut leaves = Vec::new();
         flatten(&u.tree, &mut Vec::new(), &mut leaves);

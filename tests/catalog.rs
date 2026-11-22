@@ -114,6 +114,12 @@ fn the_catalog_has_every_triaged_rule_and_the_five_checks_and_nothing_else() {
     triaged.push("CON-012");
     // SUP-021, build-script hygiene: scheduled in docs/RULES-REVIEW-2026-11-07.md item 7 and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
     triaged.push("SUP-021");
+    // SUP-022..SUP-026, the licence and attribution check over LICENCE-MANIFEST.toml (LM-001..LM-005 of the licence-tools validator): ids allocated by the PM (2026-11-19) in docs/DESIGN-LICENCE-ATTRIBUTION.md section 4; not knowledge-base ids
+    triaged.push("SUP-022");
+    triaged.push("SUP-023");
+    triaged.push("SUP-024");
+    triaged.push("SUP-025");
+    triaged.push("SUP-026");
     // COR-012, Send and Sync impls are sound: scheduled in docs/rules/REMAINING.md and taken by the coderipper-c lane (PM, 2026-11-14); not a knowledge-base id
     triaged.push("COR-012");
     // TYP-003 was triaged as its own rule and is the same rule as MOD-010: the catalog keeps one record, which answers to both names
