@@ -18,6 +18,8 @@ It is one engine with three faces: **a library**, **a command** (`coderipper`) t
 
 ## Run it next to clippy
 
+A C compiler is required to build from source: the language grammars (tree-sitter) are generated C parsers compiled by the `cc` crate at build time. Prebuilt binaries need none.
+
 ```sh
 cargo install coderipper
 
