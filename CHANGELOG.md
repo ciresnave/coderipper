@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.21 - 2026-11-23 (proposed, Fix)
+
+**SUP-004 reports the line where the dependency is a key.** A finding for a git or path dependency named `g` pointed at the first line that contained the letter `g` (usually line 1 of `Cargo.toml` or `package.json`); it now points at the line where the name is a key, so a line-scoped `[[allow]]` waiver (`check`, `file`, `lines`) lands on the right dependency. Pinned by a test.
+
+**DOC-009 text corrected (claims audit):** the catalog and rules page now state the ten-page minimum, `docs/` or `doc/`, the glossary filename rule and the term forms the rule reads. Behaviour unchanged.
+
+**ERR-001 catalog severity is Medium**, which is what the rule emits (the catalog said high). The OPS-010 module note lists every directory it skips (`fixtures`, `fixture`, `bench`, `benches`, `benchmarks`, `measure`, `xtask`, `testdata`, `*-bench`, `*_bench`), with a test for two more. New tests name the claims six audit rows had rested on a probe for (TYP-007 `bool` alias, EXT-007 `pub(crate)` and `#[automock]`, SEC-004 int array, `UnboundKey` and `const`); all held. The audit table's counts are corrected (follows #370, from its review).
+
 ## 0.47.19 - 2026-11-21 (proposed, Fix)
 
 **API-004 and OPS-010 claims audit:** the API-004 finding read "carries no the version it began in (`since`) and no a note"; it now reads "lacks the version it began in (`since`) and a note (...)". OPS-010 has always skipped binaries under fixtures, testdata, measure, xtask and bench directories; its catalog text now says so. Behaviour unchanged, both pinned by tests.
