@@ -636,9 +636,12 @@ pub fn whole() {}
     #[test]
     fn a_deprecation_sentence_reads_as_a_sentence() {
         // audit 2026-11-21: it used to say "carries no the version it began in (`since`) and no a note".
-        let found = run("#[deprecated]
+        let found = run(
+            "#[deprecated]
 pub fn bare() {}
-", Kind::Deprecation);
+",
+            Kind::Deprecation,
+        );
         let (what, _) = deprecation_text(&found[0]);
         assert_eq!(what, "the deprecation of `bare` lacks the version it began in (`since`) and a note (what replaces it, when it goes)");
     }
