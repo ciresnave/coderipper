@@ -1,0 +1,5 @@
+---
+kind: Added
+---
+
+**TypeScript `EXT-003`: a method of an implementing class that only throws "not implemented"** (ROADMAP items 8 and 12, fourth rule of the TypeScript module). In a class declaration with an `implements` clause, a method whose body has at most three statements and holds a `throw` of a string or template saying not implemented, not supported or unimplemented is one Medium finding at Medium confidence, the same shape as the Rust rule. Opt-in (named). Classes that only `extend`, and stubs in classes that implement nothing, are not read. Proven by a seeded defect and a clean twin in `conformance-typescript/EXT-003`. Measured at the commit that adds it on four of our own TypeScript repositories (295, 94, 24 and 3 files read): 0 findings in all four, with the same binary finding the seeded defect (control). Only 3 of those files declare an `implements` class (all in one repository), so this shows no false positive on them and says little about how often the rule finds a real stub.

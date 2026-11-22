@@ -1,0 +1,1 @@
+Seeded defect: a method of a class that implements an interface whose whole body throws "not supported" (line 10). The clean twin implements both methods, throws a real error for a bad key, and holds a stub in a class that implements nothing.

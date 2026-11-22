@@ -22,13 +22,15 @@ const ERR_001: &str = "ERR-001";
 const TYP_006: &str = "TYP-006";
 /// The third rule: a number parse whose failure (`NaN`) is replaced on the spot by a literal (`parseInt(s) || 0`). Opt-in.
 const ERR_011: &str = "ERR-011";
+/// The fourth rule: a method of a class that `implements` an interface and only throws a "not implemented" or "not supported" error.
+const EXT_003: &str = "EXT-003";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001, TYP_006, ERR_011]
+    vec![ERR_001, TYP_006, ERR_011, EXT_003]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -213,6 +215,76 @@ fn parse_fallbacks(root: Node<'_>, text: &str) -> Vec<u32> {
     found
 }
 
+/// The 1-based lines of every method, in a class with an `implements` clause, whose body has at most three statements and holds a
+/// `throw` of a string saying it is not implemented or not supported.
+fn stubbed_methods(root: Node<'_>, text: &str) -> Vec<u32> {
+    fn says_stub(node: Node<'_>, text: &str) -> bool {
+        let mut stack = vec![node];
+        while let Some(n) = stack.pop() {
+            if matches!(n.kind(), "string" | "template_string") {
+                let t = text[n.byte_range()].to_ascii_lowercase();
+                if ["not implemented", "not supported", "unimplemented"]
+                    .iter()
+                    .any(|w| t.contains(w))
+                {
+                    return true;
+                }
+            }
+            let mut cursor = n.walk();
+            stack.extend(n.children(&mut cursor));
+        }
+        false
+    }
+    fn implements(class: Node<'_>) -> bool {
+        let mut stack = vec![class];
+        while let Some(n) = stack.pop() {
+            if n.kind() == "implements_clause" {
+                return true;
+            }
+            // heritage sits before the body: do not read nested classes' clauses
+            if n.kind() == "class_body" {
+                continue;
+            }
+            let mut cursor = n.walk();
+            stack.extend(n.children(&mut cursor));
+        }
+        false
+    }
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "class_declaration" && implements(node) {
+            if let Some(body) = node.child_by_field_name("body") {
+                let mut cursor = body.walk();
+                for member in body.named_children(&mut cursor) {
+                    if member.kind() != "method_definition" {
+                        continue;
+                    }
+                    let Some(block) = member.child_by_field_name("body") else {
+                        continue;
+                    };
+                    if block.named_child_count() > 3 {
+                        continue;
+                    }
+                    let mut c2 = block.walk();
+                    let throws_stub = block
+                        .named_children(&mut c2)
+                        .any(|st| st.kind() == "throw_statement" && says_stub(st, text));
+                    if throws_stub {
+                        found.push(
+                            u32::try_from(member.start_position().row + 1).unwrap_or(u32::MAX),
+                        );
+                    }
+                }
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
 /// What reading one repository for one rule found.
 struct Read {
     findings: Vec<Finding>,
@@ -265,6 +337,23 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             }
             continue;
         }
+        if rule == EXT_003 {
+            for line in stubbed_methods(tree.root_node(), &text) {
+                out.findings.push(
+                    Finding::new(
+                        EXT_003,
+                        Severity::Medium,
+                        Confidence::Medium,
+                        view.name(),
+                        "a method of a class that implements an interface only throws a not-implemented error",
+                        "Implement the behaviour, or narrow the interface so the class is not asked to promise it.",
+                    )
+                    .location(Location::new(path.clone(), Some(line)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
+        }
         if rule == ERR_011 {
             for line in parse_fallbacks(tree.root_node(), &text) {
                 out.findings.push(
@@ -311,6 +400,11 @@ impl Module for TypeScriptModule {
             Capabilities::new(false, false, false, false),
             vec![
                 {
+                    let mut claim = RuleClaim::native(EXT_003).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/EXT-003".into());
+                    claim
+                },
+                {
                     let mut claim = RuleClaim::native(ERR_011).only_languages(&["typescript"]);
                     claim.proof = Some("conformance-typescript/ERR-011".into());
                     claim
@@ -338,7 +432,7 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if ![ERR_001, TYP_006, ERR_011].contains(&rule.as_str()) {
+            if ![ERR_001, TYP_006, ERR_011, EXT_003].contains(&rule.as_str()) {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -553,10 +647,64 @@ const f = parseInt(s) ?? 0;
         assert_eq!(r.files, 1);
     }
 
+    fn read_stub(files: &[(&str, &str)]) -> Read {
+        read_rule(&RepoView::from_files(files), EXT_003)
+    }
+
+    #[test]
+    fn a_stub_method_of_an_implementing_class_is_reported() {
+        let r = read_stub(&[(
+            "src/a.ts",
+            "class A implements Store {
+  get(k: string) { return 1; }
+  put(k: string) {
+    throw new Error('put is not supported');
+  }
+  del(k: string): void { throw new Error(`not implemented`); }
+}
+",
+        )]);
+        assert_eq!(
+            r.findings.len(),
+            2,
+            "{:?}",
+            r.findings
+                .iter()
+                .map(|f| f.location.clone())
+                .collect::<Vec<_>>()
+        );
+        r.findings[0].clone().validate().expect("valid");
+    }
+
+    #[test]
+    fn other_classes_and_real_throws_are_not_reported() {
+        let r = read_stub(&[(
+            "src/a.ts",
+            "class B {
+  put() { throw new Error('not implemented'); }
+}
+class C implements Store {
+  put() { throw new Error('bad key'); }
+  get() { a(); b(); c(); throw new Error('not supported'); }
+}
+abstract class D extends E { f() { throw new Error('not implemented'); } }
+",
+        )]);
+        assert!(
+            r.findings.is_empty(),
+            "{:?}",
+            r.findings
+                .iter()
+                .map(|f| f.location.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(r.files, 1);
+    }
+
     #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 3);
+        assert_eq!(hello.rules.len(), 4);
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
     }

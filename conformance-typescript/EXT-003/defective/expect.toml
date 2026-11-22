@@ -1,0 +1,6 @@
+# The seeded defects: the rule must report exactly these places.
+
+[[expect]]
+rule = "EXT-003"
+file = "src/main.ts"
+line = 10
