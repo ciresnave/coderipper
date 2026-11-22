@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.19 - 2026-11-21 (proposed, Fix)
+
+**API-004 and OPS-010 claims audit:** the API-004 finding read "carries no the version it began in (`since`) and no a note"; it now reads "lacks the version it began in (`since`) and a note (...)". OPS-010 has always skipped binaries under fixtures, testdata, measure, xtask and bench directories; its catalog text now says so. Behaviour unchanged, both pinned by tests.
+
+**ERR-001 text corrected (claims audit):** the rule and its catalog entry said the `if let Ok(..)` form covers "read, write and flush methods". The list is `read_to_string`, `read_to_end`, `write_all` and `flush`; a bare `read` or `write` (a lock has them too) is not read. The behaviour is unchanged and now pinned by a test. Opt-in rule, so no run changes.
+
 ## 0.47.18 - 2026-11-21 (proposed, Fixed)
 
 ARC-002 no longer reads `pub(crate)`, `pub(super)` or `pub(in path)` as a reference to the module the path names: a visibility restriction is not a dependency, so it no longer closes a false cycle (reported from auditant, `pub(crate) fn check_hash`).
