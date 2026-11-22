@@ -406,11 +406,28 @@ impl CiProtectionPresenceCheck {
             return Ok(findings);
         }
         let path = format!("repos/{slug}/branches/{}/protection", encode_path(branch));
-        let doc = self.api.get(&path).map_err(|e| {
-            anyhow::anyhow!(
+        let doc = match self.api.get(&path) {
+            Ok(doc) => doc,
+            // A permission wall is not a failure to run and not missing protection: the token can see that checks are required
+            // (the branch document answered) but may not read the settings (they need admin). Say so, at Info.
+            Err(e) if matches!(e.status, Some(403 | 404)) => {
+                findings.push(unverifiable_finding(
+                    canonical,
+                    branch,
+                    format!(
+                        "{canonical}: the default branch `{branch}`'s protection settings are unverifiable with this token"
+                    ),
+                    format!(
+                        "GET {path} answered {e}: it needs admin on the repository, and a 403 or 404 there is a permission wall,                          not a statement that protection is off. The required-checks presence was read from the branch document                          and is judged above; enforce_admins, force-push and deletion were NOT checked. Read it with an admin token."
+                    ),
+                    format!("GET repos/{slug}/branches/{branch} answered with its `protection` object, so the token could read the branch"),
+                ));
+                return Ok(findings);
+            }
+            Err(e) => anyhow::bail!(
                 "cannot read {path} from GitHub: {e} (it needs admin on the repository)"
-            )
-        })?;
+            ),
+        };
         let on = |key: &str| -> anyhow::Result<bool> {
             doc[key]["enabled"].as_bool().ok_or_else(|| {
                 anyhow::anyhow!("GitHub's answer for {path} has no `{key}.enabled`; cannot tell whether it is set")
@@ -450,6 +467,32 @@ impl CiProtectionPresenceCheck {
             }
         }
         Ok(findings)
+    }
+}
+
+/// Info: a setting the token may not read. Not a defect and not a pass; the detail says what was and was not checked.
+fn unverifiable_finding(
+    canonical: &str,
+    branch: &str,
+    summary: String,
+    detail: String,
+    control: String,
+) -> Finding {
+    Finding {
+        check_id: CHECK_ID.into(),
+        claim: crate::finding::Claim::Absence,
+        severity: Severity::Info,
+        confidence: Confidence::High,
+        project: project_of(canonical),
+        location: Some(Location {
+            file: SETTINGS_FILE.into(),
+            line: None,
+        }),
+        subject: Some(format!("{canonical}@{branch}")),
+        detail,
+        summary,
+        positive_control: Some(control),
+        member: None,
     }
 }
 
