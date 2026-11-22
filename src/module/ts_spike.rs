@@ -17,8 +17,10 @@ mod tests {
 
     #[test]
     fn a_typescript_function_parses_without_error() {
-        let tree = parse_typescript("export function add(a: number, b: number): number { return a + b; }\n")
-            .expect("parses");
+        let tree = parse_typescript(
+            "export function add(a: number, b: number): number { return a + b; }\n",
+        )
+        .expect("parses");
         let root = tree.root_node();
         assert_eq!(root.kind(), "program");
         assert!(!root.has_error());
