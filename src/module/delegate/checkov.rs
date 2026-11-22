@@ -675,6 +675,13 @@ mod tests {
     }
 
     #[test]
+    fn the_documented_number_of_checks_is_the_number_listed() {
+        // audit 2026-11-21: the catalog and docs say 37 checks; change both texts with this number.
+        assert_eq!(CHECKS.len(), 37);
+        assert_eq!(REL_CHECKS.len(), 4);
+    }
+
+    #[test]
     fn every_check_is_listed_once_and_the_arguments_name_them_all() {
         let mut ids: Vec<&str> = CHECKS.iter().map(|(c, _)| *c).collect();
         let before = ids.len();
