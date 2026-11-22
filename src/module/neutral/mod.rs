@@ -40,6 +40,7 @@ mod ext004;
 mod ext007;
 mod global_state;
 mod licence;
+mod licence_gate;
 mod licence_compat;
 mod licence_manifest;
 mod lint_suppression;

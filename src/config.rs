@@ -37,7 +37,7 @@ const SYSTEM_FILE_NAME: &str = "coderipper.toml";
 /// What a repository's own file may set. Everything else is skipped with a warning. Adding a key here is a deliberate act and a
 /// CHANGELOG line: a key wrongly added cannot be taken back.
 pub(crate) const REPOSITORY_MAY_SET: &str =
-    "[[allow]], [[tracks]], [[interface]], [[skip_member]], [[cli_waiver]], [buf], [reachability], [architecture] and profile";
+    "[[allow]], [[tracks]], [[interface]], [[skip_member]], [[cli_waiver]], [buf], [reachability], [architecture], [sup016] and profile";
 
 /// How findings are written to stdout (`--message-format`, and the key of the same name).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -129,6 +129,9 @@ pub(crate) struct ConfigFile {
     /// `[mod006]`: the window and thresholds of `MOD-006`, divergent change (see [`Mod006Settings`]).
     #[serde(default)]
     pub mod006: Option<Mod006Settings>,
+    /// `[sup016]`: the opt-in per-file licence gate of `SUP-016` (see [`Sup016Settings`]).
+    #[serde(default)]
+    pub sup016: Option<Sup016Settings>,
     /// `[arc009]`: the base revision and the budget of `ARC-009`, architectural drift (see [`Arc009Settings`]).
     #[serde(default)]
     pub arc009: Option<Arc009Settings>,
@@ -301,6 +304,45 @@ pub(crate) fn arc005_min_margin(text: &str) -> anyhow::Result<Option<f64>> {
         "{FILE_NAME}: [arc005] min_margin = {m} is outside (0, 1]"
     );
     Ok(Some(m))
+}
+
+/// `[sup016]`: the opt-in per-file licence gate of `SUP-016`, the same contract as the portfolio's `spdx_gate.py`: every tracked source file
+/// of a stamped extension declares one named licence, and the population the gate reads is itself checked. Read from the repository's own
+/// file only. Off unless `gate = true`.
+#[derive(Debug, Default, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Sup016Settings {
+    /// Turn the gate on.
+    #[serde(default)]
+    pub gate: bool,
+    /// The one SPDX expression every stamped file must declare (compared without regard to the order of `OR` operands).
+    #[serde(default)]
+    pub licence: Option<String>,
+    /// The extensions that must carry the header, with their dot (`".rs"`), matched without regard to case.
+    #[serde(default)]
+    pub extensions: Vec<String>,
+    /// The fewest stamped files the tree may hold before the gate calls its own query broken (default 20).
+    #[serde(default)]
+    pub min_files: Option<usize>,
+    /// How many lines at the top of a file the header may sit in (default 10).
+    #[serde(default)]
+    pub header_window: Option<usize>,
+    /// Tracked paths whose licence is someone else's decision, each with the reason. An entry matching no tracked file is a finding.
+    #[serde(default)]
+    pub holdout: std::collections::BTreeMap<String, String>,
+    /// Source extensions present and deliberately not stamped, each with the reason. An entry no tracked file has is a finding.
+    #[serde(default)]
+    pub not_stamped: std::collections::BTreeMap<String, String>,
+    /// File-name fragments whose files may contain the word "copyright" (licence texts, changelogs); the built-in list is always kept.
+    #[serde(default)]
+    pub copyright_expected: Vec<String>,
+}
+
+/// The `[sup016]` table of a `.coderipper.toml` text: `Ok(None)` when there is none, an error message when the file does not parse.
+pub(crate) fn sup016_settings(text: &str) -> Result<Option<Sup016Settings>, String> {
+    ConfigFile::parse(text, Path::new(FILE_NAME))
+        .map(|f| f.sup016)
+        .map_err(|e| e.to_string())
 }
 
 /// `[mod006]`: the window and thresholds of `MOD-006`. Every key is optional; read from the repository's own file only.
