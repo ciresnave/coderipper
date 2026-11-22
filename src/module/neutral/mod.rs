@@ -1187,6 +1187,63 @@ version = \"0.1.0\"
         }
     }
 
+    // PM [TASK] 2026-11-17: every rule that reads Rust packages says what an unparsable-only repository is (a note naming the file), never
+    // "tracks no Rust package source". The guard half covers a rule added later: it fails if ANY rule answers that sentence here.
+    #[test]
+    fn every_rule_that_reads_rust_packages_names_an_unparsable_only_repository_and_none_calls_it_no_source(
+    ) {
+        let view = RepoView::from_files(&[
+            (
+                "Cargo.toml",
+                "[package]
+name = \"p\"
+version = \"0.1.0\"
+",
+            ),
+            ("src/lib.rs", "pub fn ("),
+        ]);
+        let mut named = Vec::new();
+        for rule in RULES {
+            match (rule.judge)(&view) {
+                Verdict::Noted(f, notes)
+                    if notes
+                        .iter()
+                        .any(|n| n.contains("src/lib.rs") && n.contains("could not be parsed")) =>
+                {
+                    assert!(f.is_empty(), "{}", rule.id);
+                    named.push(rule.id);
+                }
+                Verdict::NotApplicable(why) => assert!(
+                    !why.contains("tracks no Rust package source"),
+                    "{}: says there is no Rust source when one file did not parse: {why}",
+                    rule.id
+                ),
+                _ => {}
+            }
+        }
+        // positive control: the expected rules, named, so a rule that stops reading is noticed too
+        const EXPECTED: &[&str] = &[
+            "API-004", "API-009", "CON-002", "CON-003", "CON-004", "CON-005", "CON-006", "CON-008",
+            "CON-010", "CON-011", "CON-012", "COR-001", "COR-003", "COR-006", "COR-007", "COR-012",
+            "EFX-002", "EFX-005", "EFX-007", "ERR-002", "ERR-004", "ERR-007", "ERR-009", "ERR-011",
+            "EXT-001", "EXT-002", "EXT-003", "EXT-004", "EXT-007", "GOV-010", "OPS-002", "PRF-003",
+            "PRF-005", "RDB-002", "RDB-003", "RDB-004", "RDB-007", "REL-001", "REL-002", "REL-009",
+            "SEC-004", "SEC-005", "SEC-012", "TST-003", "TST-004", "TST-006", "TST-009", "TYP-001",
+            "TYP-002", "TYP-004", "TYP-005", "TYP-007",
+        ];
+        for id in EXPECTED {
+            assert!(
+                named.contains(id),
+                "{id} did not name the unparsable file; named: {named:?}"
+            );
+        }
+        assert_eq!(
+            named.len(),
+            EXPECTED.len(),
+            "a rule not in the list also names it (add it): {named:?}"
+        );
+    }
+
     #[test]
     fn paths_split_into_directory_and_name() {
         assert_eq!(dir_of("a/b/c.md"), "a/b");
