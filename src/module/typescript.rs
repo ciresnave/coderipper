@@ -18,13 +18,15 @@ use crate::finding::{Confidence, Finding, Location, Severity};
 
 /// The one rule this module answers so far.
 const ERR_001: &str = "ERR-001";
+/// The second rule: no non-null assertion (`x!`) on a production path without a written invariant. Opt-in, like its Rust twin.
+const TYP_006: &str = "TYP-006";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001]
+    vec![ERR_001, TYP_006]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -98,7 +100,46 @@ fn empty_catches(root: Node<'_>) -> Vec<u32> {
     found
 }
 
-/// What reading one repository for `ERR-001` found.
+/// The 1-based lines of every non-null assertion (`value!`) in `root` that no comment justifies. A site is justified when a comment
+/// on its own line, or alone on the line above, begins with `INVARIANT`, `SAFETY` or `UNWRAP-OK` (the Rust rule's markers).
+fn unjustified_assertions(root: Node<'_>, text: &str) -> Vec<u32> {
+    let lines: Vec<&str> = text.lines().collect();
+    let marker = |s: &str| {
+        let t = s.trim_start().trim_start_matches(['/', '*', ' ']);
+        ["INVARIANT", "SAFETY", "UNWRAP-OK"]
+            .iter()
+            .any(|m| t.starts_with(m))
+    };
+    let justified = |row: usize| {
+        let same = lines
+            .get(row)
+            .and_then(|l| l.split_once("//"))
+            .is_some_and(|(_, c)| marker(c))
+            || lines
+                .get(row)
+                .and_then(|l| l.split_once("/*"))
+                .is_some_and(|(_, c)| marker(c));
+        let above = row > 0
+            && lines.get(row - 1).is_some_and(|l| {
+                let t = l.trim_start();
+                (t.starts_with("//") || t.starts_with("/*")) && marker(t)
+            });
+        same || above
+    };
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "non_null_expression" && !justified(node.start_position().row) {
+            found.push(u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX));
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
+/// What reading one repository for one rule found.
 struct Read {
     findings: Vec<Finding>,
     files: usize,
@@ -106,7 +147,7 @@ struct Read {
     unparsable: Vec<String>,
 }
 
-fn read_err_001(view: &RepoView) -> Read {
+fn read_rule(view: &RepoView, rule: &str) -> Read {
     let mut out = Read {
         findings: Vec::new(),
         files: 0,
@@ -128,6 +169,27 @@ fn read_err_001(view: &RepoView) -> Read {
         };
         if tree.root_node().has_error() {
             out.unparsable.push(path.clone());
+        }
+        if rule == TYP_006 {
+            let sites = unjustified_assertions(tree.root_node(), &text);
+            if let Some(first) = sites.first() {
+                out.findings.push(
+                    Finding::new(
+                        TYP_006,
+                        Severity::Medium,
+                        Confidence::High,
+                        view.name(),
+                        format!(
+                            "{} unjustified non-null assertion(s) (`!`), the first at line {first}",
+                            sites.len()
+                        ),
+                        "Handle the absent case, propagate it, or write `// INVARIANT: ...` saying why the value cannot be absent.",
+                    )
+                    .location(Location::new(path.clone(), Some(*first)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
         }
         for line in empty_catches(tree.root_node()) {
             out.findings.push(
@@ -156,12 +218,19 @@ impl Module for TypeScriptModule {
             vec!["package.json".into(), "tsconfig.json".into()],
             // reads tracked files and runs nothing of the project's
             Capabilities::new(false, false, false, false),
-            vec![{
-                let mut claim = RuleClaim::native(ERR_001).only_languages(&["typescript"]);
-                // earned by `conformance-typescript/ERR-001` (tests/typescript_conformance.rs ties this string to it)
-                claim.proof = Some("conformance-typescript/ERR-001".into());
-                claim
-            }],
+            vec![
+                {
+                    let mut claim = RuleClaim::native(TYP_006).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/TYP-006".into());
+                    claim
+                },
+                {
+                    let mut claim = RuleClaim::native(ERR_001).only_languages(&["typescript"]);
+                    // earned by `conformance-typescript/ERR-001` (tests/typescript_conformance.rs ties this string to it)
+                    claim.proof = Some("conformance-typescript/ERR-001".into());
+                    claim
+                },
+            ],
         ))
     }
 
@@ -173,7 +242,7 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if rule != ERR_001 {
+            if rule != ERR_001 && rule != TYP_006 {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -194,7 +263,7 @@ impl Module for TypeScriptModule {
                     continue;
                 }
             };
-            let read = read_err_001(view);
+            let read = read_rule(view, rule);
             if read.files == 0 {
                 events.push(Event::RuleResult(RuleResult::not_applicable(
                     rule,
@@ -239,7 +308,7 @@ mod tests {
     use super::*;
 
     fn read(files: &[(&str, &str)]) -> Read {
-        read_err_001(&RepoView::from_files(files))
+        read_rule(&RepoView::from_files(files), ERR_001)
     }
 
     #[test]
@@ -307,10 +376,50 @@ mod tests {
         assert_eq!(r.unparsable, vec!["src/broken.ts"]);
     }
 
+    fn read_typ(files: &[(&str, &str)]) -> Read {
+        read_rule(&RepoView::from_files(files), TYP_006)
+    }
+
+    #[test]
+    fn a_non_null_assertion_is_one_finding_per_file_naming_the_first() {
+        let r = read_typ(&[(
+            "src/a.ts",
+            "const a = m.get('k')!;
+const b = x!.y;
+if (a !== b) {}
+class C { f!: number }
+",
+        )]);
+        assert_eq!(r.findings.len(), 1);
+        assert_eq!(
+            r.findings[0].location.as_ref().and_then(|l| l.line),
+            Some(1)
+        );
+        assert!(
+            r.findings[0].summary.starts_with("2 unjustified"),
+            "{}",
+            r.findings[0].summary
+        );
+        r.findings[0].clone().validate().expect("valid");
+    }
+
+    #[test]
+    fn a_stated_invariant_justifies_an_assertion() {
+        let r = read_typ(&[(
+            "src/a.ts",
+            "// INVARIANT: set in init
+const a = m.get('k')!;
+const b = x!; // SAFETY: checked above
+",
+        )]);
+        assert!(r.findings.is_empty());
+        assert_eq!(r.files, 1);
+    }
+
     #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 1);
+        assert_eq!(hello.rules.len(), 2);
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
     }
