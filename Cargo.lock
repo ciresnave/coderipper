@@ -202,7 +202,7 @@ checksum = "e0921b3876b3a1df8a1c9f912e7f94342458022c2e84288015893d83c4d62a79"
 
 [[package]]
 name = "coderipper"
-version = "0.47.19"
+version = "0.47.20"
 dependencies = [
  "anyhow",
  "assert_cmd",

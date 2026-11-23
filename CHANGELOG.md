@@ -6,6 +6,10 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.20 - 2026-11-22 (proposed, Changed)
+
+**ROADMAP refreshed at `main@1bf86b2` (0.47.17).** A new "since 2026-10-20" bullet carries the re-measured Rust coverage (228 rules apply, 114 covered with no tool installed, 101 not yet implemented, 13 claimed but not yet proven; debug build, `--coverage=full`, one-file Rust repository) and marks the two October bullets it supersedes ("Rules that run", "the default ruleset is still the five classic checks": the default became `extended` in 0.9.0). Item 8 now says it is unblocked and not started (no TypeScript module under `src/module`). A queue note keeps rows 12-16 in order behind item 8 and the parser choice, not behind demand (CireSnave 6.31), and retires the stale note that the census and language-options documents were not on `main`. Not re-measured: TypeScript, the language-neutral count, crates.io (last read 2026-10-14), the 2026-10-20 bar.
+
 ## 0.47.19 - 2026-11-21 (proposed, Fix)
 
 **API-004 and OPS-010 claims audit:** the API-004 finding read "carries no the version it began in (`since`) and no a note"; it now reads "lacks the version it began in (`since`) and a note (...)". OPS-010 has always skipped binaries under fixtures, testdata, measure, xtask and bench directories; its catalog text now says so. Behaviour unchanged, both pinned by tests.
