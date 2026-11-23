@@ -21,7 +21,7 @@
 //!
 //! 5. **`--yes`, `--quiet`, `--verbose` without `-y`, `-q`, `-v`:** the long form is matched or compared in an argument loop, or is a
 //!    clap field with `long` and no `short`, and the short form is named nowhere in the file;
-//! 6. **stdin without `-`:** the file reads `stdin()` and opens files, and neither the package's sources nor its manifest treat `"-"`
+//! 6. **stdin without `-`:** the file reads `stdin()` as data (a stdin that only feeds `read_line` is a prompt, not read) and opens files, in a binary that takes arguments, and neither the package's sources nor its manifest treat `"-"`
 //!    (or the `clio` crate) as the name of standard input;
 //! 7. **`NO_COLOR`:** the manifest names a colour crate that reads no `NO_COLOR` by default (`owo-colors` without its `supports-colors`
 //!    feature, `yansi`, `nu-ansi-term`; `colored`, `console`, `crossterm` and `anstream` read it themselves, and `termcolor` does under

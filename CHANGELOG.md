@@ -6,6 +6,16 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.19 - 2026-11-21 (proposed, Fix)
+
+**API-004 and OPS-010 claims audit:** the API-004 finding read "carries no the version it began in (`since`) and no a note"; it now reads "lacks the version it began in (`since`) and a note (...)". OPS-010 has always skipped binaries under fixtures, testdata, measure, xtask and bench directories; its catalog text now says so. Behaviour unchanged, both pinned by tests.
+
+**ERR-001 text corrected (claims audit):** the rule and its catalog entry said the `if let Ok(..)` form covers "read, write and flush methods". The list is `read_to_string`, `read_to_end`, `write_all` and `flush`; a bare `read` or `write` (a lock has them too) is not read. The behaviour is unchanged and now pinned by a test. Opt-in rule, so no run changes.
+
+**SEC-009 and the claims audit:** SEC-009 now pins its 37 checkov checks (and REL-005 its 4) with a test; no text or behaviour change. The audit of 11 more rules (CON-002, CON-006, SEC-004, TYP-007, TST-003, SEC-012, MOD-009, EXT-007, TYP-001, MOD-001 and the delegated tools' wiring) found them proven; the table is `docs/rules/AUDIT-TABLE-0.47.17.md`.
+
+**OPS-012 text corrected (claims audit):** the stdin-without-`-` form is read only for a binary that takes arguments and only when stdin is read as data (a stdin that only feeds `read_line` is a prompt); the catalog text now says so. Behaviour unchanged, already pinned by a test. The other nine OPS-012 forms were probed on 20 scratch crates and behave as documented.
+
 ## 0.47.18 - 2026-11-21 (proposed, Fixed)
 
 ARC-002 no longer reads `pub(crate)`, `pub(super)` or `pub(in path)` as a reference to the module the path names: a visibility restriction is not a dependency, so it no longer closes a false cycle (reported from auditant, `pub(crate) fn check_hash`).
