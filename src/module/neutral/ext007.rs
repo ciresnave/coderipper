@@ -249,6 +249,28 @@ mod tests {
     }
 
     #[test]
+    fn a_crate_visible_trait_counts_an_automocked_one_does_not_and_the_finding_is_low_low() {
+        // audit 2026-11-22: these three claims were proven by a probe only; named here so every run checks them.
+        let f = found(
+            "pub(crate) trait Store { fn get(&self); }
+struct Mem;
+impl Store for Mem { fn get(&self) {} }
+",
+        );
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, Severity::Low);
+        assert_eq!(f[0].confidence, Confidence::Low);
+        assert!(found(
+            "#[automock]
+trait Store { fn get(&self); }
+struct Mem;
+impl Store for Mem { fn get(&self) {} }
+"
+        )
+        .is_empty());
+    }
+
+    #[test]
     fn two_impls_a_test_double_or_a_public_trait_are_not_reported() {
         assert!(found("trait S { fn g(&self); }\nstruct A;\nstruct B;\nimpl S for A { fn g(&self) {} }\nimpl S for B { fn g(&self) {} }\n").is_empty());
         assert!(found("trait S { fn g(&self); }\nstruct A;\nimpl S for A { fn g(&self) {} }\n#[cfg(test)]\nmod t { use super::*; struct F; impl S for F { fn g(&self) {} } }\n").is_empty());

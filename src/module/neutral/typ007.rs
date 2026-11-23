@@ -238,6 +238,17 @@ mod tests {
     }
 
     #[test]
+    fn an_alias_of_bool_is_not_read_as_a_bare_bool() {
+        // audit 2026-11-22: the claim "alias not" was proven by a probe only; named here so it is checked on every run.
+        assert!(found(
+            "type Flag = bool;
+pub fn f(a: Flag, b: Flag) {}
+"
+        )
+        .is_empty());
+    }
+
+    #[test]
     fn one_bool_other_types_trait_impls_and_tests_are_not_reported() {
         assert!(found("fn f(a: bool, b: u8) {}\n").is_empty());
         assert!(found("fn f(a: &bool, b: Option<bool>) {}\n").is_empty());

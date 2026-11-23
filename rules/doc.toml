@@ -185,7 +185,7 @@ kb_refs = []
 remediation = "Create or extend the glossary and align divergent names in docs and code."
 related = ["RDB-011"]
 lifecycle = "experimental"
-checked_today = "A repository with markdown under docs/ or doc/ has a glossary file, and no term is defined twice in it. Not judged: that documents and code use the glossary's terms the same way."
+checked_today = "A repository with ten or more tracked markdown pages under docs/ or doc/ at the root has a glossary file (a file whose name contains glossary, any case, any directory; fewer pages and no glossary is not applicable), and no term is defined twice in any glossary, however few pages there are (a heading of level two or deeper, or a line that starts with a bold word, is a term). Not judged: that documents and code use the glossary's terms the same way."
 
 [rule.applicability]
 languages = ["any"]

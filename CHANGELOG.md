@@ -6,6 +6,14 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.47.21 - 2026-11-23 (proposed, Fix)
+
+**SUP-004 reports the line where the dependency is a key.** A finding for a git or path dependency named `g` pointed at the first line that contained the letter `g` (usually line 1 of `Cargo.toml` or `package.json`); it now points at the line where the name is a key, so a line-scoped `[[allow]]` waiver (`check`, `file`, `lines`) lands on the right dependency. Pinned by a test.
+
+**DOC-009 text corrected (claims audit):** the catalog and rules page now state the ten-page minimum, `docs/` or `doc/`, the glossary filename rule and the term forms the rule reads. Behaviour unchanged.
+
+**ERR-001 catalog severity is Medium**, which is what the rule emits (the catalog said high). The OPS-010 module note lists every directory it skips (`fixtures`, `fixture`, `bench`, `benches`, `benchmarks`, `measure`, `xtask`, `testdata`, `*-bench`, `*_bench`), with a test for two more. New tests name the claims six audit rows had rested on a probe for (TYP-007 `bool` alias, EXT-007 `pub(crate)` and `#[automock]`, SEC-004 int array, `UnboundKey` and `const`); all held. The audit table's counts are corrected (follows #370, from its review).
+
 ## 0.47.20 - 2026-11-22 (proposed, Changed)
 
 **ROADMAP refreshed at `main@1bf86b2` (0.47.17).** A new "since 2026-10-20" bullet carries the re-measured Rust coverage (228 rules apply, 114 covered with no tool installed, 101 not yet implemented, 13 claimed but not yet proven; debug build, `--coverage=full`, one-file Rust repository) and marks the two October bullets it supersedes ("Rules that run", "the default ruleset is still the five classic checks": the default became `extended` in 0.9.0). Item 8 now says it is unblocked and not started (no TypeScript module under `src/module`). A queue note keeps rows 12-16 in order behind item 8 and the parser choice, not behind demand (CireSnave 6.31), and retires the stale note that the census and language-options documents were not on `main`. Not re-measured: TypeScript, the language-neutral count, crates.io (last read 2026-10-14), the 2026-10-20 bar.

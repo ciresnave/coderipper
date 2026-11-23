@@ -106,7 +106,7 @@ impl Scan<'_> {
     fn cargo_dep(&mut self, file: &str, text: &str, name: &str, spec: &Value) {
         let Some(table) = spec.as_table() else { return };
         let dir = dir_of(file);
-        let line = line_of(text, name);
+        let line = line_of_key(text, name);
         if let Some(path) = table.get("path").and_then(Value::as_str) {
             if resolve(dir, path).is_none() {
                 self.finding(
@@ -208,7 +208,7 @@ impl Scan<'_> {
             };
             for (name, spec) in deps {
                 let Some(spec) = spec.as_str() else { continue };
-                let line = line_of(text, name);
+                let line = line_of_key(text, name);
                 let local = ["file:", "link:", "portal:"]
                     .iter()
                     .find_map(|p| spec.strip_prefix(p));
@@ -336,6 +336,21 @@ fn line_of(text: &str, needle: &str) -> Option<u32> {
         .and_then(|i| u32::try_from(i + 1).ok())
 }
 
+/// The first line that starts with `name` as a key (`name = ..`, `name.path = ..`, `"name": ..`, `'name' = ..`), else the first line that
+/// mentions it: a dependency called `log` is not found in `catalog = ..` or in `serde_json = ..`'s neighbour.
+fn line_of_key(text: &str, name: &str) -> Option<u32> {
+    let is_key = |line: &str| {
+        let line = line.trim_start();
+        let line = line.strip_prefix(['"', '\'']).unwrap_or(line);
+        line.strip_prefix(name)
+            .is_some_and(|rest| rest.starts_with(['"', '\'', ' ', '=', '.', ':']))
+    };
+    text.lines()
+        .position(is_key)
+        .and_then(|i| u32::try_from(i + 1).ok())
+        .or_else(|| line_of(text, name))
+}
+
 pub(super) fn judge(view: &RepoView) -> Verdict {
     let mut scan = Scan {
         view,
@@ -418,6 +433,26 @@ mod tests {
         let mut s = subjects(&found);
         s.sort_unstable();
         assert_eq!(s, ["a", "b", "c", "d", "e", "f", "g"]);
+    }
+
+    #[test]
+    fn a_finding_points_at_the_line_where_the_dependency_is_a_key_not_at_a_line_that_mentions_its_name(
+    ) {
+        // audit 2026-11-22: the line was the first line containing the name, so `log` was found in `catalog`.
+        let m = "[package]
+name = \"catalog\"
+[dependencies]
+serde_json = \"1\"
+log = { path = \"../log\" }
+";
+        let found = run(&[("Cargo.toml", m)]);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].location.as_ref().and_then(|l| l.line), Some(5));
+        let pkg = "{\"name\":\"login\",\"dependencies\":{
+\"log\":\"file:../../log\"}}";
+        let found = run(&[("package.json", pkg)]);
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].location.as_ref().and_then(|l| l.line), Some(2));
     }
 
     #[test]
