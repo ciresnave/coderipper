@@ -375,7 +375,7 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             out.findings.push(
                 Finding::new(
                     ERR_001,
-                    Severity::High,
+                    Severity::Medium,
                     Confidence::High,
                     view.name(),
                     "a `catch` block whose body is only braces swallows the error",
