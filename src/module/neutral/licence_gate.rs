@@ -27,13 +27,21 @@ const DEFAULT_WINDOW: usize = 10;
 
 /// Extensions that are source in the sense of the census (the script's own list).
 const SOURCE_EXTENSIONS: &[&str] = &[
-    ".rs", ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".java", ".c", ".h", ".cc", ".cpp", ".hpp", ".cs", ".swift", ".kt",
-    ".scala", ".php", ".rb", ".pl", ".sh", ".bash", ".ps1", ".sql", ".lua", ".zig", ".dart", ".cu", ".cuh", ".cl", ".comp", ".vert",
-    ".frag", ".geom", ".glsl", ".wgsl", ".hlsl", ".metal", ".slang",
+    ".rs", ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".java", ".c", ".h", ".cc",
+    ".cpp", ".hpp", ".cs", ".swift", ".kt", ".scala", ".php", ".rb", ".pl", ".sh", ".bash", ".ps1",
+    ".sql", ".lua", ".zig", ".dart", ".cu", ".cuh", ".cl", ".comp", ".vert", ".frag", ".geom",
+    ".glsl", ".wgsl", ".hlsl", ".metal", ".slang",
 ];
 
 /// File-name fragments whose files may contain the word "copyright" (a licence text, a changelog, a notice).
-const COPYRIGHT_EXPECTED: &[&str] = &["LICENSE", "LICENCE", "COPYING", "CHANGELOG", "NOTICE", ".coderipper.toml"];
+const COPYRIGHT_EXPECTED: &[&str] = &[
+    "LICENSE",
+    "LICENCE",
+    "COPYING",
+    "CHANGELOG",
+    "NOTICE",
+    ".coderipper.toml",
+];
 
 /// Canonical form for comparison only: `Apache-2.0 OR MIT` and `MIT OR Apache-2.0` are the same grant.
 fn normalise(identifier: &str) -> String {
@@ -87,8 +95,22 @@ fn detail_list(paths: &[String]) -> String {
     }
 }
 
-fn finding(project: &str, summary: String, detail: String, subject: &str, file: Option<&str>) -> Finding {
-    let mut f = Finding::new(ID, Severity::High, Confidence::High, project, summary, detail).subject(subject);
+fn finding(
+    project: &str,
+    summary: String,
+    detail: String,
+    subject: &str,
+    file: Option<&str>,
+) -> Finding {
+    let mut f = Finding::new(
+        ID,
+        Severity::High,
+        Confidence::High,
+        project,
+        summary,
+        detail,
+    )
+    .subject(subject);
     if let Some(file) = file {
         f = f.location(Location::new(file, None));
     }
@@ -106,7 +128,11 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
             Some(".coderipper.toml"),
         )];
     };
-    let extensions: BTreeSet<String> = settings.extensions.iter().map(|e| e.to_ascii_lowercase()).collect();
+    let extensions: BTreeSet<String> = settings
+        .extensions
+        .iter()
+        .map(|e| e.to_ascii_lowercase())
+        .collect();
     if extensions.is_empty() {
         return vec![finding(
             project,
@@ -121,7 +147,10 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
     let expected = normalise(licence);
 
     let tracked = view.paths();
-    let stamped: Vec<&String> = tracked.iter().filter(|p| extensions.contains(&extension(p))).collect();
+    let stamped: Vec<&String> = tracked
+        .iter()
+        .filter(|p| extensions.contains(&extension(p)))
+        .collect();
     if stamped.len() < floor {
         return vec![finding(
             project,
@@ -146,7 +175,9 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
             None => unreadable.push((*path).clone()),
             Some(text) => match declared(&text, window) {
                 None => missing.push((*path).clone()),
-                Some(found) if normalise(&found) != expected => wrong.push(format!("{path} ({found})")),
+                Some(found) if normalise(&found) != expected => {
+                    wrong.push(format!("{path} ({found})"))
+                }
                 Some(_) => {}
             },
         }
@@ -186,8 +217,14 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
     if !unreadable.is_empty() {
         findings.push(finding(
             project,
-            format!("{} stamped source files could not be read as text", unreadable.len()),
-            format!("A file that cannot be read is not a clean file. Files: {}", detail_list(&unreadable)),
+            format!(
+                "{} stamped source files could not be read as text",
+                unreadable.len()
+            ),
+            format!(
+                "A file that cannot be read is not a clean file. Files: {}",
+                detail_list(&unreadable)
+            ),
             "gate: unreadable",
             None,
         ));
@@ -210,8 +247,16 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
     }
 
     // the census: the population is itself checked
-    let present: BTreeSet<String> = tracked.iter().map(|p| extension(p)).filter(|e| !e.is_empty()).collect();
-    let declined: BTreeSet<String> = settings.not_stamped.keys().map(|e| e.to_ascii_lowercase()).collect();
+    let present: BTreeSet<String> = tracked
+        .iter()
+        .map(|p| extension(p))
+        .filter(|e| !e.is_empty())
+        .collect();
+    let declined: BTreeSet<String> = settings
+        .not_stamped
+        .keys()
+        .map(|e| e.to_ascii_lowercase())
+        .collect();
     let uncovered: Vec<String> = SOURCE_EXTENSIONS
         .iter()
         .map(|e| (*e).to_string())
@@ -228,7 +273,11 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
             None,
         ));
     }
-    let stale_ext: Vec<String> = declined.iter().filter(|e| !present.contains(*e)).cloned().collect();
+    let stale_ext: Vec<String> = declined
+        .iter()
+        .filter(|e| !present.contains(*e))
+        .cloned()
+        .collect();
     if !stale_ext.is_empty() {
         findings.push(finding(
             project,
@@ -240,13 +289,19 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
     }
 
     // the copyright survey
-    let mut tags: Vec<String> = COPYRIGHT_EXPECTED.iter().map(|t| (*t).to_string()).collect();
+    let mut tags: Vec<String> = COPYRIGHT_EXPECTED
+        .iter()
+        .map(|t| (*t).to_string())
+        .collect();
     tags.extend(settings.copyright_expected.iter().cloned());
     let hits: Vec<String> = match view.paths_matching("[Cc][Oo][Pp][Yy][Rr][Ii][Gg][Hh][Tt]") {
         Some(list) => list,
         None => tracked
             .iter()
-            .filter(|p| view.read(p).is_some_and(|t| t.to_ascii_lowercase().contains("copyright")))
+            .filter(|p| {
+                view.read(p)
+                    .is_some_and(|t| t.to_ascii_lowercase().contains("copyright"))
+            })
             .cloned()
             .collect(),
     };
@@ -254,7 +309,8 @@ pub(super) fn gate(view: &RepoView, settings: &Sup016Settings, project: &str) ->
         .into_iter()
         .filter(|p| {
             let base = p.rsplit('/').next().unwrap_or(p);
-            !tags.iter().any(|t| base.contains(t.as_str())) && !settings.holdout.contains_key(p.as_str())
+            !tags.iter().any(|t| base.contains(t.as_str()))
+                && !settings.holdout.contains_key(p.as_str())
         })
         .collect();
     if !unexpected.is_empty() {
@@ -297,7 +353,10 @@ mod tests {
     }
 
     fn subjects(found: &[Finding]) -> Vec<&str> {
-        found.iter().map(|f| f.subject.as_deref().unwrap_or("")).collect()
+        found
+            .iter()
+            .map(|f| f.subject.as_deref().unwrap_or(""))
+            .collect()
     }
 
     #[test]
@@ -307,14 +366,30 @@ mod tests {
     }
 
     #[test]
-    fn a_file_with_no_header_a_file_with_another_licence_and_a_header_past_the_window_are_each_reported() {
-        let late = format!("{}// SPDX-License-Identifier: MIT OR Apache-2.0\n", "//\n".repeat(10));
+    fn a_file_with_no_header_a_file_with_another_licence_and_a_header_past_the_window_are_each_reported(
+    ) {
+        let late = format!(
+            "{}// SPDX-License-Identifier: MIT OR Apache-2.0\n",
+            "//\n".repeat(10)
+        );
         let found = run(
-            &[("a.rs", GOOD), ("b.rs", "fn b() {}\n"), ("c.rs", "// SPDX-License-Identifier: GPL-3.0-only\n"), ("d.rs", &late)],
+            &[
+                ("a.rs", GOOD),
+                ("b.rs", "fn b() {}\n"),
+                ("c.rs", "// SPDX-License-Identifier: GPL-3.0-only\n"),
+                ("d.rs", &late),
+            ],
             &settings(),
         );
-        assert_eq!(subjects(&found), ["gate: missing header", "gate: different licence"]);
-        assert!(found[0].summary.starts_with("2 of 4"), "{}", found[0].summary);
+        assert_eq!(
+            subjects(&found),
+            ["gate: missing header", "gate: different licence"]
+        );
+        assert!(
+            found[0].summary.starts_with("2 of 4"),
+            "{}",
+            found[0].summary
+        );
         assert!(found[1].detail.contains("c.rs (GPL-3.0-only)"));
     }
 
@@ -343,18 +418,27 @@ mod tests {
     fn a_holdout_is_skipped_and_a_holdout_naming_no_file_is_stale() {
         let other = "// SPDX-License-Identifier: Apache-2.0\n";
         let mut s = settings();
-        s.holdout.insert("v.rs".into(), "verbatim third-party work".into());
+        s.holdout
+            .insert("v.rs".into(), "verbatim third-party work".into());
         assert!(run(&[("a.rs", GOOD), ("b.rs", GOOD), ("v.rs", other)], &s).is_empty());
         s.holdout.insert("gone.rs".into(), "renamed".into());
-        assert_eq!(subjects(&run(&[("a.rs", GOOD), ("b.rs", GOOD), ("v.rs", other)], &s)), ["gate: stale holdout"]);
+        assert_eq!(
+            subjects(&run(&[("a.rs", GOOD), ("b.rs", GOOD), ("v.rs", other)], &s)),
+            ["gate: stale holdout"]
+        );
     }
 
     #[test]
-    fn a_source_extension_outside_the_list_is_a_blind_spot_until_it_is_declined_and_a_stale_decline_is_reported() {
+    fn a_source_extension_outside_the_list_is_a_blind_spot_until_it_is_declined_and_a_stale_decline_is_reported(
+    ) {
         let files = [("a.rs", GOOD), ("b.rs", GOOD), ("x.py", "print(1)\n")];
-        assert_eq!(subjects(&run(&files, &settings())), ["gate: uncovered extension"]);
+        assert_eq!(
+            subjects(&run(&files, &settings())),
+            ["gate: uncovered extension"]
+        );
         let mut s = settings();
-        s.not_stamped.insert(".py".into(), "scripts are not licensed here".into());
+        s.not_stamped
+            .insert(".py".into(), "scripts are not licensed here".into());
         assert!(run(&files, &s).is_empty());
         s.not_stamped.insert(".go".into(), "was here".into());
         assert_eq!(subjects(&run(&files, &s)), ["gate: stale not_stamped"]);
@@ -362,7 +446,12 @@ mod tests {
 
     #[test]
     fn a_copyright_notice_in_an_ordinary_file_is_reported_and_a_licence_file_or_a_holdout_is_not() {
-        let files = [("a.rs", GOOD), ("b.rs", GOOD), ("LICENSE", "Copyright 2026 Acme\n"), ("notes.md", "(c) copyright someone\n")];
+        let files = [
+            ("a.rs", GOOD),
+            ("b.rs", GOOD),
+            ("LICENSE", "Copyright 2026 Acme\n"),
+            ("notes.md", "(c) copyright someone\n"),
+        ];
         let found = run(&files, &settings());
         assert_eq!(subjects(&found), ["gate: copyright notice"]);
         assert!(found[0].detail.contains("notes.md") && !found[0].detail.contains("LICENSE"));
@@ -378,9 +467,15 @@ mod tests {
     fn a_gate_with_no_licence_or_no_extensions_cannot_pass() {
         let mut s = settings();
         s.licence = None;
-        assert_eq!(subjects(&run(&[("a.rs", GOOD)], &s)), ["gate configuration"]);
+        assert_eq!(
+            subjects(&run(&[("a.rs", GOOD)], &s)),
+            ["gate configuration"]
+        );
         let mut s = settings();
         s.extensions.clear();
-        assert_eq!(subjects(&run(&[("a.rs", GOOD)], &s)), ["gate configuration"]);
+        assert_eq!(
+            subjects(&run(&[("a.rs", GOOD)], &s)),
+            ["gate configuration"]
+        );
     }
 }

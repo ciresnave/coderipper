@@ -14,8 +14,17 @@ use std::process::Command as Git;
 const STAMPED: &str = "// SPDX-License-Identifier: MIT OR Apache-2.0\nfn f() {}\n";
 
 fn git(dir: &Path, args: &[&str]) {
-    let out = Git::new("git").arg("-C").arg(dir).args(args).output().unwrap();
-    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    let out = Git::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 fn write(dir: &Path, rel: &str, text: &str) {
@@ -30,7 +39,11 @@ fn repo(extra: &[(&str, &str)]) -> tempfile::TempDir {
     let root = dir.path();
     git(root, &["init", "-q"]);
     write(root, "LICENSE-MIT", "MIT License\n");
-    write(root, "Cargo.toml", "[package]\nname = \"x\"\nversion = \"0.1.0\"\nlicense = \"MIT OR Apache-2.0\"\n");
+    write(
+        root,
+        "Cargo.toml",
+        "[package]\nname = \"x\"\nversion = \"0.1.0\"\nlicense = \"MIT OR Apache-2.0\"\n",
+    );
     write(
         root,
         ".coderipper.toml",
@@ -43,7 +56,19 @@ fn repo(extra: &[(&str, &str)]) -> tempfile::TempDir {
         write(root, rel, text);
     }
     git(root, &["add", "-A"]);
-    git(root, &["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "x"]);
+    git(
+        root,
+        &[
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "x",
+        ],
+    );
     dir
 }
 
@@ -72,7 +97,10 @@ fn a_fully_stamped_tree_has_no_gate_finding() {
 
 #[test]
 fn the_seeded_defects_the_script_reported_are_reported_at_the_same_places() {
-    let late = format!("{}// SPDX-License-Identifier: MIT OR Apache-2.0\n", "//\n".repeat(11));
+    let late = format!(
+        "{}// SPDX-License-Identifier: MIT OR Apache-2.0\n",
+        "//\n".repeat(11)
+    );
     let dir = repo(&[
         ("src/m0.rs", "fn no_header() {}\n"),
         ("src/m1.rs", "// SPDX-License-Identifier: GPL-3.0-only\n"),
@@ -99,7 +127,10 @@ fn the_seeded_defects_the_script_reported_are_reported_at_the_same_places() {
     assert!(!missing.contains("src/m1.rs"), "{missing}");
     assert!(by("gate: different licence").contains("src/m1.rs (GPL-3.0-only)"));
     assert!(by("gate: copyright notice").contains("notes.txt"));
-    let census = found.iter().find(|f| f["subject"] == "gate: uncovered extension").unwrap();
+    let census = found
+        .iter()
+        .find(|f| f["subject"] == "gate: uncovered extension")
+        .unwrap();
     assert!(census["summary"].as_str().unwrap().contains(".go"));
     assert_eq!(found.len(), 4, "{found:?}");
 }
@@ -109,7 +140,19 @@ fn without_the_opt_in_the_gate_reports_nothing_even_on_a_broken_tree() {
     let dir = repo(&[("src/m0.rs", "fn no_header() {}\n")]);
     write(dir.path(), ".coderipper.toml", "[sup016]\ngate = false\n");
     git(dir.path(), &["add", "-A"]);
-    git(dir.path(), &["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "off"]);
+    git(
+        dir.path(),
+        &[
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "off",
+        ],
+    );
     let (_, found) = gate_findings(dir.path());
     assert!(found.is_empty(), "{found:?}");
 }
