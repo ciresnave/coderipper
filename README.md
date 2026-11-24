@@ -99,7 +99,7 @@ cargo coderipper --message-format json --deny medium
 
 ```toml
 [dependencies]
-coderipper = { version = "0.47", default-features = false }   # no clap, no binaries
+coderipper = { version = "0.48", default-features = false }   # no clap, no binaries
 ```
 
 ```rust,no_run
