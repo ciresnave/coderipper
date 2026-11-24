@@ -1984,3 +1984,7 @@ Five rules are added, read from `src/module/neutral/licence_manifest.rs`: `SUP-0
 **Result: no hit reads on `SUP-022..026` as read.** **Watch:** read the claims of US7797245B2 and US8010538B2 before a check reports a file that carries no notice at all, with no manifest involved; `SUP-023` today starts from a manifest entry, never from a scan.
 
 **Limits:** three queries, one search engine, no USPTO, Espacenet or WIPO full-text search, no CPC search, no citation chasing, and two claims read. A due-diligence read, not legal advice.
+
+## Addendum: the 0.48 line (2026-11-24, 0.48.0)
+
+Version line covered by this addendum: **0.48** (0.48.0). The TypeScript module (tree-sitter parser) re-implements, for TypeScript, rules whose ideas were already swept for Rust and the neutral rules (`ERR-001`, `TYP-006`, `TYP-007` and others); it adds no new detection mechanism. **No new patent search was run for this line: this is a statement of scope, not a clearance.** A person should sweep the TypeScript-specific parts (parsing through tree-sitter, JS/TS idioms) before relying on this line. Owner: coderipper lane.
