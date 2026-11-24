@@ -140,20 +140,24 @@ impl<'a> Suppression<'a> {
     }
 }
 
-/// Is `file` (a `/`-separated path relative to `root`) inside a conformance fixture of `root`: `conformance/<rule>/<variant>/...`
+/// Is `file` (a `/`-separated path relative to `root`) inside a conformance fixture of `root`: `conformance/<rule>/<variant>/...` (or `conformance-typescript/...`)
 /// where the variant directory holds the fixture's `expect.toml`? A same-shaped file anywhere else, or under `conformance/` but not
 /// in a fixture (no `expect.toml`), is not one.
 fn is_fixture(root: &Path, file: &str) -> bool {
     let mut parts = file.split('/');
-    let (Some("conformance"), Some(rule), Some(variant), Some(_)) =
-        (parts.next(), parts.next(), parts.next(), parts.next())
+    let (
+        Some(top @ ("conformance" | "conformance-typescript")),
+        Some(rule),
+        Some(variant),
+        Some(_),
+    ) = (parts.next(), parts.next(), parts.next(), parts.next())
     else {
         return false;
     };
     if [rule, variant].iter().any(|p| p.is_empty() || *p == "..") {
         return false;
     }
-    root.join("conformance")
+    root.join(top)
         .join(rule)
         .join(variant)
         .join("expect.toml")

@@ -14,6 +14,7 @@ mod external;
 mod neutral;
 mod protocol;
 mod rust;
+mod typescript;
 
 use std::collections::{HashMap, HashSet};
 
@@ -29,6 +30,7 @@ pub use protocol::{
     PROTOCOL, REQUEST_REASON, TOOL_UNAVAILABLE,
 };
 pub use rust::RustModule;
+pub use typescript::{rule_ids as typescript_rule_ids, TypeScriptModule};
 
 use crate::finding::Finding;
 

@@ -1103,7 +1103,8 @@ fn run_selected_checks(
     let rust = module::RustModule::new(checks);
     let neutral = module::NeutralModule::new();
     let delegated = module::DelegatedModule::new(tools.clone());
-    let composite = module::Composite::new(vec![&rust, &neutral, &delegated]);
+    let typescript = module::TypeScriptModule::new();
+    let composite = module::Composite::new(vec![&rust, &typescript, &neutral, &delegated]);
     let module: &dyn module::Module = &composite;
     run_module_over(
         module,

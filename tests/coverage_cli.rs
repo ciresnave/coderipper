@@ -128,9 +128,40 @@ fn extended_prints_the_coverage_report_and_no_stderr_line() {
         .assert()
         .code(0)
         .stdout(predicate::str::contains("coverage: rust"))
+        // TypeScript has a module under extended (ERR-001, first slice): its own line, and no "no module" note
         .stdout(predicate::str::contains("coverage: typescript"))
-        .stdout(predicate::str::contains("no module for typescript"))
+        .stdout(predicate::str::contains("no module for typescript").not())
         .stderr(predicate::str::contains("not checked").not());
+}
+
+/// The control for the TypeScript line above: a language that still has no module is reported as one, under the same profile.
+#[test]
+fn extended_still_says_no_module_for_a_language_that_has_none() {
+    let project = common::git_repo_with(&[
+        ("Cargo.toml", MANIFEST),
+        ("Cargo.lock", LOCK),
+        (".github/CODEOWNERS", OWNERS),
+        ("docs/PATENT-SWEEP.md", SWEEP),
+        ("LICENSE", "MIT License
+"),
+        (
+            "src/main.rs",
+            "// SPDX-License-Identifier: MIT
+fn main() { match std::env::args().nth(1).as_deref() { Some(\"--version\" | \"-V\") => println!(\"fixture {}\", env!(\"CARGO_PKG_VERSION\")), _ => {} } }
+",
+        ),
+        ("py/pyproject.toml", "[project]
+name = \"x\"
+"),
+        ("py/app.py", "# SPDX-License-Identifier: MIT
+x = 1
+"),
+    ]);
+    fast(&project)
+        .args(["--profile", "extended"])
+        .assert()
+        .stdout(predicate::str::contains("coverage: python"))
+        .stdout(predicate::str::contains("no module for python"));
 }
 
 #[test]
@@ -279,14 +310,15 @@ fn json_coverage_lines_come_before_the_summary_and_follow_the_documented_shape()
     assert!(rust["run"]["clean"].as_u64().unwrap() >= 1);
     let ts = &lines[1];
     assert_eq!(ts["language"], "typescript");
-    // no TypeScript module, but the language-neutral rules apply to it (the eleven delegated rules are gaps while their tools are not installed)
-    assert_eq!(ts["covered"], neutral_covered("typescript"));
+    // the TypeScript module's four rules (ERR-001, TYP-006, ERR-011, EXT-003) are proven by conformance-typescript, so it is covered on top of the
+    // language-neutral rules (the delegated rules are gaps while their tools are not installed)
+    assert_eq!(ts["covered"], neutral_covered("typescript") + 4);
     assert_eq!(ts["claimed_unproven"], delegated_count());
-    assert_eq!(
-        ts["note"],
-        "no module for typescript, only the language-neutral rules"
+    assert_eq!(ts["module"], "typescript+neutral+delegated");
+    assert!(
+        ts["note"].is_null(),
+        "a language with a module has no 'no module' note: {ts}"
     );
-    assert_eq!(ts["source_files"], 2);
     // The exit code in the summary is untouched by the gaps.
     assert_eq!(lines[2]["exit_code"], 0);
 }

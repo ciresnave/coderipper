@@ -753,22 +753,62 @@ fn a_protection_reply_without_a_setting_is_an_error_and_a_failed_read_is_one_too
     );
     assert!(format!("{:#}", result.unwrap_err()).contains("allow_force_pushes"));
 
+    // a failure that is not a permission wall (a gateway error) is still an error: nothing was read
     let repo = repo_with_origin(Some(ORIGIN));
     let (result, _) = run_with(
         repo.path(),
         vec![
             (REPO, Ok(repo_info("main"))),
             (BRANCH, Ok(protected_branch())),
-            (
-                PROTECTION,
-                Err(ApiError::new(
-                    Some(403),
-                    "Must have admin rights to Repository.",
-                )),
-            ),
+            (PROTECTION, Err(ApiError::new(Some(502), "Bad Gateway"))),
         ],
     );
-    assert!(format!("{:#}", result.unwrap_err()).contains("admin"));
+    assert!(format!("{:#}", result.unwrap_err()).contains("502"));
+}
+
+/// The portfolio's own sweep token has push access but not admin: presence (required contexts) is readable from the branch
+/// document, the protection SETTINGS endpoint answers 403 or 404 (coderipper 0.47.18 on auditant, 2026-11-22: 404 "Not Found",
+/// while the owner's token read 7 required contexts). That is "unverifiable with this token", Info, never an error and never a
+/// finding that protection is missing.
+#[test]
+fn a_permission_wall_on_the_protection_settings_is_unverifiable_info_not_an_error() {
+    for (status, message) in [
+        (404, "Not Found"),
+        (403, "Must have admin rights to Repository."),
+    ] {
+        let repo = repo_with_origin(Some(ORIGIN));
+        let (result, _) = run_with(
+            repo.path(),
+            vec![
+                (REPO, Ok(repo_info("main"))),
+                (BRANCH, Ok(protected_branch())),
+                (PROTECTION, Err(ApiError::new(Some(status), message))),
+            ],
+        );
+        let findings = result.unwrap_or_else(|e| panic!("{status} must not be an error: {e:#}"));
+        assert_eq!(findings.len(), 1, "{status}: {findings:?}");
+        assert_eq!(findings[0].severity, Severity::Info, "{status}");
+        findings[0].clone().validate().expect("a valid finding");
+        let said = format!("{} {}", findings[0].summary, findings[0].detail);
+        assert!(said.contains("unverifiable"), "{status}: {said}");
+        assert!(said.contains(&status.to_string()), "{status}: {said}");
+        assert!(
+            !said.contains("no branch protection"),
+            "a permission wall is not missing protection: {said}"
+        );
+    }
+}
+
+/// The positive control: the same repository read with a token that can see the settings is audited, so a wrong setting is a
+/// finding again (the Info above is the wall, not a blanket pass).
+#[test]
+fn the_same_repository_with_readable_settings_is_still_audited() {
+    let (result, _) = audit(repo_info("main"), branch_settings(true, true, true));
+    let findings = result.unwrap();
+    assert!(
+        findings.iter().any(|f| f.severity == Severity::Medium),
+        "{findings:?}"
+    );
 }
 
 #[test]

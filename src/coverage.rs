@@ -10,7 +10,7 @@
 //! finding, and it never changes a run's exit code (the owner's ruling, 2026-10-08).
 
 use crate::catalog::{Catalog, Rule};
-use crate::module::{ClaimStatus, Hello};
+use crate::module::{ClaimStatus, Hello, RuleClaim};
 use serde_json::json;
 
 /// The most gaps a JSON coverage line lists before it says it is cut (the counts are never cut).
@@ -184,15 +184,20 @@ pub fn for_module(
         .iter()
         .filter(|r| applies_to(r, language))
         .collect();
-    let mut claimed_rules: Vec<&str> = Vec::new();
+    // (rule, claim) pairs seen so far: a rule may be claimed again for another language (one claim per language module), but
+    // two claims that cover a common language are a duplicate
+    let mut claimed_rules: Vec<(&str, &RuleClaim)> = Vec::new();
     for claim in &hello.rules {
         if let Some(canonical) = catalog.canonical_id(&claim.id) {
-            if claimed_rules.contains(&canonical) {
+            if claimed_rules
+                .iter()
+                .any(|(id, earlier)| *id == canonical && claims_overlap(earlier, claim))
+            {
                 coverage.problems.push(format!(
                     "the module claims \"{canonical}\" twice (by its id and an alias, or repeated); the first claim counts"
                 ));
             }
-            claimed_rules.push(canonical);
+            claimed_rules.push((canonical, claim));
         }
         match catalog.get(&claim.id) {
             None => coverage.problems.push(format!(
@@ -207,10 +212,17 @@ pub fn for_module(
         }
     }
     for rule in applicable {
+        // the first claim that covers this language; else the first claim at all (it says "not covered")
         let claim = hello
             .rules
             .iter()
-            .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()));
+            .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()) && c.covers_language(language))
+            .or_else(|| {
+                hello
+                    .rules
+                    .iter()
+                    .find(|c| catalog.canonical_id(&c.id) == Some(rule.id()))
+            });
         match claim {
             Some(c) if c.status == ClaimStatus::NotApplicable => coverage.not_applicable += 1,
             Some(c) if !c.covers_language(language) => {
@@ -237,6 +249,13 @@ pub fn for_module(
         }
     }
     coverage
+}
+
+/// Whether two claims of one rule cover a common language (an empty list covers every language).
+fn claims_overlap(a: &RuleClaim, b: &RuleClaim) -> bool {
+    a.languages.is_empty()
+        || b.languages.is_empty()
+        || a.languages.iter().any(|l| b.languages.contains(l))
 }
 
 /// Coverage of a language that no active module handles: every rule is not covered, and the note says why.

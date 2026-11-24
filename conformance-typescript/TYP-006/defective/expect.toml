@@ -1,0 +1,6 @@
+# The seeded defects: the rule must report exactly these places.
+
+[[expect]]
+rule = "TYP-006"
+file = "src/main.ts"
+line = 5

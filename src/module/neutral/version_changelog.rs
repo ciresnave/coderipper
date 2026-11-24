@@ -11,9 +11,11 @@
 //!   and `1.0.0-rc.1` is not one for `1.0.0`). No changelog file at all is the same finding.
 //!
 //! **The fragment scheme:** a repository whose pull requests add one `changelog.d/<topic>.md` fragment and leave the version to the
-//! gate (which stamps the number and the heading at merge) satisfies the version part: a branch that adds exactly one such fragment
-//! (a `changelog.d/*.md` file other than `README.md` that the base did not have) and did not edit the version is not reported as
-//! "still has version". No fragment and no bump still is; so are two or more fragments, which say more than one change.
+//! gate (which stamps the number and the heading at merge) satisfies the version part: a branch that adds one or more such fragments
+//! (`changelog.d/*.md` files other than `README.md` that the base did not have) and did not edit the version is not reported as
+//! "still has version". No fragment and no bump still is. Several fragments are one pull request's group of changes, stamped together
+//! under one version by the gate (`changelog.d/README.md`; CireSnave 2026-11-16: one PR per group of features, one version per push); before
+//! 2026-11-22 this rule read two or more fragments as "more than one change" and contradicted that README.
 //!
 //! **The base** is the merge-base of `HEAD` with `origin/HEAD`, else `origin/main`, else `origin/master`. The rule does not apply
 //! (a coverage gap, never "clean") when none of them exists, when the history needed for the merge-base is not there (a shallow
@@ -154,10 +156,19 @@ pub(super) fn judge(view: &RepoView) -> Verdict {
         let line = version_line(path, &text, &now);
         let then = base.read(path).and_then(|t| version_in(path, &t));
         if then.as_deref() == Some(now.as_str()) {
-            if let [fragment] = fragments.as_slice() {
-                // the fragment scheme: the gate stamps the number and the heading at merge
+            if !fragments.is_empty() {
+                // the fragment scheme: the gate stamps one number and one heading for all of them at merge
+                let named = if let [fragment] = fragments.as_slice() {
+                    format!("the fragment {fragment} stands")
+                } else {
+                    format!(
+                        "the {} fragments {} stand together",
+                        fragments.len(),
+                        fragments.join(", ")
+                    )
+                };
                 notes.push(format!(
-                    "{path} keeps the version of {}; the fragment {fragment} stands for the bump the gate stamps at merge",
+                    "{path} keeps the version of {}; {named} for the bump the gate stamps at merge",
                     base.how()
                 ));
                 continue;
@@ -294,16 +305,30 @@ mod tests {
         let had = [("Cargo.toml", CARGO_OLD), ("changelog.d/old.md", "x")];
         let old = findings(run(&had, Some(&had)));
         assert_eq!(old.len(), 1, "{old:?}");
-        // two fragments are not "one change"
-        let two = findings(run(
-            &[
-                ("Cargo.toml", CARGO_OLD),
-                ("changelog.d/a.md", "x"),
-                ("changelog.d/b.md", "y"),
-            ],
-            Some(&[("Cargo.toml", CARGO_OLD)]),
-        ));
-        assert_eq!(two.len(), 1, "{two:?}");
+        // two or more fragments are one PR's group of changes, stamped together: clean (changelog.d/README.md)
+        for n in [2, 3] {
+            let mut files = vec![("Cargo.toml", CARGO_OLD)];
+            let names: Vec<String> = (0..n).map(|i| format!("changelog.d/f{i}.md")).collect();
+            files.extend(names.iter().map(|p| {
+                (
+                    p.as_str(),
+                    "kind: Fix
+---
+b
+",
+                )
+            }));
+            let several = findings(run(&files, Some(&[("Cargo.toml", CARGO_OLD)])));
+            assert!(several.is_empty(), "{n} fragments: {several:?}");
+        }
+        // the fragments must be this branch's: two the base already had are not a bump
+        let held = [
+            ("Cargo.toml", CARGO_OLD),
+            ("changelog.d/a.md", "x"),
+            ("changelog.d/b.md", "y"),
+        ];
+        let stale = findings(run(&held, Some(&held)));
+        assert_eq!(stale.len(), 1, "{stale:?}");
     }
 
     #[test]

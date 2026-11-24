@@ -1,0 +1,11 @@
+# The seeded defects: the rule must report exactly these places.
+
+[[expect]]
+rule = "ERR-001"
+file = "src/main.ts"
+line = 5
+
+[[expect]]
+rule = "ERR-001"
+file = "src/main.ts"
+line = 12

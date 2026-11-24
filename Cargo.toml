@@ -1,11 +1,11 @@
 [package]
 name = "coderipper"
-version = "0.47.21"
+version = "0.48.0"
 edition = "2021"
 description = "Audits projects for the integration defects compilers and linters do not report: uncalled pub functions, discarded return values, unused parameters, version drift, missing CI protection. Started with Rust; built for multi-language projects. A library, a cargo subcommand and a CLI."
 license = "MIT OR Apache-2.0"
-# 1.89 is where `File::try_lock` (the build cache's advisory lock) was stabilised; CI builds with it.
-rust-version = "1.89"
+# 1.90 is what tree-sitter 0.27 requires (1.89 is where `File::try_lock`, the build cache's advisory lock, was stabilised); CI builds with it.
+rust-version = "1.90"
 repository = "https://github.com/ciresnave/coderipper"
 readme = "README.md"
 keywords = ["audit", "dead-code", "lint", "code-quality", "monorepo"]
@@ -52,6 +52,8 @@ yaml_serde = "0.10"
 syn = { version = "3.0.6", features = ["full", "visit"] }
 proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 quote = "1.0.47"
+tree-sitter = "0.27.2"
+tree-sitter-typescript = "0.23.2"
 sha2 = "0.11.0"
 flate2 = "1"
 tar = { version = "0.4", default-features = false }
