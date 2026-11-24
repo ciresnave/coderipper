@@ -278,3 +278,79 @@ fn the_foreign_sets_stay_apart_from_the_budget_counts_for_every_symbol_kind() {
     assert_eq!(with.public_sites, without.public_sites);
     assert_eq!(with.documented, without.documented);
 }
+
+// MOD-011 on associated consts (baracuda -sys status codes): an associated const of a public type is interface like its methods.
+fn lines_of(s: &BTreeSet<(String, usize)>) -> Vec<usize> {
+    s.iter().map(|(_, l)| *l).collect()
+}
+
+#[test]
+fn a_pub_associated_const_of_a_public_type_is_recorded_apart_from_the_budget() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "pub mod status {
+    pub struct S(pub i32);
+    impl S {
+        /// Doc.
+        pub const OK: Self = Self(0);
+        pub const BAD: Self = Self(1);
+        const PRIVATE: Self = Self(2);
+    }
+}
+",
+    )]);
+    assert_eq!(lines_of(&t.const_sites), [5, 6], "{t:?}");
+    assert_eq!(lines_of(&t.const_documented_sites), [5], "{t:?}");
+    // the budget does not change: the module and the type are the two declarations, and the consts are not added to the sites it counts
+    assert_eq!(t.item_count(), 2, "{t:?}");
+    assert!(
+        !t.public_sites.iter().any(|(_, l)| *l == 5 || *l == 6),
+        "{t:?}"
+    );
+}
+
+#[test]
+fn an_associated_const_of_a_type_in_a_private_module_nothing_re_exports_is_not_recorded() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "mod inner {
+    pub struct S;
+    impl S {
+        /// Doc.
+        pub const OK: i32 = 0;
+    }
+}
+",
+    )]);
+    assert!(
+        t.const_sites.is_empty() && t.reexport_sites.is_empty(),
+        "{t:?}"
+    );
+}
+
+#[test]
+fn an_associated_const_of_a_type_a_pub_use_names_out_of_a_private_module_is_re_exported() {
+    let (t, _) = run(&[file(
+        "src/lib.rs",
+        "mod inner {
+    pub struct S;
+    impl S {
+        /// Doc.
+        pub const OK: i32 = 0;
+        pub const BAD: i32 = 1;
+    }
+}
+pub use inner::S;
+",
+    )]);
+    assert!(lines_of(&t.reexport_sites).contains(&5), "{t:?}");
+    assert!(lines_of(&t.reexport_sites).contains(&6), "{t:?}");
+    assert_eq!(
+        lines_of(&t.reexport_documented_sites)
+            .iter()
+            .filter(|l| **l == 5 || **l == 6)
+            .count(),
+        1,
+        "{t:?}"
+    );
+}

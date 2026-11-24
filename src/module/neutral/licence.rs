@@ -172,7 +172,45 @@ fn detail_list(paths: &[String]) -> String {
     }
 }
 
+/// The licence rule: the ordinary reading, and the per-file gate on top of it when the repository's own `.coderipper.toml` opts in
+/// (`[sup016] gate = true`).
 pub(super) fn judge(view: &RepoView) -> Verdict {
+    let base = judge_base(view);
+    let Some(text) = view.read(crate::config::FILE_NAME) else {
+        return base;
+    };
+    let settings = match crate::config::sup016_settings(&text) {
+        Ok(Some(s)) if s.gate => s,
+        Ok(_) => return base,
+        Err(e) => {
+            let (findings, mut notes) = match base {
+                Verdict::Findings(f) => (f, Vec::new()),
+                Verdict::Noted(f, n) => (f, n),
+                other => return other,
+            };
+            notes.push(format!(
+                "{} could not be parsed, so a [sup016] gate in it was not run: {e}",
+                crate::config::FILE_NAME
+            ));
+            return Verdict::Noted(findings, notes);
+        }
+    };
+    let extra = super::licence_gate::gate(view, &settings, view.name());
+    match base {
+        Verdict::Findings(mut f) => {
+            f.extend(extra);
+            Verdict::Findings(f)
+        }
+        Verdict::Noted(mut f, n) => {
+            f.extend(extra);
+            Verdict::Noted(f, n)
+        }
+        Verdict::NotApplicable(_) if !extra.is_empty() => Verdict::Findings(extra),
+        Verdict::NotApplicable(why) => Verdict::NotApplicable(why),
+    }
+}
+
+fn judge_base(view: &RepoView) -> Verdict {
     let project = view.name();
     let files = licence_files(view);
     if files.is_empty() {

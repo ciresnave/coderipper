@@ -218,6 +218,11 @@ pub(crate) struct Totals {
     pub foreign_sites: std::collections::BTreeSet<(String, usize)>,
     /// The documented ones among `foreign_sites`.
     pub foreign_documented_sites: std::collections::BTreeSet<(String, usize)>,
+    /// `(file, line)` of each `pub` associated const in an inherent `impl` of a public type (reached through `pub` modules): the status codes
+    /// and flags of a binding crate. Kept apart from `public_sites`, which the budget counts, so a budget does not change.
+    pub const_sites: std::collections::BTreeSet<(String, usize)>,
+    /// The documented ones among `const_sites`.
+    pub const_documented_sites: std::collections::BTreeSet<(String, usize)>,
     /// Every identifier written in the body of a documented public inherent function of a public type (reached through `pub` modules or
     /// a `pub use`): what the interface calls. `rustc` does not report the methods of a type nothing constructs, only what they call,
     /// so those methods are never candidates and their callees would look called by nothing.
@@ -257,6 +262,8 @@ impl Totals {
         self.foreign_sites.extend(o.foreign_sites);
         self.foreign_documented_sites
             .extend(o.foreign_documented_sites);
+        self.const_sites.extend(o.const_sites);
+        self.const_documented_sites.extend(o.const_documented_sites);
         self.api_method_idents.extend(o.api_method_idents);
     }
 }
@@ -292,6 +299,8 @@ struct Collect {
     undocumented: Vec<Undoc>,
     /// Public inherent functions per type name: `(function, documented, hidden, file, line)`.
     methods: BTreeMap<String, Vec<MethodFact>>,
+    /// Public associated consts per type name (`idents` is empty).
+    consts: BTreeMap<String, Vec<MethodFact>>,
     /// `pub` declarations inside a module that is not reachable through `pub` modules: public only if a `pub use` names them.
     hidden: Vec<Hidden>,
 }
@@ -416,6 +425,17 @@ pub(crate) fn surface(
     totals.public_names = public_types.clone();
     totals.undocumented = col.undocumented.clone();
     for n in &col.public_types {
+        for m in col.consts.get(n).into_iter().flatten() {
+            if m.hidden {
+                continue;
+            }
+            totals.const_sites.insert((m.file.clone(), m.line));
+            if m.documented {
+                totals
+                    .const_documented_sites
+                    .insert((m.file.clone(), m.line));
+            }
+        }
         for m in col.methods.get(n).into_iter().flatten() {
             if m.hidden {
                 continue;
@@ -453,6 +473,17 @@ pub(crate) fn surface(
                 totals
                     .reexport_documented_sites
                     .insert((h.file.clone(), h.line));
+            }
+            for m in col.consts.get(&h.name).into_iter().flatten() {
+                if m.hidden {
+                    continue;
+                }
+                totals.reexport_sites.insert((m.file.clone(), m.line));
+                if m.documented {
+                    totals
+                        .reexport_documented_sites
+                        .insert((m.file.clone(), m.line));
+                }
             }
             for m in col.methods.get(&h.name).into_iter().flatten() {
                 if m.hidden {
@@ -775,6 +806,22 @@ impl Walker<'_> {
                                     .count();
                                 *self.col.types.entry(last.ident.to_string()).or_default() += n;
                                 for it in &im.items {
+                                    if let syn::ImplItem::Const(c) = it {
+                                        if is_pub(&c.vis) {
+                                            self.col
+                                                .consts
+                                                .entry(last.ident.to_string())
+                                                .or_default()
+                                                .push(MethodFact {
+                                                    idents: BTreeSet::new(),
+                                                    name: c.ident.to_string(),
+                                                    documented: is_documented(&c.attrs),
+                                                    hidden: is_hidden(&c.attrs),
+                                                    file: shown.to_string(),
+                                                    line: c.ident.span().start().line,
+                                                });
+                                        }
+                                    }
                                     if let syn::ImplItem::Fn(f) = it {
                                         if is_pub(&f.vis) {
                                             self.col
