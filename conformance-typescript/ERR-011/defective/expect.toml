@@ -3,9 +3,9 @@
 [[expect]]
 rule = "ERR-011"
 file = "src/main.ts"
-line = 2
+line = 3
 
 [[expect]]
 rule = "ERR-011"
 file = "src/main.ts"
-line = 6
+line = 7

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 export interface Store {
   get(key: string): string | undefined;
   put(key: string, value: string): void;

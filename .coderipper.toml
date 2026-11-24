@@ -51,12 +51,18 @@ check = "MOD-005"
 file = "src/checks/architecture/mod.rs"
 reason = "the registry of the architecture-family checks (ARC-001 to ARC-007, MOD-001 to MOD-003, MOD-008, MOD-010 and their shared module graph): one `mod` declaration and one `pub use` per check, so the number of modules it names is the number of checks by construction, not accidental coupling (it reached the threshold of 14 when MOD-008 was added). Owner: coderipper lane. Revisit if it starts to hold logic beyond the ARC-001 component graph it also contains, or when the family is split into sub-directories."
 
-# TYP-007 (a function with two or more bool parameters, advisory) reports three functions of this repository. Each is waived here with its reason; nothing is excluded by path.
+# TYP-007 (a function with two or more bool parameters, advisory) reports four functions of this repository. Each is waived here with its reason; nothing is excluded by path.
 [[allow]]
 check = "TYP-007"
 file = "src/cli.rs"
 symbol = "conformance_command"
 reason = "`conformance_command(network, require_proven)` takes the two switches of the `conformance` subcommand as plain `bool`s because both come straight from clap flags; a small options struct would carry the names. Owner: coderipper lane. Remove this entry when the flags travel as a struct."
+
+[[allow]]
+check = "TYP-007"
+file = "src/cli.rs"
+symbol = "coverage_reports"
+reason = "`coverage_reports(.., typescript_present, with_neutral)` takes two presence facts read from the run as plain `bool`s; a small struct of the two would carry the names. Owner: coderipper lane. Remove this entry when the facts travel as a struct."
 
 [[allow]]
 check = "TYP-007"

@@ -10,7 +10,7 @@ use super::{
 /// Modules that answer a single request together. Each rule goes to **every** part whose hello claims it (a rule that applies to
 /// several languages is claimed by the module of each); the parts' events are joined (in the parts' order) under one closing
 /// summary. A rule claimed by one part is passed through exactly as that part said it. A rule claimed by several gets ONE
-/// result, merged by [`merge`]: its findings are all the parts' findings, it ran when any part ran it, and a part that errored,
+/// result, merged by `merge`: its findings are all the parts' findings, it ran when any part ran it, and a part that errored,
 /// timed out or sent no result for it is an error on the rule that no other part's `ran` can hide. The composite reports itself
 /// as in-process only when every part does (a finding of an in-process module is matched to its rule by position; an external
 /// one's, by its `check_id`), so compose built-in modules only.

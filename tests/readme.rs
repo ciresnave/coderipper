@@ -70,8 +70,8 @@ fn the_exit_codes_and_the_deny_flag_are_documented() {
 
 #[test]
 fn the_package_declares_its_minimum_rust_version() {
-    // 1.89 is where `File::try_lock` (the build cache's advisory lock) was stabilised; CI's MSRV job proves it builds.
-    assert!(CARGO_TOML.contains("rust-version = \"1.89\""));
+    // 1.90 is what tree-sitter 0.27 requires; CI's MSRV job proves it builds.
+    assert!(CARGO_TOML.contains("rust-version = \"1.90\""));
 }
 
 #[test]

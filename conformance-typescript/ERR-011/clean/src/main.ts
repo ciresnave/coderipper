@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 export function port(raw: string): number {
   const n = parseInt(raw, 10);
   if (Number.isNaN(n)) {

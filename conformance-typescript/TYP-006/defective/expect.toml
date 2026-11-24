@@ -3,4 +3,4 @@
 [[expect]]
 rule = "TYP-006"
 file = "src/main.ts"
-line = 4
+line = 5

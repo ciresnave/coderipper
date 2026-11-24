@@ -117,7 +117,7 @@ Write your own check by implementing `coderipper::check::Check` and run it with 
 gives it the host's validation and the project's allowlist. The `examples/` directory has a runnable example of each:
 the built-in checks (`run_on_a_project`), your own check (`custom_check`), and a check that talks to GitHub tested
 with no network (`fake_github`). The data types are `#[non_exhaustive]`: build them with their constructors and
-match enums with a wildcard arm. `Check` and `Github` are `Send + Sync`. The minimum supported Rust version is 1.89.
+match enums with a wildcard arm. `Check` and `Github` are `Send + Sync`. The minimum supported Rust version is 1.90.
 
 **The build cache is the command's, not the library's.** `coderipper` turns it on from `CODERIPPER_CACHE_DIR` and friends (see "Build cache" below). A library
 user gets no cache unless they call `coderipper::build_cache::set_cache_config(CacheConfig::new(dir))` once per process (a second call returns `false`), and the

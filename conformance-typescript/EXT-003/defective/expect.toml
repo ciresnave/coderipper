@@ -3,4 +3,4 @@
 [[expect]]
 rule = "EXT-003"
 file = "src/main.ts"
-line = 10
+line = 11

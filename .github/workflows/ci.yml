@@ -130,8 +130,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # Keep in step with `rust-version` in Cargo.toml (1.89 is where File::try_lock was stabilised).
-      - uses: dtolnay/rust-toolchain@d77020bf130f2e8c39c025bf9c4c3a445fe2b9fa # 1.89
+      # Keep in step with `rust-version` in Cargo.toml (1.90 is what tree-sitter 0.27 requires).
+      - uses: dtolnay/rust-toolchain@547f64eaa184fd62768e02b77019e5408713ca53 # 1.90
       - run: cargo build --all-targets --locked
 
   package:
