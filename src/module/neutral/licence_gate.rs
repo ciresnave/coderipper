@@ -3,7 +3,7 @@
 //! portfolio's `spdx_gate.py`, so a repository can retire the script.
 //!
 //! **What it judges, High and High because a repository that opts in wants a red run:**
-//! - every tracked file of a stamped extension declares `SPDX-License-Identifier:` in its first `header_window` lines, and the
+//! - every tracked file of a stamped extension declares the SPDX identifier tag in its first `header_window` lines, and the
 //!   identifier equals the configured licence (the order of `OR` operands does not matter);
 //! - the population is not empty: fewer stamped files than `min_files` means the query is broken, not the tree, and nothing else is judged;
 //! - the extension census: a tracked *source* extension that is neither stamped nor declined by name in `not_stamped` is a blind spot, and a

@@ -11,7 +11,13 @@ use assert_cmd::Command;
 use std::path::Path;
 use std::process::Command as Git;
 
-const STAMPED: &str = "// SPDX-License-Identifier: MIT OR Apache-2.0\nfn f() {}\n";
+// Split so the header scan of this file (its first lines) does not read the fixture as a declaration.
+const STAMPED: &str = concat!(
+    "// SPDX-License-",
+    "Identifier: MIT OR Apache-2.0
+fn f() {}
+"
+);
 
 fn git(dir: &Path, args: &[&str]) {
     let out = Git::new("git")
