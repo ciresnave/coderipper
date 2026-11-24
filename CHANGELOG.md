@@ -6,7 +6,7 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
-## 0.48.0 - 2026-11-23 (proposed, Fix)
+## 0.48.0 - 2026-11-24 (BREAKING: MSRV 1.90, a C compiler to build, TypeScript module)
 
 **A rule claimed by several modules is now asked of every one of them (library: `Composite`).** It used to go to the first claiming module only, so a rule that applies to two languages could not be served by a Rust module and a TypeScript module at once. The merge: the rule ran when any part ran it; findings are all the parts'; notes keep the name of the part that wrote them (`[typescript] ...`); a part that reports an error, or sends no result for the rule, makes the rule an error that no other part's `ran` can hide (its other findings are withheld and counted in the detail); a rule every part skipped stays skipped, naming each reason; a rule claimed by one part is passed through unchanged. The coverage report reads the claim that covers the language it is reporting, and two claims of one rule for different languages are no longer a "claimed twice" problem. No change to the module protocol or the hello contract. Mutations of the three merge rules (ran = any, summed counts, the erroring part) are each caught by a test.
 
