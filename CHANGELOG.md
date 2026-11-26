@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.3 - 2026-11-25 (proposed, Docs)
+
+**Own portfolio pin moved to 467fd25** (the commit that installs 0.48.1 for the portfolio gate): additive, CI-only, no rule or output change.
+
+— lane: coderipper
+
 ## 0.48.2 - 2026-11-24 (proposed, Docs)
 
 **The portfolio workflow installs 0.48.1, and this repository's own pin moves to 56b8982.** `CODERIPPER_VERSION` in `portfolio.yml` goes from 0.48.0 to 0.48.1 (published 2026-11-24, tag `v0.48.1` on 56b8982); the CHANGELOG heading of 0.48.1 is now a dated release heading (0.48.0 already was). Workflow and docs only; additive, no rule, option or exit code changes. `tests/portfolio_version.rs` is the guard.
