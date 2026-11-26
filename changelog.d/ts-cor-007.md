@@ -1,0 +1,5 @@
+kind: Added: TypeScript COR-007 (additive)
+---
+**TypeScript `COR-007`: exact equality against a fractional float literal** (ROADMAP items 8 and 12, fifth rule of the TypeScript module). `==`, `===`, `!=` and `!==` with a literal such as `0.1` or `2.5` as one operand are reported, Medium, one finding per comparison; opt-in (`check COR-007`). Whole-valued literals (`0`, `1.0`, `100`, `1e3`), strings, ordering operators and tolerance comparisons are exact or unaffected and not reported; two variables whose type only a checker knows are not judged. Proof: `conformance-typescript/COR-007` (two seeded defects, a clean twin). Measured false-positive check at `main@60ad815`: 0 findings over 11 portfolio repositories (about 460 first-party TypeScript files read: ThinkersJournal-Community, fam, HumboldtUnifiedKidTracker, ThinkersJournal.com, auth-framework, authframework-site, easyants, ThinkersFoundation, coderipper, surfaceant, SafeImage; OverMind did not finish in 10 minutes); the seeded fixture finds both planted sites, so the zero is not a dead query.
+
+— lane: coderipper

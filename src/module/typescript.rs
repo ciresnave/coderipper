@@ -24,13 +24,15 @@ const TYP_006: &str = "TYP-006";
 const ERR_011: &str = "ERR-011";
 /// The fourth rule: a method of a class that `implements` an interface and only throws a "not implemented" or "not supported" error.
 const EXT_003: &str = "EXT-003";
+/// The fifth rule: exact equality (`==`, `===`, `!=`, `!==`) against a fractional float literal (`x === 0.1`). Opt-in.
+const COR_007: &str = "COR-007";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001, TYP_006, ERR_011, EXT_003]
+    vec![ERR_001, TYP_006, ERR_011, EXT_003, COR_007]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -215,6 +217,50 @@ fn parse_fallbacks(root: Node<'_>, text: &str) -> Vec<u32> {
     found
 }
 
+/// The 1-based lines of every `==`, `===`, `!=` or `!==` with a fractional float literal as one operand (`x === 0.1`). A literal is
+/// fractional when its value is not a whole number: `0`, `1.0`, `100`, `1e3` are exact sentinels and never reported; a hex, octal,
+/// binary or bigint literal is whole by construction. Two variables whose type only a checker knows are not judged.
+fn float_equalities(root: Node<'_>, text: &str) -> Vec<u32> {
+    let fractional = |n: Node<'_>| {
+        if n.kind() != "number" {
+            return false;
+        }
+        let t = text[n.byte_range()].replace('_', "");
+        if t.starts_with("0x")
+            || t.starts_with("0X")
+            || t.starts_with("0b")
+            || t.starts_with("0B")
+            || t.starts_with("0o")
+            || t.starts_with("0O")
+            || t.ends_with('n')
+        {
+            return false;
+        }
+        t.parse::<f64>()
+            .is_ok_and(|v| v.is_finite() && v.fract() != 0.0)
+    };
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "binary_expression" {
+            let op = node
+                .child_by_field_name("operator")
+                .map(|o| &text[o.byte_range()]);
+            if matches!(op, Some("==" | "===" | "!=" | "!==")) {
+                let l = node.child_by_field_name("left");
+                let r = node.child_by_field_name("right");
+                if l.is_some_and(&fractional) || r.is_some_and(&fractional) {
+                    found.push(u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX));
+                }
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
 /// The 1-based lines of every method, in a class with an `implements` clause, whose body has at most three statements and holds a
 /// `throw` of a string saying it is not implemented or not supported.
 fn stubbed_methods(root: Node<'_>, text: &str) -> Vec<u32> {
@@ -337,6 +383,23 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             }
             continue;
         }
+        if rule == COR_007 {
+            for line in float_equalities(tree.root_node(), &text) {
+                out.findings.push(
+                    Finding::new(
+                        COR_007,
+                        Severity::Medium,
+                        Confidence::High,
+                        view.name(),
+                        "a number compared for exact equality with a fractional literal",
+                        "Compare with an explicit tolerance (Math.abs(a - b) < eps), or compare integers (scaled or rounded) instead.",
+                    )
+                    .location(Location::new(path.clone(), Some(line)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
+        }
         if rule == EXT_003 {
             for line in stubbed_methods(tree.root_node(), &text) {
                 out.findings.push(
@@ -400,6 +463,11 @@ impl Module for TypeScriptModule {
             Capabilities::new(false, false, false, false),
             vec![
                 {
+                    let mut claim = RuleClaim::native(COR_007).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/COR-007".into());
+                    claim
+                },
+                {
                     let mut claim = RuleClaim::native(EXT_003).only_languages(&["typescript"]);
                     claim.proof = Some("conformance-typescript/EXT-003".into());
                     claim
@@ -432,7 +500,7 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if ![ERR_001, TYP_006, ERR_011, EXT_003].contains(&rule.as_str()) {
+            if ![ERR_001, TYP_006, ERR_011, EXT_003, COR_007].contains(&rule.as_str()) {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -704,7 +772,8 @@ abstract class D extends E { f() { throw new Error('not implemented'); } }
     #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 4);
+        assert_eq!(hello.rules.len(), 5);
+        assert!(hello.rules.iter().any(|r| r.id == COR_007));
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
     }

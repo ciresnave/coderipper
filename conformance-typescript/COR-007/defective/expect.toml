@@ -1,0 +1,11 @@
+# The seeded defects: the rule must report exactly these places.
+
+[[expect]]
+rule = "COR-007"
+file = "src/main.ts"
+line = 3
+
+[[expect]]
+rule = "COR-007"
+file = "src/main.ts"
+line = 7
