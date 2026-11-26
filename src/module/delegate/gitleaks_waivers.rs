@@ -268,6 +268,7 @@ mod tests {
                 "4e7b7b09ff9b50d335ce2c7bff2c63bcca4849fc:src/message.rs:generic-api-key:479",
                 "debf24bb29d05560ac8da917547a4145d108fb0e:src/examples_support.rs:private-key:142",
                 "54422f2638b43c44d20d934ad130a72781524fc4:ROADMAP.md:generic-api-key:17",
+                "9ac77dcbf657de6f846dd3dc00b6e4358fb6a281:vulkane/src/safe/physical.rs:vault-service-token:680",
             ]
         );
     }
