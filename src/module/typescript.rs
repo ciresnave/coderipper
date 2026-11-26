@@ -28,13 +28,17 @@ const EXT_003: &str = "EXT-003";
 const COR_007: &str = "COR-007";
 /// The sixth rule: TLS verification switched off (`rejectUnauthorized: false`) or a call that names a broken cipher or mode. Opt-in.
 const SEC_004: &str = "SEC-004";
+/// The seventh rule: an `Error` whose message template interpolates a value named for a secret (`${password}`). Opt-in.
+const ERR_009: &str = "ERR-009";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004]
+    vec![
+        ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004, ERR_009,
+    ]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -321,6 +325,63 @@ fn crypto_misuse(root: Node<'_>, text: &str) -> Vec<u32> {
     found
 }
 
+/// Words that make a name a secret. `token` is left out on purpose: lexers and parsers are full of tokens.
+const SECRET_WORDS: &[&str] = &[
+    "password",
+    "passwd",
+    "secret",
+    "credential",
+    "apikey",
+    "api_key",
+    "privatekey",
+    "private_key",
+];
+
+/// The 1-based lines of `new XError(`...`)` (any constructor whose name ends in `Error`) whose first argument is a template string
+/// interpolating a plain identifier or a property whose last name holds a secret word. Only syntax nodes count, so text inside
+/// strings and comments is never read, and a call, a literal or a computed value in the slot is not judged.
+fn secrets_in_errors(root: Node<'_>, text: &str) -> Vec<u32> {
+    let secret = |n: Node<'_>| {
+        let last = match n.kind() {
+            "identifier" => &text[n.byte_range()],
+            "member_expression" => n
+                .child_by_field_name("property")
+                .map_or("", |p| &text[p.byte_range()]),
+            _ => return false,
+        };
+        let l = last.to_ascii_lowercase();
+        SECRET_WORDS.iter().any(|w| l.contains(w))
+    };
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "new_expression" {
+            let ctor = node
+                .child_by_field_name("constructor")
+                .map(|c| &text[c.byte_range()]);
+            let first = node
+                .child_by_field_name("arguments")
+                .and_then(|a| a.named_child(0));
+            if ctor.is_some_and(|c| c.ends_with("Error")) {
+                if let Some(t) = first.filter(|t| t.kind() == "template_string") {
+                    let mut cursor = t.walk();
+                    let hit = t.children(&mut cursor).any(|c| {
+                        c.kind() == "template_substitution" && c.named_child(0).is_some_and(&secret)
+                    });
+                    if hit {
+                        found
+                            .push(u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX));
+                    }
+                }
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
 /// The 1-based lines of every method, in a class with an `implements` clause, whose body has at most three statements and holds a
 /// `throw` of a string saying it is not implemented or not supported.
 fn stubbed_methods(root: Node<'_>, text: &str) -> Vec<u32> {
@@ -443,6 +504,23 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             }
             continue;
         }
+        if rule == ERR_009 {
+            for line in secrets_in_errors(tree.root_node(), &text) {
+                out.findings.push(
+                    Finding::new(
+                        ERR_009,
+                        Severity::High,
+                        Confidence::Low,
+                        view.name(),
+                        "An error message interpolates a value named for a secret",
+                        "Leave the secret out of the message: name the account or the field, never the value.",
+                    )
+                    .location(Location::new(path.clone(), Some(line)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
+        }
         if rule == SEC_004 {
             for line in crypto_misuse(tree.root_node(), &text) {
                 out.findings.push(
@@ -540,6 +618,11 @@ impl Module for TypeScriptModule {
             Capabilities::new(false, false, false, false),
             vec![
                 {
+                    let mut claim = RuleClaim::native(ERR_009).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/ERR-009".into());
+                    claim
+                },
+                {
                     let mut claim = RuleClaim::native(SEC_004).only_languages(&["typescript"]);
                     claim.proof = Some("conformance-typescript/SEC-004".into());
                     claim
@@ -582,7 +665,11 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if ![ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004].contains(&rule.as_str()) {
+            if ![
+                ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004, ERR_009,
+            ]
+            .contains(&rule.as_str())
+            {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -878,9 +965,37 @@ const s = \"rejectUnauthorized: false\"; // createCipheriv('des', k)
     }
 
     #[test]
+    fn a_secret_in_an_error_message_template_is_reported_but_plain_text_is_not() {
+        let r = read_rule(
+            &RepoView::from_files(&[(
+                "src/a.ts",
+                "throw new Error(`bad ${password}`);
+throw new AuthError(`x ${cfg.apiKey} y`);
+",
+            )]),
+            ERR_009,
+        );
+        assert_eq!(r.findings.len(), 2);
+        let ok = read_rule(
+            &RepoView::from_files(&[(
+                "src/a.ts",
+                "throw new Error(`bad ${user}`);
+throw new Error(\"password\");
+throw new Error(`the ${\"password\"} field`);
+const t = new Token(`${password}`);
+// throw new Error(`${password}`)
+throw new Error(`n ${hashPassword(x)}`);
+",
+            )]),
+            ERR_009,
+        );
+        assert!(ok.findings.is_empty());
+    }
+
+    #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 6);
+        assert_eq!(hello.rules.len(), 7);
         assert!(hello.rules.iter().any(|r| r.id == COR_007));
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
