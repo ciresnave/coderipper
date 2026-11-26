@@ -1,0 +1,1 @@
+Seeded defects: a TLS agent with `rejectUnauthorized: false`, and `createCipheriv` with an ECB-mode cipher. The clean twin verifies the peer, uses AES-GCM, and mentions the option only inside a string.

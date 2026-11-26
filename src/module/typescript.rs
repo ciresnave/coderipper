@@ -26,13 +26,15 @@ const ERR_011: &str = "ERR-011";
 const EXT_003: &str = "EXT-003";
 /// The fifth rule: exact equality (`==`, `===`, `!=`, `!==`) against a fractional float literal (`x === 0.1`). Opt-in.
 const COR_007: &str = "COR-007";
+/// The sixth rule: TLS verification switched off (`rejectUnauthorized: false`) or a call that names a broken cipher or mode. Opt-in.
+const SEC_004: &str = "SEC-004";
 
 /// File extensions read as TypeScript source (JavaScript joins with its own module row, ROADMAP item 12).
 const EXTENSIONS: &[&str] = &["ts", "tsx", "mts", "cts"];
 
 /// The rules this module claims, by id.
 pub fn rule_ids() -> Vec<&'static str> {
-    vec![ERR_001, TYP_006, ERR_011, EXT_003, COR_007]
+    vec![ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004]
 }
 
 /// The TypeScript module: stateless, so it can be shared.
@@ -261,6 +263,64 @@ fn float_equalities(root: Node<'_>, text: &str) -> Vec<u32> {
     found
 }
 
+/// The 1-based lines of TLS verification switched off (an object property `rejectUnauthorized: false`) and of a `createCipheriv`,
+/// `createDecipheriv` or `createCipher` call whose first argument is a string literal naming a broken cipher or mode (DES, RC4,
+/// Blowfish, or any ECB mode). Names inside strings or comments are never read: only syntax nodes count.
+fn crypto_misuse(root: Node<'_>, text: &str) -> Vec<u32> {
+    let weak = |name: &str| {
+        let n = name.to_ascii_lowercase();
+        n.contains("ecb") || n.starts_with("des") || n.starts_with("rc4") || n.starts_with("bf")
+    };
+    let mut found = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        let row = u32::try_from(node.start_position().row + 1).unwrap_or(u32::MAX);
+        match node.kind() {
+            "pair" => {
+                let key = node.child_by_field_name("key").map(|k| {
+                    text[k.byte_range()]
+                        .trim_matches(|c: char| c == '"' || c == char::from(39u8) || c == '`')
+                        .to_string()
+                });
+                let val = node.child_by_field_name("value");
+                if key.as_deref() == Some("rejectUnauthorized")
+                    && val.is_some_and(|v| v.kind() == "false")
+                {
+                    found.push(row);
+                }
+            }
+            "call_expression" => {
+                let f = node
+                    .child_by_field_name("function")
+                    .map(|f| &text[f.byte_range()]);
+                let name = f.map(|f| f.rsplit('.').next().unwrap_or(f));
+                if matches!(
+                    name,
+                    Some("createCipheriv" | "createDecipheriv" | "createCipher")
+                ) {
+                    let first = node
+                        .child_by_field_name("arguments")
+                        .and_then(|a| a.named_child(0));
+                    if let Some(a) = first.filter(|a| a.kind() == "string") {
+                        if weak(
+                            text[a.byte_range()].trim_matches(|c: char| {
+                                c == '"' || c == char::from(39u8) || c == '`'
+                            }),
+                        ) {
+                            found.push(row);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.children(&mut cursor));
+    }
+    found.sort_unstable();
+    found
+}
+
 /// The 1-based lines of every method, in a class with an `implements` clause, whose body has at most three statements and holds a
 /// `throw` of a string saying it is not implemented or not supported.
 fn stubbed_methods(root: Node<'_>, text: &str) -> Vec<u32> {
@@ -383,6 +443,23 @@ fn read_rule(view: &RepoView, rule: &str) -> Read {
             }
             continue;
         }
+        if rule == SEC_004 {
+            for line in crypto_misuse(tree.root_node(), &text) {
+                out.findings.push(
+                    Finding::new(
+                        SEC_004,
+                        Severity::High,
+                        Confidence::High,
+                        view.name(),
+                        "TLS verification is switched off, or a broken cipher or ECB mode is named",
+                        "Leave certificate verification on (fix the trust store instead), and use an authenticated mode such as aes-256-gcm.",
+                    )
+                    .location(Location::new(path.clone(), Some(line)))
+                    .subject(path.clone()),
+                );
+            }
+            continue;
+        }
         if rule == COR_007 {
             for line in float_equalities(tree.root_node(), &text) {
                 out.findings.push(
@@ -463,6 +540,11 @@ impl Module for TypeScriptModule {
             Capabilities::new(false, false, false, false),
             vec![
                 {
+                    let mut claim = RuleClaim::native(SEC_004).only_languages(&["typescript"]);
+                    claim.proof = Some("conformance-typescript/SEC-004".into());
+                    claim
+                },
+                {
                     let mut claim = RuleClaim::native(COR_007).only_languages(&["typescript"]);
                     claim.proof = Some("conformance-typescript/COR-007".into());
                     claim
@@ -500,7 +582,7 @@ impl Module for TypeScriptModule {
         };
         let view = RepoView::from_git(&request.project_root);
         for rule in &request.rules {
-            if ![ERR_001, TYP_006, ERR_011, EXT_003, COR_007].contains(&rule.as_str()) {
+            if ![ERR_001, TYP_006, ERR_011, EXT_003, COR_007, SEC_004].contains(&rule.as_str()) {
                 events.push(Event::RuleResult(RuleResult::error(
                     rule,
                     ErrorKind::Internal,
@@ -770,9 +852,35 @@ abstract class D extends E { f() { throw new Error('not implemented'); } }
     }
 
     #[test]
+    fn tls_off_and_a_broken_cipher_are_reported_but_strings_are_not() {
+        let r = read_rule(
+            &RepoView::from_files(&[(
+                "src/a.ts",
+                "const a = { rejectUnauthorized: false };
+const c = createCipheriv(\"des-ede3\", k, iv);
+const d = crypto.createDecipheriv('aes-128-ecb', k, null);
+",
+            )]),
+            SEC_004,
+        );
+        assert_eq!(r.findings.len(), 3);
+        let ok = read_rule(
+            &RepoView::from_files(&[(
+                "src/a.ts",
+                "const a = { rejectUnauthorized: true };
+const c = createCipheriv(\"aes-256-gcm\", k, iv);
+const s = \"rejectUnauthorized: false\"; // createCipheriv('des', k)
+",
+            )]),
+            SEC_004,
+        );
+        assert!(ok.findings.is_empty());
+    }
+
+    #[test]
     fn the_module_claims_err_001_for_typescript_only() {
         let hello = TypeScriptModule::new().describe().unwrap();
-        assert_eq!(hello.rules.len(), 5);
+        assert_eq!(hello.rules.len(), 6);
         assert!(hello.rules.iter().any(|r| r.id == COR_007));
         assert!(hello.rules[0].covers_language("typescript"));
         assert!(!hello.rules[0].covers_language("rust"));
