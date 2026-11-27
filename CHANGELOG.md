@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.6 - 2026-11-26 (proposed, Fixed (additive): two reviewed SEC-002 waivers for auth-framework#512)
+
+Two `[[waiver]]` entries (`private-key`, `src/tokens/keyring.rs` lines 67 and 72, commit ed51577a): `pkcs8_pem` is a PEM encoder, so the label is armour text and no key material is committed. Reviewer pm, one-year expiry, CireSnave board 510 A route. A squash-commit pair follows once #512 merges.
+
+— lane: coderipper
+
 ## 0.48.5 - 2026-11-26 (proposed, Added: TypeScript COR-007 (additive))
 
 **TypeScript `COR-007`: exact equality against a fractional float literal** (ROADMAP items 8 and 12, fifth rule of the TypeScript module). `==`, `===`, `!=` and `!==` with a literal such as `0.1` or `2.5` as one operand are reported, Medium, one finding per comparison; opt-in (`check COR-007`). Whole-valued literals (`0`, `1.0`, `100`, `1e3`), strings, ordering operators and tolerance comparisons are exact or unaffected and not reported; two variables whose type only a checker knows are not judged. Proof: `conformance-typescript/COR-007` (two seeded defects, a clean twin). Measured false-positive check at `main@60ad815`: 0 findings over 12 portfolio repositories (ThinkersJournal-Community, fam, HumboldtUnifiedKidTracker, ThinkersJournal.com, auth-framework, authframework-site, easyants, ThinkersFoundation, coderipper, surfaceant, SafeImage, OverMind; the TypeScript files each run read: 295, 94, 24, 3, 13, 6, 7, 2, 8, 4, 0 (SafeImage ran no TypeScript module), 2); the seeded fixture finds both planted sites, so the zero is not a dead query.
