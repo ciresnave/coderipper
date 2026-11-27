@@ -274,6 +274,19 @@ mod tests {
     }
 
     #[test]
+    fn the_vulkane_waiver_is_pinned_to_its_repository() {
+        let l = list();
+        let w = l
+            .iter()
+            .find(|w| {
+                w.fingerprint()
+                    .starts_with("9ac77dcbf657de6f846dd3dc00b6e4358fb6a281:")
+            })
+            .expect("vulkane waiver present");
+        assert_eq!(w.repo, "ThinkersJournal/vulkane");
+    }
+
+    #[test]
     fn the_commy_sdk_rust_waivers_match_those_seven_findings_and_nothing_else() {
         const COMMY: &str = "ciresnave/commy-sdk-rust";
         let l = list();
