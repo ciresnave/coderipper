@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.10 - 2026-11-27 (proposed, Additive: the portfolio workflow installs 0.48.9)
+
+**The portfolio workflow installs 0.48.9.** `CODERIPPER_VERSION` in `portfolio.yml` goes from 0.48.6 to 0.48.9 (published 2026-11-27; crates.io `max_version` read 0.48.9). 0.48.9 carries the one reviewed SEC-002 waiver for auth-framework (`private-key`, `src/tokens/keyring.rs` line 67, commit 55137e13; #382, f806c77), which 0.48.6 keyed to the wrong commit; auth-framework#512 waits on it. Workflow only; no rule, option or exit code changes. `tests/portfolio_version.rs` is the guard. The own `ci.yml` pin moves to this change's merge commit in a follow-up.
+
+— lane: coderipper
+
 ## 0.48.9 - 2026-11-27 (proposed, Fixed (additive): the auth-framework keyring.rs waiver is keyed to the commit gitleaks reports)
 
 **The two reviewed SEC-002 `private-key` waivers for `src/tokens/keyring.rs` (lines 67 and 72, commit ed51577a) are replaced by one: line 67, commit 55137e13b0e919945149a3ff53832735cf7724c1.** The 0.48.6 sweep on auth-framework#512 reported the old pair unmatched (each is itself a Medium) and the finding unwaived. A local gitleaks 8.30.1 scan of the #512 head (878d10dd, `origin/work/day-2026-11-26`; 429 commits, 89 findings in all) reports exactly one finding in that file: `private-key`, line 67, commit 55137e13; none at line 72. Same reviewer, evidence and expiry; replaced, not added. The embedded-list test and the on/off control use the new key, and line 72 and the old commit stay open as controls. Waivers are compiled in, so the fix reaches a sweep only after the next publish.
