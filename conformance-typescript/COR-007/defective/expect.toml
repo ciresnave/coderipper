@@ -13,9 +13,9 @@ line = 7
 [[expect]]
 rule = "COR-007"
 file = "src/main.ts"
-line = 12
+line = 11
 
 [[expect]]
 rule = "COR-007"
 file = "src/main.ts"
-line = 16
+line = 15
