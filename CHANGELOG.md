@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.7 - 2026-11-27 (proposed, Additive: the portfolio workflow installs 0.48.6)
+
+**The portfolio workflow installs 0.48.6.** `CODERIPPER_VERSION` in `portfolio.yml` goes from 0.48.1 to 0.48.6 (published 2026-11-27; crates.io `max_version` read 0.48.6). 0.48.6 carries the reviewed SEC-002 waivers for the keyring.rs history that auth-framework#512 waits on, which 0.48.1 cannot apply. Workflow only; no rule, option or exit code changes. `tests/portfolio_version.rs` is the guard. The own `ci.yml` pin moves to this change's merge commit in a follow-up (a SHA exists only after the merge).
+
+— lane: coderipper
+
 ## 0.48.6 - 2026-11-26 (proposed, Fixed (additive): two reviewed SEC-002 waivers for auth-framework#512)
 
 Two `[[waiver]]` entries (`private-key`, `src/tokens/keyring.rs` lines 67 and 72, commit ed51577a): `pkcs8_pem` is a PEM encoder, so the label is armour text and no key material is committed. Reviewer pm, one-year expiry, CireSnave board 510 A route. A squash-commit pair follows once #512 merges.
