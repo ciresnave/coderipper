@@ -1,0 +1,1 @@
+Seeded defects: `===` against 0.1 and `!=` against 2.5, exact equality on a fractional literal. The clean twin uses a tolerance, compares with a zero or whole-number literal, a string, and ordering operators.
