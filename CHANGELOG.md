@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.11 - 2026-11-27 (proposed, Additive: own portfolio gate pinned to ab618d4)
+
+**This repository's own portfolio check now runs the 0.48.9 workflow.** `ci.yml` calls `portfolio.yml` at ab618d4 (#383, installs 0.48.9) instead of 881713c (0.48.6). CI only; no rule, option or exit code changes.
+
+— lane: coderipper
+
 ## 0.48.10 - 2026-11-27 (proposed, Additive: the portfolio workflow installs 0.48.9)
 
 **The portfolio workflow installs 0.48.9.** `CODERIPPER_VERSION` in `portfolio.yml` goes from 0.48.6 to 0.48.9 (published 2026-11-27; crates.io `max_version` read 0.48.9). 0.48.9 carries the one reviewed SEC-002 waiver for auth-framework (`private-key`, `src/tokens/keyring.rs` line 67, commit 55137e13; #382, f806c77), which 0.48.6 keyed to the wrong commit; auth-framework#512 waits on it. Workflow only; no rule, option or exit code changes. `tests/portfolio_version.rs` is the guard. The own `ci.yml` pin moves to this change's merge commit in a follow-up.
