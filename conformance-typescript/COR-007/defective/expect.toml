@@ -9,3 +9,13 @@ line = 3
 rule = "COR-007"
 file = "src/main.ts"
 line = 7
+
+[[expect]]
+rule = "COR-007"
+file = "src/main.ts"
+line = 12
+
+[[expect]]
+rule = "COR-007"
+file = "src/main.ts"
+line = 16

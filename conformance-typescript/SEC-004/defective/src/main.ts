@@ -8,3 +8,11 @@ export function seal(key: Buffer, data: Buffer): Buffer {
   const c = createCipheriv("aes-128-ecb", key, null);
   return Buffer.concat([c.update(data), c.final()]);
 }
+
+export function sealTemplate(key: Buffer): unknown {
+  return createCipheriv(`des-ede3-ecb`, key, null);
+}
+
+export function sealBlowfish(key: Buffer, iv: Buffer): unknown {
+  return createCipheriv("blowfish-cbc", key, iv);
+}

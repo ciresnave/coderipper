@@ -228,6 +228,25 @@ fn parse_fallbacks(root: Node<'_>, text: &str) -> Vec<u32> {
 /// binary or bigint literal is whole by construction. Two variables whose type only a checker knows are not judged.
 fn float_equalities(root: Node<'_>, text: &str) -> Vec<u32> {
     let fractional = |n: Node<'_>| {
+        let mut n = n;
+        // look through parentheses and a unary minus or plus: `x === -0.1`, `x === (0.1)`
+        while matches!(n.kind(), "parenthesized_expression" | "unary_expression") {
+            let inner = if n.kind() == "unary_expression" {
+                let op = n
+                    .child_by_field_name("operator")
+                    .map(|o| &text[o.byte_range()]);
+                if !matches!(op, Some("-" | "+")) {
+                    return false;
+                }
+                n.child_by_field_name("argument")
+            } else {
+                n.named_child(0)
+            };
+            match inner {
+                Some(i) => n = i,
+                None => return false,
+            }
+        }
         if n.kind() != "number" {
             return false;
         }
@@ -273,7 +292,11 @@ fn float_equalities(root: Node<'_>, text: &str) -> Vec<u32> {
 fn crypto_misuse(root: Node<'_>, text: &str) -> Vec<u32> {
     let weak = |name: &str| {
         let n = name.to_ascii_lowercase();
-        n.contains("ecb") || n.starts_with("des") || n.starts_with("rc4") || n.starts_with("bf")
+        n.contains("ecb")
+            || n.starts_with("des")
+            || n.starts_with("rc4")
+            || n.starts_with("bf")
+            || n.starts_with("blowfish")
     };
     let mut found = Vec::new();
     let mut stack = vec![root];
@@ -305,7 +328,14 @@ fn crypto_misuse(root: Node<'_>, text: &str) -> Vec<u32> {
                     let first = node
                         .child_by_field_name("arguments")
                         .and_then(|a| a.named_child(0));
-                    if let Some(a) = first.filter(|a| a.kind() == "string") {
+                    // a string literal, or a template literal with no substitution
+                    let literal = first.filter(|a| {
+                        a.kind() == "string"
+                            || (a.kind() == "template_string"
+                                && a.named_children(&mut a.walk())
+                                    .all(|c| c.kind() != "template_substitution"))
+                    });
+                    if let Some(a) = literal {
                         if weak(
                             text[a.byte_range()].trim_matches(|c: char| {
                                 c == '"' || c == char::from(39u8) || c == '`'

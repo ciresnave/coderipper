@@ -9,3 +9,13 @@ line = 5
 rule = "SEC-004"
 file = "src/main.ts"
 line = 8
+
+[[expect]]
+rule = "SEC-004"
+file = "src/main.ts"
+line = 13
+
+[[expect]]
+rule = "SEC-004"
+file = "src/main.ts"
+line = 17
