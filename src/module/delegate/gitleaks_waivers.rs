@@ -269,8 +269,56 @@ mod tests {
                 "debf24bb29d05560ac8da917547a4145d108fb0e:src/examples_support.rs:private-key:142",
                 "54422f2638b43c44d20d934ad130a72781524fc4:ROADMAP.md:generic-api-key:17",
                 "9ac77dcbf657de6f846dd3dc00b6e4358fb6a281:vulkane/src/safe/physical.rs:vault-service-token:680",
+                "ed51577aa045e0ecc83f01f8cf7f55e5057bf0b2:src/tokens/keyring.rs:private-key:67",
+                "ed51577aa045e0ecc83f01f8cf7f55e5057bf0b2:src/tokens/keyring.rs:private-key:72",
             ]
         );
+    }
+
+    #[test]
+    fn the_auth_framework_keyring_waivers_cover_the_two_armour_lines_and_nothing_else() {
+        const REPO: &str = "ciresnave/auth-framework";
+        const C: &str = "ed51577aa045e0ecc83f01f8cf7f55e5057bf0b2";
+        let l = list();
+        let today = date("2026-11-27");
+        let run = |repo, leaks| apply(&l, repo, leaks, today, |_| true);
+        // the two reviewed lines are waived
+        let a = run(
+            Some(REPO),
+            vec![
+                leak(C, "src/tokens/keyring.rs", "private-key", 67),
+                leak(C, "src/tokens/keyring.rs", "private-key", 72),
+            ],
+        );
+        assert_eq!((a.waived.len(), a.open.len()), (2, 0));
+        // control: a real key block elsewhere in the same file, another file,
+        // another commit, another rule, or another repository is still open
+        for (repo, commit, file, rule, line) in [
+            (REPO, C, "src/tokens/keyring.rs", "private-key", 68),
+            (REPO, C, "src/tokens/other.rs", "private-key", 67),
+            (
+                REPO,
+                "0000000000000000000000000000000000000000",
+                "src/tokens/keyring.rs",
+                "private-key",
+                67,
+            ),
+            (REPO, C, "src/tokens/keyring.rs", "generic-api-key", 67),
+            (
+                "someone/else",
+                C,
+                "src/tokens/keyring.rs",
+                "private-key",
+                67,
+            ),
+        ] {
+            let a = run(Some(repo), vec![leak(commit, file, rule, line)]);
+            assert_eq!(
+                (a.waived.len(), a.open.len()),
+                (0, 1),
+                "{repo} {file} {rule} {line}"
+            );
+        }
     }
 
     #[test]
