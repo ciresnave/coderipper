@@ -270,6 +270,7 @@ mod tests {
                 "54422f2638b43c44d20d934ad130a72781524fc4:ROADMAP.md:generic-api-key:17",
                 "9ac77dcbf657de6f846dd3dc00b6e4358fb6a281:vulkane/src/safe/physical.rs:vault-service-token:680",
                 "55137e13b0e919945149a3ff53832735cf7724c1:src/tokens/keyring.rs:private-key:67",
+                "d9b3937c7c454a3e92935924327977472a73c322:src/tokens/keyring.rs:private-key:67",
             ]
         );
     }
@@ -287,6 +288,18 @@ mod tests {
             vec![leak(C, "src/tokens/keyring.rs", "private-key", 67)],
         );
         assert_eq!((a.waived.len(), a.open.len()), (1, 0));
+        // and so is the same line in the squash commit that put it on main (a local scan of d9b3937c reports exactly this one)
+        const SQUASH: &str = "d9b3937c7c454a3e92935924327977472a73c322";
+        let a = run(
+            Some(REPO),
+            vec![leak(SQUASH, "src/tokens/keyring.rs", "private-key", 67)],
+        );
+        assert_eq!((a.waived.len(), a.open.len()), (1, 0));
+        let a = run(
+            Some(REPO),
+            vec![leak(SQUASH, "src/tokens/keyring.rs", "private-key", 72)],
+        );
+        assert_eq!((a.waived.len(), a.open.len()), (0, 1));
         // control: a real key block elsewhere in the same file, another file,
         // another commit, another rule, or another repository is still open
         for (repo, commit, file, rule, line) in [
