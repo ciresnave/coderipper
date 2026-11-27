@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.4 - 2026-11-26 (proposed, Fix)
+
+**One reviewed SEC-002 waiver for vulkane (additive).** `waivers/secrets.toml` waives gitleaks finding `vault-service-token` at `ThinkersJournal/vulkane` commit 9ac77dcb, `vulkane/src/safe/physical.rs:680`: a one-letter closure variable reading the Vulkan field `storageBuffer16BitAccess`, not a credential. CireSnave board 510, verbatim "510: A". Reviewer pm, expires 2027-11-26; renew by 2027-11-01 with new `reviewed` and `evidence`. Reported as Info (waived), not hidden.
+
+— lane: coderipper
+
 ## 0.48.3 - 2026-11-25 (proposed, Docs)
 
 **Own portfolio pin moved to 467fd25** (the commit that installs 0.48.1 for the portfolio gate): additive, CI-only, no rule or output change.
