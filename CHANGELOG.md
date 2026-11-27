@@ -6,6 +6,12 @@ to crates.io on 2026-10-12** (the PM read `yanked=false` back); crates.io also l
 yanked (read from the registry API on 2026-10-14), though their entries below still say "proposed"; 0.3.0 - 0.6.2 were not published, and none of these is
 recorded here as tagged on GitHub: the earlier ones are the versions of `main` at each merge.
 
+## 0.48.12 - 2026-11-27 (proposed, Fixed (additive): one reviewed SEC-002 waiver for auth-framework's squash commit d9b3937c)
+
+**One `[[waiver]]` entry: `private-key`, `src/tokens/keyring.rs` line 67, auth-framework commit d9b3937c7c454a3e92935924327977472a73c322 (the squash merge of #512).** The 55137e13 entry covers the branch history; once #512 was squash-merged the same line is reported at the squash commit, which that entry cannot match. `pkcs8_pem` is a PEM encoder, so the label is armour text and no key material is committed. A local gitleaks 8.30.1 scan of d9b3937c (89 findings in the history) reports exactly one finding in that commit: this one; none at line 72. Same reviewer (pm), evidence route and one-year expiry as the 55137e13 entry, which stays (a sweep of a branch still names it). The embedded-list test and the on/off control cover it; line 72 at the squash commit stays open. Waivers are compiled in: it reaches a sweep after the next publish.
+
+— lane: coderipper
+
 ## 0.48.11 - 2026-11-27 (proposed, Additive: own portfolio gate pinned to ab618d4)
 
 **This repository's own portfolio check now runs the 0.48.9 workflow.** `ci.yml` calls `portfolio.yml` at ab618d4 (#383, installs 0.48.9) instead of 881713c (0.48.6). CI only; no rule, option or exit code changes.
